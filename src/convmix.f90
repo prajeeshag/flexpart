@@ -29,7 +29,10 @@ subroutine convmix(itime,metdata_format)
   use com_mod
   use conv_mod
   use class_gribfile
-
+  ! openmp change
+  use omp_lib
+  ! openmp change end
+  
   implicit none
 
   integer :: igr,igrold, ipart, itime, ix, j, inest

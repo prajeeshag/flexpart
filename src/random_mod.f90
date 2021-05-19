@@ -34,7 +34,7 @@ contains
     integer :: idum
     real    :: ran1
     integer,parameter :: ia=16807, im=2147483647, iq=127773, ir=2836
-    integer,parameter :: ntab=32, ndiv=1+(im-1)/ntab
+    integer,parameter :: ndiv=1+(im-1)/ran1_ntab
     real,parameter    :: am=1./im, eps=1.2e-7, rnmx=1.-eps
     integer :: j, k
 
@@ -126,8 +126,10 @@ contains
     integer :: i,ii,k
     integer :: mj,mk !inext,inextp,ma(55) ! openmp change
 
-    save inext,inextp,ma
-    integer :: iff = 0
+    ! openmp change
+    ! save inext,inextp,ma
+    ! integer :: iff = 0
+    ! openmp change end
     
     if(idum.lt.0.or.ran3_iff.eq.0)then
       ran3_iff=1

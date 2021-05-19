@@ -73,7 +73,9 @@ subroutine timemanager(metdata_format)
   ! maxpart            maximum number of trajectories                          *
   !                                                                            *
   !*****************************************************************************
-
+  ! openmp change
+  use omp_lib
+  ! openmp change end
   use unc_mod
   use point_mod
   use xmass_mod
@@ -104,6 +106,9 @@ subroutine timemanager(metdata_format)
   real :: xold,yold,zold,xmassfract
   real :: grfraction(3)
   real, parameter :: e_inv = 1.0/exp(1.0)
+  ! openmp change
+  integer :: thread
+  ! openmp change end
 
   !double precision xm(maxspec,maxpointspec_act),
   !    +                 xm_depw(maxspec,maxpointspec_act),
@@ -253,7 +258,7 @@ subroutine timemanager(metdata_format)
    if ((ldirect.eq.1).and.(lconvection.eq.1)) then
      if (verbosity.gt.0) then
        write (*,*) 'timemanager> call convmix -- forward'
-     endif    
+     endif
      call convmix(itime,metdata_format)
    endif
 
@@ -360,7 +365,7 @@ subroutine timemanager(metdata_format)
       endif
 
 
-      if ((mquasilag.eq.1).and.(itime.eq.(loutstart+loutend)/2)) &
+      if ((mquasilag.eq.1).and.(itime.eq.(loutstart+loutend)/2.)) &
            call partoutput_short(itime)    ! dump particle positions in extremely compressed format
 
 
@@ -523,6 +528,19 @@ subroutine timemanager(metdata_format)
     avg_h=0.
     avg_air_dens=0.  !erase vector to obtain air density at particle positions: modified by mc
   !-----------------------------------------------------------------------------
+
+  ! openmp change
+  ! LB, openmp following CTM version, need to be very careful due to big differences
+  ! between the openmp loop in this and the CTM version
+!$OMP PARALLEL PRIVATE(kp,itage,nage,xold,yold,zold,nstop, &
+!$OMP prob,prob_rec,ks,decfact,drydeposit,thread,j, &
+!$OMP loutnext, grfraction, wetscav, xmassfract, idummy)
+
+#if (defined _OPENMP)
+        thread = OMP_GET_THREAD_NUM()
+#endif
+
+!$OMP DO
     do j=1,numpart
 
 
@@ -544,10 +562,9 @@ subroutine timemanager(metdata_format)
 
   ! Initialize newly released particle
   !***********************************
-
         if ((itramem(j).eq.itime).or.(itime.eq.0)) &
              call initialize(itime,idt(j),uap(j),ucp(j),uzp(j), &
-             us(j),vs(j),ws(j),xtra1(j),ytra1(j),ztra1(j),cbt(j))
+               us(j),vs(j),ws(j),xtra1(j),ytra1(j),ztra1(j),cbt(j))
 
   ! Memorize particle positions
   !****************************
@@ -555,7 +572,6 @@ subroutine timemanager(metdata_format)
         xold=xtra1(j)
         yold=ytra1(j)
         zold=ztra1(j)
-
    
   ! RECEPTOR: dry/wet depovel
   !****************************
@@ -576,7 +592,7 @@ subroutine timemanager(metdata_format)
          endif
         enddo
        endif
-
+       ! LB Not carefully checked if there are no problems with OpenMP
        if (WETBKDEP) then 
        do ks=1,nspec
          if  ((xscav_frac1(j,ks).lt.0)) then
@@ -600,7 +616,6 @@ subroutine timemanager(metdata_format)
              write (*,*) 'timemanager> call advance'
            endif     
         endif
-     
         call advance(itime,npoint(j),idt(j),uap(j),ucp(j),uzp(j), &
              us(j),vs(j),ws(j),nstop,xtra1(j),ytra1(j),ztra1(j),prob, &
              cbt(j))
@@ -705,6 +720,10 @@ subroutine timemanager(metdata_format)
       endif
 
     end do !loop over particles
+
+!$OMP END DO
+!$OMP END PARALLEL
+  ! openmp change end
     
   ! Counter of "unstable" particle velocity during a time scale of
   ! maximumtl=20 minutes (defined in com_mod)

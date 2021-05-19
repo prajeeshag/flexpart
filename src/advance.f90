@@ -86,6 +86,10 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   use cmapf_mod
   use random_mod, only: ran3
 
+  ! openmp change
+  use omp_lib, only: OMP_GET_THREAD_NUM
+  ! openmp change end
+
   implicit none
 
   real(kind=dp) :: xt,yt
@@ -108,6 +112,7 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   real :: ptot_lhh,Q_lhh,phi_lhh,ath,bth !modified by mc 
   real :: old_wp_buf,dcas,dcas1,del_test !added by mc
   integer :: i_well,jj,flagrein !test well mixed: modified by mc
+  integer :: thread ! openmp change
 
 
   !!! CHANGE: TEST OF THE WELL-MIXED CRITERION
@@ -129,6 +134,14 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   !endif
   !!! CHANGE
 
+  ! openmp change
+  save idummy
+!$OMP THREADPRIVATE(idummy)  
+!$    if (idummy.eq.-7) then
+!$      thread = OMP_GET_THREAD_NUM()
+!$      idummy = idummy - thread
+!$    endif
+  ! openmp change end 
 
   nstop=0
   do i=1,nmixz
@@ -402,6 +415,7 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
           if (dtftlw.lt..5) then
   !*************************************************************
   !************** CBL options added by mc see routine cblf90 ***
+            ! LB needs to be checked if this works with openmp
             if (cblflag.eq.1) then  !modified by mc
               if (-h/ol.gt.5) then  !modified by mc
               !if (ol.lt.0.) then   !modified by mc  
@@ -691,6 +705,7 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
       if (nsp.gt.nspec) then
         nsp=nspec
       end if
+      ! LB needs to be checked if this works with openmp
       if (density(nsp).gt.0.) then
         call get_settling(itime,real(xt),real(yt),zt,nsp,settling)  !bugfix
         w=w+settling

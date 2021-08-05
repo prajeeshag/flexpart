@@ -53,11 +53,10 @@ subroutine calcpv(n,uuh,vvh,pvh)
 
 !  ppmk(:,:,1:nuvz)=(100000./ppml(:,:,1:nuvz))**kappa
   ppmk(0:nxmin1,0:nymin1,1:nuvz)=(100000./ppml(0:nxmin1,0:nymin1,1:nuvz))**kappa
-!$OMP PARALLEL PRIVATE(jy,ix,kl,phi,f,tanphi,cosphi,jyvp,jyvm,jumpy,juy, &
-!$OMP ixvp,ixvm,jumpx,ivrp,ivrm,jux,theta,klvrp,klvrm,klpt,thetap,thetam,dthetadp, &
-!$OMP ii,i,ivr,kdn,kch,kup,thdn,thup,dt1,dt2,dt,vx,k,dvdx, &
-!$OMP jj,j,uy,dudy)
+
+!$OMP PARALLEL DEFAULT(PRIVATE) SHARED(pvh)
 !$OMP DO
+
   do jy=0,nymin1
     if (sglobal.and.jy.eq.0) goto 10
     if (nglobal.and.jy.eq.nymin1) goto 10
@@ -70,16 +69,16 @@ subroutine calcpv(n,uuh,vvh,pvh)
     jyvm=jy-1
     if (jy.eq.0) jyvm=0
     if (jy.eq.nymin1) jyvp=nymin1
-  ! Define absolute gap length
+! Define absolute gap length
     jumpy=2
     if (jy.eq.0.or.jy.eq.nymin1) jumpy=1
     if (sglobal.and.jy.eq.1) then
-      jyvm=1
-      jumpy=1
+       jyvm=1
+       jumpy=1
     end if
     if (nglobal.and.jy.eq.ny-2) then
-      jyvp=ny-2
-      jumpy=1
+       jyvp=ny-2
+       jumpy=1
     end if
     juy=jumpy
   !
@@ -89,10 +88,10 @@ subroutine calcpv(n,uuh,vvh,pvh)
       ixvm=ix-1
       jumpx=2
       if (xglobal) then
-         ivrp=ixvp
-         ivrm=ixvm
-         if (ixvm.lt.0) ivrm=ixvm+nxmin1
-         if (ixvp.ge.nx) ivrp=ixvp-nx+1
+        ivrp=ixvp
+        ivrm=ixvm
+        if (ixvm.lt.0) ivrm=ixvm+nxmin1
+        if (ixvp.ge.nx) ivrp=ixvp-nx+1
       else
         if (ix.eq.0) ixvm=0
         if (ix.eq.nxmin1) ixvp=nxmin1
@@ -266,26 +265,26 @@ subroutine calcpv(n,uuh,vvh,pvh)
   ! Otherwise OK
 50        continue
         end do
-      if (juy.gt.0) then
-      dudy=(uy(2)-uy(1))/real(juy)/(dy*pi/180.)
-      else
-      dudy=uuh(ix,jyvp,kl)-uuh(ix,jyvm,kl)
-      dudy=dudy/real(jumpy)/(dy*pi/180.)
-      end if
-  !
-      pvh(ix,jy,kl)=dthetadp*(f+(dvdx/cosphi-dudy &
-           +uuh(ix,jy,kl)*tanphi)/r_earth)*(-1.e6)*9.81
+        if (juy.gt.0) then
+          dudy=(uy(2)-uy(1))/real(juy)/(dy*pi/180.)
+        else
+          dudy=uuh(ix,jyvp,kl)-uuh(ix,jyvm,kl)
+          dudy=dudy/real(jumpy)/(dy*pi/180.)
+        end if
+
+        pvh(ix,jy,kl)=dthetadp*(f+(dvdx/cosphi-dudy &
+             +uuh(ix,jy,kl)*tanphi)/r_earth)*(-1.e6)*9.81
 
 
   !
   ! Resest jux and juy
-      jux=jumpx
-      juy=jumpy
+        jux=jumpx
+        juy=jumpy
       end do
     end do
 10  continue
   end do
-!$OMP END DO 
+!$OMP END DO
 !$OMP END PARALLEL
   !
   ! Fill in missing PV values on poles, if present

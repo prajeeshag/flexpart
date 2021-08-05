@@ -35,7 +35,6 @@ subroutine interpol_vdep(level,vdepo)
   real :: y(2),vdepo
 
   ! a) Bilinear horizontal interpolation
-! write(*,*) 'interpol: ',dt1,dt2,dtt,lsynctime,ix,jy
   do m=1,2
     indexh=memind(m)
 
@@ -52,6 +51,4 @@ subroutine interpol_vdep(level,vdepo)
   vdepo=(y(1)*dt2+y(2)*dt1)*dtt
 
   depoindicator(level)=.false.
-
-
 end subroutine interpol_vdep

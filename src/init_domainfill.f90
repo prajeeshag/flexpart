@@ -40,12 +40,12 @@ subroutine init_domainfill
   real,parameter :: pih=pi/180.
   real :: colmass(0:nxmax-1,0:nymax-1),colmasstotal,zposition
 
-  integer :: ixm,ixp,jym,jyp,indzm,indzp,in,indzh,i,jj
+  integer :: ixm,ixp,jym,jyp,indzm,indzp,in,indzh,i,jj,ii
   real :: pvpart,ddx,ddy,rddx,rddy,p1,p2,p3,p4,y1(2)
 
   integer :: idummy = -11
 
-
+  real :: frac,psint,zzlev,zzlev2,ttemp
 ! Determine the release region (only full grid cells), over which particles
 ! shall be initialized
 ! Use 2 fields for west/east and south/north boundary
@@ -199,11 +199,11 @@ subroutine init_domainfill
 ! Do the following steps only if particles are not read in from previous model run
 !*****************************************************************************
             if (ipin.eq.0) then
-              xtra1(numpart+jj)=real(ix)-0.5+ran1(idummy)
-              if (ix.eq.0) xtra1(numpart+jj)=ran1(idummy)
+              xtra1(numpart+jj)=real(real(ix)-0.5+ran1(idummy),kind=dp)
+              if (ix.eq.0) xtra1(numpart+jj)=real(ran1(idummy),kind=dp)
               if (ix.eq.nxmin1) xtra1(numpart+jj)= &
-                   real(nxmin1)-ran1(idummy)
-              ytra1(numpart+jj)=real(jy)-0.5+ran1(idummy)
+                   real(real(nxmin1)-ran1(idummy),kind=dp)
+              ytra1(numpart+jj)=real(real(jy)-0.5+ran1(idummy),kind=dp)
               ztra1(numpart+jj)=(height(kz)*dz2+height(kz+1)*dz1)*dz
               if (ztra1(numpart+jj).gt.height(nz)-0.5) &
                    ztra1(numpart+jj)=height(nz)-0.5
@@ -223,6 +223,10 @@ subroutine init_domainfill
               p2=ddx*rddy
               p3=rddx*ddy
               p4=ddx*ddy
+
+              call z_to_zeta(0,xtra1(numpart+jj),ytra1(numpart+jj),ztra1(numpart+jj),ztra1eta(numpart+jj))
+!***************************************************************************
+
               do i=2,nz
                 if (height(i).gt.ztra1(numpart+jj)) then
                   indzm=i-1
@@ -296,8 +300,8 @@ subroutine init_domainfill
 !***********************************************
 
   do j=1,numpart
-    if ((xtra1(j).lt.0.).or.(xtra1(j).ge.real(nxmin1)).or. &
-         (ytra1(j).lt.0.).or.(ytra1(j).ge.real(nymin1))) then
+    if ((xtra1(j).lt.0.).or.(xtra1(j).ge.real(nxmin1,kind=dp)).or. &
+         (ytra1(j).lt.0.).or.(ytra1(j).ge.real(nymin1,kind=dp))) then
       itra1(j)=-999999999
     endif
   end do

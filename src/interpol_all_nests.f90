@@ -121,10 +121,9 @@ subroutine interpol_all_nests(itime,xt,yt,zt)
     if (height(i).gt.zt) then
       indz=i-1
       indzp=i
-      goto 6
+      exit
     endif
   end do
-6   continue
 
   !**************************************
   ! 1.) Bilinear horizontal interpolation
@@ -217,5 +216,4 @@ subroutine interpol_all_nests(itime,xt,yt,zt)
     endif
 
   end do
-
 end subroutine interpol_all_nests

@@ -94,7 +94,7 @@ subroutine calcmatrix(lconv,delt,cbmf,metdata_format)
   do k = 1,nuvz-1
     qsconv(k) = f_qvsat( pconv(k), tconv(k) )
   end do
-  fmassfrac(1:nuvz-1,1:nconvlev)=0. ! LB initialise at end
+  fmassfrac(1:nuvz-1,1:nconvlev)=0.
   ! LB end
 
   !note that Emanuel says it is important
@@ -150,12 +150,11 @@ subroutine calcmatrix(lconv,delt,cbmf,metdata_format)
     end do
     fmassfrac(k,k)=fmassfrac(k,k) + rlevmass - summe
   end do
-  ! LB 04.05.2021, replace above with array operations (doesn't work?)
+  ! LB 04.05.2021, replace above with array operations (not the problem)
   ! fmassfrac(1:nconvtop,1:nconvtop) = delt*fmass(1:nconvtop,1:nconvtop)
   ! do k=1, nconvtop
   !     fmassfrac(k, k) = fmassfrac(k, k) + dpr(k)/ga - sum(fmassfrac(k, 1:nconvtop))
   ! end do
-  ! fmassfrac(nconvtop+1:, nconvtop+1:)=0.
   ! LB end
 
 200   continue

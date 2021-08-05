@@ -15,11 +15,11 @@ subroutine partpos_average(itime,j)
 
   implicit none
 
-  integer :: itime,j,ix,jy,ixp,jyp,indexh,m,il,ind,indz,indzp
-  real :: xlon,ylat,x,y,z
+  integer :: itime,j,i,ix,jy,ixp,jyp,indexh,m,il,ind,indz,indzp,k
+  real :: xlon,ylat,x,y,z,ztemp,ztemp1,ztemp2,frac,psint1(2),psint
   real :: dt1,dt2,dtt,ddx,ddy,rddx,rddy,p1,p2,p3,p4,dz1,dz2,dz
   real :: topo,hm(2),hmixi,pv1(2),pvprof(2),pvi,qv1(2),qvprof(2),qvi
-  real :: tt1(2),ttprof(2),tti,rho1(2),rhoprof(2),rhoi
+  real :: tt1(2),ttprof(2),tti,rho1(2),rhoprof(2),rhoi,ttemp
   real :: uu1(2),uuprof(2),uui,vv1(2),vvprof(2),vvi
   real :: tr(2),tri,energy
 
@@ -39,8 +39,8 @@ subroutine partpos_average(itime,j)
   ! Interpolate several variables (PV, specific humidity, etc.) to particle position
   !*****************************************************************************
 
-  ix=xtra1(j)
-  jy=ytra1(j)
+  ix=int(xtra1(j))
+  jy=int(ytra1(j))
   ixp=ix+1
   jyp=jy+1
   ddx=xtra1(j)-real(ix)
@@ -60,60 +60,62 @@ subroutine partpos_average(itime,j)
 
   ! Topography
   !***********
-
+  if ((jy.lt.0).or.(jyp.lt.0)) write(*,*) 'topo', j,jy,jyp,ytra1(j),ytra1(j)
   topo=p1*oro(ix,jy)+p2*oro(ixp,jy)+p3*oro(ix,jyp)+p4*oro(ixp,jyp)
 
  ! Potential vorticity, specific humidity, temperature, and density
   !*****************************************************************
-
-  do il=2,nz
-    if (height(il).gt.ztra1(j)) then
+  indz=nz-2
+  indzp=nz-1
+  do il=2,nz-1
+    if (uvheight(il).lt.ztra1eta(j)) then
       indz=il-1
       indzp=il
+      dz1=ztra1eta(j)-uvheight(indz)
+      dz2=uvheight(indzp)-ztra1eta(j)
+      dz=1./(dz1+dz2)
       goto 6
     endif
   end do
+  dz1=1.
+  dz2=0.
+  dz=1.
 6 continue
-
-  dz1=ztra1(j)-height(indz)
-  dz2=height(indzp)-ztra1(j)
-  dz=1./(dz1+dz2)
-
 
   do ind=indz,indzp
     do m=1,2
       indexh=memind(m)
 
   ! Potential vorticity
-      pv1(m)=p1*pv(ix ,jy ,ind,indexh) &
-            +p2*pv(ixp,jy ,ind,indexh) &
-            +p3*pv(ix ,jyp,ind,indexh) &
-            +p4*pv(ixp,jyp,ind,indexh)
+      pv1(m)=p1*pveta(ix ,jy ,ind,indexh) &
+            +p2*pveta(ixp,jy ,ind,indexh) &
+            +p3*pveta(ix ,jyp,ind,indexh) &
+            +p4*pveta(ixp,jyp,ind,indexh)
   ! Specific humidity
-      qv1(m)=p1*qv(ix ,jy ,ind,indexh) &
-            +p2*qv(ixp,jy ,ind,indexh) &
-            +p3*qv(ix ,jyp,ind,indexh) &
-            +p4*qv(ixp,jyp,ind,indexh)
+      qv1(m)=p1*qveta(ix ,jy ,ind,indexh) &
+            +p2*qveta(ixp,jy ,ind,indexh) &
+            +p3*qveta(ix ,jyp,ind,indexh) &
+            +p4*qveta(ixp,jyp,ind,indexh)
   ! Temperature
-      tt1(m)=p1*tt(ix ,jy ,ind,indexh) &
-            +p2*tt(ixp,jy ,ind,indexh) &
-            +p3*tt(ix ,jyp,ind,indexh) &
-            +p4*tt(ixp,jyp,ind,indexh)
+      tt1(m)=p1*tteta(ix ,jy ,ind,indexh) &
+            +p2*tteta(ixp,jy ,ind,indexh) &
+            +p3*tteta(ix ,jyp,ind,indexh) &
+            +p4*tteta(ixp,jyp,ind,indexh)
   ! U wind
-      uu1(m)=p1*uu(ix ,jy ,ind,indexh) &
-            +p2*uu(ixp,jy ,ind,indexh) &
-            +p3*uu(ix ,jyp,ind,indexh) &
-            +p4*uu(ixp,jyp,ind,indexh)
+      uu1(m)=p1*uueta(ix ,jy ,ind,indexh) &
+            +p2*uueta(ixp,jy ,ind,indexh) &
+            +p3*uueta(ix ,jyp,ind,indexh) &
+            +p4*uueta(ixp,jyp,ind,indexh)
   ! V wind
-      vv1(m)=p1*vv(ix ,jy ,ind,indexh) &
-            +p2*vv(ixp,jy ,ind,indexh) &
-            +p3*vv(ix ,jyp,ind,indexh) &
-            +p4*vv(ixp,jyp,ind,indexh)
+      vv1(m)=p1*vveta(ix ,jy ,ind,indexh) &
+            +p2*vveta(ixp,jy ,ind,indexh) &
+            +p3*vveta(ix ,jyp,ind,indexh) &
+            +p4*vveta(ixp,jyp,ind,indexh)
   ! Density
-      rho1(m)=p1*rho(ix ,jy ,ind,indexh) &
-             +p2*rho(ixp,jy ,ind,indexh) &
-             +p3*rho(ix ,jyp,ind,indexh) &
-             +p4*rho(ixp,jyp,ind,indexh)
+      rho1(m)=p1*rhoeta(ix ,jy ,ind,indexh) &
+             +p2*rhoeta(ixp,jy ,ind,indexh) &
+             +p3*rhoeta(ix ,jyp,ind,indexh) &
+             +p4*rhoeta(ixp,jyp,ind,indexh)
     end do
     pvprof(ind-indz+1)=(pv1(1)*dt2+pv1(2)*dt1)*dtt
     qvprof(ind-indz+1)=(qv1(1)*dt2+qv1(2)*dt1)*dtt
@@ -151,8 +153,12 @@ subroutine partpos_average(itime,j)
   hmixi=(hm(1)*dt2+hm(2)*dt1)*dtt
   tri=(tr(1)*dt2+tr(2)*dt1)*dtt
 
+  ! Convert eta z coordinate to meters
+  !***********************************
 
-  energy=tti*cpa+(ztra1(j)+topo)*9.81+qvi*2501000.+(uui**2+vvi**2)/2.
+  call zeta_to_z(itime,xtra1(j),ytra1(j),ztra1eta(j),ztemp1)
+
+  energy=tti*cpa+(ztemp1+topo)*9.81+qvi*2501000.+(uui**2+vvi**2)/2.
 
   ! Add new values to sum and increase counter by one
   !**************************************************
@@ -168,10 +174,18 @@ subroutine partpos_average(itime,j)
   y = -1.*cos(ylat)*cos(xlon)
   z = sin(ylat)
 
+
+
+  if (j.eq.1) then
+    write(*,*) 'topo: ', topo, 'z:', ztemp1, ztra1eta(j),ztra1(j)!'zm: ',  ztra1(j),'k,nz,indzp: ',  k, nz, indzp
+    write(*,*) 'xtra,xeta: ', xtra1(j)
+    write(*,*) 'ytra,yeta: ', ytra1(j)
+  endif
+
   part_av_cartx(j)=part_av_cartx(j)+x
   part_av_carty(j)=part_av_carty(j)+y
   part_av_cartz(j)=part_av_cartz(j)+z
-  part_av_z(j)=part_av_z(j)+ztra1(j)
+  part_av_z(j)=ztemp1!part_av_z(j)+ztemp1
   part_av_topo(j)=part_av_topo(j)+topo
   part_av_pv(j)=part_av_pv(j)+pvi
   part_av_qv(j)=part_av_qv(j)+qvi

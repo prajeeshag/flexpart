@@ -97,7 +97,7 @@ subroutine convmix(itime,metdata_format)
     end do
     ipoint(ipart)=ipart
   ! do not consider particles that are (yet) not part of simulation
-    if (itra1(ipart).ne.itime) cycle
+    if (itra1(ipart).ne.itime) goto 20
     x = xtra1(ipart)
     y = ytra1(ipart)
 
@@ -106,13 +106,13 @@ subroutine convmix(itime,metdata_format)
 
     ngrid=0
     if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-      do j=numbnests,1,-1
-        if ( x.gt.xln(j)+eps .and. x.lt.xrn(j)-eps .and. &
-             y.gt.yln(j)+eps .and. y.lt.yrn(j)-eps ) then
-          ngrid=j
-          goto 23
-        endif
-      end do
+    do j=numbnests,1,-1
+      if ( x.gt.xln(j)+eps .and. x.lt.xrn(j)-eps .and. &
+           y.gt.yln(j)+eps .and. y.lt.yrn(j)-eps ) then
+        ngrid=j
+        goto 23
+      endif
+    end do
     else
       do j=numbnests,1,-1
         if ( x.gt.xln(j) .and. x.lt.xrn(j) .and. &
@@ -133,14 +133,12 @@ subroutine convmix(itime,metdata_format)
       ytn=(y-yln(ngrid))*yresoln(ngrid)
       ix=nint(xtn)
       jy=nint(ytn)
-      ! igridn(ipart,ngrid) = 1 + jy*nxn(ngrid) + ix
-      igridn(ipart,ngrid) = 1 + ix*nyn(ngrid) + jy
+      igridn(ipart,ngrid) = 1 + jy*nxn(ngrid) + ix
     else if(ngrid.eq.0) then
   ! mother grid
       ix=nint(x)
       jy=nint(y)
-      !igrid(ipart) = 1 + jy*nx + ix
-      igrid(ipart) = 1 + ix*ny + jy
+      igrid(ipart) = 1 + jy*nx + ix
     endif
 
  20 continue
@@ -220,10 +218,8 @@ subroutine convmix(itime,metdata_format)
             qv(ix,jy,kz,mind2)*dt1)*dtt
       end do
     end if
-
   ! Calculate translocation matrix
     call calcmatrix(lconv,delt,cbaseflux(ix,jy),metdata_format)
-    
   ! treat particle only if column has convection
     if (lconv .eqv. .true.) then
       ktop = 0
@@ -232,7 +228,10 @@ subroutine convmix(itime,metdata_format)
       do kpart=frst(kk), frst(kk+1)-1
         ipart = ipoint(kpart)
         ztold=ztra1(ipart)
-        call redist(itime,ipart,ktop,ipconv)
+        call redist(ipart,ktop,ipconv)
+        if ((ztra1(ipart)+1).eq.ztra1(ipart)) then
+          write(*,*) 'wrong particle', ipart, ztra1, ztold
+        endif
   !    if (ipconv.le.0) sumconv = sumconv+1
 
   ! Calculate the gross fluxes across layer interfaces
@@ -246,7 +245,7 @@ subroutine convmix(itime,metdata_format)
    37     continue
 
           if (nage.le.nageclass) &
-            call calcfluxes(nage,ipart,real(xtra1(ipart)), &
+               call calcfluxes(nage,ipart,real(xtra1(ipart)), &
                real(ytra1(ipart)),ztold)
         endif
       enddo
@@ -313,7 +312,10 @@ subroutine convmix(itime,metdata_format)
       if (lconv .eqv. .true.) then
   ! assign new vertical position to particle
         ztold=ztra1(ipart)
-        call redist(itime,ipart,ktop,ipconv)
+        call redist(ipart,ktop,ipconv)
+        if ((ztra1(ipart)+1).eq.ztra1(ipart)) then
+          write(*,*) 'wrong particle2', ipart, ztra1, ztold
+        endif
   !      if (ipconv.le.0) sumconv = sumconv+1
 
   ! Calculate the gross fluxes across layer interfaces

@@ -1,30 +1,30 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
 
-subroutine interpol_wind_short(itime,xt,yt,zt)
-!                                 i   i  i  i
-!*****************************************************************************
-!                                                                            *
-!  This subroutine interpolates the wind data to current trajectory position.*
-!                                                                            *
-!    Author: A. Stohl                                                        *
-!                                                                            *
-!    16 December 1997                                                        *
-!                                                                            *
-!  Revision March 2005 by AST : all output variables in common block         *
-!                                                                            *
-!*****************************************************************************
-!                                                                            *
-! Variables:                                                                 *
-! u,v,w              wind components                                         *
-! itime [s]          current temporal position                               *
-! memtime(3) [s]     times of the wind fields in memory                      *
-! xt,yt,zt           coordinates position for which wind data shall be       *
-!                    calculated                                              *
-!                                                                            *
-! Constants:                                                                 *
-!                                                                            *
-!*****************************************************************************
+subroutine interpol_wind_short(itime,xt,yt,zt,zteta)
+  !                                 i   i  i  i
+  !*****************************************************************************
+  !                                                                            *
+  !  This subroutine interpolates the wind data to current trajectory position.*
+  !                                                                            *
+  !    Author: A. Stohl                                                        *
+  !                                                                            *
+  !    16 December 1997                                                        *
+  !                                                                            *
+  !  Revision March 2005 by AST : all output variables in common block         *
+  !                                                                            *
+  !*****************************************************************************
+  !                                                                            *
+  ! Variables:                                                                 *
+  ! u,v,w              wind components                                         *
+  ! itime [s]          current temporal position                               *
+  ! memtime(3) [s]     times of the wind fields in memory                      *
+  ! xt,yt,zt           coordinates position for which wind data shall be       *
+  !                    calculated                                              *
+  !                                                                            *
+  ! Constants:                                                                 *
+  !                                                                            *
+  !*****************************************************************************
 
   use par_mod
   use com_mod
@@ -34,11 +34,12 @@ subroutine interpol_wind_short(itime,xt,yt,zt)
 
   integer, intent(in) :: itime
   real, intent(in) :: xt,yt,zt
+  real, intent(in) :: zteta
 
   ! Auxiliary variables needed for interpolation
   real :: dz1,dz2,dz
-  real :: u1(2),v1(2),w1(2),uh(2),vh(2),wh(2)
-  integer :: i,m,n,indexh,indzh
+  real :: u1(2),v1(2),w1(2),uh(2),vh(2),wh(2),dpdeta1(2)
+  integer :: i,m,n,indexh,indzh,psint(2),psint_t,dpdeta
 
 
   !********************************************
@@ -67,11 +68,9 @@ subroutine interpol_wind_short(itime,xt,yt,zt)
   do i=2,nz
     if (height(i).gt.zt) then
       indz=i-1
-      goto 6
+      exit
     endif
   end do
-6   continue
-
 
   ! Vertical distance to the level below and above current position
   !****************************************************************
@@ -88,31 +87,10 @@ subroutine interpol_wind_short(itime,xt,yt,zt)
 
   ! Loop over 2 time steps and 2 levels
   !************************************
-
   do m=1,2
     indexh=memind(m)
     do n=1,2
       indzh=indz+n-1
-
-      if (ngrid.lt.0) then
-        u1(n)=p1*uupol(ix ,jy ,indzh,indexh) &
-             +p2*uupol(ixp,jy ,indzh,indexh) &
-             +p3*uupol(ix ,jyp,indzh,indexh) &
-             +p4*uupol(ixp,jyp,indzh,indexh)
-        v1(n)=p1*vvpol(ix ,jy ,indzh,indexh) &
-             +p2*vvpol(ixp,jy ,indzh,indexh) &
-             +p3*vvpol(ix ,jyp,indzh,indexh) &
-             +p4*vvpol(ixp,jyp,indzh,indexh)
-      else
-        u1(n)=p1*uu(ix ,jy ,indzh,indexh) &
-             +p2*uu(ixp,jy ,indzh,indexh) &
-             +p3*uu(ix ,jyp,indzh,indexh) &
-             +p4*uu(ixp,jyp,indzh,indexh)
-        v1(n)=p1*vv(ix ,jy ,indzh,indexh) &
-             +p2*vv(ixp,jy ,indzh,indexh) &
-             +p3*vv(ix ,jyp,indzh,indexh) &
-             +p4*vv(ixp,jyp,indzh,indexh)
-      endif
       w1(n)=p1*ww(ix ,jy ,indzh,indexh) &
            +p2*ww(ixp,jy ,indzh,indexh) &
            +p3*ww(ix ,jyp,indzh,indexh) &
@@ -124,8 +102,6 @@ subroutine interpol_wind_short(itime,xt,yt,zt)
   ! 2.) Linear vertical interpolation
   !**********************************
 
-    uh(m)=dz2*u1(1)+dz1*u1(2)
-    vh(m)=dz2*v1(1)+dz1*v1(2)
     wh(m)=dz2*w1(1)+dz1*w1(2)
   end do
 
@@ -134,9 +110,92 @@ subroutine interpol_wind_short(itime,xt,yt,zt)
   !************************************
   ! 3.) Temporal interpolation (linear)
   !************************************
+  w=(wh(1)*dt2+wh(2)*dt1)*dtt
+
+
+  ! Same for eta coordinates
+  !*************************
+
+  induv=nz-1
+  dz1=1.
+  dz2=0.
+  dz=1.
+  do i=2,nz
+    if (uvheight(i).lt.zteta) then
+      induv=i-1
+      dz=1./(uvheight(induv+1)-uvheight(induv))
+      dz1=(zteta-uvheight(induv))*dz
+      dz2=(uvheight(induv+1)-zteta)*dz
+      exit
+    endif
+  end do
+
+  do m=1,2
+    indexh=memind(m)
+    do n=1,2
+      indzh=induv+n-1
+
+      if (ngrid.lt.0) then
+        u1(n)=p1*uupoleta(ix ,jy ,indzh,indexh) &
+             +p2*uupoleta(ixp,jy ,indzh,indexh) &
+             +p3*uupoleta(ix ,jyp,indzh,indexh) &
+             +p4*uupoleta(ixp,jyp,indzh,indexh)
+        v1(n)=p1*vvpoleta(ix ,jy ,indzh,indexh) &
+             +p2*vvpoleta(ixp,jy ,indzh,indexh) &
+             +p3*vvpoleta(ix ,jyp,indzh,indexh) &
+             +p4*vvpoleta(ixp,jyp,indzh,indexh)
+      else
+        u1(n)=p1*uueta(ix ,jy ,indzh,indexh) &
+             +p2*uueta(ixp,jy ,indzh,indexh) &
+             +p3*uueta(ix ,jyp,indzh,indexh) &
+             +p4*uueta(ixp,jyp,indzh,indexh)
+        v1(n)=p1*vveta(ix ,jy ,indzh,indexh) &
+             +p2*vveta(ixp,jy ,indzh,indexh) &
+             +p3*vveta(ix ,jyp,indzh,indexh) &
+             +p4*vveta(ixp,jyp,indzh,indexh)
+      endif
+    end do
+
+  !**********************************
+  ! 2.) Linear vertical interpolation
+  !**********************************
+
+    uh(m)=dz2*u1(1)+dz1*u1(2)
+    vh(m)=dz2*v1(1)+dz1*v1(2)
+  end do
+
+  indzeta=nz-1
+  dz1=1.
+  dz2=0.
+  dz=1.
+  do i=2,nz
+    if (wheight(i).lt.zteta) then
+      indzeta=i-1
+      dz=1./(wheight(indzeta+1)-wheight(indzeta))
+      dz1=(zteta-wheight(indzeta))*dz
+      dz2=(wheight(indzeta+1)-zteta)*dz
+      exit
+    endif
+  end do
+
+  do m=1,2
+    indexh=memind(m)
+    do n=1,2
+      indzh=indzeta+n-1
+      w1(n)=p1*wweta(ix ,jy ,indzh,indexh) &
+           +p2*wweta(ixp,jy ,indzh,indexh) &
+           +p3*wweta(ix ,jyp,indzh,indexh) &
+           +p4*wweta(ixp,jyp,indzh,indexh)
+    end do
+    wh(m)=dz2*w1(1)+dz1*w1(2)
+  end do
+
+  !************************************
+  ! 3.) Temporal interpolation (linear)
+  !************************************
 
   u=(uh(1)*dt2+uh(2)*dt1)*dtt
   v=(vh(1)*dt2+vh(2)*dt1)*dtt
-  w=(wh(1)*dt2+wh(2)*dt1)*dtt
+  weta=(wh(1)*dt2+wh(2)*dt1)*dtt
 
 end subroutine interpol_wind_short

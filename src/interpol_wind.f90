@@ -1,7 +1,7 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
 
-subroutine interpol_wind(itime,xt,yt,zt)
+subroutine interpol_wind(itime,xt,yt,zt,zteta,pp)
   !                           i   i  i  i
   !*****************************************************************************
   !                                                                            *
@@ -35,13 +35,14 @@ subroutine interpol_wind(itime,xt,yt,zt)
 
   implicit none
 
-  integer :: itime
+  integer :: itime,pp
   real :: xt,yt,zt
+  real :: zteta
 
   ! Auxiliary variables needed for interpolation
-  real :: dz1,dz2,dz
-  real :: u1(2),v1(2),w1(2),uh(2),vh(2),wh(2)
-  real :: usl,vsl,wsl,usq,vsq,wsq,xaux
+  real :: dz1,dz2,dz,psint(2)
+  real :: u1(2),v1(2),w1(2),dpdeta1(2),uh(2),vh(2),wh(2)
+  real :: usl,vsl,wsl,usq,vsq,wsq,xaux,dpdeta(2),psint_t,dpdetatemp
   integer :: i,m,n,indexh,indzh
   real,parameter :: eps=1.0e-30
 
@@ -71,15 +72,13 @@ subroutine interpol_wind(itime,xt,yt,zt)
 
   ! Determine the level below the current position for u,v
   !*******************************************************
-
+  indz=nz-1
   do i=2,nz
     if (height(i).gt.zt) then
       indz=i-1
-      goto 6
+      exit
     endif
   end do
-6   continue
-
 
   ! Vertical distance to the level below and above current position
   !****************************************************************
@@ -96,66 +95,12 @@ subroutine interpol_wind(itime,xt,yt,zt)
   ! Loop over 2 time steps and 2 levels
   !************************************
 
-  usl=0.
-  vsl=0.
   wsl=0.
-  usq=0.
-  vsq=0.
   wsq=0.
   do m=1,2
     indexh=memind(m)
     do n=1,2
       indzh=indz+n-1
-
-      if (ngrid.lt.0) then
-        u1(n)=p1*uupol(ix ,jy ,indzh,indexh) &
-             +p2*uupol(ixp,jy ,indzh,indexh) &
-             +p3*uupol(ix ,jyp,indzh,indexh) &
-             +p4*uupol(ixp,jyp,indzh,indexh)
-        v1(n)=p1*vvpol(ix ,jy ,indzh,indexh) &
-             +p2*vvpol(ixp,jy ,indzh,indexh) &
-             +p3*vvpol(ix ,jyp,indzh,indexh) &
-             +p4*vvpol(ixp,jyp,indzh,indexh)
-        usl=usl+uupol(ix ,jy ,indzh,indexh)+ &
-             uupol(ixp,jy ,indzh,indexh) &
-             +uupol(ix ,jyp,indzh,indexh)+uupol(ixp,jyp,indzh,indexh)
-        vsl=vsl+vvpol(ix ,jy ,indzh,indexh)+ &
-             vvpol(ixp,jy ,indzh,indexh) &
-             +vvpol(ix ,jyp,indzh,indexh)+vvpol(ixp,jyp,indzh,indexh)
-
-        usq=usq+uupol(ix ,jy ,indzh,indexh)* &
-             uupol(ix ,jy ,indzh,indexh)+ &
-             uupol(ixp,jy ,indzh,indexh)*uupol(ixp,jy ,indzh,indexh)+ &
-             uupol(ix ,jyp,indzh,indexh)*uupol(ix ,jyp,indzh,indexh)+ &
-             uupol(ixp,jyp,indzh,indexh)*uupol(ixp,jyp,indzh,indexh)
-        vsq=vsq+vvpol(ix ,jy ,indzh,indexh)* &
-             vvpol(ix ,jy ,indzh,indexh)+ &
-             vvpol(ixp,jy ,indzh,indexh)*vvpol(ixp,jy ,indzh,indexh)+ &
-             vvpol(ix ,jyp,indzh,indexh)*vvpol(ix ,jyp,indzh,indexh)+ &
-             vvpol(ixp,jyp,indzh,indexh)*vvpol(ixp,jyp,indzh,indexh)
-      else
-        u1(n)=p1*uu(ix ,jy ,indzh,indexh) &
-             +p2*uu(ixp,jy ,indzh,indexh) &
-             +p3*uu(ix ,jyp,indzh,indexh) &
-             +p4*uu(ixp,jyp,indzh,indexh)
-        v1(n)=p1*vv(ix ,jy ,indzh,indexh) &
-             +p2*vv(ixp,jy ,indzh,indexh) &
-             +p3*vv(ix ,jyp,indzh,indexh) &
-             +p4*vv(ixp,jyp,indzh,indexh)
-        usl=usl+uu(ix ,jy ,indzh,indexh)+uu(ixp,jy ,indzh,indexh) &
-             +uu(ix ,jyp,indzh,indexh)+uu(ixp,jyp,indzh,indexh)
-        vsl=vsl+vv(ix ,jy ,indzh,indexh)+vv(ixp,jy ,indzh,indexh) &
-             +vv(ix ,jyp,indzh,indexh)+vv(ixp,jyp,indzh,indexh)
-
-        usq=usq+uu(ix ,jy ,indzh,indexh)*uu(ix ,jy ,indzh,indexh)+ &
-             uu(ixp,jy ,indzh,indexh)*uu(ixp,jy ,indzh,indexh)+ &
-             uu(ix ,jyp,indzh,indexh)*uu(ix ,jyp,indzh,indexh)+ &
-             uu(ixp,jyp,indzh,indexh)*uu(ixp,jyp,indzh,indexh)
-        vsq=vsq+vv(ix ,jy ,indzh,indexh)*vv(ix ,jy ,indzh,indexh)+ &
-             vv(ixp,jy ,indzh,indexh)*vv(ixp,jy ,indzh,indexh)+ &
-             vv(ix ,jyp,indzh,indexh)*vv(ix ,jyp,indzh,indexh)+ &
-             vv(ixp,jyp,indzh,indexh)*vv(ixp,jyp,indzh,indexh)
-      endif
       w1(n)=p1*ww(ix ,jy ,indzh,indexh) &
            +p2*ww(ixp,jy ,indzh,indexh) &
            +p3*ww(ix ,jyp,indzh,indexh) &
@@ -173,8 +118,6 @@ subroutine interpol_wind(itime,xt,yt,zt)
   ! 2.) Linear vertical interpolation
   !**********************************
 
-    uh(m)=dz2*u1(1)+dz1*u1(2)
-    vh(m)=dz2*v1(1)+dz1*v1(2)
     wh(m)=dz2*w1(1)+dz1*w1(2)
   end do
 
@@ -183,13 +126,157 @@ subroutine interpol_wind(itime,xt,yt,zt)
   ! 3.) Temporal interpolation (linear)
   !************************************
 
-  u=(uh(1)*dt2+uh(2)*dt1)*dtt
-  v=(vh(1)*dt2+vh(2)*dt1)*dtt
   w=(wh(1)*dt2+wh(2)*dt1)*dtt
-
 
   ! Compute standard deviations
   !****************************
+
+  xaux=wsq-wsl*wsl/16.
+  if (xaux.lt.eps) then
+    wsig=0.
+  else
+    wsig=sqrt(xaux/15.)
+  endif
+
+  ! Same for eta coordinates
+  !*************************
+
+  induv=nz-1
+  indpuv=nz
+  do i=2,nz
+    if (uvheight(i).lt.zteta) then
+      induv=i-1
+      indpuv=i
+      exit
+    endif
+  end do
+
+  dz=1./(uvheight(induv+1)-uvheight(induv))
+  dz1=(zteta-uvheight(induv))*dz
+  dz2=(uvheight(induv+1)-zteta)*dz
+  ! if (pp.eq.1) write(*,*) 'uv: ', zteta,induv,uvheight(induv),uvheight(indpuv),dz1,dz2
+
+  usl=0.
+  vsl=0.
+  usq=0.
+  vsq=0.
+  do m=1,2
+    indexh=memind(m)
+    do n=1,2
+      indzh=induv+n-1
+
+      if (ngrid.lt.0) then
+        u1(n)=p1*uupoleta(ix ,jy ,indzh,indexh) &
+             +p2*uupoleta(ixp,jy ,indzh,indexh) &
+             +p3*uupoleta(ix ,jyp,indzh,indexh) &
+             +p4*uupoleta(ixp,jyp,indzh,indexh)
+        v1(n)=p1*vvpoleta(ix ,jy ,indzh,indexh) &
+             +p2*vvpoleta(ixp,jy ,indzh,indexh) &
+             +p3*vvpoleta(ix ,jyp,indzh,indexh) &
+             +p4*vvpoleta(ixp,jyp,indzh,indexh)
+        usl=usl+uupoleta(ix ,jy ,indzh,indexh)+ &
+             uupoleta(ixp,jy ,indzh,indexh) &
+             +uupoleta(ix ,jyp,indzh,indexh)+uupoleta(ixp,jyp,indzh,indexh)
+        vsl=vsl+vvpoleta(ix ,jy ,indzh,indexh)+ &
+             vvpoleta(ixp,jy ,indzh,indexh) &
+             +vvpoleta(ix ,jyp,indzh,indexh)+vvpoleta(ixp,jyp,indzh,indexh)
+
+        usq=usq+uupoleta(ix ,jy ,indzh,indexh)* &
+             uupoleta(ix ,jy ,indzh,indexh)+ &
+             uupoleta(ixp,jy ,indzh,indexh)*uupoleta(ixp,jy ,indzh,indexh)+ &
+             uupoleta(ix ,jyp,indzh,indexh)*uupoleta(ix ,jyp,indzh,indexh)+ &
+             uupoleta(ixp,jyp,indzh,indexh)*uupoleta(ixp,jyp,indzh,indexh)
+        vsq=vsq+vvpoleta(ix ,jy ,indzh,indexh)* &
+             vvpoleta(ix ,jy ,indzh,indexh)+ &
+             vvpoleta(ixp,jy ,indzh,indexh)*vvpoleta(ixp,jy ,indzh,indexh)+ &
+             vvpoleta(ix ,jyp,indzh,indexh)*vvpoleta(ix ,jyp,indzh,indexh)+ &
+             vvpoleta(ixp,jyp,indzh,indexh)*vvpoleta(ixp,jyp,indzh,indexh)
+      else
+        u1(n)=p1*uueta(ix ,jy ,indzh,indexh) &
+             +p2*uueta(ixp,jy ,indzh,indexh) &
+             +p3*uueta(ix ,jyp,indzh,indexh) &
+             +p4*uueta(ixp,jyp,indzh,indexh)
+        v1(n)=p1*vveta(ix ,jy ,indzh,indexh) &
+             +p2*vveta(ixp,jy ,indzh,indexh) &
+             +p3*vveta(ix ,jyp,indzh,indexh) &
+             +p4*vveta(ixp,jyp,indzh,indexh)
+        usl=usl+uueta(ix ,jy ,indzh,indexh)+uueta(ixp,jy ,indzh,indexh) &
+             +uueta(ix ,jyp,indzh,indexh)+uueta(ixp,jyp,indzh,indexh)
+        vsl=vsl+vveta(ix ,jy ,indzh,indexh)+vveta(ixp,jy ,indzh,indexh) &
+             +vveta(ix ,jyp,indzh,indexh)+vveta(ixp,jyp,indzh,indexh)
+
+        usq=usq+uueta(ix ,jy ,indzh,indexh)*uueta(ix ,jy ,indzh,indexh)+ &
+             uueta(ixp,jy ,indzh,indexh)*uueta(ixp,jy ,indzh,indexh)+ &
+             uueta(ix ,jyp,indzh,indexh)*uueta(ix ,jyp,indzh,indexh)+ &
+             uueta(ixp,jyp,indzh,indexh)*uueta(ixp,jyp,indzh,indexh)
+        vsq=vsq+vveta(ix ,jy ,indzh,indexh)*vveta(ix ,jy ,indzh,indexh)+ &
+             vveta(ixp,jy ,indzh,indexh)*vveta(ixp,jy ,indzh,indexh)+ &
+             vveta(ix ,jyp,indzh,indexh)*vveta(ix ,jyp,indzh,indexh)+ &
+             vveta(ixp,jyp,indzh,indexh)*vveta(ixp,jyp,indzh,indexh)
+      endif
+    end do
+
+  !**********************************
+  ! 2.) Linear vertical interpolation
+  !**********************************
+    uh(m)=dz2*u1(1)+dz1*u1(2)
+    vh(m)=dz2*v1(1)+dz1*v1(2)
+  end do
+
+  indzeta=nz-1
+  indzpeta=nz
+  do i=2,nz
+    if (wheight(i).lt.zteta) then
+      indzeta=i-1
+      indzpeta=i
+      exit
+    endif
+  end do
+
+  dz=1./(wheight(indzeta+1)-wheight(indzeta))
+  dz1=(zteta-wheight(indzeta))*dz
+  dz2=(wheight(indzeta+1)-zteta)*dz
+  ! if (pp.eq.1) write(*,*) 'w: ', zteta,indzeta,wheight(indzeta),wheight(indzpeta),dz1,dz2
+
+  wsl=0.
+  wsq=0.
+  do m=1,2
+    indexh=memind(m)
+    do n=1,2
+      indzh=indzeta+n-1
+      w1(n)=p1*wweta(ix ,jy ,indzh,indexh) &
+           +p2*wweta(ixp,jy ,indzh,indexh) &
+           +p3*wweta(ix ,jyp,indzh,indexh) &
+           +p4*wweta(ixp,jyp,indzh,indexh)
+
+      wsl=wsl+wweta(ix ,jy ,indzh,indexh)+wweta(ixp,jy ,indzh,indexh) &
+           +wweta(ix ,jyp,indzh,indexh)+wweta(ixp,jyp,indzh,indexh)
+      wsq=wsq+wweta(ix ,jy ,indzh,indexh)*wweta(ix ,jy ,indzh,indexh)+ &
+           wweta(ixp,jy ,indzh,indexh)*wweta(ixp,jy ,indzh,indexh)+ &
+           wweta(ix ,jyp,indzh,indexh)*wweta(ix ,jyp,indzh,indexh)+ &
+           wweta(ixp,jyp,indzh,indexh)*wweta(ixp,jyp,indzh,indexh)
+    end do
+
+  !**********************************
+  ! 2.) Linear vertical interpolation
+  !**********************************
+    wh(m)=dz2*w1(1)+dz1*w1(2)
+  end do
+
+  !************************************
+  ! 3.) Temporal interpolation (linear)
+  !************************************
+
+  u=(uh(1)*dt2+uh(2)*dt1)*dtt
+  v=(vh(1)*dt2+vh(2)*dt1)*dtt
+  weta=(wh(1)*dt2+wh(2)*dt1)*dtt
+
+  xaux=wsq-wsl*wsl/16.
+  if (xaux.lt.eps) then
+    wsigeta=0.
+  else
+    wsigeta=sqrt(xaux/15.)
+  endif
 
   xaux=usq-usl*usl/16.
   if (xaux.lt.eps) then
@@ -203,14 +290,6 @@ subroutine interpol_wind(itime,xt,yt,zt)
     vsig=0.
   else
     vsig=sqrt(xaux/15.)
-  endif
-
-
-  xaux=wsq-wsl*wsl/16.
-  if (xaux.lt.eps) then
-    wsig=0.
-  else
-    wsig=sqrt(xaux/15.)
   endif
 
 end subroutine interpol_wind

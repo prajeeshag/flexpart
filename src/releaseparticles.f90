@@ -50,6 +50,7 @@ subroutine releaseparticles(itime)
   !save idummy,xmasssave
   !data idummy/-7/,xmasssave/maxpoint*0./
 
+  real :: frac,psint,zzlev,zzlev2,ttemp
 
 
   ! Determine the actual date and time in Greenwich (i.e., UTC + correction for daylight savings time)
@@ -289,6 +290,7 @@ subroutine releaseparticles(itime)
 71            continue
             endif
 
+
   ! If release positions are given in meters above sea level, subtract the
   ! topography from the starting height
   !***********************************************************************
@@ -298,6 +300,33 @@ subroutine releaseparticles(itime)
             if (ztra1(ipart).gt.height(nz)-0.5) ztra1(ipart)= &
                  height(nz)-0.5 ! Maximum starting height is uppermost level - 0.5 meters
 
+
+! Convert to eta coordinates
+!             psint=p1*ps(ix,jy,1,1) &
+!                    +p2*ps(ixp,jy,1,1) &
+!                    +p3*ps(ix,jyp,1,1) &
+!                    +p4*ps(ixp,jyp,1,1)
+
+!             zzlev=0.
+!             do ii=2,nz-1
+!               ttemp=p1*tteta(ix,jy,ii-1,1) &
+!                      +p2*tteta(ixp,jy,ii-1,1) &
+!                      +p3*tteta(ix,jyp,ii-1,1) &
+!                      +p4*tteta(ixp,jyp,ii-1,1)
+!               if (zzlev.gt.ztra1(ipart)) goto 66
+!               zzlev=zzlev+r_air/ga*log((akz(ii+1-1)+bkz(ii+1-1)*psint)/(akz(ii+1)+bkz(ii+1)*psint))*ttemp
+!             end do
+! 66            zzlev2=zzlev+r_air/ga*log((akz(ii+1-1)+bkz(ii+1-1)*psint)/(akz(ii+1)+bkz(ii+1)*psint))*ttemp
+
+!             frac = (ztra1(ipart)-zzlev)/(zzlev2-zzlev)
+!             ztra1eta(ipart)=uvheight(ii-1)*(1.-frac)+uvheight(ii)*frac
+            call z_to_zeta(itime,xtra1(ipart),ytra1(ipart),ztra1(ipart),ztra1eta(ipart))
+            if (ipart.eq.1) then
+              write(*,*) 'temp01: ', ipart,ztra1(ipart),ztra1eta(ipart),xtra1(ipart),ytra1(ipart)
+            endif
+            if (ipart.eq.10) then
+              write(*,*) 'temp10: ', ipart,ztra1(ipart),ztra1eta(ipart),xtra1(ipart),ytra1(ipart)
+            endif
 
 
   ! For special simulations, multiply particle concentration air density;

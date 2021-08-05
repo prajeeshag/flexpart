@@ -74,7 +74,7 @@ subroutine interpol_rain_nests(yy1,yy2,yy3,nxmaxn,nymaxn,nzmax, &
   ! if (yt.ge.(real(nyn(ngrid)-1)-0.0001)) &
   !      yt=real(nyn(ngrid)-1)-0.0001
 
-! ESO make it consistent with interpol_rain
+  ! ESO make it consistent with interpol_rain
   if (xt.ge.(real(nxn(ngrid)-1))) xt=real(nxn(ngrid)-1)-0.00001
   if (yt.ge.(real(nyn(ngrid)-1))) yt=real(nyn(ngrid)-1)-0.00001
 
@@ -106,8 +106,8 @@ subroutine interpol_rain_nests(yy1,yy2,yy3,nxmaxn,nymaxn,nzmax, &
   ! Loop over 2 time steps
   !***********************
 
-!  do m=1,2
-!    indexh=memind(m)
+  !  do m=1,2
+  !    indexh=memind(m)
     indexh=iwftouse
 
     y1(1)=p1*yy1(ix ,jy ,level,indexh,ngrid) &
@@ -122,7 +122,7 @@ subroutine interpol_rain_nests(yy1,yy2,yy3,nxmaxn,nymaxn,nzmax, &
          + p2*yy3(ixp,jy ,level,indexh,ngrid) &
          + p3*yy3(ix ,jyp,level,indexh,ngrid) &
          + p4*yy3(ixp,jyp,level,indexh,ngrid)
-!  end do
+  !  end do
 
 
   !************************************
@@ -140,5 +140,4 @@ subroutine interpol_rain_nests(yy1,yy2,yy3,nxmaxn,nymaxn,nzmax, &
    yint1=y1(1)
    yint2=y2(1)
    yint3=y3(1)
-
 end subroutine interpol_rain_nests

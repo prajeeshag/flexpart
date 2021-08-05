@@ -64,7 +64,7 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
   real,dimension(0:nxmax-1,0:nymax-1,nzmax) :: pinmconv
   ! RLT added pressure
   real,dimension(0:nxmax-1,0:nymax-1,nuvzmax) :: prsh
-  real,dimension(0:nxmax-1,0:nymax-1) ::  tvold,pold,pint,tv
+  real,dimension(0:nxmax-1,0:nymax-1) ::  tvold,pold,pint,tv,dpdeta
   real,dimension(0:nymax-1) :: cosf
 
   integer,dimension(0:nxmax-1,0:nymax-1) :: rain_cloud_above,idx
@@ -449,6 +449,44 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
     end do
   end do
 
+! Keep original fields
+  uueta(:,:,1,n) = 0.
+  vveta(:,:,1,n) = 0.
+  tteta(:,:,1,n) = tt2(:,:,1,n) ! 2 m temperature
+  qveta(:,:,1,n) = 0.378/0.608*ew(td2(:,:,1,n))/ps(:,:,1,n) ! there is probably a better way to define this
+  pveta(:,:,1,n) = pvh(:,:,1)
+  rhoeta(:,:,1,n) = rhoh(:,:,1)
+  uueta(:,:,2:,n) = uuh(:,:,:)
+  vveta(:,:,2:,n) = vvh(:,:,:)
+  tteta(:,:,2:,n) = tth(:,:,:,n)
+  qveta(:,:,2:,n) = qvh(:,:,:,n)
+  pveta(:,:,2:,n) = pvh(:,:,:)
+  rhoeta(:,:,2:,n) = rhoh(:,:,:)
+  drhodzeta(:,:,1,n)=(rhoeta(:,:,2,n)-rhoeta(:,:,1,n))/ &
+       (height(2)-height(1))
+  do kz=2,nz-1
+    drhodzeta(:,:,kz,n)=(rhoeta(:,:,kz+1,n)-rhoeta(:,:,kz-1,n))/ &
+         (wheight(kz+1)-wheight(kz-1))
+  end do
+  drhodzeta(:,:,nz,n)=drhodzeta(:,:,nz-1,n)
+
+  ! Convert w from Pa/s to eta/s, following FLEXTRA
+  !************************************************
+  do kz=1,nuvz-1
+    if (kz.eq.1) then
+      dpdeta=(akz(kz+1)-akz(kz)+(bkz(kz+1)-bkz(kz))*ps(:,:,1,n))/ &
+        (uvheight(kz+1)-uvheight(kz))
+    else if (kz.eq.nuvz-1) then
+      dpdeta=(akz(kz)-akz(kz-1)+(bkz(kz)-bkz(kz-1))*ps(:,:,1,n))/ &
+        (uvheight(kz)-uvheight(kz-1))
+    else
+      dpdeta=(akz(kz+1)-akz(kz)+(bkz(kz+1)-bkz(kz))*ps(:,:,1,n))/ &
+        (uvheight(kz+1)-uvheight(kz))
+    endif
+    wweta(:,:,kz,n)=wwh(:,:,kz)/dpdeta
+  end do
+  !wweta(:,:,:,n) = wwh(:,:,:)
+
 ! If north pole is in the domain, calculate wind velocities in polar
 ! stereographic coordinates
 !*******************************************************************
@@ -462,6 +500,9 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
           call cc2gll(northpolemap,ylat,xlon,uu(ix,jy,iz,n), &
                vv(ix,jy,iz,n),uupol(ix,jy,iz,n), &
                vvpol(ix,jy,iz,n))
+          call cc2gll(northpolemap,ylat,xlon,uueta(ix,jy,iz,n), &
+               vveta(ix,jy,iz,n),uupoleta(ix,jy,iz,n), &
+               vvpoleta(ix,jy,iz,n))
         end do
       end do
     end do
@@ -504,6 +545,40 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
         vvpol(ix,jy,iz,n)=vvpolaux
       end do
     end do
+    
+    do iz=1,nz
+
+      xlon=xlon0+real(nx/2-1)*dx
+      xlonr=xlon*pi/180.
+      ffpol=sqrt(uueta(nx/2-1,nymin1,iz,n)**2+ &
+           vveta(nx/2-1,nymin1,iz,n)**2)
+      if (vveta(nx/2-1,nymin1,iz,n).lt.0.) then
+        ddpol=atan(uueta(nx/2-1,nymin1,iz,n)/ &
+             vveta(nx/2-1,nymin1,iz,n))-xlonr
+      else if (vveta(nx/2-1,nymin1,iz,n).gt.0.) then
+        ddpol=pi+atan(uueta(nx/2-1,nymin1,iz,n)/ &
+             vveta(nx/2-1,nymin1,iz,n))-xlonr
+      else
+        ddpol=pi/2-xlonr
+      endif
+      if(ddpol.lt.0.) ddpol=2.0*pi+ddpol
+      if(ddpol.gt.2.0*pi) ddpol=ddpol-2.0*pi
+
+! CALCULATE U,V FOR 180 DEG, TRANSFORM TO POLAR STEREOGRAPHIC GRID
+      xlon=180.0
+      xlonr=xlon*pi/180.
+      ylat=90.0
+      uuaux=-ffpol*sin(xlonr+ddpol)
+      vvaux=-ffpol*cos(xlonr+ddpol)
+      call cc2gll(northpolemap,ylat,xlon,uuaux,vvaux,uupolaux, &
+           vvpolaux)
+
+      jy=nymin1
+      do ix=0,nxmin1
+        uupoleta(ix,jy,iz,n)=uupolaux
+        vvpoleta(ix,jy,iz,n)=vvpolaux
+      end do
+    end do
 
 
 ! Fix: Set W at pole to the zonally averaged W of the next equator-
@@ -519,6 +594,19 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
       jy=nymin1
       do ix=0,nxmin1
         ww(ix,jy,iz,n)=wdummy
+      end do
+    end do
+
+    do iz=1,nz
+      wdummy=0.
+      jy=ny-2
+      do ix=0,nxmin1
+        wdummy=wdummy+wweta(ix,jy,iz,n)
+      end do
+      wdummy=wdummy/real(nx)
+      jy=nymin1
+      do ix=0,nxmin1
+        wweta(ix,jy,iz,n)=wdummy
       end do
     end do
 
@@ -538,6 +626,9 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
           call cc2gll(southpolemap,ylat,xlon,uu(ix,jy,iz,n), &
                vv(ix,jy,iz,n),uupol(ix,jy,iz,n), &
                vvpol(ix,jy,iz,n))
+          call cc2gll(southpolemap,ylat,xlon,uueta(ix,jy,iz,n), &
+               vveta(ix,jy,iz,n),uupoleta(ix,jy,iz,n), &
+               vvpoleta(ix,jy,iz,n))
         end do
       end do
     end do
@@ -580,6 +671,42 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
       end do
     end do
 
+    do iz=1,nz
+! CALCULATE FFPOL, DDPOL FOR CENTRAL GRID POINT
+!
+!   AMSnauffer Nov 18 2004 Added check for case vv=0
+!
+      xlon=xlon0+real(nx/2-1)*dx
+      xlonr=xlon*pi/180.
+      ffpol=sqrt(uueta(nx/2-1,0,iz,n)**2+ &
+           vveta(nx/2-1,0,iz,n)**2)
+      if (vveta(nx/2-1,0,iz,n).lt.0.) then
+        ddpol=atan(uueta(nx/2-1,0,iz,n)/ &
+             vveta(nx/2-1,0,iz,n))+xlonr
+      else if (vveta(nx/2-1,0,iz,n).gt.0.) then
+        ddpol=pi+atan(uueta(nx/2-1,0,iz,n)/ &
+             vveta(nx/2-1,0,iz,n))+xlonr
+      else
+        ddpol=pi/2-xlonr
+      endif
+      if(ddpol.lt.0.) ddpol=2.0*pi+ddpol
+      if(ddpol.gt.2.0*pi) ddpol=ddpol-2.0*pi
+
+! CALCULATE U,V FOR 180 DEG, TRANSFORM TO POLAR STEREOGRAPHIC GRID
+      xlon=180.0
+      xlonr=xlon*pi/180.
+      ylat=-90.0
+      uuaux=+ffpol*sin(xlonr-ddpol)
+      vvaux=-ffpol*cos(xlonr-ddpol)
+      call cc2gll(northpolemap,ylat,xlon,uuaux,vvaux,uupolaux, &
+           vvpolaux)
+
+      jy=0
+      do ix=0,nxmin1
+        uupoleta(ix,jy,iz,n)=uupolaux
+        vvpoleta(ix,jy,iz,n)=vvpolaux
+      end do
+    end do
 
 ! Fix: Set W at pole to the zonally averaged W of the next equator-
 ! ward parallel of latitude
@@ -594,6 +721,19 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
       jy=0
       do ix=0,nxmin1
         ww(ix,jy,iz,n)=wdummy
+      end do
+    end do
+
+    do iz=1,nz
+      wdummy=0.
+      jy=1
+      do ix=0,nxmin1
+        wdummy=wdummy+wweta(ix,jy,iz,n)
+      end do
+      wdummy=wdummy/real(nx)
+      jy=0
+      do ix=0,nxmin1
+        wweta(ix,jy,iz,n)=wdummy
       end do
     end do
   endif

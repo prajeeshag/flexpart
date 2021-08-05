@@ -7,7 +7,6 @@ module random_mod
   
   implicit none
 
-  ! openmp change
   integer, parameter :: ran1_ntab=32
   integer :: ran1_iv(ran1_NTAB)=0, ran1_iy=0
 
@@ -23,7 +22,6 @@ module random_mod
   integer :: ma(55)
 
 !$OMP THREADPRIVATE(ran3_iff,ran3_inext,ran3_inextp, ma)
-  ! openmp change end
 
 contains
   
@@ -37,11 +35,6 @@ contains
     integer,parameter :: ndiv=1+(im-1)/ran1_ntab
     real,parameter    :: am=1./im, eps=1.2e-7, rnmx=1.-eps
     integer :: j, k
-
-    ! openmp change
-    ! integer :: iv(ntab) = (/ (0,j=1,ntab) /)
-    ! integer :: iy=0
-    ! openmp change end
 
     if (idum.le.0.or.ran1_iy.eq.0) then
       idum=max(-idum,1)
@@ -70,11 +63,6 @@ contains
     integer :: idum
     real    :: gasdev, fac, r, v1, v2
 
-    ! openmp change
-    ! integer :: iset = 0
-    ! real    :: gset = 0.
-    ! openmp change end
-    
     if (gasdev_iset.eq.0) then
 1     v1=2.*ran3(idum)-1.
       v2=2.*ran3(idum)-1.
@@ -123,14 +111,9 @@ contains
 
     integer,parameter :: mbig=1000000000, mseed=161803398, mz=0
     real,parameter    :: fac=1./mbig
-    integer :: i,ii,k
-    integer :: mj,mk !inext,inextp,ma(55) ! openmp change
+    integer :: i,ii,inext,inextp,k
+    integer :: mj,mk
 
-    ! openmp change
-    ! save inext,inextp,ma
-    ! integer :: iff = 0
-    ! openmp change end
-    
     if(idum.lt.0.or.ran3_iff.eq.0)then
       ran3_iff=1
       mj=mseed-iabs(idum)

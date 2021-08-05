@@ -76,11 +76,9 @@ subroutine interpol_wind_nests(itime,xt,yt,zt)
   do i=2,nz
     if (height(i).gt.zt) then
       indz=i-1
-      goto 6
+      exit
     endif
   end do
-6   continue
-
 
   ! Vertical distance to the level below and above current position
   !****************************************************************

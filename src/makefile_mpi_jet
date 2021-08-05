@@ -46,10 +46,6 @@ FLEXPART-MPI = FLEXPART_MPI
 # Parallel processing executable with debugging info
 FLEXPART-MPI-DBG = DBG_FLEXPART_MPI
 
-# Serial processing executable
-FLEXPART-SERIAL = FLEXPART
-
-export OMP_NESTED=TRUE
 
 ifeq ($(shell hostname), jet01.img.univie.ac.at)
 	export INTEL_LICENSE_FILE = /opt/intel/serverlicenses/l_5WHWBJ6D.lic
@@ -58,17 +54,14 @@ endif
 	#ROOT_DIR = /homevip/flexpart/
 	ROOT_DIR = . #MD
 
-	F90 = /opt/intel/compilers_and_libraries_2020/linux/bin/intel64/ifort
-
-  	MPIF90    = /jetfs/spack/opt/spack/linux-rhel8-skylake_avx512/intel-20.0.2/openmpi-4.0.5-4wfaaz4grfqvlblibkdrpjlwd4xnq3ud/bin/mpifort
+  	MPIF90    = /jetfs/spack/opt/spack/linux-rhel8-skylake_avx512/gcc-8.3.1/openmpi-4.0.5-773ztsvlj5leygoeh3kurkkybedbxxj3/bin/mpifort
 
 	#MD for jet
  
-  	INCPATH1 = /jetfs/spack/opt/spack/linux-rhel8-skylake_avx512/intel-20.0.2/eccodes-2.18.0-6tadpgreot7jf4yoaiqmqueiihhdcsxk/include
-  	LIBPATH1 = /jetfs/spack/opt/spack/linux-rhel8-skylake_avx512/intel-20.0.2/eccodes-2.18.0-6tadpgreot7jf4yoaiqmqueiihhdcsxk/lib
-  	INCPATH2 = /jetfs/spack/opt/spack/linux-rhel8-skylake_avx512/intel-20.0.2/netcdf-fortran-4.5.3-irdm5gqccsig2om7jqu376h6tlebh4bc/include
-  	LIBPATH2 = /jetfs/spack/opt/spack/linux-rhel8-skylake_avx512/intel-20.0.2/netcdf-fortran-4.5.3-irdm5gqccsig2om7jqu376h6tlebh4bc/lib
-	LIBPATH3  = #/jetfs/spack/opt/spack/linux-rhel8-skylake_avx512/intel-20.0.2/intel-parallel-studio-composer.2020.2-zuot22yfoe7jl67ttimvkzghwluvyaas/compilers_and_libraries_2020.2.254/linux/compiler/lib/intel64_lin #MD for libimf.so (intel math library)
+  	INCPATH1 = /jetfs/spack/opt/spack/linux-rhel8-skylake_avx512/gcc-8.3.1/eccodes-2.18.0-s7clum3voiwexqv6favl72gqkpvjxgx3/include
+  	LIBPATH1 = /jetfs/spack/opt/spack/linux-rhel8-skylake_avx512/gcc-8.3.1/eccodes-2.18.0-s7clum3voiwexqv6favl72gqkpvjxgx3/lib
+  	INCPATH2 = /jetfs/spack/opt/spack/linux-rhel8-skylake_avx512/gcc-8.3.1/netcdf-fortran-4.5.3-kfd2vkj7m6cremij4nunxwqfcrqjovcf/include
+  	LIBPATH2 = /jetfs/spack/opt/spack/linux-rhel8-skylake_avx512/gcc-8.3.1/netcdf-fortran-4.5.3-kfd2vkj7m6cremij4nunxwqfcrqjovcf/lib
 
 ### Enable netCDF output?
 ifeq ($(ncf), no)
@@ -82,18 +75,18 @@ VPATH = gributils/
 
 
 ## OPTIMIZATION LEVEL
-O_LEV = 2 # [0,1,2,3,g,s,fast]
+O_LEV = 0 # [0,1,2,3,g,s,fast]
 O_LEV_DBG = g # [0,g]
-FUSER = -xSKYLAKE-AVX512 -qopenmp
+
 ## LIBRARIES
 LIBS = -leccodes -leccodes_f90 -lm -ljasper $(NCOPT) #MD
 
-FFLAGS   = -I$(INCPATH1) -I$(INCPATH2) -O$(O_LEV) -m64 -fpp -convert little_endian -assume byterecl -mcmodel=large -O$(O_LEV) $(NCOPT) $(FUSER)  #-convert little_endian -fpp -WB -check all
+FFLAGS   = -I$(INCPATH1) -I$(INCPATH2) -O$(O_LEV) -g -m64 -cpp -mcmodel=large -O$(O_LEV) $(NCOPT) $(FUSER)  #-convert little_endian -fpp -WB -check all
 
 DBGFLAGS = -I$(INCPATH1) -I$(INCPATH2) -O$(O_LEV_DBG) -g3 -ggdb3 -cpp -m64 -mcmodel=large -fconvert=little-endian -frecord-marker=4 -fmessage-length=0 -flto=jobserver -O$(O_LEV_DBG) $(NCOPT) -fbacktrace   -Wall  -fdump-core $(FUSER)  #  -ffpe-trap=invalid,overflow,denormal,underflow,zero  -Warray-bounds -fcheck=all
 
-LDFLAGS  = $(FFLAGS) -L$(LIBPATH1) -Wl,-rpath,$(LIBPATH1) $(LIBS) -L$(LIBPATH2) -Wl,-rpath,$(LIBPATH2) #-L$(LIBPATH3) #MD add LIBPATH2 and LIBPATH3 as rpath (for dynamic libraries)
-LDDEBUG  = $(DBGFLAGS) -L$(LIBPATH1) -Wl,-rpath,$(LIBPATH1) $(LIBS) -L$(LIBPATH2) -Wl,-rpath,$(LIBPATH2) -Wl, -rpaht,$(LIBPATH3) #MD add LIBPATH2 and LIBPATH3 as rpath (for dynamic libraries)
+LDFLAGS  = $(FFLAGS) -L$(LD_LIBRARY_PATH) -L$(LIBPATH1) -Wl,-rpath,$(LIBPATH1) $(LIBS) -L$(LIBPATH2) -Wl,-rpath,$(LIBPATH2) #MD add LIBPATH2 and LIBPATH3 as rpath (for dynamic libraries)
+LDDEBUG  = $(DBGFLAGS) -L$(LIBPATH1) -Wl,-rpath,$(LIBPATH1) $(LIBS) -L$(LIBPATH2) -Wl,-rpath,$(LIBPATH2) -Wl, #MD add LIBPATH2 and LIBPATH3 as rpath (for dynamic libraries)
 
 MODOBJS = \
 par_mod.o    		com_mod.o \
@@ -207,10 +200,6 @@ else
 endif
 
 %.o: %.mod
-
-# serial executable
-serial: $(FLEXPART-SERIAL)
-serial: FC := $(F90)
 
 # parallel processing executable
 mpi: $(FLEXPART-MPI)

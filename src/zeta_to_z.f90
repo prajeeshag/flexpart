@@ -42,23 +42,9 @@ subroutine zeta_to_z(itime,xt,yt,zteta,ztout)
 
   ! Convert eta z coordinate to meters
   !***********************************
-  ix=int(xt)
-  jy=int(yt)
-  ixp=ix+1
-  jyp=jy+1
-
-  ddx=xt-real(ix)
-  ddy=yt-real(jy)
-  rddx=1.-ddx
-  rddy=1.-ddy
-  p1=rddx*rddy
-  p2=ddx*rddy
-  p3=rddx*ddy
-  p4=ddx*ddy
-
-  dt1=real(itime-memtime(1))
-  dt2=real(memtime(2)-itime)
-  dtt=1./(dt1+dt2)
+  call determine_grid_coordinates(real(xt),real(yt))
+  call find_grid_distances(real(xt),real(yt))
+  call find_time_variables(itime)
 
   k=nz-1
   frac=1.
@@ -69,33 +55,21 @@ subroutine zeta_to_z(itime,xt,yt,zteta,ztout)
     endif
   end do
 
-  do m=1,2
-    indexh=memind(m)
-    psint1(m)=p1*ps(ix ,jy ,1,indexh) &
-          +p2*ps(ixp,jy ,1,indexh) &
-          +p3*ps(ix ,jyp,1,indexh) &
-          +p4*ps(ixp,jyp,1,indexh)
-    ttemp1(m)=p1*tt2(ix ,jy ,1,indexh)*(1.+0.378*ew(td2(ix,jy,1,indexh))/ps(ix,jy,1,indexh)) &
-          +p2*tt2(ixp,jy ,1,indexh)*(1.+0.378*ew(td2(ixp,jy,1,indexh))/ps(ixp,jy,1,indexh)) &
-          +p3*tt2(ix ,jyp,1,indexh)*(1.+0.378*ew(td2(ix,jyp,1,indexh))/ps(ix,jyp,1,indexh)) &
-          +p4*tt2(ixp,jyp,1,indexh)*(1.+0.378*ew(td2(ixp,jyp,1,indexh))/ps(ixp,jyp,1,indexh))
-  end do
-  psint=(psint1(1)*dt2+psint1(2)*dt1)*dtt
+  call bilinear_horizontal_interpolation(ps,psint1,1,1)
+  call temporal_interpolation(psint1(1),psint1(2),psint)
 
-  ! Integration method as used in the original verttransform_ecmwf.f90
-  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  ttemp_old=(ttemp1(1)*dt2+ttemp1(2)*dt1)*dtt
+  call bilinear_horizontal_interpolation(tvirtual,ttemp1,1,nzmax)
+  call temporal_interpolation(ttemp1(1),ttemp1(2),ttemp_old)
+
+  ! ! ! Integration method as used in the original verttransform_ecmwf.f90
+  ! ! !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   ztemp1 = 0.
   do i=2,k-1
-    do m=1,2
-      indexh=memind(m)
-      ttemp1(m)=p1*tteta(ix ,jy ,i,indexh)*(1.+0.608*qveta(ix,jy,i,indexh)) &
-            +p2*tteta(ixp,jy ,i,indexh)*(1.+0.608*qveta(ixp,jy,i,indexh)) &
-            +p3*tteta(ix ,jyp,i,indexh)*(1.+0.608*qveta(ix,jyp,i,indexh)) &
-            +p4*tteta(ixp,jyp,i,indexh)*(1.+0.608*qveta(ixp,jyp,i,indexh))
-    end do
-    ttemp_new=(ttemp1(1)*dt2+ttemp1(2)*dt1)*dtt
+
+    call bilinear_horizontal_interpolation(tvirtual,ttemp1,i,nzmax)
+    call temporal_interpolation(ttemp1(1),ttemp1(2),ttemp_new)
+
     if (abs(ttemp_new-ttemp_old).gt.0.2) then
       ztemp1=ztemp1+r_air/ga*log((akz(i-1)+bkz(i-1)*psint)/(akz(i)+bkz(i)*psint))* &
         (ttemp_new-ttemp_old)/log(ttemp_new/ttemp_old)
@@ -104,14 +78,10 @@ subroutine zeta_to_z(itime,xt,yt,zteta,ztout)
     endif
     ttemp_old=ttemp_new
   end do
-  do m=1,2
-    indexh=memind(m)
-    ttemp1(m)=p1*tteta(ix ,jy ,k,indexh)*(1.+0.608*qveta(ix,jy,k,indexh)) &
-            +p2*tteta(ixp,jy ,k,indexh)*(1.+0.608*qveta(ixp,jy,k,indexh)) &
-            +p3*tteta(ix ,jyp,k,indexh)*(1.+0.608*qveta(ix,jyp,k,indexh)) &
-            +p4*tteta(ixp,jyp,k,indexh)*(1.+0.608*qveta(ixp,jyp,k,indexh))
-  end do
-  ttemp_new=(ttemp1(1)*dt2+ttemp1(2)*dt1)*dtt
+
+  call bilinear_horizontal_interpolation(tvirtual,ttemp1,k,nzmax)
+  call temporal_interpolation(ttemp1(1),ttemp1(2),ttemp_new)  
+
   if (abs(ttemp_new-ttemp_old).gt.0.2) then
     ztemp2=ztemp1+r_air/ga*log((akz(k-1)+bkz(k-1)*psint)/(akz(k)+bkz(k)*psint))* &
       (ttemp_new-ttemp_old)/log(ttemp_new/ttemp_old)
@@ -119,6 +89,5 @@ subroutine zeta_to_z(itime,xt,yt,zteta,ztout)
     ztemp2=ztemp1+r_air/ga*log((akz(k-1)+bkz(k-1)*psint)/(akz(k)+bkz(k)*psint))*ttemp_new
   endif
   ztout = ztemp1*(1.-frac)+ztemp2*frac
-
 
 end subroutine zeta_to_z

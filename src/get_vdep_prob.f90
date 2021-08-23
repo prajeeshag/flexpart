@@ -33,9 +33,9 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
   implicit none
 
   real(kind=dp) :: xt,yt
-  real :: zt,xtn,ytn
+  real :: zt!,xtn,ytn
   integer :: itime,i,j,k,memindnext
-  integer :: nix,njy,ks
+  integer :: ks!nix,njy,
   real :: prob(maxspec),vdepo(maxspec)
   real,parameter :: eps=nxmax/3.e5
 

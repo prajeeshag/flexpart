@@ -113,7 +113,7 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
     memindnext,                   & ! seems useless
     mind,                         & ! windfield index
     ngr,                          & ! temporary new grid index of moved particle
-    nix,njy,                      & ! nexted grid indices
+    ! nix,njy,                      & ! nexted grid indices Moved to interpol_mod
     ks,nsp,                       & ! loop variables for vertical levels
     flagrein,                     & ! flag used in CBL scheme
     thread,                       & ! number of openmp threads (probably can be removed)
@@ -127,7 +127,7 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
     xt, yt                          ! particle positions on grid
   real ::                         &
     xts,yts,                      & ! local 'real' copy of the particle position
-    xtn,ytn,                      & ! nested particle position
+    ! xtn,ytn,                      & ! nested particle position Moved to interpol_mod
     weight,                       & ! transition above the tropopause
     dz,dz1,dz2,                   & ! values used for interpolating between vertical levels
     xlon,ylat,xpol,ypol,          & ! temporarily storing new particle positions
@@ -166,26 +166,6 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   nstop=0
   do i=1,nmixz
     indzindicator(i)=.true.
-  end do
-
-  indzeta=nz-1
-  indzpeta=nz
-  do i=2,nz
-    if (wheight(i).lt.zteta) then
-      indzeta=i-1
-      indzpeta=i
-      exit
-    endif
-  end do
-
-  induv=nz-1
-  indpuv=nz
-  do i=2,nz
-    if (uvheight(i).lt.zteta) then
-      induv=i-1
-      indpuv=i
-      exit
-    endif
   end do
   
   if (DRYDEP) then    ! reset probability for deposition
@@ -235,52 +215,11 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   endif
 
   ! Determine nested grid coordinates
-  !**********************************
-
-  if (ngrid.gt.0) then
-    xtn=(xt-xln(ngrid))*xresoln(ngrid)
-    ytn=(yt-yln(ngrid))*yresoln(ngrid)
-    ix=int(xtn)
-    jy=int(ytn)
-    nix=nint(xtn)
-    njy=nint(ytn)
-  else
-    ix=int(xt)
-    jy=int(yt)
-    nix=nint(xt)
-    njy=nint(yt)
-  endif
-  ixp=ix+1
-  jyp=jy+1
-
- ! Determine the lower left corner and its distance to the current position
-  !*************************************************************************
-
-  ddx=xt-real(ix)
-  ddy=yt-real(jy)
-  rddx=1.-ddx
-  rddy=1.-ddy
-  p1=rddx*rddy
-  p2=ddx*rddy
-  p3=rddx*ddy
-  p4=ddx*ddy
-
- ! Calculate variables for time interpolation
+  ! Determine the lower left corner and its distance to the current position
+  ! Calculate variables for time interpolation
   !*******************************************
+  call initialise_interpol_mod(itime,real(xt),real(yt),zt,zteta)
 
-  dt1=real(itime-memtime(1))
-  dt2=real(memtime(2)-itime)
-  dtt=1./(dt1+dt2)
-
-! eso: Temporary fix for particle exactly at north pole
-  if (jyp >= nymax) then
-    ! write(*,*) 'WARNING: advance.f90 jyp >= nymax. xt,yt:',xt,yt
-    jyp=jyp-1
-  end if
-
-  if (jyp >= nymax) then
-    jyp=jyp-1
-  end if
   ! Compute maximum mixing height around particle position
   !*******************************************************
   

@@ -449,18 +449,6 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
   end do
 
 ! Keep original fields
-  ! uueta(:,:,1,n) = 0.
-  ! vveta(:,:,1,n) = 0.
-  ! tteta(:,:,1,n) = tt2(:,:,1,n) ! 2 m temperature
-  ! qveta(:,:,1,n) = qvh(:,:,1,n) ! 0.378/0.608*ew(td2(:,:,1,n))/ps(:,:,1,n) ! there is probably a better way to define this
-  ! pveta(:,:,1,n) = pvh(:,:,1)
-  ! rhoeta(:,:,1,n) = rhoh(:,:,1)
-  ! uueta(:,:,2:,n) = uuh(:,:,:)
-  ! vveta(:,:,2:,n) = vvh(:,:,:)
-  ! tteta(:,:,2:,n) = tth(:,:,:,n)
-  ! qveta(:,:,2:,n) = qvh(:,:,:,n)
-  ! pveta(:,:,2:,n) = pvh(:,:,:)
-  ! rhoeta(:,:,2:,n) = rhoh(:,:,:)
   uueta(:,:,:,n) = uuh(:,:,:)
   vveta(:,:,:,n) = vvh(:,:,:)
   tteta(:,:,:,n) = tth(:,:,:,n)
@@ -474,6 +462,12 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
          (wheight(kz+1)-wheight(kz-1))
   end do
   drhodzeta(:,:,nz,n)=drhodzeta(:,:,nz-1,n)
+  tvirtual(:,:,:,n)=tteta(:,:,:,n)*(1.+0.608*qveta(:,:,:,n))
+  do jy=0,ny-1
+    do ix=0,nx-1
+      tvirtual(ix,jy,1,n)=tt2(ix,jy,1,n)*(1.+0.378*ew(td2(ix,jy,1,n))/ps(ix,jy,1,n))
+    end do 
+  end do
 
   ! Convert w from Pa/s to eta/s, following FLEXTRA
   !************************************************

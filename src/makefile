@@ -51,6 +51,9 @@ FLEXPART-SERIAL = FLEXPART
 
 export OMP_NESTED=TRUE
 
+#export TAU_MAKEFILE=/jetfs/home/lbakels/Codes/tau/x86_64/lib/Makefile.tau-pdt-openmp-opari
+#export TAU_OPTIONS='-optCompInst -optRevert'
+#export PROFILEDIR=/jetfs/home/lbakels/Profile2/
 ifeq ($(shell hostname), jet01.img.univie.ac.at)
 	export INTEL_LICENSE_FILE = /opt/intel/serverlicenses/l_5WHWBJ6D.lic
 endif
@@ -58,7 +61,7 @@ endif
 	#ROOT_DIR = /homevip/flexpart/
 	ROOT_DIR = . #MD
 
-	F90 = /opt/intel/compilers_and_libraries_2020/linux/bin/intel64/ifort
+	F90 = /opt/intel/compilers_and_libraries_2020/linux/bin/intel64/ifort#/jetfs/home/lbakels/Codes/tau/x86_64/bin/tau_f90.sh#/opt/intel/compilers_and_libraries_2020/linux/bin/intel64/ifort
 
   	MPIF90    = /jetfs/spack/opt/spack/linux-rhel8-skylake_avx512/intel-20.0.2/openmpi-4.0.5-4wfaaz4grfqvlblibkdrpjlwd4xnq3ud/bin/mpifort
 
@@ -84,11 +87,11 @@ VPATH = gributils/
 ## OPTIMIZATION LEVEL
 O_LEV = 2 # [0,1,2,3,g,s,fast]
 O_LEV_DBG = g # [0,g]
-FUSER = -xSKYLAKE-AVX512 -qopenmp
+FUSER = -xSKYLAKE-AVX512 -qopenmp# -traceback -check
 ## LIBRARIES
 LIBS = -leccodes -leccodes_f90 -lm -ljasper $(NCOPT) #MD
 
-FFLAGS   = -I$(INCPATH1) -I$(INCPATH2) -O$(O_LEV) -m64 -fpp -convert little_endian -assume byterecl -mcmodel=large -O$(O_LEV) $(NCOPT) $(FUSER)  #-convert little_endian -fpp -WB -check all
+FFLAGS   = -I$(INCPATH1) -I$(INCPATH2) -O$(O_LEV) -g -m64 -fpp -convert little_endian -assume byterecl -mcmodel=large -O$(O_LEV) $(NCOPT) $(FUSER)  #-convert little_endian -fpp -WB -check all
 
 DBGFLAGS = -I$(INCPATH1) -I$(INCPATH2) -O$(O_LEV_DBG) -g3 -ggdb3 -cpp -m64 -mcmodel=large -fconvert=little-endian -frecord-marker=4 -fmessage-length=0 -flto=jobserver -O$(O_LEV_DBG) $(NCOPT) -fbacktrace   -Wall  -fdump-core $(FUSER)  #  -ffpe-trap=invalid,overflow,denormal,underflow,zero  -Warray-bounds -fcheck=all
 
@@ -159,25 +162,22 @@ get_wetscav.o		readwind_gfs.o \
 psim.o			outgrid_init.o 	\
 outgrid_init_nest.o   	calcmatrix.o \
 photo_O1D.o 		readlanduse.o \
-interpol_wind.o         readoutgrid.o \
-interpol_all.o          readpaths.o \
+readoutgrid.o \
+readpaths.o \
 getrb.o                 obukhov.o \
 getrc.o                 convmix.o \
 getvdep.o               readspecies.o \
-interpol_misslev.o      richardson.o \
+richardson.o \
 scalev.o                verttransform_ecmwf.o \
 pbl_profile.o           readOHfield.o \
 juldate.o               verttransform_gfs.o \
-interpol_vdep.o         interpol_rain.o \
 hanna.o                 wetdepokernel.o \
 calcpar.o               wetdepo.o \
 hanna_short.o           windalign.o \
 hanna1.o                gridcheck_ecmwf.o \
 gridcheck_gfs.o         gridcheck_nests.o \
 readwind_nests.o        calcpar_nests.o \
-verttransform_nests.o   interpol_all_nests.o \
-interpol_wind_nests.o   interpol_misslev_nests.o \
-interpol_vdep_nests.o   interpol_rain_nests.o \
+verttransform_nests.o \
 readageclasses.o        detectformat.o  \
 calcfluxes.o            fluxoutput.o \
 qvsat.o                 skplin.o \
@@ -186,8 +186,7 @@ sort2.o                 distance.o \
 centerofmass.o          plumetraj.o \
 openouttraj.o           calcpv.o \
 calcpv_nests.o          distance2.o \
-clustering.o            interpol_wind_short.o \
-interpol_wind_short_nests.o shift_field_0.o \
+clustering.o 		shift_field_0.o \
 shift_field.o             \
 openreceptors.o         \
 readoutgrid_nest.o \
@@ -198,8 +197,8 @@ ohreaction.o            getvdep_nests.o \
 initial_cond_calc.o     initial_cond_output.o initial_cond_output_inversion.o \
 dynamic_viscosity.o     get_settling.o	\
 initialize_cbl_vel.o	re_initialize_particle.o \
-cbl.o \
-zeta_to_z.o		z_to_zeta.o
+cbl.o  \
+z_to_zeta.o		zeta_to_z.o
 
 ifeq ($(ncf), no)
 	OBJECTS	:= $(OBJECTS)
@@ -326,19 +325,7 @@ initial_cond_output_inversion.o: com_mod.o outg_mod.o par_mod.o point_mod.o \
 	unc_mod.o
 initialize.o: com_mod.o hanna_mod.o interpol_mod.o par_mod.o random_mod.o
 initialize_cbl_vel.o: com_mod.o par_mod.o random_mod.o
-interpol_all.o: com_mod.o hanna_mod.o interpol_mod.o par_mod.o
-interpol_all_nests.o: com_mod.o hanna_mod.o interpol_mod.o par_mod.o
-interpol_misslev.o: com_mod.o hanna_mod.o interpol_mod.o par_mod.o
-interpol_misslev_nests.o: com_mod.o hanna_mod.o interpol_mod.o par_mod.o
-interpol_mod.o: par_mod.o
-interpol_rain.o: par_mod.o
-interpol_rain_nests.o: par_mod.o
-interpol_vdep.o: com_mod.o interpol_mod.o par_mod.o
-interpol_vdep_nests.o: com_mod.o interpol_mod.o par_mod.o
-interpol_wind.o: com_mod.o interpol_mod.o par_mod.o
-interpol_wind_nests.o: com_mod.o interpol_mod.o par_mod.o
-interpol_wind_short.o: com_mod.o interpol_mod.o par_mod.o
-interpol_wind_short_nests.o: com_mod.o interpol_mod.o par_mod.o
+interpol_mod.o: par_mod.o com_mod.o hanna_mod.o
 juldate.o: par_mod.o
 mean_mod.o: par_mod.o
 mpi_mod.o: com_mod.o par_mod.o unc_mod.o
@@ -412,5 +399,5 @@ writeheader_surf.o: com_mod.o outg_mod.o par_mod.o point_mod.o
 writeheader_txt.o: com_mod.o outg_mod.o par_mod.o point_mod.o
 writeprecip.o: com_mod.o par_mod.o point_mod.o
 zenithangle.o: par_mod.o
-zeta_to_z.o: com_mod.o par_mod.o interpol_mod.o
 z_to_zeta.o: com_mod.o par_mod.o interpol_mod.o
+zeta_to_z.o: com_mod.o par_mod.o interpol_mod.o

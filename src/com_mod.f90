@@ -363,6 +363,7 @@ module com_mod
   real :: pveta(0:nxmax-1,0:nymax-1,nzmax,numwfmem)
   real :: rhoeta(0:nxmax-1,0:nymax-1,nzmax,numwfmem)
   real :: drhodzeta(0:nxmax-1,0:nymax-1,nzmax,numwfmem)
+  real :: tvirtual(0:nxmax-1,0:nymax-1,nzmax,numwfmem)
 
   real :: uu(0:nxmax-1,0:nymax-1,nzmax,numwfmem)
   real :: vv(0:nxmax-1,0:nymax-1,nzmax,numwfmem)

@@ -20,6 +20,8 @@ subroutine redist (itime,ipart,ktop,ipconv)
   use conv_mod
   use random_mod
   use omp_lib
+  use interpol_mod
+  use coordinates_ecmwf
 
   implicit none
 
@@ -48,18 +50,109 @@ subroutine redist (itime,ipart,ktop,ipconv)
 
   !  determine vertical grid position of particle in the eta system
   !****************************************************************
+  select case (wind_coord_type)
 
-  ztold = ztra1eta(abs(ipart))
-  ! find old particle grid position
-  levold = nconvtop
-  do kz = 2, nconvtop
-    if (wheight(kz) .le. ztold ) then
-      levold = kz-1
-      exit
-    endif
-  end do
+    case ('ETA')
+      ztold = ztra1eta(abs(ipart))
+      ! find old particle grid position
+      levold = nconvtop
+      do kz = 2, nconvtop
+        if (wheight(kz) .le. ztold ) then
+          levold = kz-1
+          exit
+        endif
+      end do
 
-  ! Particle is above the potentially convective domain. Skip it.
+    case ('METER')
+
+      ! determine height of the eta half-levels (uvzlev)
+      ! do that only once for each grid column
+      ! i.e. when ktop.eq.1
+      !**************************************************************
+
+      if (ktop .le. 1) then
+
+        tvold=tt2conv*(1.+0.378*ew(td2conv)/psconv)
+        pold=psconv
+        uvzlev(1)=0.
+
+        pint = phconv(2)
+      !  determine next virtual temperatures
+        tv1 = tconv(1)*(1.+0.608*qconv(1))
+        tv2 = tconv(2)*(1.+0.608*qconv(2))
+      !  interpolate virtual temperature to half-level
+        tv = tv1 + (tv2-tv1)*(pconv(1)-phconv(2))/(pconv(1)-pconv(2))
+        tv = tv1 + (tv2-tv1)*(pconv(1)-phconv(2))/(pconv(1)-pconv(2))
+        if (abs(tv-tvold).gt.0.2) then
+          uvzlev(2) = uvzlev(1) + &
+               const*log(pold/pint)* &
+               (tv-tvold)/log(tv/tvold)
+        else
+          uvzlev(2) = uvzlev(1)+ &
+               const*log(pold/pint)*tv
+        endif
+        tvold=tv
+        tv1=tv2
+        pold=pint
+
+      ! integrate profile (calculation of height agl of eta layers) as required
+        do kz = 3, nconvtop+1
+      !    note that variables defined in calcmatrix.f (pconv,tconv,qconv)
+      !    start at the first real ECMWF model level whereas kz and
+      !    thus uvzlev(kz) starts at the surface. uvzlev is defined at the
+      !    half-levels (between the tconv, qconv etc. values !)
+      !    Thus, uvzlev(kz) is the lower boundary of the tconv(kz) cell.
+          pint = phconv(kz)
+      !    determine next virtual temperatures
+          tv2 = tconv(kz)*(1.+0.608*qconv(kz))
+      !    interpolate virtual temperature to half-level
+          tv = tv1 + (tv2-tv1)*(pconv(kz-1)-phconv(kz))/ &
+               (pconv(kz-1)-pconv(kz))
+          tv = tv1 + (tv2-tv1)*(pconv(kz-1)-phconv(kz))/ &
+               (pconv(kz-1)-pconv(kz))
+          if (abs(tv-tvold).gt.0.2) then
+            uvzlev(kz) = uvzlev(kz-1) + &
+                 const*log(pold/pint)* &
+                 (tv-tvold)/log(tv/tvold)
+          else
+            uvzlev(kz) = uvzlev(kz-1)+ &
+                 const*log(pold/pint)*tv
+          endif
+          tvold=tv
+          tv1=tv2
+          pold=pint
+
+
+        end do
+
+        ktop = 2
+
+      endif
+      
+      ztold = ztra1(abs(ipart))
+      ! find old particle grid position
+      levold = nconvtop
+      do kz = 2, nconvtop
+        if (uvzlev(kz) .le. ztold ) then
+          levold = kz-1
+          exit
+        endif
+      end do
+
+    case default
+      ztold = ztra1(abs(ipart))
+      ! find old particle grid position
+      levold = nconvtop
+      do kz = 2, nconvtop
+        if (uvzlev(kz) .le. ztold ) then
+          levold = kz-1
+          exit
+        endif
+      end do
+
+  end select
+
+  ! If the particle is above the potentially convective domain, it will be skipped
   if (levold.ne.nconvtop) then
 
     ! now redistribute particles
@@ -104,22 +197,45 @@ subroutine redist (itime,ipart,ktop,ipconv)
     end do loop1
 
     ! now assign new position to particle
+    select case (wind_coord_type)
 
-    if (levnew.le.nconvtop) then
-      if (levnew.eq.levold) then
-        ztra1eta(abs(ipart)) = ztold
-      else
-        dlogp = (1.-dlevfrac)* &
-           (wheight(levnew+1)-wheight(levnew))
-        ztra1eta(abs(ipart)) = wheight(levnew)+dlogp
-        ! if (ztra1eta(abs(ipart)).gt.uvheight(2)) &
-        !     ztra1eta(abs(ipart))=uvheight(2)-(ztra1eta(abs(ipart))-uvheight(2))
-        if (ztra1eta(abs(ipart)).ge.1.) ztra1eta(abs(ipart))=1.-(ztra1eta(abs(ipart))-1.)
-        if (ztra1eta(abs(ipart)).eq.1.) ztra1eta(abs(ipart))=ztra1eta(abs(ipart))-1.e-5
-        ! if (ztra1eta(abs(ipart)).ge.uvheight(2)) ztra1eta(abs(ipart))=uvheight(2) -(ztra1eta(abs(ipart))-uvheight(2))
-        if (ipconv.gt.0) ipconv=-1
-      endif
-    endif
+      case ('ETA')
+        if (levnew.le.nconvtop) then
+          if (levnew.eq.levold) then
+            ztra1eta(abs(ipart)) = ztold
+          else
+            dlogp = (1.-dlevfrac)* &
+               (wheight(levnew+1)-wheight(levnew))
+            ztra1eta(abs(ipart)) = wheight(levnew)+dlogp
+            if (ztra1eta(abs(ipart)).ge.1.) ztra1eta(abs(ipart))=1.-(ztra1eta(abs(ipart))-1.)
+            if (ztra1eta(abs(ipart)).eq.1.) ztra1eta(abs(ipart))=ztra1eta(abs(ipart))-1.e-5
+            if (ipconv.gt.0) ipconv=-1
+          endif
+        endif
+
+      case ('METER')
+        if (levnew.le.nconvtop) then
+          if (levnew.eq.levold) then
+            ztra1(abs(ipart)) = ztold
+          else
+            dlogp = (1.-dlevfrac)* &
+                 (log(phconv(levnew+1))-log(phconv(levnew)))
+            pint = log(phconv(levnew))+dlogp
+            dz1 = pint - log(phconv(levnew))
+            dz2 = log(phconv(levnew+1)) - pint
+            dz = dz1 + dz2
+            ztra1(abs(ipart)) = (uvzlev(levnew)*dz2+uvzlev(levnew+1)*dz1)/dz
+            if (ztra1(abs(ipart)).lt.0.) &
+                ztra1(abs(ipart))=-1.*ztra1(abs(ipart))
+            if (ipconv.gt.0) ipconv=-1
+          endif
+        endif
+
+      case default
+        write(*,*) 'The wind_coord_type is not defined in redist.f90'
+        stop
+
+    end select
 
     ! displace particle according to compensating subsidence
     ! this is done to those particles, that were not redistributed
@@ -153,44 +269,65 @@ subroutine redist (itime,ipart,ktop,ipconv)
             (phconv(levold+1))
 
       ! interpolate wsub to the vertical particle position
-      ztold = ztra1eta(abs(ipart))
+      select case (wind_coord_type)
+        case ('ETA')
+          ztold = ztra1eta(abs(ipart))
+          dz1 = ztold - wheight(levold)
+          dz2 = wheight(levold+1) - ztold
+          dz = dz1 + dz2
 
-      dz1 = ztold - wheight(levold)
-      dz2 = wheight(levold+1) - ztold
-      dz = dz1 + dz2
+          ! Convert z(eta) to z(m) in order to add subsidence
+          call zeta_to_z(itime,xtra1(abs(ipart)),ytra1(abs(ipart)), &
+            ztra1eta(abs(ipart)),ztra1(abs(ipart)))
+          ztold=ztra1(abs(ipart))
+          wsubpart = (dz2*wsub(levold)+dz1*wsub(levold+1))/dz
+          
+          ztra1(abs(ipart)) = ztold+wsubpart*real(lsynctime)
 
-      wsubpart = (dz2*wsub(levold)+dz1*wsub(levold+1))/dz
-      
-      ! Convert z(eta) to z(m) in order to add subsidence
-      call zeta_to_z(itime,xtra1(abs(ipart)),ytra1(abs(ipart)), &
-        ztra1eta(abs(ipart)),ztra1(abs(ipart)))
-      
-      ztold=ztra1(abs(ipart))
+          if (ztra1(abs(ipart)).lt.0.) then
+             ztra1(abs(ipart))=-1.*ztra1(abs(ipart))
+          endif
 
-      ztra1(abs(ipart)) = ztold+wsubpart*real(lsynctime)
+          ! Convert new z(m) back to z(eta)
+          call z_to_zeta(itime,xtra1(abs(ipart)),ytra1(abs(ipart)), &
+            ztra1(abs(ipart)),ztra1eta(abs(ipart)))
 
-      if (ztra1(abs(ipart)).lt.0.) then
-         ztra1(abs(ipart))=-1.*ztra1(abs(ipart))
-      endif
+        case ('METER')
+          ztold = ztra1(abs(ipart))
+          dz1 = ztold - uvzlev(levold)
+          dz2 = uvzlev(levold+1) - ztold
+          dz = dz1 + dz2
 
-      ! Convert new z(m) back to z(eta)
-      call z_to_zeta(itime,xtra1(abs(ipart)),ytra1(abs(ipart)), &
-        ztra1(abs(ipart)),ztra1eta(abs(ipart)))
+          wsubpart = (dz2*wsub(levold)+dz1*wsub(levold+1))/dz
+          ztra1(abs(ipart)) = ztold+wsubpart*real(lsynctime)
+          if (ztra1(abs(ipart)).lt.0.) then
+             ztra1(abs(ipart))=-1.*ztra1(abs(ipart))
+          endif
 
+        case default
+          write(*,*) 'The wind_coord_type is not defined in redist.f90'
+          stop
+      end select
     endif      !(levnew.le.nconvtop.and.levnew.eq.levold)
   endif
   ! Maximum altitude .5 meter below uppermost model level
   !*******************************************************
 
-  if (ztra1(abs(ipart)) .gt. height(nz)-0.5) &
-       ztra1(abs(ipart)) = height(nz)-0.5
+  select case (wind_coord_type)
+    case ('ETA')
+      if (ztra1(abs(ipart)) .gt. height(nz)-0.5) &
+           ztra1(abs(ipart)) = height(nz)-0.5
 
-  if (ztra1eta(abs(ipart)) .lt. uvheight(nz-1)) &
-       ztra1eta(abs(ipart)) = uvheight(nz-1)+1.e-5
-  ! if (ztra1eta(abs(ipart)).gt.uvheight(2)) &
-  !     ztra1eta(abs(ipart))=uvheight(2)-(ztra1eta(abs(ipart))-uvheight(2))
-  if (ztra1eta(abs(ipart)).ge.1.) ztra1eta(abs(ipart))=1.-(ztra1eta(abs(ipart))-1.)
-  if (ztra1eta(abs(ipart)).eq.1.) ztra1eta(abs(ipart))=ztra1eta(abs(ipart))-1.e-5
-  ! if (ztra1eta(abs(ipart)).ge.uvheight(2)) ztra1eta(abs(ipart))=uvheight(2) -(ztra1eta(abs(ipart))-uvheight(2))
+      if (ztra1eta(abs(ipart)) .lt. uvheight(nz-1)) &
+           ztra1eta(abs(ipart)) = uvheight(nz-1)+1.e-5
+      if (ztra1eta(abs(ipart)).ge.1.) ztra1eta(abs(ipart))=1.-(ztra1eta(abs(ipart))-1.)
+      if (ztra1eta(abs(ipart)).eq.1.) ztra1eta(abs(ipart))=ztra1eta(abs(ipart))-1.e-5
+    case ('METER')
+      if (ztra1(abs(ipart)) .gt. height(nz)-0.5) &
+           ztra1(abs(ipart)) = height(nz)-0.5
+    case default
+      write(*,*) 'The wind_coord_type is not defined in redist.f90'
+      stop
+  end select
 
 end subroutine redist

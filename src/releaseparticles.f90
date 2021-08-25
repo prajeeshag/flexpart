@@ -32,16 +32,18 @@ subroutine releaseparticles(itime)
   use par_mod
   use com_mod
   use random_mod, only: ran1
+  use interpol_mod
+  use coordinates_ecmwf
 
   implicit none
 
   !real xaux,yaux,zaux,ran1,rfraction,xmasssave(maxpoint)
   real :: xaux,yaux,zaux,rfraction
-  real :: topo,rhoaux(2),r,t,rhoout,ddx,ddy,rddx,rddy,p1,p2,p3,p4
-  real :: dz1,dz2,dz,xtn,ytn,xlonav,timecorrect(maxspec),press,pressold
+  real :: topo,rhoaux(2),r,t,rhoout
+  real :: dz1,dz2,dz,xlonav,timecorrect(maxspec),press,pressold
   real :: presspart,average_timecorrect
-  integer :: itime,numrel,i,j,k,n,ix,jy,ixp,jyp,ipart,minpart,ii
-  integer :: indz,indzp,kz,ngrid
+  integer :: itime,numrel,i,j,k,n,ipart,minpart,ii
+  integer :: kz
   integer :: nweeks,ndayofweek,nhour,jjjjmmdd,ihmmss,mm
   real(kind=dp) :: juldate,julmonday,jul,jullocal,juldiff
   real,parameter :: eps=nxmax/3.e5,eps2=1.e-6

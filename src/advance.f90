@@ -85,6 +85,7 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   use hanna_mod
   use cmapf_mod
   use random_mod, only: ran3
+  use coordinates_ecmwf
 
   ! openmp change
   use omp_lib, only: OMP_GET_THREAD_NUM
@@ -225,39 +226,10 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   
   ! Convert z(eta) to z(m) for the turbulence scheme, w(m/s) 
   ! is computed in verttransform_ecmwf.f90
-  call zeta_to_z(itime,xt,yt,zteta,zt)
+  if (wind_coord_type.eq.'ETA') call zeta_to_z(itime,xt,yt,zteta,zt)
 
-  h=0.
-  if (ngrid.le.0) then
-    do k=1,2
-       mind=memind(k) ! eso: compatibility with 3-field version
-       if (interpolhmix) then
-             h1(k)=p1*hmix(ix ,jy ,1,mind) &
-                 + p2*hmix(ixp,jy ,1,mind) &
-                 + p3*hmix(ix ,jyp,1,mind) &
-                 + p4*hmix(ixp,jyp,1,mind)
-        else
-          do j=jy,jyp
-            do i=ix,ixp
-               if (hmix(i,j,1,mind).gt.h) h=hmix(i,j,1,mind)
-            end do
-          end do
-        endif
-    end do
-    tropop=tropopause(nix,njy,1,1)
-  else
-    do k=1,2
-      mind=memind(k)
-      do j=jy,jyp
-        do i=ix,ixp
-          if (hmixn(i,j,1,mind,ngrid).gt.h) h=hmixn(i,j,1,mind,ngrid)
-        end do
-      end do
-    end do
-    tropop=tropopausen(nix,njy,1,1,ngrid)
-  endif
-
-  if (interpolhmix) h=(h1(1)*dt2+h1(2)*dt1)*dtt 
+  ! Compute the height of the troposphere and the PBL at the x-y location of the particle
+  call interpol_htropo_hmix(tropop,h)
   zeta=zt/h
 
   !*************************************************************
@@ -283,7 +255,6 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
 
       zeta=zt/h
 
-
       if (loop.eq.1) then
         if (ngrid.le.0) then
           xts=real(xt)
@@ -294,52 +265,14 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
         endif
 
       else
+        ! Determine the level below the current position for u,v,rho
+        !***********************************************************
+        call find_z_level(zt,zteta) ! Not sure if zteta levels are necessary here
 
-
-  ! Determine the level below the current position for u,v,rho
-  !***********************************************************
-
-        do i=2,nz
-          if (height(i).gt.zt) then
-            indz=i-1
-            indzp=i
-            exit
-          endif
-        end do
-
-        indzeta=nz-1
-        indzpeta=nz
-        do i=2,nz
-          if (wheight(i).lt.zteta) then
-            indzeta=i-1
-            indzpeta=i
-            exit
-          endif
-        end do
-
-        induv=nz-1
-        indpuv=nz
-        do i=2,nz
-          if (uvheight(i).lt.zteta) then
-            induv=i-1
-            indpuv=i
-            exit
-          endif
-        end do
-
-  ! If one of the levels necessary is not yet available,
-  ! calculate it
-  !*****************************************************
-
-        do i=indzeta,indzpeta
-          if (indzindicator(i)) then
-            if (ngrid.le.0) then
-              call interpol_misslev(i)
-            else
-              call interpol_misslev_nests(i)
-            endif
-          endif
-        end do
+        ! If one of the levels necessary is not yet available,
+        ! calculate it
+        !*****************************************************
+        call interpol_misslev()
       endif
 
 
@@ -349,25 +282,7 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   ! Vertical distance to the level below and above current position
   ! both in terms of (u,v) and (w) fields
   !****************************************************************
-      ! Keep w(m) for computing the turbulence
-      dz=1./(height(indzp)-height(indz))
-      dz1=(zt-height(indz))*dz
-      dz2=(height(indzp)-zt)*dz
-      w=dz1*wprof(indzp)+dz2*wprof(indz)
-
-      dz=1./(uvheight(indpuv)-uvheight(induv))
-      dz1=(zteta-uvheight(induv))*dz
-      dz2=(uvheight(indpuv)-zteta)*dz
-      u=dz1*uprof(indpuv)+dz2*uprof(induv)
-      v=dz1*vprof(indpuv)+dz2*vprof(induv)
-      rhoa=dz1*rhoprof(indpuv)+dz2*rhoprof(induv)
-      rhograd=dz1*rhogradprof(indpuv)+dz2*rhogradprof(induv)
-
-      ! Compute w(eta) and use where possible
-      dz=1./(wheight(indzpeta)-wheight(indzeta))
-      dz1=(zteta-wheight(indzeta))*dz
-      dz2=(wheight(indzpeta)-zteta)*dz
-      weta=dz1*wprofeta(indzpeta)+ dz2*wprofeta(indzeta)
+      call interpol_mixinglayer(zt,zteta,rhoa,rhograd)
 
   ! Compute the turbulent disturbances
   ! Determine the sigmas and the timescales
@@ -567,7 +482,7 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
       if (zt.ge.height(nz)) zt=height(nz)-100.*eps
 
       if (zt.gt.h) then
-        call z_to_zeta(itime,xt,yt,zt,zteta)
+        if (wind_coord_type.eq.'ETA') call z_to_zeta(itime,xt,yt,zt,zteta)
         if (itimec.eq.itime+lsynctime) goto 99
         goto 700    ! complete the current interval above PBL
       endif
@@ -598,12 +513,9 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
 
 
       if (itimec.eq.(itime+lsynctime)) then
-        usig=0.5*(usigprof(indpuv)+usigprof(induv))
-        vsig=0.5*(vsigprof(indpuv)+vsigprof(induv))
-        wsig=0.5*(wsigprof(indzp)+wsigprof(indz))
-        wsigeta=0.5*(wsigprofeta(indzpeta)+wsigprofeta(indzeta))
+        call interpol_average()
         ! Converting the z position that changed through turbulence motions to eta coords
-        call z_to_zeta(itime,xt,yt,zt,zteta)
+        if (wind_coord_type.eq.'ETA') call z_to_zeta(itime,xt,yt,zt,zteta)
         goto 99  ! finished
       endif
     end do pbl_loop
@@ -617,7 +529,6 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   ! time step. Only horizontal turbulent disturbances are
   ! calculated. Vertical disturbances are reset.
   !**********************************************************
-
 
   ! Interpolate the wind
   !*********************
@@ -702,12 +613,22 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   dysave=dysave+(v+vy)*dt
   zt=zt+(wp)*dt*real(ldirect)
   if (zt.lt.0.) zt=min(h-eps2,-1.*zt)    ! if particle below ground -> reflection
-  call z_to_zeta(itime,xt,yt,zt,zteta)
+  
+  select case (wind_coord_type)
+    case ('ETA')
+      call z_to_zeta(itime,xt,yt,zt,zteta)
+      zteta=zteta+(weta)*dt*real(ldirect)
+      if (zteta.ge.1.) zteta=1.-(zteta-1.)
+      if (zteta.eq.1.) zteta=zteta-eps_eta
+    case ('METER')
+      zt=zt+w*dt*real(ldirect)
+      if (zt.lt.0.) zt=min(h-eps2,-1.*zt)
+    case default
+      zt=zt+w*dt*real(ldirect)
+      if (zt.lt.0.) zt=min(h-eps2,-1.*zt)
+  end select
 
-  zteta=zteta+(weta)*dt*real(ldirect)
 
-  if (zteta.ge.1.) zteta=1.-(zteta-1.)
-  if (zteta.eq.1.) zteta=zteta-eps_eta
   ! if (zteta.ge.uvheight(2)) zteta=uvheight(2) -(zteta - uvheight(2))
 
 
@@ -734,16 +655,26 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   if (nrand+2.gt.maxrand) nrand=1
   usigold=r*usigold+rs*rannumb(nrand)*usig*turbmesoscale
   vsigold=r*vsigold+rs*rannumb(nrand+1)*vsig*turbmesoscale
-  wsigold=r*wsigold+rs*rannumb(nrand+2)*wsigeta*turbmesoscale
-
   dxsave=dxsave+usigold*real(lsynctime)
   dysave=dysave+vsigold*real(lsynctime)
-  zteta=zteta+wsigold*real(lsynctime)
 
-  if (zteta.ge.1.) zteta=1.-(zteta-1.)
-  if (zteta.eq.1.) zteta=zteta-eps_eta
-  ! if (zteta.ge.uvheight(2)) zteta=uvheight(2) -(zteta - uvheight(2))
+  select case (wind_coord_type)
+    case ('ETA')
+      wsigold=r*wsigold+rs*rannumb(nrand+2)*wsigeta*turbmesoscale
+      zteta=zteta+wsigold*real(lsynctime)
+      if (zteta.ge.1.) zteta=1.-(zteta-1.)
+      if (zteta.eq.1.) zteta=zteta-eps_eta
 
+    case ('METER')
+      wsigold=r*wsigold+rs*rannumb(nrand+2)*wsig*turbmesoscale
+      zt=zt+wsigold*real(lsynctime)
+      if (zt.lt.0.) zt=min(h-eps2,-1.*zt)
+
+    case default
+      wsigold=r*wsigold+rs*rannumb(nrand+2)*wsig*turbmesoscale
+      zt=zt+wsigold*real(lsynctime)
+      if (zt.lt.0.) zt=min(h-eps2,-1.*zt)
+  end select
   !*************************************************************
   ! Transform along and cross wind components to xy coordinates,
   ! add them to u and v, transform u,v to grid units/second
@@ -814,10 +745,15 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
 
   ! If particle above highest model level, set it back into the domain
   !*******************************************************************
-
-  if (zteta.le.uvheight(nz)) zteta=uvheight(nz)+eps_eta
-
-
+  select case (wind_coord_type)
+    case ('ETA')
+      if (zteta.le.uvheight(nz)) zteta=uvheight(nz)+eps_eta
+    case ('METER')
+      if (zt.ge.height(nz)) zt=height(nz)-100.*eps
+    case default
+      if (zt.ge.height(nz)) zt=height(nz)-100.*eps
+  end select  
+  
   !************************************************************************
   ! Now we could finish, as this was done in FLEXPART versions up to 4.0.
   ! However, truncation errors of the advection can be significantly
@@ -862,27 +798,23 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
 
   ! Determine nested grid coordinates
   !**********************************
-
-  if (ngrid.gt.0) then
-    xtn=(xt-xln(ngrid))*xresoln(ngrid)
-    ytn=(yt-yln(ngrid))*yresoln(ngrid)
-    ix=int(xtn)
-    jy=int(ytn)
-  else
-    ix=int(xt)
-    jy=int(yt)
-  endif
-  ixp=ix+1
-  jyp=jy+1
+  call determine_grid_coordinates(real(xt),real(yt))
 
   ! Memorize the old wind
   !**********************
 
   uold=u
   vold=v
-  !wold=w
 
-  woldeta=weta
+  select case (wind_coord_type)
+    case ('ETA')
+      woldeta=weta
+    case ('METER')
+      wold=w
+    case default
+      wold=w
+  end select
+
   ! Interpolate wind at new position and time
   !******************************************
 
@@ -906,10 +838,22 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
         nsp=nspec
       end if
       if (density(nsp).gt.0.) then
-        call zeta_to_z(itime,xt,yt,zteta,zt)
-        call get_settling(itime+ldt,real(xt),real(yt),zt,nsp,settling) !bugfix
-        call z_to_zeta(itime,xt,yt,zt+settling*real(ldt*ldirect),ztemp)
-        weta=weta+(ztemp-zteta)/real(ldt*ldirect)
+        select case (wind_coord_type)
+
+          case ('ETA')
+            call zeta_to_z(itime,xt,yt,zteta,zt)
+            call get_settling(itime+ldt,real(xt),real(yt),zt,nsp,settling) !bugfix
+            call z_to_zeta(itime,xt,yt,zt+settling*real(ldt*ldirect),ztemp)
+            weta=weta+(ztemp-zteta)/real(ldt*ldirect)
+
+          case ('METER')
+            call get_settling(itime+ldt,real(xt),real(yt),zt,nsp,settling) !bugfix
+            w=w+settling
+
+          case default 
+            call get_settling(itime+ldt,real(xt),real(yt),zt,nsp,settling) !bugfix
+            w=w+settling
+        end select            
       end if
     endif
   end if
@@ -921,18 +865,27 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
 
   u=(u-uold)/2.
   v=(v-vold)/2.
-  !w=(w-wold)/2.
 
-  weta=(weta-woldeta)/2.
+  select case (wind_coord_type)
+    case ('ETA')
+      weta=(weta-woldeta)/2.
+      zteta=zteta+weta*real(ldt*ldirect)
+      if (zteta.ge.1.) zteta=1.-(zteta-1.)
+      if (zteta.eq.1.) zteta=zteta-eps_eta
+
+    case ('METER')
+      w=(w-wold)/2.
+      zt=zt+w*real(ldt*ldirect)
+      if (zt.lt.0.) zt=min(h-eps2,-1.*zt)    ! if particle below ground -> reflection
+
+    case default 
+      w=(w-wold)/2.
+      zt=zt+w*real(ldt*ldirect)
+      if (zt.lt.0.) zt=min(h-eps2,-1.*zt) 
+  end select  
 
   ! Finally, correct the old position
   !**********************************
-  zteta=zteta+weta*real(ldt*ldirect)
-
-  if (zteta.ge.1.) zteta=1.-(zteta-1.)
-  if (zteta.eq.1.) zteta=zteta-eps_eta
-  ! if (zteta.ge.uvheight(2)) zteta=uvheight(2) -(zteta - uvheight(2))
-
   if (ngrid.ge.0) then
     cosfact=dxconst/cos((real(yt)*dy+ylat0)*pi180)
     xt=xt+real(u*cosfact*real(ldt*ldirect),kind=dp)
@@ -993,9 +946,14 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
 
   ! If particle above highest model level, set it back into the domain
   !*******************************************************************
-
-  if (zteta.le.uvheight(nz)) zteta=uvheight(nz)+eps_eta
-
+  select case (wind_coord_type)
+    case ('ETA')
+      if (zteta.le.uvheight(nz)) zteta=uvheight(nz)+eps_eta
+    case ('METER')
+      if (zt.ge.height(nz)) zt=height(nz)-100.*eps
+    case default
+      if (zt.ge.height(nz)) zt=height(nz)-100.*eps
+  end select  
 
 end subroutine advance
 

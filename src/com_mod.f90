@@ -28,6 +28,7 @@ module com_mod
   integer :: length(numpath+2*maxnests)
   character(len=256) :: pathfile, flexversion, flexversion_major, arg1, arg2
   character(len=256) :: ohfields_path
+  character(len=256) :: wind_coord_type
   
   ! path                    path names needed for trajectory model
   ! length                  length of path names needed for trajectory model

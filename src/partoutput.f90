@@ -19,16 +19,17 @@ subroutine partoutput(itime)
 
   use par_mod
   use com_mod
+  use interpol_mod
+  use coordinates_ecmwf
 
   implicit none
 
   real(kind=dp) :: jul
   integer :: itime,i,j,jjjjmmdd,ihmmss
-  integer :: ix,jy,ixp,jyp,indexh,m,il,ind,indz,indzp
+  !integer :: ix,jy,ixp,jyp,indexh,m,il,ind,indz,indzp
   real :: xlon,ylat,ztemp
-  real :: dt1,dt2,dtt,ddx,ddy,rddx,rddy,p1,p2,p3,p4,dz1,dz2,dz
-  real :: topo,hm(2),hmixi,pv1(2),pvprof(2),pvi,qv1(2),qvprof(2),qvi
-  real :: tt1(2),ttprof(2),tti,rho1(2),rhoprof(2),rhoi
+  real :: topo,hm(2),hmixi,qvi
+  real :: tti,rhoi,pvi
   real :: tr(2),tri
   character :: adate*8,atime*6
 
@@ -45,9 +46,10 @@ subroutine partoutput(itime)
   ! Some variables needed for temporal interpolation
   !*************************************************
 
-  dt1=real(itime-memtime(1))
-  dt2=real(memtime(2)-itime)
-  dtt=1./(dt1+dt2)
+  ! dt1=real(itime-memtime(1))
+  ! dt2=real(memtime(2)-itime)
+  ! dtt=1./(dt1+dt2)
+  call find_time_variables(itime)
 
   ! Open output file and write the output
   !**************************************
@@ -76,115 +78,46 @@ subroutine partoutput(itime)
   !*****************************************************************************
   ! Interpolate several variables (PV, specific humidity, etc.) to particle position
   !*****************************************************************************
-
-      ix=xtra1(i)
-      jy=ytra1(i)
-      ixp=ix+1
-      jyp=jy+1
-      ddx=xtra1(i)-real(ix)
-      ddy=ytra1(i)-real(jy)
-      rddx=1.-ddx
-      rddy=1.-ddy
-      p1=rddx*rddy
-      p2=ddx*rddy
-      p3=rddx*ddy
-      p4=ddx*ddy
-
-! eso: Temporary fix for particle exactly at north pole
-      if (jyp >= nymax) then
-      !  write(*,*) 'WARNING: conccalc.f90 jyp >= nymax'
-        jyp=jyp-1
-      end if
-
+      call determine_grid_coordinates(real(xtra1(i)),real(ytra1(i)))
+      call find_grid_distances(real(xtra1(i)),real(ytra1(i)))
   ! Topography
   !***********
+      call bilinear_horizontal_interpolation_2dim(oro,topo)
 
-      topo=p1*oro(ix ,jy) &
-           + p2*oro(ixp,jy) &
-           + p3*oro(ix ,jyp) &
-           + p4*oro(ixp,jyp)
-
-  ! Potential vorticity, specific humidity, temperature, and density
-  !*****************************************************************
-
-      indz=nz-1
-      indzp=nz
-      dz1=1.
-      dz2=0.
-      dz=1.
-      do il=2,nz
-        if (uvheight(il).lt.ztra1eta(i)) then
-          indz=il-1
-          indzp=il
-          dz1=ztra1eta(i)-uvheight(indz)
-          dz2=uvheight(indzp)-ztra1eta(i)
-          dz=1./(dz1+dz2)
-          exit
-        endif
-      end do
-
-      do ind=indz,indzp
-        do m=1,2
-          indexh=memind(m)
-
-  ! Potential vorticity
-          pv1(m)=p1*pveta(ix ,jy ,ind,indexh) &
-               +p2*pveta(ixp,jy ,ind,indexh) &
-               +p3*pveta(ix ,jyp,ind,indexh) &
-               +p4*pveta(ixp,jyp,ind,indexh)
-  ! Specific humidity
-          qv1(m)=p1*qveta(ix ,jy ,ind,indexh) &
-               +p2*qveta(ixp,jy ,ind,indexh) &
-               +p3*qveta(ix ,jyp,ind,indexh) &
-               +p4*qveta(ixp,jyp,ind,indexh)
-  ! Temperature
-          tt1(m)=p1*tteta(ix ,jy ,ind,indexh) &
-               +p2*tteta(ixp,jy ,ind,indexh) &
-               +p3*tteta(ix ,jyp,ind,indexh) &
-               +p4*tteta(ixp,jyp,ind,indexh)
-  ! Density
-          rho1(m)=p1*rhoeta(ix ,jy ,ind,indexh) &
-               +p2*rhoeta(ixp,jy ,ind,indexh) &
-               +p3*rhoeta(ix ,jyp,ind,indexh) &
-               +p4*rhoeta(ixp,jyp,ind,indexh)
-        end do
-        pvprof(ind-indz+1)=(pv1(1)*dt2+pv1(2)*dt1)*dtt
-        qvprof(ind-indz+1)=(qv1(1)*dt2+qv1(2)*dt1)*dtt
-        ttprof(ind-indz+1)=(tt1(1)*dt2+tt1(2)*dt1)*dtt
-        rhoprof(ind-indz+1)=(rho1(1)*dt2+rho1(2)*dt1)*dtt
-      end do
-      pvi=(dz1*pvprof(2)+dz2*pvprof(1))*dz
-      qvi=(dz1*qvprof(2)+dz2*qvprof(1))*dz
-      tti=(dz1*ttprof(2)+dz2*ttprof(1))*dz
-      rhoi=(dz1*rhoprof(2)+dz2*rhoprof(1))*dz
+      ! First set dz1out from interpol_mod to -1 so it only is calculated once per particle
+      !************************************************************************************
+      dz1out=-1
+      ! Potential vorticity
+      call interpol_partoutput_value('PV',pvi,i)
+      ! Specific humidity
+      call interpol_partoutput_value('QV',qvi,i)
+      ! Temperature
+      call interpol_partoutput_value('TT',tti,i)
+      ! Density
+      call interpol_partoutput_value('RH',rhoi,i)
+      ! Reset dz1out
+      !*************
+      dz1out=-1
 
   ! Tropopause and PBL height
   !**************************
-
-      do m=1,2
-        indexh=memind(m)
-
   ! Tropopause
-        tr(m)=p1*tropopause(ix ,jy ,1,indexh) &
-             + p2*tropopause(ixp,jy ,1,indexh) &
-             + p3*tropopause(ix ,jyp,1,indexh) &
-             + p4*tropopause(ixp,jyp,1,indexh)
-
+      call bilinear_horizontal_interpolation(tropopause,tr,1,1)
+      call temporal_interpolation(tr(1),tr(2),tri)
   ! PBL height
-        hm(m)=p1*hmix(ix ,jy ,1,indexh) &
-             + p2*hmix(ixp,jy ,1,indexh) &
-             + p3*hmix(ix ,jyp,1,indexh) &
-             + p4*hmix(ixp,jyp,1,indexh)
-      end do
-
-      hmixi=(hm(1)*dt2+hm(2)*dt1)*dtt
-      tri=(tr(1)*dt2+tr(2)*dt1)*dtt
+      call bilinear_horizontal_interpolation(hmix,hm,1,1)
+      call temporal_interpolation(hm(1),hm(2),hmixi)
 
 
+  ! Convert eta z coordinate to meters if necessary
+  !************************************************
+      if (wind_coord_type.eq.'ETA') then
+        call zeta_to_z(itime,xtra1(i),ytra1(i),ztra1eta(i),ztemp)
+      else
+        ztemp=ztra1(i)
+      endif
   ! Write the output
-  !*****************
-      call zeta_to_z(itime,xtra1(i),ytra1(i),ztra1eta(i),ztemp)
-      
+  !*****************      
       write(unitpartout) npoint(i),xlon,ylat,ztemp, &
            itramem(i),topo,pvi,qvi,rhoi,hmixi,tri,tti, &
            (xmass1(i,j),j=1,nspec)

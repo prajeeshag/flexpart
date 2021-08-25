@@ -31,17 +31,19 @@ subroutine init_domainfill
   use par_mod
   use com_mod
   use random_mod
+  use interpol_mod
+  use coordinates_ecmwf
 
   implicit none
 
-  integer :: j,ix,jy,kz,ncolumn,numparttot
+  integer :: j,kz,lix,ljy,ncolumn,numparttot
   real :: gridarea(0:nymax-1),pp(nzmax),ylat,ylatp,ylatm,hzone
   real :: cosfactm,cosfactp,deltacol,dz1,dz2,dz,pnew,fractus
   real,parameter :: pih=pi/180.
   real :: colmass(0:nxmax-1,0:nymax-1),colmasstotal,zposition
 
-  integer :: ixm,ixp,jym,jyp,indzm,indzp,in,indzh,i,jj,ii
-  real :: pvpart,ddx,ddy,rddx,rddy,p1,p2,p3,p4,y1(2)
+  integer :: ixm,jym,indzm,in,indzh,i,jj,ii
+  real :: pvpart,y1(2)
 
   integer :: idummy = -11
 
@@ -82,8 +84,8 @@ subroutine init_domainfill
 ! see Netz, Formeln der Mathematik, 5. Auflage (1983), p.90
 !************************************************************
 
-  do jy=ny_sn(1),ny_sn(2)      ! loop about latitudes
-    ylat=ylat0+real(jy)*dy
+  do ljy=ny_sn(1),ny_sn(2)      ! loop about latitudes
+    ylat=ylat0+real(ljy)*dy
     ylatp=ylat+0.5*dy
     ylatm=ylat-0.5*dy
     if ((ylatm.lt.0).and.(ylatp.gt.0.)) then
@@ -99,7 +101,7 @@ subroutine init_domainfill
              sqrt(r_earth**2-cosfactp**2)
       endif
     endif
-    gridarea(jy)=2.*pi*r_earth*hzone*dx/360.
+    gridarea(ljy)=2.*pi*r_earth*hzone*dx/360.
   end do
 
 ! Do the same for the south pole
@@ -133,12 +135,12 @@ subroutine init_domainfill
 !*********************************************************************
 
   colmasstotal=0.
-  do jy=ny_sn(1),ny_sn(2)          ! loop about latitudes
-    do ix=nx_we(1),nx_we(2)      ! loop about longitudes
-      pp(1)=rho(ix,jy,1,1)*r_air*tt(ix,jy,1,1)
-      pp(nz)=rho(ix,jy,nz,1)*r_air*tt(ix,jy,nz,1)
-      colmass(ix,jy)=(pp(1)-pp(nz))/ga*gridarea(jy)
-      colmasstotal=colmasstotal+colmass(ix,jy)
+  do ljy=ny_sn(1),ny_sn(2)          ! loop about latitudes
+    do lix=nx_we(1),nx_we(2)      ! loop about longitudes
+      pp(1)=rho(lix,ljy,1,1)*r_air*tt(lix,ljy,1,1)
+      pp(nz)=rho(lix,ljy,nz,1)*r_air*tt(lix,ljy,nz,1)
+      colmass(lix,ljy)=(pp(1)-pp(nz))/ga*gridarea(ljy)
+      colmasstotal=colmasstotal+colmass(lix,ljy)
     end do
   end do
 
@@ -152,10 +154,10 @@ subroutine init_domainfill
 
   numparttot=0
   numcolumn=0
-  do jy=ny_sn(1),ny_sn(2)      ! loop about latitudes
-    ylat=ylat0+real(jy)*dy
-    do ix=nx_we(1),nx_we(2)      ! loop about longitudes
-      ncolumn=nint(0.999*real(npart(1))*colmass(ix,jy)/ &
+  do ljy=ny_sn(1),ny_sn(2)      ! loop about latitudes
+    ylat=ylat0+real(ljy)*dy
+    do lix=nx_we(1),nx_we(2)      ! loop about longitudes
+      ncolumn=nint(0.999*real(npart(1))*colmass(lix,ljy)/ &
            colmasstotal)
       if (ncolumn.eq.0) goto 30
       if (ncolumn.gt.numcolumn) numcolumn=ncolumn
@@ -165,7 +167,7 @@ subroutine init_domainfill
 !*****************************************************************************
 
       do kz=1,nz
-        pp(kz)=rho(ix,jy,kz,1)*r_air*tt(ix,jy,kz,1)
+        pp(kz)=rho(lix,ljy,kz,1)*r_air*tt(lix,ljy,kz,1)
       end do
 
 
@@ -199,11 +201,11 @@ subroutine init_domainfill
 ! Do the following steps only if particles are not read in from previous model run
 !*****************************************************************************
             if (ipin.eq.0) then
-              xtra1(numpart+jj)=real(real(ix)-0.5+ran1(idummy),kind=dp)
-              if (ix.eq.0) xtra1(numpart+jj)=real(ran1(idummy),kind=dp)
-              if (ix.eq.nxmin1) xtra1(numpart+jj)= &
+              xtra1(numpart+jj)=real(real(lix)-0.5+ran1(idummy),kind=dp)
+              if (lix.eq.0) xtra1(numpart+jj)=real(ran1(idummy),kind=dp)
+              if (lix.eq.nxmin1) xtra1(numpart+jj)= &
                    real(real(nxmin1)-ran1(idummy),kind=dp)
-              ytra1(numpart+jj)=real(real(jy)-0.5+ran1(idummy),kind=dp)
+              ytra1(numpart+jj)=real(real(ljy)-0.5+ran1(idummy),kind=dp)
               ztra1(numpart+jj)=(height(kz)*dz2+height(kz+1)*dz1)*dz
               if (ztra1(numpart+jj).gt.height(nz)-0.5) &
                    ztra1(numpart+jj)=height(nz)-0.5
@@ -224,7 +226,9 @@ subroutine init_domainfill
               p3=rddx*ddy
               p4=ddx*ddy
 
-              call z_to_zeta(0,xtra1(numpart+jj),ytra1(numpart+jj),ztra1(numpart+jj),ztra1eta(numpart+jj))
+              if (wind_coord_type.eq.'ETA') then
+                call z_to_zeta(0,xtra1(numpart+jj),ytra1(numpart+jj),ztra1(numpart+jj),ztra1eta(numpart+jj))
+              endif
 !***************************************************************************
 
               do i=2,nz
@@ -266,7 +270,7 @@ subroutine init_domainfill
                 itramem(numpart+jj)=0
                 itrasplit(numpart+jj)=itra1(numpart+jj)+ldirect* &
                      itsplit
-                xmass1(numpart+jj,1)=colmass(ix,jy)/real(ncolumn)
+                xmass1(numpart+jj,1)=colmass(lix,ljy)/real(ncolumn)
                 if (mdomainfill.eq.2) xmass1(numpart+jj,1)= &
                      xmass1(numpart+jj,1)*pvpart*48./29.*ozonescale/10.**9
               else
@@ -325,9 +329,9 @@ subroutine init_domainfill
   write(*,*) 'If ',fractus,' <1, better use more particles'
   fractus=sqrt(max(fractus,1.))/2.
 
-  do jy=ny_sn(1),ny_sn(2)      ! loop about latitudes
-    do ix=nx_we(1),nx_we(2)      ! loop about longitudes
-      ncolumn=nint(0.999/fractus*real(npart(1))*colmass(ix,jy) &
+  do ljy=ny_sn(1),ny_sn(2)      ! loop about latitudes
+    do lix=nx_we(1),nx_we(2)      ! loop about longitudes
+      ncolumn=nint(0.999/fractus*real(npart(1))*colmass(lix,ljy) &
            /colmasstotal)
       if (ncolumn.gt.maxcolumn) stop 'maxcolumn too small'
       if (ncolumn.eq.0) goto 80
@@ -338,17 +342,17 @@ subroutine init_domainfill
 ! Use 2 fields for west/east and south/north boundary
 !************************************************************************
 
-      if (ix.eq.nx_we(1)) numcolumn_we(1,jy)=ncolumn
-      if (ix.eq.nx_we(2)) numcolumn_we(2,jy)=ncolumn
-      if (jy.eq.ny_sn(1)) numcolumn_sn(1,ix)=ncolumn
-      if (jy.eq.ny_sn(2)) numcolumn_sn(2,ix)=ncolumn
+      if (lix.eq.nx_we(1)) numcolumn_we(1,ljy)=ncolumn
+      if (lix.eq.nx_we(2)) numcolumn_we(2,ljy)=ncolumn
+      if (ljy.eq.ny_sn(1)) numcolumn_sn(1,lix)=ncolumn
+      if (ljy.eq.ny_sn(2)) numcolumn_sn(2,lix)=ncolumn
 
 ! Calculate pressure at the altitudes of model surfaces, using the air density
 ! information, which is stored as a 3-d field
 !*****************************************************************************
 
       do kz=1,nz
-        pp(kz)=rho(ix,jy,kz,1)*r_air*tt(ix,jy,kz,1)
+        pp(kz)=rho(lix,ljy,kz,1)*r_air*tt(lix,ljy,kz,1)
       end do
 
 ! Determine the reference starting altitudes
@@ -370,18 +374,18 @@ subroutine init_domainfill
 ! This is further used in subroutine boundcond_domainfill.f
 !***********************************************************
 
-            if (ix.eq.nx_we(1)) zcolumn_we(1,jy,j)=zposition
-            if (ix.eq.nx_we(2)) zcolumn_we(2,jy,j)=zposition
-            if (jy.eq.ny_sn(1)) zcolumn_sn(1,ix,j)=zposition
-            if (jy.eq.ny_sn(2)) zcolumn_sn(2,ix,j)=zposition
+            if (lix.eq.nx_we(1)) zcolumn_we(1,ljy,j)=zposition
+            if (lix.eq.nx_we(2)) zcolumn_we(2,ljy,j)=zposition
+            if (ljy.eq.ny_sn(1)) zcolumn_sn(1,lix,j)=zposition
+            if (ljy.eq.ny_sn(2)) zcolumn_sn(2,lix,j)=zposition
 
 ! Initialize mass that has accumulated at boundary to zero
 !*********************************************************
 
-            acc_mass_we(1,jy,j)=0.
-            acc_mass_we(2,jy,j)=0.
-            acc_mass_sn(1,jy,j)=0.
-            acc_mass_sn(2,jy,j)=0.
+            acc_mass_we(1,ljy,j)=0.
+            acc_mass_we(2,ljy,j)=0.
+            acc_mass_sn(1,ljy,j)=0.
+            acc_mass_sn(2,ljy,j)=0.
           endif
         end do
       end do

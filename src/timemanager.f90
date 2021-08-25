@@ -88,6 +88,7 @@ subroutine timemanager(metdata_format)
   use netcdf_output_mod, only: concoutput_netcdf,concoutput_nest_netcdf,&
        &concoutput_surf_netcdf,concoutput_surf_nest_netcdf
 #endif
+  use coordinates_ecmwf, only: z_to_zeta
 
   implicit none
   real, parameter ::        &
@@ -95,7 +96,7 @@ subroutine timemanager(metdata_format)
   integer, intent(in) ::    &
     metdata_format            ! Data type of the windfields
   integer ::                &
-    j,                      & ! loop variable
+    j,i,                    & ! loop variable
     ks,                     & ! loop variable species
     kp,                     & ! loop variable for maxpointspec_act
     l,                      & ! loop variable over nclassunc
@@ -173,6 +174,14 @@ subroutine timemanager(metdata_format)
   !*******************************************
     call getfields(itime,nstop1,metdata_format)
     if (nstop1.gt.1) stop 'NO METEO FIELDS AVAILABLE'
+
+  ! In case of ETA coordinates being read from file, convert the z positions
+  !*************************************************************************
+    if ((ipin.eq.1).and.(itime.eq.0).and.(wind_coord_type.eq.'ETA')) then 
+      do i=1,numpart
+        call z_to_zeta(itime,xtra1(i),ytra1(i),ztra1(i),ztra1eta(i))
+      end do 
+    endif
 
   ! Get hourly OH fields if not available 
   !****************************************************

@@ -22,10 +22,11 @@ subroutine readpartpositions
   use par_mod
   use com_mod
   use random_mod
+  use coordinates_ecmwf
 
   implicit none
 
-  integer :: ibdatein,ibtimein,nspecin,itimein,numpointin,i,j,ix
+  integer :: ibdatein,ibtimein,nspecin,itimein,numpointin,i,j,lix
   integer :: id1,id2,it1,it2
   real :: xlonin,ylatin,topo,hmixi,pvi,qvi,rhoi,tri,tti
   character :: specin*7
@@ -75,7 +76,7 @@ subroutine readpartpositions
   read(unitpartin)
   read(unitpartin)
 
-  do ix=0,numxgrid-1
+  do lix=0,numxgrid-1
     read(unitpartin)
   end do
 
@@ -93,10 +94,11 @@ subroutine readpartpositions
 200 i=i+1
   read(unitpartin) npoint(i),xlonin,ylatin,ztra1(i),itramem(i), &
        topo,pvi,qvi,rhoi,hmixi,tri,tti,(xmass1(i,j),j=1,nspec)
-  
+  ! For switching coordinates: this happens in timemanager.f90 after the first fields are read
   if (xlonin.eq.-9999.9) goto 100
   xtra1(i)=(xlonin-xlon0)/dx
   ytra1(i)=(ylatin-ylat0)/dy
+
   numparticlecount=max(numparticlecount,npoint(i))
   goto 200
 

@@ -34,7 +34,7 @@ module interpol_mod
 !$OMP ngrid,indz,indzp,depoindicator,indzindicator, &
 !$OMP wprofeta,wsigprofeta,induv,indpuv,lbounds,lbounds_w,lbounds_uv, &
 !$OMP indzeta,indzpeta,ueta,veta,weta,wsigeta,detaprof, &
-!$OMP xtn,ytn,nix,njy)
+!$OMP xtn,ytn,nix,njy,dz1out,dz2out)
 
 contains
 
@@ -54,8 +54,7 @@ subroutine initialise_interpol_mod(itime,xt,yt,zt,zteta)
   call determine_grid_coordinates(xt,yt)
   call find_grid_distances(xt,yt)
   call find_time_variables(itime)
-  call find_z_level_meters(zt)
-  call find_z_level_eta(zteta)
+  call find_z_level(zt,zteta)
 end subroutine initialise_interpol_mod
 
 subroutine determine_grid_coordinates(xt,yt)
@@ -1760,7 +1759,7 @@ subroutine interpol_all_eta(zt,zteta)
   do n=indz,indzp
     call bilinear_horizontal_interpolation(ww,y3,n,nwzmax)
     call temporal_interpolation(y3(1),y3(2),wprof(n))
-    indzindicator(n)=.false.
+    !indzindicator(n)=.false.
 
   ! Compute standard deviations
   !****************************
@@ -1801,6 +1800,7 @@ subroutine interpol_all_eta(zt,zteta)
     call bilinear_horizontal_interpolation(wweta,y3,n,nzmax)
     call compute_standard_deviation(wweta,wsigprofeta(n),n,n,nzmax)
     call temporal_interpolation(y3(1),y3(2),wprofeta(n))
+    indzindicator(n)=.false.
   end do
 end subroutine interpol_all_eta
 
@@ -2001,12 +2001,6 @@ subroutine interpol_wind_meter(zt)
   !************************************
   call compute_standard_deviation(ww,wsig,indz,indz+1,nwzmax)
   call bilinear_spatial_interpolation(ww,wh,indz,dz1,dz2,nwzmax)
-  call temporal_interpolation(wh(1),wh(2),w)
-  ! Same for eta coordinates
-
-  !*************************
-  ! First the half levels
-  !**********************
 
   if (ngrid.lt.0) then
     call compute_standard_deviation(uupol,usig,indz,indz+1,nzmax)
@@ -2021,6 +2015,7 @@ subroutine interpol_wind_meter(zt)
   endif
   call temporal_interpolation(uh(1),uh(2),u)
   call temporal_interpolation(vh(1),vh(2),v)
+  call temporal_interpolation(wh(1),wh(2),w)
 end subroutine interpol_wind_meter
 
 subroutine interpol_wind_short_eta(zt,zteta)
@@ -2151,7 +2146,7 @@ subroutine interpol_partoutput_value_meter(fieldname,output,j)
   real                        :: field1(2)
 
   if (dz1out.eq.-1) then
-    call find_z_level_eta(ztra1eta(j))
+    call find_z_level_meters(ztra1(j))
     call find_vertical_variables(height,ztra1(j),indz,dz1out,dz2out,lbounds)
   endif
 

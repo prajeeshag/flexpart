@@ -73,7 +73,7 @@ subroutine partpos_average(itime,j)
   call bilinear_horizontal_interpolation(hmix,hm,1,1)
   call temporal_interpolation(hm(1),hm(2),hmixi)
 
-  ! Convert eta z coordinate to meters if necessary
+  ! Convert eta z coordinate to meters if necessary. Can be moved to output only
   !************************************************
   if (wind_coord_type.eq.'ETA') then
     call zeta_to_z(itime,xtra1(j),ytra1(j),ztra1eta(j),ztemp1)

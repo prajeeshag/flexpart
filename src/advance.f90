@@ -611,20 +611,20 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   !************************************************
   dxsave=dxsave+(u+ux)*dt
   dysave=dysave+(v+vy)*dt
-  zt=zt+(wp)*dt*real(ldirect)
-  if (zt.lt.0.) zt=min(h-eps2,-1.*zt)    ! if particle below ground -> reflection
-  
+ 
   select case (wind_coord_type)
     case ('ETA')
+      zt=zt+(wp)*dt*real(ldirect)
+      if (zt.lt.0.) zt=min(h-eps2,-1.*zt)    ! if particle below ground -> reflection
       call z_to_zeta(itime,xt,yt,zt,zteta)
       zteta=zteta+(weta)*dt*real(ldirect)
       if (zteta.ge.1.) zteta=1.-(zteta-1.)
       if (zteta.eq.1.) zteta=zteta-eps_eta
     case ('METER')
-      zt=zt+w*dt*real(ldirect)
+      zt=zt+(w+wp)*dt*real(ldirect)
       if (zt.lt.0.) zt=min(h-eps2,-1.*zt)
     case default
-      zt=zt+w*dt*real(ldirect)
+      zt=zt+(w+wp)*dt*real(ldirect)
       if (zt.lt.0.) zt=min(h-eps2,-1.*zt)
   end select
 
@@ -668,12 +668,12 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
     case ('METER')
       wsigold=r*wsigold+rs*rannumb(nrand+2)*wsig*turbmesoscale
       zt=zt+wsigold*real(lsynctime)
-      if (zt.lt.0.) zt=min(h-eps2,-1.*zt)
+      if (zt.lt.0.) zt=-1.*zt    ! if particle below ground -> refletion
 
     case default
       wsigold=r*wsigold+rs*rannumb(nrand+2)*wsig*turbmesoscale
       zt=zt+wsigold*real(lsynctime)
-      if (zt.lt.0.) zt=min(h-eps2,-1.*zt)
+      if (zt.lt.0.) zt=-1.*zt    ! if particle below ground -> refletion
   end select
   !*************************************************************
   ! Transform along and cross wind components to xy coordinates,
@@ -821,9 +821,6 @@ subroutine advance(itime,nrelpoint,ldt,up,vp,wp, &
   if (ngrid.le.0) then
     xts=real(xt)
     yts=real(yt)
-    if (ix.gt.720) then
-      write(*,*) 'ERROR! ', pp,xt,yt
-    endif
     call interpol_wind_short(itime+ldt*ldirect,xts,yts,zt,zteta)
   else
     call interpol_wind_short_nests(itime+ldt*ldirect,xtn,ytn,zt)

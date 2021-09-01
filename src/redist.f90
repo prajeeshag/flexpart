@@ -57,7 +57,7 @@ subroutine redist (itime,ipart,ktop,ipconv)
       ! find old particle grid position
       levold = nconvtop
       do kz = 2, nconvtop
-        if (wheight(kz) .le. ztold ) then
+        if (uvheight(kz) .le. ztold ) then
           levold = kz-1
           exit
         endif
@@ -133,22 +133,15 @@ subroutine redist (itime,ipart,ktop,ipconv)
       ! find old particle grid position
       levold = nconvtop
       do kz = 2, nconvtop
-        if (uvzlev(kz) .le. ztold ) then
+        if (uvzlev(kz) .ge. ztold ) then
           levold = kz-1
           exit
         endif
       end do
 
     case default
-      ztold = ztra1(abs(ipart))
-      ! find old particle grid position
-      levold = nconvtop
-      do kz = 2, nconvtop
-        if (uvzlev(kz) .le. ztold ) then
-          levold = kz-1
-          exit
-        endif
-      end do
+      write(*,*) 'The wind_coord_type is not defined in redist.f90'
+      stop
 
   end select
 
@@ -205,8 +198,8 @@ subroutine redist (itime,ipart,ktop,ipconv)
             ztra1eta(abs(ipart)) = ztold
           else
             dlogp = (1.-dlevfrac)* &
-               (wheight(levnew+1)-wheight(levnew))
-            ztra1eta(abs(ipart)) = wheight(levnew)+dlogp
+               (uvheight(levnew+1)-uvheight(levnew))
+            ztra1eta(abs(ipart)) = uvheight(levnew)+dlogp
             if (ztra1eta(abs(ipart)).ge.1.) ztra1eta(abs(ipart))=1.-(ztra1eta(abs(ipart))-1.)
             if (ztra1eta(abs(ipart)).eq.1.) ztra1eta(abs(ipart))=ztra1eta(abs(ipart))-1.e-5
             if (ipconv.gt.0) ipconv=-1
@@ -272,13 +265,14 @@ subroutine redist (itime,ipart,ktop,ipconv)
       select case (wind_coord_type)
         case ('ETA')
           ztold = ztra1eta(abs(ipart))
-          dz1 = ztold - wheight(levold)
-          dz2 = wheight(levold+1) - ztold
+          dz1 = ztold - uvheight(levold)
+          dz2 = uvheight(levold+1) - ztold
           dz = dz1 + dz2
 
           ! Convert z(eta) to z(m) in order to add subsidence
           call zeta_to_z(itime,xtra1(abs(ipart)),ytra1(abs(ipart)), &
             ztra1eta(abs(ipart)),ztra1(abs(ipart)))
+
           ztold=ztra1(abs(ipart))
           wsubpart = (dz2*wsub(levold)+dz1*wsub(levold+1))/dz
           

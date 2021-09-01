@@ -116,6 +116,13 @@ subroutine partoutput(itime)
       else
         ztemp=ztra1(i)
       endif
+
+      if (i.eq.1) then
+        write(*,*) 'topo: ', topo, 'z:', ztemp, ztra1eta(i),ztra1(i)!'zm: ',  ztra1(j),'k,nz,indzp: ',  k, nz, indzp
+        write(*,*) 'xtra,xeta: ', xtra1(i)
+        write(*,*) 'ytra,yeta: ', ytra1(i)
+        write(*,*) pvi,qvi,tti,rhoi
+      endif
   ! Write the output
   !*****************      
       write(unitpartout) npoint(i),xlon,ylat,ztemp, &
@@ -123,6 +130,8 @@ subroutine partoutput(itime)
            (xmass1(i,j),j=1,nspec)
     endif
   end do
+
+
   write(unitpartout) -99999,-9999.9,-9999.9,-9999.9,-99999, &
        -9999.9,-9999.9,-9999.9,-9999.9,-9999.9,-9999.9,-9999.9, &
        (-9999.9,j=1,nspec)

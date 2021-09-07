@@ -52,9 +52,9 @@ subroutine calcfluxes(nage,jpart,xold,yold,zold)
   ixave=int((xmean*dx+xoutshift)/dxout)
   jyave=int((ymean*dy+youtshift)/dyout)
   do kz=1,numzgrid                ! determine height of cell
-    if (outheight(kz).gt.ztra1(jpart)) goto 16
+    if (outheight(kz).gt.ztra1(jpart)) exit
   end do
-16   kzave=kz
+  kzave=kz
 
 
   ! Determine vertical fluxes
@@ -63,13 +63,13 @@ subroutine calcfluxes(nage,jpart,xold,yold,zold)
   if ((ixave.ge.0).and.(jyave.ge.0).and.(ixave.le.numxgrid-1).and. &
        (jyave.le.numygrid-1)) then
     do kz=1,numzgrid                ! determine height of cell
-      if (outheighthalf(kz).gt.zold) goto 11
+      if (outheighthalf(kz).gt.zold) exit
     end do
-11   k1=min(numzgrid,kz)
+    k1=min(numzgrid,kz)
     do kz=1,numzgrid                ! determine height of cell
-      if (outheighthalf(kz).gt.ztra1(jpart)) goto 21
+      if (outheighthalf(kz).gt.ztra1(jpart)) exit
     end do
-21   k2=min(numzgrid,kz)
+    k2=min(numzgrid,kz)
 
     do k=1,nspec
       do kz=k1,k2-1

@@ -62,10 +62,9 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
       if ((xt.gt.xln(j)+eps).and.(xt.lt.xrn(j)-eps).and. &
            (yt.gt.yln(j)+eps).and.(yt.lt.yrn(j)-eps)) then
         ngrid=j
-        goto 23
+        exit
       endif
     end do
-23   continue
   endif
 
 

@@ -548,8 +548,8 @@ endif
           endif
 
           if (DRYDEPSPEC(ks)) then        ! dry deposition
-            drydeposit(ks)=xmass1(j,ks)*prob(ks)*decfact
-            xmass1(j,ks)=xmass1(j,ks)*(1.-prob(ks))*decfact
+            drydeposit(ks)=xmass1(j,ks)*prob(j,ks)*decfact
+            xmass1(j,ks)=xmass1(j,ks)*(1.-prob(j,ks))*decfact
             if (decay(ks).gt.0.) then   ! correct for decay (see wetdepo)
               drydeposit(ks)=drydeposit(ks)* &
                    exp(real(abs(ldeltat))*decay(ks))

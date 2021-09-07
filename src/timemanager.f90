@@ -116,10 +116,10 @@ subroutine timemanager(metdata_format)
     outnum,                 & ! concentration calculation sample number
     weight,                 & ! concentration calculation sample weight
     prob_rec(maxspec),      & ! dry deposition related
-    prob(maxspec),          & ! dry deposition ground absorption probability
+    prob(maxpart,maxspec),  & ! dry deposition ground absorption probability
     decfact,                & ! radioactive decay factor
     wetscav,                & ! wet scavenging
-    xold,yold,zold,         & ! storing old positions
+    xold(maxpart),yold(maxpart),zold(maxpart),         & ! storing old positions
     xmassfract,             & ! dry deposition related
     grfraction(3)             ! wet deposition related
   real(sp) ::               &
@@ -178,9 +178,13 @@ subroutine timemanager(metdata_format)
   ! In case of ETA coordinates being read from file, convert the z positions
   !*************************************************************************
     if ((ipin.eq.1).and.(itime.eq.0).and.(wind_coord_type.eq.'ETA')) then 
+!$OMP PARALLEL PRIVATE(i)
+!$OMP DO
       do i=1,numpart
         call z_to_zeta(itime,xtra1(i),ytra1(i),ztra1(i),ztra1eta(i))
-      end do 
+      end do
+!$OMP END DO
+!$OMP END PARALLEL
     endif
 
   ! Get hourly OH fields if not available 
@@ -439,9 +443,8 @@ endif
   ! openmp change
   ! LB, openmp following CTM version, need to be very careful due to big differences
   ! between the openmp loop in this and the CTM version
-!$OMP PARALLEL PRIVATE(kp,itage,nage,xold,yold,zold,nstop, &
-!$OMP prob,prob_rec,ks,decfact,drydeposit,thread,j, &
-!$OMP loutnext, grfraction, wetscav, xmassfract, idummy)
+!$OMP PARALLEL PRIVATE(nstop, &
+!$OMP prob,prob_rec,ks,thread,j)
 
 #if (defined _OPENMP)
         thread = OMP_GET_THREAD_NUM()
@@ -453,33 +456,22 @@ endif
 
   ! If integration step is due, do it
   !**********************************
-
-      if (itra1(j).eq.itime) then
-
-        if (ioutputforeachrelease.eq.1) then
-            kp=npoint(j)
-        else
-            kp=1
-        endif
-  ! Determine age class of the particle
-        itage=abs(itra1(j)-itramem(j))
-        do nage=1,nageclass
-          if (itage.lt.lage(nage)) exit
-        end do
+      if (itra1(j).ne.itime) cycle
 
   ! Initialize newly released particle
   !***********************************
-        if ((itramem(j).eq.itime).or.(itime.eq.0)) &
-             call initialize(itime,idt(j),uap(j),ucp(j),uzp(j), &
-               us(j),vs(j),ws(j),xtra1(j),ytra1(j),ztra1(j), &
-               ztra1eta(j),cbt(j))
+      if ((itramem(j).eq.itime).or.(itime.eq.0)) then
+        call initialize(itime,idt(j),uap(j),ucp(j),uzp(j), &
+            us(j),vs(j),ws(j),xtra1(j),ytra1(j),ztra1(j), &
+            ztra1eta(j),cbt(j))
+      endif
 
   ! Memorize particle positions
   !****************************
+      xold(j)=xtra1(j)
+      yold(j)=ytra1(j)
+      zold(j)=ztra1(j)
 
-        xold=xtra1(j)
-        yold=ytra1(j)
-        zold=ztra1(j)
   ! RECEPTOR: dry/wet depovel
   !****************************
   ! Before the particle is moved 
@@ -487,65 +479,59 @@ endif
   ! xscav_frac1 was initialised with a negative value
 
       if  (DRYBKDEP) then
-       do ks=1,nspec
-         if  ((xscav_frac1(j,ks).lt.0)) then
+        do ks=1,nspec
+          if  ((xscav_frac1(j,ks).lt.0)) then
             call get_vdep_prob(itime,xtra1(j),ytra1(j),ztra1(j),prob_rec)
             if (DRYDEPSPEC(ks)) then        ! dry deposition
-               xscav_frac1(j,ks)=prob_rec(ks)
-             else
-                xmass1(j,ks)=0.
-                xscav_frac1(j,ks)=0.
-             endif
-         endif
-        enddo
-       endif
-       !LB Not carefully checked if there are no problems with OpenMP
-       if (WETBKDEP) then 
-       do ks=1,nspec
-         if  ((xscav_frac1(j,ks).lt.0)) then
-            call get_wetscav(itime,lsynctime,loutnext,j,ks,grfraction,idummy,idummy,wetscav)
-            if (wetscav.gt.0) then
-                xscav_frac1(j,ks)=wetscav* &
-                       (zpoint2(npoint(j))-zpoint1(npoint(j)))*grfraction(1)
+              xscav_frac1(j,ks)=prob_rec(ks)
             else
-                xmass1(j,ks)=0.
-                xscav_frac1(j,ks)=0.
+              xmass1(j,ks)=0.
+              xscav_frac1(j,ks)=0.
             endif
-         endif
+          endif
         enddo
-       endif
+      endif
 
   ! Integrate Lagevin equation for lsynctime seconds
   !*************************************************
 
-        if (verbosity.gt.0) then
-           if (j.eq.1) then
-             write (*,*) 'timemanager> call advance'
-           endif     
-        endif
-        call advance(itime,npoint(j),idt(j),uap(j),ucp(j),uzp(j), &
-             us(j),vs(j),ws(j),nstop,xtra1(j),ytra1(j),ztra1(j),ztra1eta(j),prob, &
-             cbt(j),j)
+      call advance(itime,npoint(j),idt(j),uap(j),ucp(j),uzp(j), &
+           us(j),vs(j),ws(j),nstop,xtra1(j),ytra1(j),ztra1(j),ztra1eta(j),prob(j,:), &
+           cbt(j),j)
 
   ! Calculate average position for particle dump output
   !****************************************************
-        if (ipout.eq.3) call partpos_average(itime,j)
+      if (ipout.eq.3) call partpos_average(itime,j)
 
+    end do 
 
+!$OMP END DO
+!$OMP END PARALLEL
+
+    do j=1,numpart
+  ! If integration step is due, do it
+  !**********************************
+      if (itra1(j).ne.itime) cycle
+
+  ! Determine age class of the particle
+      itage=abs(itra1(j)-itramem(j))
+      do nage=1,nageclass
+        if (itage.lt.lage(nage)) exit
+      end do
   ! Calculate the gross fluxes across layer interfaces
   !***************************************************
 
-        if (iflux.eq.1) call calcfluxes(nage,j,xold,yold,zold)
+      if (iflux.eq.1) call calcfluxes(nage,j,xold(j),yold(j),zold(j)) !OMP reduction necessary for flux array
 
 
   ! Determine, when next time step is due
   ! If trajectory is terminated, mark it
   !**************************************
-        if (nstop.gt.1) then
-          if (linit_cond.ge.1) call initial_cond_calc(itime,j)
-          itra1(j)=-999999999
-        else
-          itra1(j)=itime+lsynctime
+      if (nstop.gt.1) then
+        if (linit_cond.ge.1) call initial_cond_calc(itime,j) !OMP reduction necessary for init_cond
+        itra1(j)=-999999999
+      else
+        itra1(j)=itime+lsynctime
 
 
   ! Dry deposition and radioactive decay for each species
@@ -553,71 +539,74 @@ endif
   ! if it is below a threshold value, terminate particle
   !*****************************************************************************
 
-          xmassfract=0.
-          do ks=1,nspec
-            if (decay(ks).gt.0.) then             ! radioactive decay
-              decfact=exp(-real(abs(lsynctime))*decay(ks))
-            else
-              decfact=1.
-            endif
-
-            if (DRYDEPSPEC(ks)) then        ! dry deposition
-              drydeposit(ks)=xmass1(j,ks)*prob(ks)*decfact
-              xmass1(j,ks)=xmass1(j,ks)*(1.-prob(ks))*decfact
-              if (decay(ks).gt.0.) then   ! correct for decay (see wetdepo)
-                drydeposit(ks)=drydeposit(ks)* &
-                     exp(real(abs(ldeltat))*decay(ks))
-              endif
-            else                           ! no dry deposition
-              xmass1(j,ks)=xmass1(j,ks)*decfact
-            endif
-
-! Skip check on mass fraction when npoint represents particle number
-            if (mdomainfill.eq.0.and.mquasilag.eq.0) then
-              if (xmass(npoint(j),ks).gt.0.) &
-                   xmassfract=max(xmassfract,real(npart(npoint(j)))* &
-                   xmass1(j,ks)/xmass(npoint(j),ks))
-
-            else
-              xmassfract=1.0
-            end if
-          end do
-
-          if (xmassfract.lt.minmass) then   ! terminate all particles carrying less mass
-            itra1(j)=-999999999
-            if (verbosity.gt.0) then
-              print*,'terminated particle ',j,' for small mass'
-            endif
+        xmassfract=0.
+        do ks=1,nspec
+          if (decay(ks).gt.0.) then             ! radioactive decay
+            decfact=exp(-real(abs(lsynctime))*decay(ks))
+          else
+            decfact=1.
           endif
 
-  !        Sabine Eckhardt, June 2008
-  !        don't create depofield for backward runs
-          if (DRYDEP.AND.(ldirect.eq.1)) then
-            call drydepokernel(nclass(j),drydeposit,real(xtra1(j)), &
-                 real(ytra1(j)),nage,kp)
-            if (nested_output.eq.1) call drydepokernel_nest( &
-                 nclass(j),drydeposit,real(xtra1(j)),real(ytra1(j)), &
-                 nage,kp)
+          if (DRYDEPSPEC(ks)) then        ! dry deposition
+            drydeposit(ks)=xmass1(j,ks)*prob(ks)*decfact
+            xmass1(j,ks)=xmass1(j,ks)*(1.-prob(ks))*decfact
+            if (decay(ks).gt.0.) then   ! correct for decay (see wetdepo)
+              drydeposit(ks)=drydeposit(ks)* &
+                   exp(real(abs(ldeltat))*decay(ks))
+            endif
+          else                           ! no dry deposition
+            xmass1(j,ks)=xmass1(j,ks)*decfact
           endif
+
+  ! Skip check on mass fraction when npoint represents particle number
+          if (mdomainfill.eq.0.and.mquasilag.eq.0) then
+            if (xmass(npoint(j),ks).gt.0.) &
+                 xmassfract=max(xmassfract,real(npart(npoint(j)))* &
+                 xmass1(j,ks)/xmass(npoint(j),ks))
+
+          else
+            xmassfract=1.0
+          end if
+        end do
+
+        if (xmassfract.lt.minmass) then   ! terminate all particles carrying less mass
+          itra1(j)=-999999999
+          if (verbosity.gt.0) then
+            print*,'terminated particle ',j,' for small mass'
+          endif
+        endif
+
+!        Sabine Eckhardt, June 2008
+!        don't create depofield for backward runs
+        if (DRYDEP.AND.(ldirect.eq.1)) then !OMP reduction necessary for drygridunc
+
+          if (ioutputforeachrelease.eq.1) then
+              kp=npoint(j)
+          else
+              kp=1
+          endif
+
+          call drydepokernel(nclass(j),drydeposit,real(xtra1(j)), &
+               real(ytra1(j)),nage,kp)
+          if (nested_output.eq.1) call drydepokernel_nest( &
+               nclass(j),drydeposit,real(xtra1(j)),real(ytra1(j)), &
+               nage,kp)
+        endif
 
   ! Terminate trajectories that are older than maximum allowed age
   !***************************************************************
 
-          if (abs(itra1(j)-itramem(j)).ge.lage(nageclass)) then
-            if (linit_cond.ge.1) call initial_cond_calc(itime+lsynctime,j)
-            itra1(j)=-999999999
-            if (verbosity.gt.0) then
-              print*,'terminated particle ',j,' for age'
-            endif
+        if (abs(itra1(j)-itramem(j)).ge.lage(nageclass)) then
+          if (linit_cond.ge.1) call initial_cond_calc(itime+lsynctime,j)
+          itra1(j)=-999999999
+          if (verbosity.gt.0) then
+            print*,'terminated particle ',j,' for age'
           endif
         endif
-
       endif
 
     end do !loop over particles
 
-!$OMP END DO
-!$OMP END PARALLEL
   ! openmp change end
 
   ! Counter of "unstable" particle velocity during a time scale of

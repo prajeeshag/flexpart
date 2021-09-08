@@ -86,7 +86,7 @@ subroutine timemanager(metdata_format)
   use com_mod
 #ifdef USE_NCF
   use netcdf_output_mod, only: concoutput_netcdf,concoutput_nest_netcdf,&
-       &concoutput_surf_netcdf,concoutput_surf_nest_netcdf
+       &concoutput_surf_netcdf,concoutput_surf_nest_netcdf,writeheader_partoutput
 #endif
   use coordinates_ecmwf, only: z_to_zeta
 
@@ -102,7 +102,7 @@ subroutine timemanager(metdata_format)
     l,                      & ! loop variable over nclassunc
     n,                      & ! loop variable over particles
     itime=0,                & ! time index
-    nstop,                  & ! particle fate flag
+    nstop(maxpart),                  & ! particle fate flag
     nstop1,                 & ! windfield existence flag
     loutnext,               & ! following timestep
     loutstart,loutend,      & ! concentration calculation starting and ending time
@@ -117,6 +117,7 @@ subroutine timemanager(metdata_format)
     weight,                 & ! concentration calculation sample weight
     prob_rec(maxspec),      & ! dry deposition related
     prob(maxpart,maxspec),  & ! dry deposition ground absorption probability
+    prob_temp(maxspec),     & ! temporary for storing prob values
     decfact,                & ! radioactive decay factor
     wetscav,                & ! wet scavenging
     xold(maxpart),yold(maxpart),zold(maxpart),         & ! storing old positions
@@ -143,6 +144,8 @@ subroutine timemanager(metdata_format)
   !**********************************************************************
 
   write(*,46) float(itime)/3600,itime,numpart
+
+  call writeheader_partoutput(ibtime,ibdate)
 
   do itime=0,ideltas,lsynctime
 
@@ -443,8 +446,7 @@ endif
   ! openmp change
   ! LB, openmp following CTM version, need to be very careful due to big differences
   ! between the openmp loop in this and the CTM version
-!$OMP PARALLEL PRIVATE(nstop, &
-!$OMP prob,prob_rec,ks,thread,j)
+!$OMP PARALLEL PRIVATE(prob_rec,prob_temp,ks,thread,j)
 
 #if (defined _OPENMP)
         thread = OMP_GET_THREAD_NUM()
@@ -496,9 +498,9 @@ endif
   !*************************************************
 
       call advance(itime,npoint(j),idt(j),uap(j),ucp(j),uzp(j), &
-           us(j),vs(j),ws(j),nstop,xtra1(j),ytra1(j),ztra1(j),ztra1eta(j),prob(j,:), &
+           us(j),vs(j),ws(j),nstop(j),xtra1(j),ytra1(j),ztra1(j),ztra1eta(j),prob_temp, &
            cbt(j),j)
-
+      prob(j,:) = prob_temp
   ! Calculate average position for particle dump output
   !****************************************************
       if (ipout.eq.3) call partpos_average(itime,j)
@@ -527,7 +529,7 @@ endif
   ! Determine, when next time step is due
   ! If trajectory is terminated, mark it
   !**************************************
-      if (nstop.gt.1) then
+      if (nstop(j).gt.1) then
         if (linit_cond.ge.1) call initial_cond_calc(itime,j) !OMP reduction necessary for init_cond
         itra1(j)=-999999999
       else

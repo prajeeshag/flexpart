@@ -21,6 +21,7 @@ subroutine partoutput(itime)
   use com_mod
   use interpol_mod
   use coordinates_ecmwf
+  use netcdf_output_mod, only: partoutput_netcdf
 
   implicit none
 
@@ -36,7 +37,6 @@ subroutine partoutput(itime)
   real :: xlon(numpart),ylat(numpart)
   real :: tti(numpart),rhoi(numpart),pvi(numpart),qvi(numpart)
   real :: topo(numpart),hmixi(numpart),tri(numpart)
-
 
   ! Some variables needed for temporal interpolation
   !*************************************************
@@ -112,7 +112,21 @@ subroutine partoutput(itime)
 
   if (lnetcdfout.eq.1) then 
 #ifdef USE_NCF
-
+  j=1
+  call partoutput_netcdf(itime,xlon,'LO',j)
+  call partoutput_netcdf(itime,ylat,'LA',j)
+  call partoutput_netcdf(itime,ztra1,'ZZ',j)
+  !call partoutput_netcdf(itime,itramem,'IT',j)
+  call partoutput_netcdf(itime,topo,'TO',j)
+  call partoutput_netcdf(itime,pvi,'PV',j)
+  call partoutput_netcdf(itime,qvi,'QV',j)
+  call partoutput_netcdf(itime,rhoi,'RH',j)
+  call partoutput_netcdf(itime,hmixi,'HM',j)
+  call partoutput_netcdf(itime,tri,'TR',j)
+  call partoutput_netcdf(itime,tti,'TT',j)
+  do j=1,nspec
+    call partoutput_netcdf(itime,xmass1(:,j),'MA',j)
+  end do
 #endif
   else
     ! Open output file and write the output

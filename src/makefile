@@ -341,7 +341,7 @@ outgrid_init.o: com_mod.o flux_mod.o oh_mod.o outg_mod.o par_mod.o unc_mod.o
 outgrid_init_nest.o: com_mod.o outg_mod.o par_mod.o unc_mod.o
 part0.o: par_mod.o
 partdep.o: com_mod.o par_mod.o
-partoutput.o: com_mod.o par_mod.o interpol_mod.o coordinates_ecmwf.o
+partoutput.o: com_mod.o par_mod.o interpol_mod.o coordinates_ecmwf.o netcdf_output_mod.o
 partoutput_average.o: com_mod.o par_mod.o
 partoutput_average_mpi.o: com_mod.o mpi_mod.o par_mod.o
 partoutput_mpi.o: com_mod.o mpi_mod.o par_mod.o

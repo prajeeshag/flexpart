@@ -65,7 +65,8 @@ module netcdf_output_mod
   private
 
   public :: writeheader_netcdf,concoutput_surf_nest_netcdf,concoutput_netcdf,&
-       &concoutput_nest_netcdf,concoutput_surf_netcdf,writeheader_partoutput,partoutput_netcdf
+       &concoutput_nest_netcdf,concoutput_surf_netcdf,writeheader_partoutput,partoutput_netcdf,&
+       open_partoutput_file,close_partoutput_file
 
   !  include 'netcdf.inc'
 
@@ -1461,7 +1462,7 @@ subroutine writeheader_partoutput(itime,idate)
   fname_partoutput = path(2)(1:length(2))//trim(fprefix)//adate//atime//'.nc'
   ncfname_part = fname_partoutput
 
-  cache_size = 4 * numpart * (13+nspec)
+  cache_size = 4 * numpart * (12+nspec)
 
   call nf90_err(nf90_create(trim(fname_partoutput), cmode = nf90_hdf5, ncid = ncid, &
     cache_size = cache_size))
@@ -1584,6 +1585,7 @@ subroutine writeheader_partoutput(itime,idate)
   ! moves the file from define to data mode
   call nf90_err(nf90_enddef(ncid))
 
+  call nf90_err(nf90_close(ncid))
 
   return
 
@@ -1595,7 +1597,25 @@ subroutine writeheader_partoutput(itime,idate)
   stop
 end subroutine writeheader_partoutput
 
-subroutine partoutput_netcdf(itime,field,fieldname,j)
+subroutine open_partoutput_file(ncid)
+  
+  implicit none 
+
+  integer                        :: ncid
+
+  call nf90_err(nf90_open(trim(ncfname_part), nf90_write, ncid))
+end subroutine open_partoutput_file
+
+subroutine close_partoutput_file(ncid)
+  
+  implicit none 
+
+  integer                        :: ncid
+
+  call nf90_err(nf90_close(ncid))
+end subroutine close_partoutput_file
+
+subroutine partoutput_netcdf(itime,field,fieldname,j,ncid)
   
   implicit none
 
@@ -1603,14 +1623,14 @@ subroutine partoutput_netcdf(itime,field,fieldname,j)
   real, intent(in)               :: field(numpart)
   character(2), intent(in)       :: fieldname  ! input field to interpolate over
   integer                        :: ncid
-  ! open output file
-  call nf90_err(nf90_open(trim(ncfname_part), nf90_write, ncid))
+  ! ! open output file
+  ! call nf90_err(nf90_open(trim(ncfname_part), nf90_write, ncid))
 
   select case(fieldname)
     case('TI')
       ! write time
       tpointer_part = tpointer_part + 1
-      call nf90_err(nf90_put_var( ncid, timeIDpart, itime, (/ tpointer_part /)))      
+      call nf90_err(nf90_put_var(ncid, timeIDpart, itime, (/ tpointer_part /)))      
     case('LO')
       call nf90_err(nf90_put_var(ncid,lonID,field, (/ tpointer,1 /),(/ 1,numpart /)))
     case('LA')
@@ -1636,6 +1656,9 @@ subroutine partoutput_netcdf(itime,field,fieldname,j)
     case('MA')
       call nf90_err(nf90_put_var(ncid,massID(j),field, (/ tpointer,1 /),(/ 1,numpart /)))
   end select
+
+  ! call nf90_err(nf90_close(ncid))
+
 end subroutine partoutput_netcdf
 
 end module netcdf_output_mod

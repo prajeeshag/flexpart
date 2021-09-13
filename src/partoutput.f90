@@ -21,7 +21,11 @@ subroutine partoutput(itime)
   use com_mod
   use interpol_mod
   use coordinates_ecmwf
-  use netcdf_output_mod, only: partoutput_netcdf
+  use netcdf
+  use netcdf_output_mod, only: partoutput_netcdf,open_partoutput_file,close_partoutput_file
+#ifdef USE_NCF
+  use omp_lib, only: OMP_GET_THREAD_NUM
+#endif
 
   implicit none
 
@@ -37,6 +41,10 @@ subroutine partoutput(itime)
   real :: xlon(numpart),ylat(numpart)
   real :: tti(numpart),rhoi(numpart),pvi(numpart),qvi(numpart)
   real :: topo(numpart),hmixi(numpart),tri(numpart)
+
+#ifdef USE_NCF
+  integer  :: ncid, mythread, thread_divide(12),mass_divide(nspec)
+#endif
 
   ! Some variables needed for temporal interpolation
   !*************************************************
@@ -100,8 +108,6 @@ subroutine partoutput(itime)
   write(*,*) pvi(1),qvi(1),tti(1),rhoi(1)
 
 
-
-
   ! Determine current calendar date, needed for the file name
   !**********************************************************
 
@@ -110,25 +116,43 @@ subroutine partoutput(itime)
   write(adate,'(i8.8)') jjjjmmdd
   write(atime,'(i6.6)') ihmmss
 
-  if (lnetcdfout.eq.1) then 
+  if (lnetcdfout.eq.1) then
+  ! open output file
+    call open_partoutput_file(ncid)
+
+    ! Dividing the openmp threads for writing
+    j=0
+    do i=1,12
+      if (j.eq.numthreads) j = 0
+      thread_divide(i) = j
+      j = j + 1
+    end do
+    do i=1,nspec
+      if (j.eq.numthreads) j = 0
+      mass_divide(i) = j
+      j = j + 1
+    end do
+!$OMP PARALLEL PRIVATE(j,mythread)
 #ifdef USE_NCF
-  j=1
-  call partoutput_netcdf(itime,xlon,'TI',j)
-  call partoutput_netcdf(itime,xlon,'LO',j)
-  call partoutput_netcdf(itime,ylat,'LA',j)
-  call partoutput_netcdf(itime,ztra1,'ZZ',j)
-  !call partoutput_netcdf(itime,itramem,'IT',j)
-  call partoutput_netcdf(itime,topo,'TO',j)
-  call partoutput_netcdf(itime,pvi,'PV',j)
-  call partoutput_netcdf(itime,qvi,'QV',j)
-  call partoutput_netcdf(itime,rhoi,'RH',j)
-  call partoutput_netcdf(itime,hmixi,'HM',j)
-  call partoutput_netcdf(itime,tri,'TR',j)
-  call partoutput_netcdf(itime,tti,'TT',j)
-  do j=1,nspec
-    call partoutput_netcdf(itime,xmass1(:,j),'MA',j)
-  end do
+    mythread = omp_get_thread_num()
+    if (mythread.eq.thread_divide(1)) call partoutput_netcdf(itime,xlon,'TI',j,ncid)
+    if (mythread.eq.thread_divide(2)) call partoutput_netcdf(itime,xlon,'LO',j,ncid)
+    if (mythread.eq.thread_divide(3)) call partoutput_netcdf(itime,ylat,'LA',j,ncid)
+    if (mythread.eq.thread_divide(4)) call partoutput_netcdf(itime,ztra1,'ZZ',j,ncid)
+    !call partoutput_netcdf(itime,itramem,'IT',j,ncid)
+    if (mythread.eq.thread_divide(5)) call partoutput_netcdf(itime,topo,'TO',j,ncid)
+    if (mythread.eq.thread_divide(6)) call partoutput_netcdf(itime,pvi,'PV',j,ncid)
+    if (mythread.eq.thread_divide(7)) call partoutput_netcdf(itime,qvi,'QV',j,ncid)
+    if (mythread.eq.thread_divide(8)) call partoutput_netcdf(itime,rhoi,'RH',j,ncid)
+    if (mythread.eq.thread_divide(9)) call partoutput_netcdf(itime,hmixi,'HM',j,ncid)
+    if (mythread.eq.thread_divide(10)) call partoutput_netcdf(itime,tri,'TR',j,ncid)
+    if (mythread.eq.thread_divide(11)) call partoutput_netcdf(itime,tti,'TT',j,ncid)
+    do j=1,nspec
+      if (mythread.eq.mass_divide(j)) call partoutput_netcdf(itime,xmass1(:,j),'MA',j,ncid)
+    end do
 #endif
+!$OMP END PARALLEL
+    call close_partoutput_file(ncid)
   else
     ! Open output file and write the output
     !**************************************

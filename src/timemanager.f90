@@ -112,6 +112,14 @@ subroutine timemanager(metdata_format)
     idummy,                 & ! used for the random routines
     i_nan=0,ii_nan,total_nan_intl=0, &  !added by mc to check instability in CBL scheme 
     thread                    ! openmp change (not sure if necessary)
+#ifdef USE_NCF
+  real ::                   &
+    filesize                  ! Keeping track of the size of the particledump output, so it can be splitted
+  real(kind=dp) ::          &
+    jul
+  integer ::                &
+    jjjjmmdd,ihmmss
+#endif
   real ::                   &
     outnum,                 & ! concentration calculation sample number
     weight,                 & ! concentration calculation sample weight
@@ -144,6 +152,10 @@ subroutine timemanager(metdata_format)
   !**********************************************************************
 
   write(*,46) float(itime)/3600,itime,numpart
+
+#ifdef USE_NCF
+  filesize=0.
+#endif
 
   do itime=0,ideltas,lsynctime
 
@@ -208,7 +220,19 @@ subroutine timemanager(metdata_format)
     endif
 
 #ifdef USE_NCF
-    if (itime.eq.0) call writeheader_partoutput(ibtime,ibdate)
+    if (ipout.ge.1) then
+      if (itime.eq.0) then 
+        call writeheader_partoutput(ibtime,ibdate)
+      else if (mod(itime,ipoutfac*loutstep).eq.0) then
+        if (filesize.ge.max_partoutput_filesize) then 
+          jul=bdate+real(itime,kind=dp)/86400._dp
+          call caldate(jul,jjjjmmdd,ihmmss)
+          call writeheader_partoutput(ihmmss,jjjjmmdd)
+          filesize = 0.
+        endif
+        filesize = filesize + numpart*13.*4./1000000.
+      endif
+    endif
 #endif
 
   ! Compute convective mixing for forward runs

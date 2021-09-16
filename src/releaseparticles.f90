@@ -134,7 +134,7 @@ subroutine releaseparticles(itime)
       yaux=ypoint2(i)-ypoint1(i)
       zaux=zpoint2(i)-zpoint1(i)
       do j=1,numrel                       ! loop over particles to be released this time
-        do ipart=minpart,maxpart          ! search for free storage space
+        do ipart=numpart,maxpart!minpart,maxpart          ! search for free storage space
 
   ! If a free storage space is found, attribute everything to this array element
   !*****************************************************************************
@@ -207,10 +207,9 @@ subroutine releaseparticles(itime)
                    (ytra1(ipart).gt.yln(k)+eps).and. &
                    (ytra1(ipart).lt.yrn(k)-eps)) then
                 ngrid=k
-                goto 43
+                exit
               endif
             end do
-43          continue
 
   ! Determine (nested) grid coordinates and auxiliary parameters used for interpolation
   !*****************************************************************************
@@ -323,13 +322,6 @@ subroutine releaseparticles(itime)
 !             frac = (ztra1(ipart)-zzlev)/(zzlev2-zzlev)
 !             ztra1eta(ipart)=uvheight(ii-1)*(1.-frac)+uvheight(ii)*frac
             call z_to_zeta(itime,xtra1(ipart),ytra1(ipart),ztra1(ipart),ztra1eta(ipart))
-            if (ipart.eq.1) then
-              write(*,*) 'temp01: ', ipart,ztra1(ipart),ztra1eta(ipart),xtra1(ipart),ytra1(ipart)
-            endif
-            if (ipart.eq.10) then
-              write(*,*) 'temp10: ', ipart,ztra1(ipart),ztra1eta(ipart),xtra1(ipart),ytra1(ipart)
-            endif
-
 
   ! For special simulations, multiply particle concentration air density;
   ! Simply take the 2nd field in memory to do this (accurate enough)
@@ -358,10 +350,9 @@ subroutine releaseparticles(itime)
                 if (height(ii).gt.ztra1(ipart)) then
                   indz=ii-1
                   indzp=ii
-                  goto 6
+                  exit
                 endif
               end do
-6             continue
 
               dz1=ztra1(ipart)-height(indz)
               dz2=height(indzp)-ztra1(ipart)

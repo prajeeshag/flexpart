@@ -1,7 +1,7 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
 
-subroutine partoutput(itime)
+subroutine partoutput(itime)!,active_per_rel)
   !                        i
   !*****************************************************************************
   !                                                                            *
@@ -21,9 +21,9 @@ subroutine partoutput(itime)
   use com_mod
   use interpol_mod
   use coordinates_ecmwf
+#ifdef USE_NCF
   use netcdf
   use netcdf_output_mod, only: partoutput_netcdf,open_partoutput_file,close_partoutput_file
-#ifdef USE_NCF
   use omp_lib, only: OMP_GET_THREAD_NUM
 #endif
 
@@ -41,6 +41,7 @@ subroutine partoutput(itime)
   real :: xlon(numpart),ylat(numpart)
   real :: tti(numpart),rhoi(numpart),pvi(numpart),qvi(numpart)
   real :: topo(numpart),hmixi(numpart),tri(numpart)
+  !logical  :: active_per_rel(maxpoint)
 
 #ifdef USE_NCF
   integer  :: ncid, mythread, thread_divide(12),mass_divide(nspec)
@@ -55,6 +56,15 @@ subroutine partoutput(itime)
   do i=1,numpart
   ! Take only valid particles
   !**************************
+    xlon(i)=-1.
+    ylat(i)=-1.
+    tti(i)=-1.
+    rhoi(i)=-1.
+    pvi(i)=-1.
+    qvi(i)=-1.
+    topo(i)=-1.
+    hmixi(i)=-1.
+    tri(i)=-1.
     if (itra1(i).eq.itime) then
       xlon(i)=xlon0+xtra1(i)*dx
       ylat(i)=ylat0+ytra1(i)*dy
@@ -122,7 +132,7 @@ subroutine partoutput(itime)
 
     ! Dividing the openmp threads for writing
     j=0
-    do i=1,12
+    do i=1,10
       if (j.eq.numthreads) j = 0
       thread_divide(i) = j
       j = j + 1
@@ -132,21 +142,26 @@ subroutine partoutput(itime)
       mass_divide(i) = j
       j = j + 1
     end do
+
+    ! First allocate the time and particle dimention within the netcdf file
+    call partoutput_netcdf(itime,xlon,'TI',j,ncid)
+    call partoutput_netcdf(itime,xlon,'PA',j,ncid)
+
+    ! Fill the fields in parallel
 !$OMP PARALLEL PRIVATE(j,mythread)
 #ifdef USE_NCF
     mythread = omp_get_thread_num()
-    if (mythread.eq.thread_divide(1)) call partoutput_netcdf(itime,xlon,'TI',j,ncid)
-    if (mythread.eq.thread_divide(2)) call partoutput_netcdf(itime,xlon,'LO',j,ncid)
-    if (mythread.eq.thread_divide(3)) call partoutput_netcdf(itime,ylat,'LA',j,ncid)
-    if (mythread.eq.thread_divide(4)) call partoutput_netcdf(itime,ztra1,'ZZ',j,ncid)
-    !call partoutput_netcdf(itime,itramem,'IT',j,ncid)
-    if (mythread.eq.thread_divide(5)) call partoutput_netcdf(itime,topo,'TO',j,ncid)
-    if (mythread.eq.thread_divide(6)) call partoutput_netcdf(itime,pvi,'PV',j,ncid)
-    if (mythread.eq.thread_divide(7)) call partoutput_netcdf(itime,qvi,'QV',j,ncid)
-    if (mythread.eq.thread_divide(8)) call partoutput_netcdf(itime,rhoi,'RH',j,ncid)
-    if (mythread.eq.thread_divide(9)) call partoutput_netcdf(itime,hmixi,'HM',j,ncid)
-    if (mythread.eq.thread_divide(10)) call partoutput_netcdf(itime,tri,'TR',j,ncid)
-    if (mythread.eq.thread_divide(11)) call partoutput_netcdf(itime,tti,'TT',j,ncid)
+    if (mythread.eq.thread_divide(1)) call partoutput_netcdf(itime,xlon,'LO',j,ncid)
+    if (mythread.eq.thread_divide(2)) call partoutput_netcdf(itime,ylat,'LA',j,ncid)
+    if (mythread.eq.thread_divide(3)) call partoutput_netcdf(itime,ztra1,'ZZ',j,ncid)
+    !if (mythread.eq.thread_divide(12)) call partoutput_netcdf_int(itime,itramem(1:numpart),'IT',j,ncid)
+    if (mythread.eq.thread_divide(4)) call partoutput_netcdf(itime,topo,'TO',j,ncid)
+    if (mythread.eq.thread_divide(5)) call partoutput_netcdf(itime,pvi,'PV',j,ncid)
+    if (mythread.eq.thread_divide(6)) call partoutput_netcdf(itime,qvi,'QV',j,ncid)
+    if (mythread.eq.thread_divide(7)) call partoutput_netcdf(itime,rhoi,'RH',j,ncid)
+    if (mythread.eq.thread_divide(8)) call partoutput_netcdf(itime,hmixi,'HM',j,ncid)
+    if (mythread.eq.thread_divide(9)) call partoutput_netcdf(itime,tri,'TR',j,ncid)
+    if (mythread.eq.thread_divide(10)) call partoutput_netcdf(itime,tti,'TT',j,ncid)
     do j=1,nspec
       if (mythread.eq.mass_divide(j)) call partoutput_netcdf(itime,xmass1(:,j),'MA',j,ncid)
     end do

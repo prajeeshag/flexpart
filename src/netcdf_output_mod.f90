@@ -56,7 +56,7 @@ module netcdf_output_mod
                        itsplit, lsynctime, ctl, ifine, lagespectra, ipin, &
                        ioutputforeachrelease, iflux, mdomainfill, mquasilag, & 
                        nested_output, ipout, surf_only, linit_cond, &
-                       flexversion,mpi_mode,DRYBKDEP,WETBKDEP,numpart
+                       flexversion,mpi_mode,DRYBKDEP,WETBKDEP,numpart,numpoint
 
   use mean_mod
 
@@ -75,8 +75,8 @@ module netcdf_output_mod
   logical, parameter :: min_size = .false.   ! if set true, redundant fields (topography) are not written to minimize file size
   character(len=255), parameter :: institution = 'NILU'
 
-  integer            :: tpointer=0,tpointer_part=0
-  character(len=255) :: ncfname, ncfnamen, ncfname_part
+  integer            :: tpointer=0,tpointer_part=0,ppointer_part=0
+  character(len=255) :: ncfname, ncfnamen, ncfname_part!(maxpoint)
 
   ! netcdf dimension and variable IDs for main and nested output grid
   integer, dimension(maxspec) :: specID,specIDppt, wdspecID,ddspecID
@@ -223,7 +223,6 @@ subroutine writemetadata(ncid,lnest)
   call nf90_err(nf90_put_att(ncid, nf90_global, 'nested_output', nested_output))
   call nf90_err(nf90_put_att(ncid, nf90_global, 'surf_only', surf_only))
   call nf90_err(nf90_put_att(ncid, nf90_global, 'linit_cond', linit_cond))
- 
 end subroutine writemetadata
 
 
@@ -697,9 +696,7 @@ subroutine writeheader_netcdf(lnest)
   call nf90_err(nf90_close(ncid))
 
   return
-
 end subroutine writeheader_netcdf
-
 
 subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
      
@@ -1087,7 +1084,6 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
 
   creceptor(1:numreceptor,1:nspec) = 0.
   gridunc(:,:,:,1:nspec,:,:,1:nageclass) = 0.  
-
 end subroutine concoutput_netcdf
 
 subroutine concoutput_surf_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
@@ -1102,7 +1098,6 @@ subroutine concoutput_surf_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,dryg
   real(dep_prec), intent(out)   :: wetgridtotalunc,drygridtotalunc
 
   print*,'Netcdf output for surface only not yet implemented'
-
 end subroutine concoutput_surf_netcdf
 
 subroutine concoutput_nest_netcdf(itime,outnum)
@@ -1422,7 +1417,6 @@ subroutine concoutput_nest_netcdf(itime,outnum)
 
   creceptor(1:numreceptor,1:nspec) = 0.
   griduncn(:,:,:,1:nspec,:,:,1:nageclass) = 0.  
-
 end subroutine concoutput_nest_netcdf
 
 subroutine concoutput_surf_nest_netcdf(itime,outnum)
@@ -1433,39 +1427,48 @@ subroutine concoutput_surf_nest_netcdf(itime,outnum)
   real, intent(in)    :: outnum
 
   print*,'Netcdf output for surface only not yet implemented'
-
 end subroutine concoutput_surf_nest_netcdf
 
-subroutine writeheader_partoutput(itime,idate)
+subroutine writeheader_partoutput(itime,idate)!,irelease)
 
   implicit none
 
   integer, intent(in) :: itime,idate
-  integer             :: cache_size,ncid,j
+  ! integer, intent(in) :: irelease
+  integer,allocatable :: partindices(:)
+  integer             :: cache_size,ncid,j,totpart
   !integer, dimension(:), allocatable :: partindices
-  integer             :: partindices(numpart)
-  integer             :: timeDimID,partDimID,tID
+  integer             :: timeDimID,partDimID,tID,memDimID
   character(len=11)   :: fprefix
-  character(len=3)    :: anspec
+  character(len=3)    :: anspec,arelease
   character           :: adate*8,atime*6,timeunit*32
   character(len=255)  :: fname_partoutput
+  real                :: fillval
 
   open(unit=unittmp,file=trim(path(2)(1:length(2)))//'test_dir.txt',status='replace',&
        &err=110)
   close (unittmp, status='delete')
 
-  write(*,*) maxpart,nspec,numpart
   write(adate,'(i8.8)') idate
   write(atime,'(i6.6)') itime
-  fprefix = 'partoutput_'
+  ! write(arelease, '(i3.3)') irelease
+  fprefix = 'partoutput_'!rel'//arelease//'_'
 
   fname_partoutput = path(2)(1:length(2))//trim(fprefix)//adate//atime//'.nc'
+  !ncfname_part(irelease) = fname_partoutput
   ncfname_part = fname_partoutput
 
-  cache_size = 4 * numpart * (12+nspec)
+  totpart=0
+  do j=1,numpoint
+    totpart = totpart+npart(j)
+  end do
+  totpart = maxpart!max(numpart,totpart)
+  !cache_size = 4 * 1 * (12+nspec)
 
-  call nf90_err(nf90_create(trim(fname_partoutput), cmode = nf90_hdf5, ncid = ncid, &
-    cache_size = cache_size))
+  write(*,*) maxpart,nspec,numpart,totpart
+
+  call nf90_err(nf90_create(trim(fname_partoutput), cmode = nf90_hdf5, ncid = ncid))!, &
+    ! cache_size = cache_size))
 
   ! create dimensions:
   !*************************
@@ -1475,12 +1478,14 @@ subroutine writeheader_partoutput(itime,idate)
      '-'//adate(7:8)//' '//atime(1:2)//':'//atime(3:4)
 
   ! particle
-  call nf90_err(nf90_def_dim(ncid, 'particle', numpart, partDimID)) !maxpart needs to be the actual number of particles
+  call nf90_err(nf90_def_dim(ncid, 'particle', nf90_unlimited, partDimID)) !totpart needs to be the actual number of particles
+
 
   ! create variables
   !*************************
 
   ! time
+  tpointer_part=0
   call nf90_err(nf90_def_var(ncid, 'time', nf90_int, (/ timeDimID /), tID))
   call nf90_err(nf90_put_att(ncid, tID, 'units', timeunit))
   call nf90_err(nf90_put_att(ncid, tID, 'calendar', 'proleptic_gregorian'))
@@ -1488,17 +1493,15 @@ subroutine writeheader_partoutput(itime,idate)
   timeIDpart=tID
   ! particles
   call nf90_err(nf90_def_var(ncid, 'particle', nf90_int, (/ partDimID/), partID))
-  call nf90_err(nf90_put_att(ncid, partID, 'long_name', 'particle number'))
+  call nf90_err(nf90_put_att(ncid, partID, 'long_name', 'particle index'))
 
-  !allocate ( partindices(numpart) )
-  do j=1,numpart
-    partindices(j)=j
-  end do
-  call nf90_err(nf90_put_var(ncid, partID,partindices, (/ 1 /),(/ numpart/)))
-  !deallocate (partindices)
+  fillval = -1.
   ! lon
   call nf90_err(nf90_def_var(ncid, 'longitude', nf90_float, (/ timeDimID,partDimID /), lonID))
+  call nf90_err(nf90_def_var_chunking(ncid,lonID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+  call nf90_err(nf90_def_var_deflate(ncid,lonID,shuffle=0,deflate=1,deflate_level=1))
   call nf90_err(nf90_put_att(ncid, lonID, 'long_name', 'longitude in degree east'))
+  call nf90_err(nf90_put_att(ncid, lonID, '_FillValue', fillval))
   call nf90_err(nf90_put_att(ncid, lonID, 'axis', 'Lon'))
   call nf90_err(nf90_put_att(ncid, lonID, 'units', 'degrees_east'))
   call nf90_err(nf90_put_att(ncid, lonID, 'standard_name', 'longitude'))
@@ -1506,64 +1509,91 @@ subroutine writeheader_partoutput(itime,idate)
 
   ! lat
   call nf90_err(nf90_def_var(ncid, 'latitude', nf90_float, (/ timeDimID,partDimID /), latID))
+  call nf90_err(nf90_def_var_chunking(ncid,latID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+  call nf90_err(nf90_def_var_deflate(ncid,latID,shuffle=0,deflate=1,deflate_level=1))
   call nf90_err(nf90_put_att(ncid, latID, 'long_name', 'latitude in degree north'))
   call nf90_err(nf90_put_att(ncid, latID, 'axis', 'Lat'))
+  call nf90_err(nf90_put_att(ncid, latID, '_FillValue', fillval))
   call nf90_err(nf90_put_att(ncid, latID, 'units', 'degrees_north'))
   call nf90_err(nf90_put_att(ncid, latID, 'standard_name', 'latitude'))
   call nf90_err(nf90_put_att(ncid, latID, 'description', 'latitude of particles'))
 
   ! height
   call nf90_err(nf90_def_var(ncid, 'height', nf90_float, (/ timeDimID,partDimID /), levID))
+  call nf90_err(nf90_def_var_chunking(ncid,levID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+  call nf90_err(nf90_def_var_deflate(ncid,levID,shuffle=0,deflate=1,deflate_level=1))
   call nf90_err(nf90_put_att(ncid, levID, 'units', 'meters'))
+  call nf90_err(nf90_put_att(ncid, levID, '_FillValue', fillval))
   call nf90_err(nf90_put_att(ncid, levID, 'positive', 'up'))
   call nf90_err(nf90_put_att(ncid, levID, 'standard_name', 'height'))
   call nf90_err(nf90_put_att(ncid, levID, 'long_name', 'height above ground'))
 
   ! itramem
-  call nf90_err(nf90_def_var(ncid, 'itramem', nf90_float, (/ timeDimID,partDimID /), itramemID))
+  ! call nf90_err(nf90_def_var(ncid, 'itramem', nf90_float, (/ timeDimID,partDimID /), itramemID))
 
   ! topo
   call nf90_err(nf90_def_var(ncid, 'topo', nf90_float, (/ timeDimID,partDimID /), topoID))
+  call nf90_err(nf90_def_var_chunking(ncid,topoID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+  call nf90_err(nf90_def_var_deflate(ncid,topoID,shuffle=0,deflate=1,deflate_level=1))
   call nf90_err(nf90_put_att(ncid, topoID, 'units', 'meters'))
+  call nf90_err(nf90_put_att(ncid, topoID, '_FillValue', fillval))
   call nf90_err(nf90_put_att(ncid, topoID, 'standard_name', 'topography'))
   call nf90_err(nf90_put_att(ncid, topoID, 'long_name', 'topography above sealevel'))
 
   ! Potential vorticity
   call nf90_err(nf90_def_var(ncid, 'pv', nf90_float, (/ timeDimID,partDimID /), pvID))
+  call nf90_err(nf90_def_var_chunking(ncid,pvID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+  call nf90_err(nf90_def_var_deflate(ncid,pvID,shuffle=0,deflate=1,deflate_level=1))
   call nf90_err(nf90_put_att(ncid, pvID, 'units', '?'))
+  call nf90_err(nf90_put_att(ncid, pvID, '_FillValue', fillval))
   call nf90_err(nf90_put_att(ncid, pvID, 'standard_name', 'potential_vorticity'))
   call nf90_err(nf90_put_att(ncid, pvID, 'long_name', 'potential vorticity'))
   
   ! Specific humidity
   call nf90_err(nf90_def_var(ncid, 'qv', nf90_float, (/ timeDimID,partDimID /), qvID))
+  call nf90_err(nf90_def_var_chunking(ncid,qvID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+  call nf90_err(nf90_def_var_deflate(ncid,qvID,shuffle=0,deflate=1,deflate_level=1))
   call nf90_err(nf90_put_att(ncid, qvID, 'units', '?'))
+  call nf90_err(nf90_put_att(ncid, qvID, '_FillValue', fillval))
   call nf90_err(nf90_put_att(ncid, qvID, 'standard_name', 'specific_humidity'))
   call nf90_err(nf90_put_att(ncid, qvID, 'long_name', 'specific humidity'))
 
   ! Density
   call nf90_err(nf90_def_var(ncid, 'rho', nf90_float, (/ timeDimID,partDimID /), rhoID))
+  call nf90_err(nf90_def_var_chunking(ncid,rhoID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+  call nf90_err(nf90_def_var_deflate(ncid,rhoID,shuffle=0,deflate=1,deflate_level=1))
   call nf90_err(nf90_put_att(ncid, rhoID, 'units', 'kg/m3'))
+  call nf90_err(nf90_put_att(ncid, rhoID, '_FillValue', fillval))
   call nf90_err(nf90_put_att(ncid, rhoID, 'positive', 'up'))
   call nf90_err(nf90_put_att(ncid, rhoID, 'standard_name', 'density'))
   call nf90_err(nf90_put_att(ncid, rhoID, 'long_name', 'density'))
 
   ! Mixing layer height
   call nf90_err(nf90_def_var(ncid, 'hmix', nf90_float, (/ timeDimID,partDimID /), hmixID))
+  call nf90_err(nf90_def_var_chunking(ncid,hmixID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+  call nf90_err(nf90_def_var_deflate(ncid,hmixID,shuffle=0,deflate=1,deflate_level=1))
   call nf90_err(nf90_put_att(ncid, hmixID, 'units', 'meters'))
+  call nf90_err(nf90_put_att(ncid, hmixID, '_FillValue', fillval))
   call nf90_err(nf90_put_att(ncid, hmixID, 'positive', 'up'))
   call nf90_err(nf90_put_att(ncid, hmixID, 'standard_name', 'hmix'))
   call nf90_err(nf90_put_att(ncid, hmixID, 'long_name', 'height above ground of mixing layer'))
 
   ! tr
   call nf90_err(nf90_def_var(ncid, 'tr', nf90_float, (/ timeDimID,partDimID /), trID))
+  call nf90_err(nf90_def_var_chunking(ncid,trID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+  call nf90_err(nf90_def_var_deflate(ncid,trID,shuffle=0,deflate=1,deflate_level=1))
   call nf90_err(nf90_put_att(ncid, trID, 'units', 'meters'))
+  call nf90_err(nf90_put_att(ncid, trID, '_FillValue', fillval))
   call nf90_err(nf90_put_att(ncid, trID, 'positive', 'up'))
   call nf90_err(nf90_put_att(ncid, trID, 'standard_name', 'htropo'))
   call nf90_err(nf90_put_att(ncid, trID, 'long_name', 'height above ground of tropopause'))
 
   ! Temperature
   call nf90_err(nf90_def_var(ncid, 'tt', nf90_float, (/ timeDimID,partDimID /), ttID))
+  call nf90_err(nf90_def_var_chunking(ncid,ttID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+  call nf90_err(nf90_def_var_deflate(ncid,ttID,shuffle=0,deflate=1,deflate_level=1))
   call nf90_err(nf90_put_att(ncid, ttID, 'units', 'K'))
+  call nf90_err(nf90_put_att(ncid, ttID, '_FillValue', fillval))
   call nf90_err(nf90_put_att(ncid, ttID, 'positive', 'up'))
   call nf90_err(nf90_put_att(ncid, ttID, 'standard_name', 'temperature'))
   call nf90_err(nf90_put_att(ncid, ttID, 'long_name', 'temperature'))
@@ -1572,7 +1602,10 @@ subroutine writeheader_partoutput(itime,idate)
     ! Masses
     write(anspec, '(i3.3)') j
     call nf90_err(nf90_def_var(ncid, 'mass'//anspec, nf90_float, (/ timeDimID,partDimID /), massID(j)))
+    call nf90_err(nf90_def_var_chunking(ncid,massID(j),NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+    call nf90_err(nf90_def_var_deflate(ncid,massID(j),shuffle=0,deflate=1,deflate_level=1))
     call nf90_err(nf90_put_att(ncid, massID(j), 'units', 'kg'))
+    call nf90_err(nf90_put_att(ncid, massID(j), '_FillValue', fillval))
     call nf90_err(nf90_put_att(ncid, massID(j), 'positive', 'up'))
     call nf90_err(nf90_put_att(ncid, massID(j), 'standard_name', 'mass'//anspec))
     call nf90_err(nf90_put_att(ncid, massID(j), 'long_name', 'mass for nspec'//anspec))    
@@ -1588,7 +1621,6 @@ subroutine writeheader_partoutput(itime,idate)
   call nf90_err(nf90_close(ncid))
 
   return
-
 110 write(*,FMT='(80("#"))') 
   write(*,*) 'ERROR: output directory ', trim(path(2)(1:length(2))), ' does not exist&
        & (or failed to write there).' 
@@ -1597,11 +1629,12 @@ subroutine writeheader_partoutput(itime,idate)
   stop
 end subroutine writeheader_partoutput
 
-subroutine open_partoutput_file(ncid)
+subroutine open_partoutput_file(ncid)!,irelease)
   
   implicit none 
 
-  integer                        :: ncid
+  integer, intent(inout)         :: ncid
+  !integer, intent(in)            :: irelease
 
   call nf90_err(nf90_open(trim(ncfname_part), nf90_write, ncid))
 end subroutine open_partoutput_file
@@ -1615,50 +1648,77 @@ subroutine close_partoutput_file(ncid)
   call nf90_err(nf90_close(ncid))
 end subroutine close_partoutput_file
 
-subroutine partoutput_netcdf(itime,field,fieldname,j,ncid)
+subroutine partoutput_netcdf(itime,field,fieldname,imass,ncid)
   
   implicit none
 
-  integer, intent(in)            :: itime,j
+  integer, intent(in)            :: itime,imass
   real, intent(in)               :: field(numpart)
   character(2), intent(in)       :: fieldname  ! input field to interpolate over
-  integer                        :: ncid
+  integer, allocatable           :: partindices(:)
+  integer                        :: ncid,newpart,j
   ! ! open output file
   ! call nf90_err(nf90_open(trim(ncfname_part), nf90_write, ncid))
-
   select case(fieldname)
     case('TI')
       ! write time
       tpointer_part = tpointer_part + 1
-      call nf90_err(nf90_put_var(ncid, timeIDpart, itime, (/ tpointer_part /)))      
+      call nf90_err(nf90_put_var(ncid, timeIDpart, itime, (/ tpointer_part /)))
+    case('PA')
+        newpart = numpart - ppointer_part
+        
+        if (tpointer_part.eq.1) then 
+          allocate ( partindices(numpart) )
+          do j=1,numpart 
+            partindices(j)=j+ppointer_part
+          end do 
+
+          call nf90_err(nf90_put_var(ncid, partID,partindices, (/ 1 /),(/ numpart /)))
+
+          deallocate (partindices)
+
+          ppointer_part = numpart 
+
+        else if (newpart.ge.0) then
+
+          allocate ( partindices(newpart) )
+          do j=1,newpart
+            partindices(j)=j+ppointer_part
+          end do
+
+          call nf90_err(nf90_put_var(ncid, partID,partindices, (/ ppointer_part+1 /),(/ newpart /)))
+          
+          deallocate (partindices)
+
+          ppointer_part = numpart
+        endif 
     case('LO')
-      call nf90_err(nf90_put_var(ncid,lonID,field, (/ tpointer,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,lonID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('LA')
-      call nf90_err(nf90_put_var(ncid,latID,field, (/ tpointer,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,latID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('ZZ')
-      call nf90_err(nf90_put_var(ncid,levID,field, (/ tpointer,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,levID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('IT')
-      call nf90_err(nf90_put_var(ncid,itramemID,field, (/ tpointer,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,itramemID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('TO')
-      call nf90_err(nf90_put_var(ncid,topoID,field, (/ tpointer,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,topoID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('PV')
-      call nf90_err(nf90_put_var(ncid,pvID,field, (/ tpointer,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,pvID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('QV')
-      call nf90_err(nf90_put_var(ncid,qvID,field, (/ tpointer,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,qvID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('RH')
-      call nf90_err(nf90_put_var(ncid,rhoID,field, (/ tpointer,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,rhoID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('HM')
-      call nf90_err(nf90_put_var(ncid,hmixID,field, (/ tpointer,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,hmixID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('TR')
-      call nf90_err(nf90_put_var(ncid,trID,field, (/ tpointer,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,trID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('TT')
-      call nf90_err(nf90_put_var(ncid,ttID,field, (/ tpointer,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,ttID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('MA')
-      call nf90_err(nf90_put_var(ncid,massID(j),field, (/ tpointer,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,massID(imass),field, (/ tpointer_part,1 /),(/ 1,numpart /)))
   end select
 
   ! call nf90_err(nf90_close(ncid))
-
 end subroutine partoutput_netcdf
 
 end module netcdf_output_mod

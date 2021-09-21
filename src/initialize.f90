@@ -89,16 +89,19 @@ subroutine initialize(itime,ldt,up,vp,wp, &
 
   ! Compute maximum mixing height around particle position
   !*******************************************************
-
-  ix=int(xt)
-  jy=int(yt)
-  ixp=ix+1
-  jyp=jy+1
-
+  call determine_grid_coordinates(real(xt),real(yt))
+  
   ! Convert eta z coordinate to meters
   !***********************************
 
-  if (wind_coord_type.eq.'ETA') call zeta_to_z(itime,xt,yt,zteta,ztemp)
+  select case (wind_coord_type) 
+    case ('ETA')
+      call zeta_to_z(itime,xt,yt,zteta,ztemp)
+    case ('METER')
+      ztemp = zt
+    case default 
+      ztemp = zt 
+  end select
 
   h=max(hmix(ix ,jy,1,memind(1)), &
        hmix(ixp,jy ,1,memind(1)), &
@@ -245,6 +248,13 @@ subroutine initialize(itime,ldt,up,vp,wp, &
   if (nrand+2.gt.maxrand) nrand=1
   usigold=rannumb(nrand)*usig
   vsigold=rannumb(nrand+1)*vsig
-  wsigold=rannumb(nrand+2)*wsigeta
+  select case (wind_coord_type)
+    case ('ETA')
+      wsigold=rannumb(nrand+2)*wsigeta
+    case ('METER')
+      wsigold=rannumb(nrand+2)*wsig
+    case default
+      wsigold=rannumb(nrand+2)*wsig
+  end select  
 
 end subroutine initialize

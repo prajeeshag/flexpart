@@ -113,8 +113,8 @@ subroutine partoutput(itime)!,active_per_rel)
 !$OMP END PARALLEL
 
   write(*,*) 'topo: ', topo(1), 'z:', ztra1eta(1),ztra1(1)!'zm: ',  ztra1(j),'k,nz,indzp: ',  k, nz, indzp
-  write(*,*) 'xtra,xeta: ', xtra1(1)
-  write(*,*) 'ytra,yeta: ', ytra1(1)
+  write(*,*) 'xtra: ', xtra1(1)
+  write(*,*) 'ytra: ', ytra1(1)
   write(*,*) pvi(1),qvi(1),tti(1),rhoi(1)
 
 

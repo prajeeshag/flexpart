@@ -33,9 +33,9 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
   implicit none
 
   real(kind=dp) :: xt,yt
-  real :: zt,xtn,ytn
+  real :: zt!,xtn,ytn
   integer :: itime,i,j,k,memindnext
-  integer :: nix,njy,ks
+  integer :: ks!nix,njy,
   real :: prob(maxspec),vdepo(maxspec)
   real,parameter :: eps=nxmax/3.e5
 
@@ -62,10 +62,9 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
       if ((xt.gt.xln(j)+eps).and.(xt.lt.xrn(j)-eps).and. &
            (yt.gt.yln(j)+eps).and.(yt.lt.yrn(j)-eps)) then
         ngrid=j
-        goto 23
+        exit
       endif
     end do
-23   continue
   endif
 
 

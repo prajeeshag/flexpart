@@ -60,10 +60,9 @@ subroutine initial_cond_calc(itime,i)
       if (height(il).gt.ztra1(i)) then
         indz=il-1
         indzp=il
-        goto 6
+        exit
       endif
     end do
-6   continue
 
     dz1=ztra1(i)-height(indz)
     dz2=height(indzp)-ztra1(i)
@@ -103,9 +102,9 @@ subroutine initial_cond_calc(itime,i)
   endif
 
   do kz=1,numzgrid                ! determine height of cell
-    if (outheight(kz).gt.ztra1(i)) goto 21
+    if (outheight(kz).gt.ztra1(i)) exit
   end do
-21   continue
+
   if (kz.le.numzgrid) then           ! inside output domain
 
 

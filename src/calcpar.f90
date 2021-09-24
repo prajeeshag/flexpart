@@ -76,6 +76,11 @@ subroutine calcpar(n,uuh,vvh,pvh,metdata_format)
   ! Loop over entire grid
   !**********************
 
+  ! openmp change
+!$OMP PARALLEL PRIVATE(jy,ix,ulev,vlev,ttlev,qvlev,llev,ylat,ol,i,hmixplus, &
+!$OMP subsceff,vd,kz,lz,zlev,rh,kzmin,pold,zold,tvold,pint,tv,loop_start)
+
+!$OMP DO
   do jy=0,nymin1
 
   ! Set minimum height for tropopause
@@ -209,7 +214,7 @@ subroutine calcpar(n,uuh,vvh,pvh,metdata_format)
         tv=tth(ix,jy,kz,n)*(1.+0.608*qvh(ix,jy,kz,n))
 
         if (abs(tv-tvold).gt.0.2) then
-         zlev(kz)=zold+const*log(pold/pint)*(tv-tvold)/log(tv/tvold)
+          zlev(kz)=zold+const*log(pold/pint)*(tv-tvold)/log(tv/tvold)
         else
           zlev(kz)=zold+const*log(pold/pint)*tv
         endif
@@ -224,7 +229,8 @@ subroutine calcpar(n,uuh,vvh,pvh,metdata_format)
   !************************************************************************
 
       if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-        loop_start=1
+        !LB, The CTM version has 2 (as bugfix), so I changed it 2 from 1 to try out
+        loop_start=2
       else
         loop_start=llev
       end if
@@ -259,6 +265,9 @@ subroutine calcpar(n,uuh,vvh,pvh,metdata_format)
 
     end do
   end do
+!$OMP END DO
+!$OMP END PARALLEL
+! openmp change end
 
   ! Calculation of potential vorticity on 3-d grid
   !***********************************************

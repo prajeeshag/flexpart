@@ -28,7 +28,12 @@ module conv_mod
   real :: cbasefluxn(0:nxmaxn-1,0:nymaxn-1,maxnests)
   real :: tconv(na),qconv(na),qsconv(na)
   real :: psconv,tt2conv,td2conv
-
+  
   integer :: nconvlev,nconvtop
+
+!$OMP THREADPRIVATE( ft, fq, fmass, sub, fmassfrac, &
+!$OMP pconv, phconv, dpr, pconv_hpa, phconv_hpa, &
+!$OMP tconv, qconv, qsconv, psconv, tt2conv, td2conv, &
+!$OMP nconvtop)
 
 end module conv_mod

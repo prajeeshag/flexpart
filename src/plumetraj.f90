@@ -43,7 +43,7 @@ subroutine plumetraj(itime)
   implicit none
 
   integer :: itime,ix,jy,ixp,jyp,indexh,i,j,k,m,n,il,ind,indz,indzp
-  real :: xl(maxpart),yl(maxpart),zl(maxpart)
+  ! real :: xl(maxpart),yl(maxpart),zl(maxpart) ! moved to particle_mod and now xplum,yplum,zplum
   real :: xcenter,ycenter,zcenter,dist,distance,rmsdist,zrmsdist
 
   real :: xclust(ncluster),yclust(ncluster),zclust(ncluster)
@@ -80,10 +80,10 @@ subroutine plumetraj(itime)
       if (.not.part(i)%alive) cycle
       if (part(i)%npoint.ne.j) cycle
       n=n+1
-      xl(n)=xlon0+part(i)%xlon*dx
-      yl(n)=ylat0+part(i)%ylat*dy
+      xplum(n)=xlon0+part(i)%xlon*dx
+      yplum(n)=ylat0+part(i)%ylat*dy
       call update_zcoord(itime,i)
-      zl(n)=part(i)%z
+      zplum(n)=part(i)%z
 
   ! Interpolate PBL height, PV, and tropopause height to each
   ! particle position in order to determine fraction of particles
@@ -117,15 +117,15 @@ subroutine plumetraj(itime)
   !********************
 
       do il=2,nz
-        if (height(il).gt.zl(n)) then
+        if (height(il).gt.zplum(n)) then
           indz=il-1
           indzp=il
           exit
         endif
       end do
 
-      dz1=zl(n)-height(indz)
-      dz2=height(indzp)-zl(n)
+      dz1=zplum(n)-height(indz)
+      dz2=height(indzp)-zplum(n)
       dz=1./(dz1+dz2)
 
 
@@ -141,7 +141,7 @@ subroutine plumetraj(itime)
       end do
       pvi=(dz1*pvprof(2)+dz2*pvprof(1))*dz
       pvcenter=pvcenter+pvi
-      if (yl(n).gt.0.) then
+      if (yplum(n).gt.0.) then
         if (pvi.lt.2.) pvfract=pvfract+1.
       else
         if (pvi.gt.-2.) pvfract=pvfract+1.
@@ -167,10 +167,10 @@ subroutine plumetraj(itime)
 
       hmixi=(hm(1)*dt2+hm(2)*dt1)*dtt
       tri=(tr(1)*dt2+tr(2)*dt1)*dtt
-      if (zl(n).lt.tri) tropofract=tropofract+1.
+      if (zplum(n).lt.tri) tropofract=tropofract+1.
       tropocenter=tropocenter+tri+topo
-      if (zl(n).lt.hmixi) hmixfract=hmixfract+1.
-      zl(n)=zl(n)+topo        ! convert to height asl
+      if (zplum(n).lt.hmixi) hmixfract=hmixfract+1.
+      zplum(n)=zplum(n)+topo        ! convert to height asl
       hmixcenter=hmixcenter+hmixi
 
     end do
@@ -191,21 +191,21 @@ subroutine plumetraj(itime)
   ! Cluster the particle positions
   !*******************************
 
-      call clustering(xl,yl,zl,n,xclust,yclust,zclust,fclust,rms, &
+      call clustering(n,xclust,yclust,zclust,fclust,rms, &
            rmsclust,zrms)
 
 
   ! Determine center of mass position on earth and average height
   !**************************************************************
 
-      call centerofmass(xl,yl,n,xcenter,ycenter)
-      call mean(zl,zcenter,zrmsdist,n)
+      call centerofmass(xplum,yplum,n,xcenter,ycenter)
+      call mean(zplum,zcenter,zrmsdist,n)
 
   ! Root mean square distance from center of mass
   !**********************************************
 
       do k=1,n
-        dist=distance(yl(k),xl(k),ycenter,xcenter)
+        dist=distance(yplum(k),xplum(k),ycenter,xcenter)
         rmsdist=rmsdist+dist*dist
       end do
       if (rmsdist.gt.0.) rmsdist=sqrt(rmsdist/real(n))

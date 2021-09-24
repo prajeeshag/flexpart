@@ -170,7 +170,6 @@ subroutine releaseparticles(itime)
         do k=1,nspec
           part(ipart)%mass(k)=xmass(i,k)/real(npart(i)) &
                 *timecorrect(k)/average_timecorrect
-          if (ipart.eq.535) write(*,*) 'releasparticles1', part(ipart)%mass(k),k
           if (DRYBKDEP.or.WETBKDEP) then ! if there is no scavenging in wetdepo it will be set to 0
 !              if ( henry(k).gt.0 .or. &
 !                   crain_aero(k).gt.0. .or. csnow_aero(k).gt.0. .or. &
@@ -364,7 +363,6 @@ subroutine releaseparticles(itime)
 
           do k=1,nspec
             part(ipart)%mass(k)=part(ipart)%mass(k)*rhoout
-            if (ipart.eq.535) write(*,*) 'releasparticles2', part(ipart)%mass(k),k
           end do
         endif
 

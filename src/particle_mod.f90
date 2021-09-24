@@ -1,5 +1,5 @@
 module particle_mod
-  use com_mod, only: maxspec
+  use com_mod, only: maxspec,DRYBKDEP,WETBKDEP,iout
   use par_mod, only: dp
 
   implicit none
@@ -69,7 +69,12 @@ module particle_mod
     part(:)                         ! This is where all particles are being stored
   type(particlecount)         ::  &
     count                           ! Keeping track of global particle number within the simulation
-
+  real,allocatable            ::  &
+    xscav_frac1(:,:)                ! Only allocated when wet or dry deposit backward mode is switched on
+  real,allocatable            ::  &
+    xplum(:),yplum(:),zplum(:)      ! Only allocated for iout=4 or 5 (plumetraj)
+  integer,allocatable         ::  &
+    nclust(:)                       ! Only allocated for iout=4 or 5 (plumetraj)
   ! private ::                      &
   !   count             
   public ::                       &
@@ -257,6 +262,9 @@ contains
     integer, intent(in) :: nmpart
     type(particle),allocatable :: tmppart(:)
     logical, allocatable :: tmpcount(:)
+    real, allocatable :: tmpxscav(:,:)
+    real, allocatable :: tmpxl(:),tmpyl(:),tmpzl(:)
+    integer, allocatable :: tmpnclust(:)
 
     if (nmpart.gt.100) write(*,*) 'Allocating ',nmpart,' particles'
 
@@ -274,6 +282,34 @@ contains
     allocate( tmppart(count%allocated+nmpart) )
     tmppart(1:count%allocated) = part
     call move_alloc(tmppart,part)
+
+    ! If wet or dry deposition backward mode is switched on, xscav_frac1
+    ! needs to be allocated
+    !*******************************************************************
+    if (WETBKDEP.or.DRYBKDEP) then
+      allocate( tmpxscav(count%allocated+nmpart,maxspec) )
+      tmpxscav(1:count%allocated,:) = tmpxscav
+      call move_alloc(tmpxscav,xscav_frac1)
+    endif
+
+    if ((iout.eq.4).or.(iout.eq.5)) then
+      allocate( tmpxl(count%allocated+nmpart) )
+      tmpxl(1:count%allocated) = xplum
+      call move_alloc(tmpxl,xplum)
+      
+      allocate( tmpyl(count%allocated+nmpart) )
+      tmpyl(1:count%allocated) = yplum
+      call move_alloc(tmpyl,yplum)
+
+      allocate( tmpzl(count%allocated+nmpart) )
+      tmpzl(1:count%allocated) = zplum
+      call move_alloc(tmpzl,zplum)
+
+      allocate( tmpnclust(count%allocated+nmpart) )
+      tmpnclust(1:count%allocated) = nclust
+      call move_alloc(tmpnclust,nclust)
+    endif
+
     count%allocated = count%allocated+nmpart
     if (nmpart.gt.100) write(*,*) 'Finished allocation'
   end subroutine allocate_particles
@@ -312,8 +348,8 @@ contains
     integer, intent(in) :: ipart ! particle index
 
     !deallocate( part(ipart) )
-    part = part(1:ipart)
-    count%inmem(ipart:) = .false.
+    part = part(1:ipart) ! FORTRAN 2008 only
+    count%inmem(ipart+1:) = .false.
   end subroutine deallocate_particle
 
   subroutine deallocate_all_particles()
@@ -322,6 +358,17 @@ contains
 
     deallocate( part )
     deallocate( count%inmem )
+
+    if (WETBKDEP.or.DRYBKDEP) then
+      deallocate( xscav_frac1 )
+    endif
+
+    if ((iout.eq.4).or.(iout.eq.5)) then
+      deallocate( xplum )
+      deallocate( yplum )
+      deallocate( zplum )
+      deallocate( nclust )
+    endif
   end subroutine deallocate_all_particles
 
 end module particle_mod

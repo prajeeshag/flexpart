@@ -36,7 +36,7 @@ subroutine convmix(itime,metdata_format)
   integer :: igr,igrold, ipart, itime, ix, j, inest
   integer :: ipconv
   integer :: jy, kpart, ktop, ngrid,kz
-  integer :: igrid(maxpart), ipoint(maxpart), igridn(maxpart,maxnests)
+  integer,allocatable :: igrid(:), ipoint(:), igridn(:,:)
   integer :: metdata_format
 
   ! itime [s]                 current time
@@ -58,9 +58,7 @@ subroutine convmix(itime,metdata_format)
   double precision :: tmarray(2)
   integer :: conv_cnt, thread, part_cnt
 
-  !monitoring variables
-  !real sumconv,sumall
-
+  integer :: totpart,alivepart
 
   ! Calculate auxiliary variables for time interpolation
   !*****************************************************
@@ -72,13 +70,17 @@ subroutine convmix(itime,metdata_format)
   mind2=memind(2)
   delt=real(abs(lsynctime))
 
-
   lconv = .false.
 
   ! if no particles are present return after initialization
   !********************************************************
+  call get_alive_part_num(alivepart)
+  if (alivepart.le.0 ) return
 
-  if (numpart.le.0) return
+  call get_total_part_num(totpart)
+  allocate( igrid(totpart) )
+  allocate( ipoint(totpart) )
+  allocate( igridn(totpart,maxnests) )
 
   ! Assign igrid and igridn, which are pseudo grid numbers indicating particles
   ! that are outside the part of the grid under consideration
@@ -338,6 +340,10 @@ subroutine convmix(itime,metdata_format)
   ! write(*,*)'number of particles under convection',&
   !    &  sumconv
   ! write(*,*)'############################################'
+
+  deallocate( igrid )
+  deallocate( ipoint )
+  deallocate( igridn )
 
   return
 end subroutine convmix

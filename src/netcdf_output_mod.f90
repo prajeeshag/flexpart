@@ -36,7 +36,7 @@ module netcdf_output_mod
   use outg_mod,  only: outheight,oroout,densityoutgrid,factor3d,volume,&
                        wetgrid,wetgridsigma,drygrid,drygridsigma,grid,gridsigma,&
                        area,arean,volumen, orooutn
-  use par_mod,   only: dep_prec, sp, dp, maxspec, maxpart, maxreceptor, nclassunc,&
+  use par_mod,   only: dep_prec, sp, dp, maxspec, maxreceptor, nclassunc,&
                        unitoutrecept,unitoutreceptppt, nxmax,unittmp
   use com_mod,   only: path,length,ldirect,ibdate,ibtime,iedate,ietime, &
                        loutstep,loutaver,loutsample,outlon0,outlat0,&
@@ -1464,10 +1464,10 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
   do j=1,numpoint
     totpart = totpart+npart(j)
   end do
-  totpart = maxpart!max(numpart,totpart)
+  !totpart = maxpart!max(numpart,totpart)
   !cache_size = 4 * 1 * (12+nspec)
 
-  write(*,*) maxpart,nspec,numpart,totpart
+  write(*,*) nspec,numpart,totpart
 
   call nf90_err(nf90_create(trim(fname_partoutput), cmode = nf90_hdf5, ncid = ncid))!, &
     ! cache_size = cache_size))

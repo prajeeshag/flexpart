@@ -14,7 +14,7 @@ module com_mod
 
   use par_mod, only: dp, numpath, maxnests, maxageclass, maxspec, ni, &
        numclass, nymax, nxmax, maxcolumn, maxwf, nzmax, nxmaxn, nymaxn, &
-       maxreceptor, maxpart, maxrand, nwzmax, nuvzmax, numwfmem
+       maxreceptor, maxrand, nwzmax, nuvzmax, numwfmem
 
   implicit none
 
@@ -691,7 +691,7 @@ module com_mod
   integer :: numpart=0
   integer :: numparticlecount
 
-  real, allocatable, dimension(:,:) :: xscav_frac1
+  !real, allocatable, dimension(:,:) :: xscav_frac1
 
 ! Variables used for writing out interval averages for partoutput
 !****************************************************************

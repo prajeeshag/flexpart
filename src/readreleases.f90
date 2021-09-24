@@ -595,7 +595,7 @@ subroutine readreleases
     close(unitreleasesout)
   endif
 
-  if (lroot) write (*,*) 'Particles allocated (maxpart)  : ',maxpart
+  !if (lroot) write (*,*) 'Particles allocated (maxpart)  : ',maxpart
   if (lroot) write (*,*) 'Particles released (numpartmax): ',numpartmax
   numpoint=numpoint-1
 
@@ -632,31 +632,31 @@ subroutine readreleases
   ! number of particles at some time during the simulation
   !************************************************************************
 
-  if (releaserate.gt. &
-       0.99*real(maxpart)/real(lage(nageclass))) then
-    if (numpartmax.gt.maxpart.and.lroot) then
-      write(*,*) '#####################################################'
-      write(*,*) '#### FLEXPART MODEL SUBROUTINE READRELEASES:     ####'
-      write(*,*) '####                                             ####'
-      write(*,*) '####WARNING - TOTAL NUMBER OF PARTICLES SPECIFIED####'
-      write(*,*) '#### IN FILE "RELEASES" MAY AT SOME POINT DURING ####'
-      write(*,*) '#### THE SIMULATION EXCEED THE MAXIMUM ALLOWED   ####'
-      write(*,*) '#### NUMBER (MAXPART).IF RELEASES DO NOT OVERLAP,####'
-      write(*,*) '#### FLEXPART CAN POSSIBLY COMPLETE SUCCESSFULLY.####'
-      write(*,*) '#### HOWEVER, FLEXPART MAY HAVE TO STOP          ####'
-      write(*,*) '#### AT SOME TIME DURING THE SIMULATION. PLEASE  ####'
-      write(*,*) '#### MAKE SURE THAT YOUR SETTINGS ARE CORRECT.   ####'
-      write(*,*) '#####################################################'
-      write(*,*) 'Maximum release rate may be: ',releaserate, &
-           ' particles per second'
-      write(*,*) 'Maximum allowed release rate is: ', &
-           real(maxpart)/real(lage(nageclass)),' particles per second'
-      write(*,*) &
-           'Total number of particles released during the simulation is: ', &
-           numpartmax
-      write(*,*) 'Maximum allowed number of particles is: ',maxpart
-    endif
-  endif
+  ! if (releaserate.gt. &
+  !      0.99*real(maxpart)/real(lage(nageclass))) then
+  !   if (numpartmax.gt.maxpart.and.lroot) then
+  !     write(*,*) '#####################################################'
+  !     write(*,*) '#### FLEXPART MODEL SUBROUTINE READRELEASES:     ####'
+  !     write(*,*) '####                                             ####'
+  !     write(*,*) '####WARNING - TOTAL NUMBER OF PARTICLES SPECIFIED####'
+  !     write(*,*) '#### IN FILE "RELEASES" MAY AT SOME POINT DURING ####'
+  !     write(*,*) '#### THE SIMULATION EXCEED THE MAXIMUM ALLOWED   ####'
+  !     write(*,*) '#### NUMBER (MAXPART).IF RELEASES DO NOT OVERLAP,####'
+  !     write(*,*) '#### FLEXPART CAN POSSIBLY COMPLETE SUCCESSFULLY.####'
+  !     write(*,*) '#### HOWEVER, FLEXPART MAY HAVE TO STOP          ####'
+  !     write(*,*) '#### AT SOME TIME DURING THE SIMULATION. PLEASE  ####'
+  !     write(*,*) '#### MAKE SURE THAT YOUR SETTINGS ARE CORRECT.   ####'
+  !     write(*,*) '#####################################################'
+  !     write(*,*) 'Maximum release rate may be: ',releaserate, &
+  !          ' particles per second'
+  !     write(*,*) 'Maximum allowed release rate is: ', &
+  !          real(maxpart)/real(lage(nageclass)),' particles per second'
+  !     write(*,*) &
+  !          'Total number of particles released during the simulation is: ', &
+  !          numpartmax
+  !     write(*,*) 'Maximum allowed number of particles is: ',maxpart
+  !   endif
+  ! endif
 
 
   if (lroot) then

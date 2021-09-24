@@ -39,7 +39,7 @@ subroutine partoutput(itime)!,active_per_rel)
   real :: tr(2),hm(2)
   character :: adate*8,atime*6
 
-  real :: xlon(numpart),ylat(numpart)
+  real :: xlon(numpart),ylat(numpart),ztemp1,ztemp2
   real :: tti(numpart),rhoi(numpart),pvi(numpart),qvi(numpart)
   real :: topo(numpart),hmixi(numpart),tri(numpart)
   !logical  :: active_per_rel(maxpoint)

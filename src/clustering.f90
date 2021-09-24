@@ -1,7 +1,7 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
 
-subroutine clustering(xl,yl,zl,n,xclust,yclust,zclust,fclust,rms, &
+subroutine clustering(n,xclust,yclust,zclust,fclust,rms, &
        rmsclust,zrms)
   !                      i  i  i  i   o      o      o      o     o
   !   o      o
@@ -37,11 +37,12 @@ subroutine clustering(xl,yl,zl,n,xclust,yclust,zclust,fclust,rms, &
   !*****************************************************************************
 
   use par_mod
+  use particle_mod
 
   implicit none
 
-  integer :: n,i,j,l,nclust(maxpart),numb(ncluster),ncl
-  real :: xl(n),yl(n),zl(n),xclust(ncluster),yclust(ncluster),x,y,z
+  integer :: n,i,j,l,numb(ncluster),ncl
+  real :: xclust(ncluster),yclust(ncluster),x,y,z
   real :: zclust(ncluster),distance2,distances,distancemin,rms,rmsold
   real :: xav(ncluster),yav(ncluster),zav(ncluster),fclust(ncluster)
   real :: rmsclust(ncluster)
@@ -57,8 +58,8 @@ subroutine clustering(xl,yl,zl,n,xclust,yclust,zclust,fclust,rms, &
 
   do i=1,n
     nclust(i)=i
-    xl(i)=xl(i)*pi180
-    yl(i)=yl(i)*pi180
+    xplum(i)=xplum(i)*pi180
+    yplum(i)=yplum(i)*pi180
   end do
 
 
@@ -67,8 +68,8 @@ subroutine clustering(xl,yl,zl,n,xclust,yclust,zclust,fclust,rms, &
 
   do j=1,ncluster
     zclust(j)=0.
-    xclust(j)=xl(j*n/ncluster)
-    yclust(j)=yl(j*n/ncluster)
+    xclust(j)=xplum(j*n/ncluster)
+    yclust(j)=yplum(j*n/ncluster)
   end do
 
 
@@ -85,7 +86,7 @@ subroutine clustering(xl,yl,zl,n,xclust,yclust,zclust,fclust,rms, &
     do i=1,n
       distancemin=10.**10.
       do j=1,ncluster
-        distances=distance2(yl(i),xl(i),yclust(j),xclust(j))
+        distances=distance2(yplum(i),xplum(i),yclust(j),xclust(j))
         if (distances.lt.distancemin) then
           distancemin=distances
           ncl=j
@@ -110,7 +111,7 @@ subroutine clustering(xl,yl,zl,n,xclust,yclust,zclust,fclust,rms, &
 
     do i=1,n
       numb(nclust(i))=numb(nclust(i))+1
-      distances=distance2(yl(i),xl(i), &
+      distances=distance2(yplum(i),xplum(i), &
            yclust(nclust(i)),xclust(nclust(i)))
 
   ! rms is the total rms of all particles
@@ -123,9 +124,9 @@ subroutine clustering(xl,yl,zl,n,xclust,yclust,zclust,fclust,rms, &
   ! Calculate Cartesian 3D coordinates from longitude and latitude
   !***************************************************************
 
-      x = cos(yl(i))*sin(xl(i))
-      y = -1.*cos(yl(i))*cos(xl(i))
-      z = sin(yl(i))
+      x = cos(yplum(i))*sin(xplum(i))
+      y = -1.*cos(yplum(i))*cos(xplum(i))
+      z = sin(yplum(i))
       xav(nclust(i))=xav(nclust(i))+x
       yav(nclust(i))=yav(nclust(i))+y
       zav(nclust(i))=zav(nclust(i))+z
@@ -156,20 +157,18 @@ subroutine clustering(xl,yl,zl,n,xclust,yclust,zclust,fclust,rms, &
   ! Leave the loop if the RMS distance decreases only slightly between 2 iterations
   !*****************************************************************************
 
-    if ((l.gt.1).and.(abs(rms-rmsold)/rmsold.lt.0.005)) goto 99
+    if ((l.gt.1).and.(abs(rms-rmsold)/rmsold.lt.0.005)) exit
     rmsold=rms
 
   end do
-
-99   continue
 
   ! Convert longitude and latitude from radians to degrees
   !*******************************************************
 
   do i=1,n
-    xl(i)=xl(i)/pi180
-    yl(i)=yl(i)/pi180
-    zclust(nclust(i))=zclust(nclust(i))+zl(i)
+    xplum(i)=xplum(i)/pi180
+    yplum(i)=yplum(i)/pi180
+    zclust(nclust(i))=zclust(nclust(i))+zplum(i)
   end do
 
   do j=1,ncluster
@@ -184,7 +183,7 @@ subroutine clustering(xl,yl,zl,n,xclust,yclust,zclust,fclust,rms, &
 
   zrms=0.
   do i=1,n
-    zdist=zl(i)-zclust(nclust(i))
+    zdist=zplum(i)-zclust(nclust(i))
     zrms=zrms+zdist*zdist
   end do
   if (zrms.gt.0.) zrms=sqrt(zrms/real(n))

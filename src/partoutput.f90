@@ -112,13 +112,13 @@ subroutine partoutput(itime)!,active_per_rel)
 
 !$OMP END DO
 !$OMP END PARALLEL
-
-  write(*,*) 'topo: ', topo(1), 'z:', part(1)%zeta,part(1)%z
-  write(*,*) 'xtra,xeta: ', part(1)%xlon
-  write(*,*) 'ytra,yeta: ', part(1)%ylat
-  write(*,*) pvi(1),qvi(1),tti(1),rhoi(1),part(1)%alive,&
-    count%alive,count%spawned,count%terminated
-
+  if (numpart.gt.0) then
+    write(*,*) 'topo: ', topo(1), 'z:', part(1)%zeta,part(1)%z
+    write(*,*) 'xtra,xeta: ', part(1)%xlon
+    write(*,*) 'ytra,yeta: ', part(1)%ylat
+    write(*,*) pvi(1),qvi(1),tti(1),rhoi(1),part(1)%alive,&
+      count%alive,count%spawned,count%terminated
+  endif
 
   ! Determine current calendar date, needed for the file name
   !**********************************************************
@@ -150,25 +150,27 @@ subroutine partoutput(itime)!,active_per_rel)
     call partoutput_netcdf(itime,xlon,'PA',j,ncid)
 
     ! Fill the fields in parallel
+    if (numpart.gt.0) then
 !$OMP PARALLEL PRIVATE(j,mythread)
 #ifdef USE_NCF
-    mythread = omp_get_thread_num()
-    if (mythread.eq.thread_divide(1)) call partoutput_netcdf(itime,xlon,'LO',j,ncid)
-    if (mythread.eq.thread_divide(2)) call partoutput_netcdf(itime,ylat,'LA',j,ncid)
-    if (mythread.eq.thread_divide(3)) call partoutput_netcdf(itime,part(1:numpart)%z,'ZZ',j,ncid)
-    !if (mythread.eq.thread_divide(12)) call partoutput_netcdf_int(itime,itramem(1:numpart),'IT',j,ncid)
-    if (mythread.eq.thread_divide(4)) call partoutput_netcdf(itime,topo,'TO',j,ncid)
-    if (mythread.eq.thread_divide(5)) call partoutput_netcdf(itime,pvi,'PV',j,ncid)
-    if (mythread.eq.thread_divide(6)) call partoutput_netcdf(itime,qvi,'QV',j,ncid)
-    if (mythread.eq.thread_divide(7)) call partoutput_netcdf(itime,rhoi,'RH',j,ncid)
-    if (mythread.eq.thread_divide(8)) call partoutput_netcdf(itime,hmixi,'HM',j,ncid)
-    if (mythread.eq.thread_divide(9)) call partoutput_netcdf(itime,tri,'TR',j,ncid)
-    if (mythread.eq.thread_divide(10)) call partoutput_netcdf(itime,tti,'TT',j,ncid)
-    do j=1,nspec
-      if (mythread.eq.mass_divide(j)) call partoutput_netcdf(itime,part(1:numpart)%mass(j),'MA',j,ncid)
-    end do
+      mythread = omp_get_thread_num()
+      if (mythread.eq.thread_divide(1)) call partoutput_netcdf(itime,xlon,'LO',j,ncid)
+      if (mythread.eq.thread_divide(2)) call partoutput_netcdf(itime,ylat,'LA',j,ncid)
+      if (mythread.eq.thread_divide(3)) call partoutput_netcdf(itime,part(1:numpart)%z,'ZZ',j,ncid)
+      !if (mythread.eq.thread_divide(12)) call partoutput_netcdf_int(itime,itramem(1:numpart),'IT',j,ncid)
+      if (mythread.eq.thread_divide(4)) call partoutput_netcdf(itime,topo,'TO',j,ncid)
+      if (mythread.eq.thread_divide(5)) call partoutput_netcdf(itime,pvi,'PV',j,ncid)
+      if (mythread.eq.thread_divide(6)) call partoutput_netcdf(itime,qvi,'QV',j,ncid)
+      if (mythread.eq.thread_divide(7)) call partoutput_netcdf(itime,rhoi,'RH',j,ncid)
+      if (mythread.eq.thread_divide(8)) call partoutput_netcdf(itime,hmixi,'HM',j,ncid)
+      if (mythread.eq.thread_divide(9)) call partoutput_netcdf(itime,tri,'TR',j,ncid)
+      if (mythread.eq.thread_divide(10)) call partoutput_netcdf(itime,tti,'TT',j,ncid)
+      do j=1,nspec
+        if (mythread.eq.mass_divide(j)) call partoutput_netcdf(itime,part(1:numpart)%mass(j),'MA',j,ncid)
+      end do
 #endif
 !$OMP END PARALLEL
+    endif
     call close_partoutput_file(ncid)
   else
     ! Open output file and write the output

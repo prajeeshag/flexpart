@@ -215,6 +215,7 @@ subroutine timemanager(metdata_format)
     if (ipout.ge.1) then
       if (itime.eq.0) then 
         call writeheader_partoutput(ibtime,ibdate,ibtime,ibdate)
+        call partoutput(itime)
       else if (mod(itime,ipoutfac*loutstep).eq.0) then
         if (filesize.ge.max_partoutput_filesize) then 
           jul=bdate+real(itime,kind=dp)/86400._dp

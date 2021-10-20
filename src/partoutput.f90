@@ -41,7 +41,7 @@ subroutine partoutput(itime)!,active_per_rel)
 
   real :: xlon(numpart),ylat(numpart),ztemp1,ztemp2
   real :: tti(numpart),rhoi(numpart),pvi(numpart),qvi(numpart)
-  real :: topo(numpart),hmixi(numpart),tri(numpart)
+  real :: topo(numpart),hmixi(numpart),tri(numpart),ztemp(numpart)
   !logical  :: active_per_rel(maxpoint)
 
 #ifdef USE_NCF
@@ -66,6 +66,7 @@ subroutine partoutput(itime)!,active_per_rel)
     topo(i)=-1.
     hmixi(i)=-1.
     tri(i)=-1.
+    ztemp(i)=-1.
     if (part(i)%alive) then
       xlon(i)=xlon0+part(i)%xlon*dx
       ylat(i)=ylat0+part(i)%ylat*dy
@@ -107,6 +108,7 @@ subroutine partoutput(itime)!,active_per_rel)
   ! Convert eta z coordinate to meters if necessary
   !************************************************
       call update_zcoord(itime, i)
+      ztemp(i)=part(i)%z
     endif 
   end do
 
@@ -156,7 +158,7 @@ subroutine partoutput(itime)!,active_per_rel)
       mythread = omp_get_thread_num()
       if (mythread.eq.thread_divide(1)) call partoutput_netcdf(itime,xlon,'LO',j,ncid)
       if (mythread.eq.thread_divide(2)) call partoutput_netcdf(itime,ylat,'LA',j,ncid)
-      if (mythread.eq.thread_divide(3)) call partoutput_netcdf(itime,part(1:numpart)%z,'ZZ',j,ncid)
+      if (mythread.eq.thread_divide(3)) call partoutput_netcdf(itime,ztemp,'ZZ',j,ncid)
       !if (mythread.eq.thread_divide(12)) call partoutput_netcdf_int(itime,itramem(1:numpart),'IT',j,ncid)
       if (mythread.eq.thread_divide(4)) call partoutput_netcdf(itime,topo,'TO',j,ncid)
       if (mythread.eq.thread_divide(5)) call partoutput_netcdf(itime,pvi,'PV',j,ncid)

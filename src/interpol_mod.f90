@@ -214,15 +214,22 @@ subroutine find_z_level_eta(zteta)
   endif
 end subroutine find_z_level_eta
 
-subroutine find_vertical_variables(vertlevels,zpos,zlevel,dz1,dz2,bounds)
+subroutine find_vertical_variables(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
   implicit none
   real, intent(in)    :: vertlevels(:)     ! vertical levels in coordinate system
   real, intent(in)    :: zpos              ! verticle particle position
   integer, intent(in) :: zlevel            ! vertical level of interest
-  logical, intent(in) :: bounds(2)         ! flag marking if particles are outside bounds  
-  real, intent(inout) :: dz1,dz2
-  real                :: dz, dh1,dh,pfact
-  real                :: psint1(2),psint,p1,p2,temp       ! pressure of encompassing levels
+  logical, intent(in) :: bounds(2),wlevel         ! flag marking if particles are outside bounds  
+  real, intent(inout) :: dz1,dz2           ! fractional distance to point 1 (closer to ground) and 2
+  real                :: dz,dh1,dh,pfact
+  real                :: psint1(2),psint,pr1,pr2,temp       ! pressure of encompassing levels
+
+  ! To check if taking the logarithm is safe
+  if (wlevel) then
+    temp=akm(zlevel+1)+bkm(zlevel+1)
+  else
+    temp=akz(zlevel+1)+akz(zlevel+1)
+  endif
 
   ! If the particle is below bounds (bounds(1)==.true.):
   if (bounds(1)) then
@@ -232,13 +239,69 @@ subroutine find_vertical_variables(vertlevels,zpos,zlevel,dz1,dz2,bounds)
   else if (bounds(2)) then
     dz1=1.
     dz2=0.
-  else
+
+  ! Instead of the linear z variables, we need the ones that correspond to 
+  ! the pressure of the height of the particle in relation to the model levels
+  !***************************************************************************
+  else if (temp.eq.0) then
     dz=1./(vertlevels(zlevel+1)-vertlevels(zlevel))
     dz1=(zpos-vertlevels(zlevel))*dz
     dz2=(vertlevels(zlevel+1)-zpos)*dz
-  endif 
-
+  else
+    call bilinear_horizontal_interpolation(ps,psint1,1,1)
+    call temporal_interpolation(psint1(1),psint1(2),psint)
+    dh = vertlevels(zlevel+1)-vertlevels(zlevel)
+    dh1 = zpos - vertlevels(zlevel)
+    if (wlevel) then
+      pr1=akm(zlevel) + bkm(zlevel)*psint
+      pr2=akm(zlevel+1) + bkm(zlevel+1)*psint
+    else
+      pr1=akz(zlevel) + bkz(zlevel)*psint
+      pr2=akz(zlevel+1) + bkz(zlevel+1)*psint
+    endif
+    pfact = log(pr2/pr1)*dh1/dh  
+    dz = 1./(pr2-pr1)
+    dz1 = pr1*(exp(pfact)-1.)*dz 
+    dz2 = 1.-dz1
+  endif
+  ! else if ((vertlevels(zlevel).eq.0).or.(vertlevels(zlevel+1).eq.0)) then
+  !   ! Linear interpolation for bottom or top layer is zero
+  !   dz=1./(vertlevels(zlevel+1)-vertlevels(zlevel))
+  !   dz1=(zpos-vertlevels(zlevel))*dz
+  !   dz2=(vertlevels(zlevel+1)-zpos)*dz
+  ! else 
+  !   ! Logaritmic interpolation
+  !   dz=1./(log(vertlevels(zlevel+1))-log(vertlevels(zlevel)))
+  !   dz1=(log(zpos)-log(vertlevels(zlevel)))*dz
+  !   dz2=(log(vertlevels(zlevel+1))-log(zpos))*dz
+  ! endif
 end subroutine find_vertical_variables
+
+subroutine find_ngrid(xt,yt)
+
+  implicit none
+  real, parameter ::           &
+    eps=nxmax/3.e5            
+  real(kind=dp), intent(in) :: &
+    xt, yt                          ! particle positions on grid
+  integer ::                   &
+    j
+
+  if (nglobal.and.(real(yt).gt.switchnorthg)) then
+    ngrid=-1
+  else if (sglobal.and.(real(yt).lt.switchsouthg)) then
+    ngrid=-2
+  else
+    ngrid=0
+    do j=numbnests,1,-1
+      if ((real(xt).gt.xln(j)+eps).and.(real(xt).lt.xrn(j)-eps).and. &
+           (real(yt).gt.yln(j)+eps).and.(real(yt).lt.yrn(j)-eps)) then
+        ngrid=j
+        exit
+      endif
+    end do
+  endif
+end subroutine find_ngrid
 
 subroutine temporal_interpolation(time1,time2,output)
 
@@ -254,7 +317,7 @@ subroutine vertical_interpolation(input1,input2,dz1,dz2,output)
 
   implicit none
 
-  real, intent(in)    :: input1,input2     ! input data at two vertical levels
+  real, intent(in)    :: input1,input2   ! input data at two vertical levels, 1 being closer to ground
   real, intent(in)    :: dz1,dz2         ! logarithmic interpolation values
   real, intent(inout) :: output          ! interpolated data
 
@@ -943,13 +1006,13 @@ subroutine interpol_density(ipart,output)
   select case (wind_coord_type)
     case ('ETA')
       call find_z_level_eta(part(ipart)%zeta)
-      call find_vertical_variables(uvheight,part(ipart)%zeta,induv,dz1,dz2,lbounds_uv)
+      call find_vertical_variables(uvheight,part(ipart)%zeta,induv,dz1,dz2,lbounds_uv,.false.)
       do ind=induv,indpuv
         call linear_horizontal_interpolation(rhoeta,rhoprof(ind-induv+1),ind,nzmax,2)
       end do
     case ('METER')
       call find_z_level_meters(part(ipart)%z)
-      call find_vertical_variables(height,part(ipart)%z,indz,dz1,dz2,lbounds)
+      call find_vertical_variables(height,part(ipart)%z,indz,dz1,dz2,lbounds,.false.)
       do ind=indz,indzp
         call linear_horizontal_interpolation(rho,rhoprof(ind-indz+1),ind,nzmax,2)
       end do
@@ -1999,7 +2062,7 @@ subroutine interpol_wind_eta(zt,zteta)
 
   ! Vertical distance to the level below and above current position
   !****************************************************************
-  call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds)
+  call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds,.false.)
 
   !**********************************************************************
   ! 1.) Bilinear horizontal interpolation
@@ -2017,7 +2080,7 @@ subroutine interpol_wind_eta(zt,zteta)
   ! First the half levels
   !**********************
   call find_z_level_eta(zteta)
-  call find_vertical_variables(uvheight,zteta,induv,dz1,dz2,lbounds_uv)
+  call find_vertical_variables(uvheight,zteta,induv,dz1,dz2,lbounds_uv,.false.)
 
   if (ngrid.lt.0) then
     call compute_standard_deviation(uupoleta,usig,induv,induv+1,nzmax)
@@ -2035,7 +2098,7 @@ subroutine interpol_wind_eta(zt,zteta)
 
   ! Then for the model levels
   !**************************
-  call find_vertical_variables(wheight,zteta,indzeta,dz1,dz2,lbounds_w)
+  call find_vertical_variables(wheight,zteta,indzeta,dz1,dz2,lbounds_w,.true.)
 
   call compute_standard_deviation(wweta,wsigeta,indzeta,indzeta+1,nzmax)
   call bilinear_spatial_interpolation(wweta,wh,indzeta,dz1,dz2,nzmax)
@@ -2055,7 +2118,7 @@ subroutine interpol_wind_meter(zt)
   call find_z_level_meters(zt)
   ! Vertical distance to the level below and above current position
   !****************************************************************
-  call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds)
+  call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds,.false.)
 
   !**********************************************************************
   ! 1.) Bilinear horizontal interpolation
@@ -2098,7 +2161,7 @@ subroutine interpol_wind_short_eta(zt,zteta)
 
   ! Vertical distance to the level below and above current position
   !****************************************************************
-  call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds)
+  call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds,.false.)
 
   !**********************************************************************
   ! 1.) Bilinear horizontal interpolation
@@ -2114,7 +2177,7 @@ subroutine interpol_wind_short_eta(zt,zteta)
   !*************************
   ! U,V level
   !**********
-  call find_vertical_variables(uvheight,zteta,induv,dz1,dz2,lbounds_uv)
+  call find_vertical_variables(uvheight,zteta,induv,dz1,dz2,lbounds_uv,.false.)
 
   if (ngrid.lt.0) then
     call bilinear_spatial_interpolation(uupoleta,uh,induv,dz1,dz2,nzmax)
@@ -2128,7 +2191,7 @@ subroutine interpol_wind_short_eta(zt,zteta)
 
   ! W level
   !**********
-  call find_vertical_variables(wheight,zteta,indzeta,dz1,dz2,lbounds_w)
+  call find_vertical_variables(wheight,zteta,indzeta,dz1,dz2,lbounds_w,.true.)
   call bilinear_spatial_interpolation(wweta,wh,indzeta,dz1,dz2,nzmax)
   call temporal_interpolation(wh(1),wh(2),weta)
 end subroutine interpol_wind_short_eta
@@ -2146,7 +2209,7 @@ subroutine interpol_wind_short_meter(zt)
 
   ! Vertical distance to the level below and above current position
   !****************************************************************
-  call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds)
+  call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds,.false.)
 
   !**********************************************************************
   ! 1.) Bilinear horizontal interpolation
@@ -2178,7 +2241,7 @@ subroutine interpol_partoutput_value_eta(fieldname,output,j)
 
   if (dz1out.eq.-1) then
     call find_z_level_eta(part(j)%zeta)
-    call find_vertical_variables(uvheight,part(j)%zeta,induv,dz1out,dz2out,lbounds_uv)
+    call find_vertical_variables(uvheight,part(j)%zeta,induv,dz1out,dz2out,lbounds_uv,.false.)
   endif
 
   select case(fieldname)
@@ -2212,7 +2275,7 @@ subroutine interpol_partoutput_value_meter(fieldname,output,j)
 
   if (dz1out.eq.-1) then
     call find_z_level_meters(part(j)%z)
-    call find_vertical_variables(height,part(j)%z,indz,dz1out,dz2out,lbounds)
+    call find_vertical_variables(height,part(j)%z,indz,dz1out,dz2out,lbounds,.false.)
   endif
 
   select case(fieldname)
@@ -2243,16 +2306,16 @@ subroutine interpol_mixinglayer_eta(zt,zteta,rhoa,rhograd)
   real, intent(inout) :: rhoa,rhograd
   real                :: dz1,dz2  
 
-  call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds)
+  call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds,.false.)
   call vertical_interpolation(wprof(indz),wprof(indzp),dz1,dz2,w)
 
-  call find_vertical_variables(uvheight,zteta,induv,dz1,dz2,lbounds_uv)
+  call find_vertical_variables(uvheight,zteta,induv,dz1,dz2,lbounds_uv,.false.)
   call vertical_interpolation(uprof(induv),uprof(indpuv),dz1,dz2,u)
   call vertical_interpolation(vprof(induv),vprof(indpuv),dz1,dz2,v)
   call vertical_interpolation(rhoprof(induv),rhoprof(indpuv),dz1,dz2,rhoa)
   call vertical_interpolation(rhogradprof(induv),rhogradprof(indpuv),dz1,dz2,rhograd)
 
-  call find_vertical_variables(wheight,zteta,indzeta,dz1,dz2,lbounds_w)
+  call find_vertical_variables(wheight,zteta,indzeta,dz1,dz2,lbounds_w,.true.)
   call vertical_interpolation(wprofeta(indzeta),wprofeta(indzpeta),dz1,dz2,weta)
 end subroutine interpol_mixinglayer_eta
 
@@ -2262,7 +2325,7 @@ subroutine interpol_mixinglayer_meter(zt,rhoa,rhograd)
   real, intent(inout) :: rhoa,rhograd
   real                :: dz1,dz2  
 
-  call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds)
+  call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds,.false.)
   call vertical_interpolation(wprof(indz),wprof(indzp),dz1,dz2,w)
   call vertical_interpolation(uprof(indz),uprof(indzp),dz1,dz2,u)
   call vertical_interpolation(vprof(indz),vprof(indzp),dz1,dz2,v)

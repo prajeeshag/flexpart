@@ -73,7 +73,7 @@ subroutine redist (itime,ipart,ktop,ipconv)
 
       if (ktop .le. 1) then
 
-        tvold=tt2conv*(1.+0.378*ew(td2conv)/psconv)
+        tvold=tt2conv*(1.+0.378*ew(td2conv,psconv)/psconv)
         pold=psconv
         uvzlev(1)=0.
 

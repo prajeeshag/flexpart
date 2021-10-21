@@ -180,7 +180,7 @@ subroutine calcpar(n,uuh,vvh,pvh,metdata_format)
 
   ! Calculate relative humidity at surface
   !***************************************
-        rh=ew(td2(ix,jy,1,n))/ew(tt2(ix,jy,1,n))
+        rh=ew(td2(ix,jy,1,n),ps(ix,jy,1,n))/ew(tt2(ix,jy,1,n),ps(ix,jy,1,n))
 
         call getvdep(n,ix,jy,ustar(ix,jy,1,n), &
              tt2(ix,jy,1,n),ps(ix,jy,1,n),1./oli(ix,jy,1,n), &
@@ -200,7 +200,7 @@ subroutine calcpar(n,uuh,vvh,pvh,metdata_format)
   ! 1) Calculate altitudes of model levels
   !***************************************
 
-      tvold=tt2(ix,jy,1,n)*(1.+0.378*ew(td2(ix,jy,1,n))/ &
+      tvold=tt2(ix,jy,1,n)*(1.+0.378*ew(td2(ix,jy,1,n),ps(ix,jy,1,n))/ &
            ps(ix,jy,1,n))
       pold=ps(ix,jy,1,n)
       zold=0.

@@ -31,7 +31,7 @@ real function scalev(ps,t,td,stress)
 
   real :: ps,t,td,e,ew,tv,rhoa,stress
 
-  e=ew(td)                       ! vapor pressure
+  e=ew(td,ps)                       ! vapor pressure
   tv=t*(1.+0.378*e/ps)           ! virtual temperature
   rhoa=ps/(r_air*tv)              ! air density
   scalev=sqrt(abs(stress)/rhoa)

@@ -93,10 +93,10 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
 30   iter=iter+1
 
   pold=psurf
-  tvold=tt2*(1.+0.378*ew(td2)/psurf)
+  tvold=tt2*(1.+0.378*ew(td2,psurf)/psurf)
   zold=2.0
   zref=zold
-  rhold=ew(td2)/ew(tt2)
+  rhold=ew(td2,psurf)/ew(tt2,psurf)
 
   thetaref=tvold*(100000./pold)**(r_air/cpa)+excess
   thetaold=thetaref

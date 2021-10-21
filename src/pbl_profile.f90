@@ -53,7 +53,7 @@ subroutine pbl_profile(ps,td2m,zml1,t2m,tml1,u10m,uml1,stress,hf)
   integer,parameter :: maxiter=10
   real,parameter    :: r1=0.74
 
-  e=ew(td2m)               ! vapor pressure
+  e=ew(td2m,ps)               ! vapor pressure
   tv=t2m*(1.+0.378*e/ps)   ! virtual temperature
   rhoa=ps/(r_air*tv)       ! air density
 

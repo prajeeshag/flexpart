@@ -50,7 +50,7 @@ real function obukhov(ps,tsurf,tdsurf,tlev,ustar,hf,akm,bkm,plev,metdata_format)
   real :: ak1,bk1,theta,thetastar
 
 
-  e=ew(tdsurf)                           ! vapor pressure
+  e=ew(tdsurf,ps)                           ! vapor pressure
   tv=tsurf*(1.+0.378*e/ps)               ! virtual temperature
   rhoa=ps/(r_air*tv)                      ! air density
   if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then

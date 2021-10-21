@@ -42,6 +42,7 @@ subroutine partoutput(itime)!,active_per_rel)
   real :: xlon(numpart),ylat(numpart),ztemp1,ztemp2
   real :: tti(numpart),rhoi(numpart),pvi(numpart),qvi(numpart)
   real :: topo(numpart),hmixi(numpart),tri(numpart),ztemp(numpart)
+  real :: masstemp(numpart,nspec)
   !logical  :: active_per_rel(maxpoint)
 
 #ifdef USE_NCF
@@ -67,6 +68,9 @@ subroutine partoutput(itime)!,active_per_rel)
     hmixi(i)=-1.
     tri(i)=-1.
     ztemp(i)=-1.
+    do j=1,nspec
+      masstemp(i,j)=-1.
+    end do
     if (part(i)%alive) then
       xlon(i)=xlon0+part(i)%xlon*dx
       ylat(i)=ylat0+part(i)%ylat*dy
@@ -109,6 +113,12 @@ subroutine partoutput(itime)!,active_per_rel)
   !************************************************
       call update_zcoord(itime, i)
       ztemp(i)=part(i)%z
+
+  ! Assign the masses
+  !******************
+      do j=1,nspec
+        masstemp(i,j)=part(i)%mass(j)
+      end do
     endif 
   end do
 
@@ -168,7 +178,7 @@ subroutine partoutput(itime)!,active_per_rel)
       if (mythread.eq.thread_divide(9)) call partoutput_netcdf(itime,tri,'TR',j,ncid)
       if (mythread.eq.thread_divide(10)) call partoutput_netcdf(itime,tti,'TT',j,ncid)
       do j=1,nspec
-        if (mythread.eq.mass_divide(j)) call partoutput_netcdf(itime,part(1:numpart)%mass(j),'MA',j,ncid)
+        if (mythread.eq.mass_divide(j)) call partoutput_netcdf(itime,masstemp(:,j),'MA',j,ncid)
       end do
 #endif
 !$OMP END PARALLEL

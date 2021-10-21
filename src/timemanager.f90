@@ -81,6 +81,7 @@ subroutine timemanager(metdata_format)
 #endif
   use coordinates_ecmwf
   use particle_mod
+  use advance_mod, only: advance
 
   implicit none
   real, parameter ::        &
@@ -213,21 +214,13 @@ subroutine timemanager(metdata_format)
 
 #ifdef USE_NCF
     if (ipout.ge.1) then
-      if (itime.eq.0) then
-        if (ldirect.eq.1) then
-          call writeheader_partoutput(ibtime,ibdate,ibtime,ibdate)
-        else
-          call writeheader_partoutput(ibtime,ibdate,ietime,iedate)
-        endif
+      if (itime.eq.0) then 
+        call writeheader_partoutput(ibtime,ibdate,ibtime,ibdate)
       else if (mod(itime,ipoutfac*loutstep).eq.0) then
         if (filesize.ge.max_partoutput_filesize) then 
           jul=bdate+real(itime,kind=dp)/86400._dp
           call caldate(jul,jjjjmmdd,ihmmss)
-          if (ldirect.eq.1) then 
-            call writeheader_partoutput(ihmmss,jjjjmmdd,ibtime,ibdate)
-          else
-            call writeheader_partoutput(ihmmss,jjjjmmdd,ietime,iedate)
-          endif
+          call writeheader_partoutput(ihmmss,jjjjmmdd,ibtime,ibdate)
           filesize = 0.
         endif
         do i=1,numpoint
@@ -482,11 +475,7 @@ endif
   ! Integrate Lagevin equation for lsynctime seconds
   !*************************************************
 
-      call advance(itime,part(j)%npoint,part(j)%idt, &
-            part(j)%turbvel%u,part(j)%turbvel%v,part(j)%turbvel%w, &
-            part(j)%mesovel%u,part(j)%mesovel%v,part(j)%mesovel%w, &
-            part(j)%nstop,part(j)%xlon,part(j)%ylat,part(j)%z,part(j)%zeta,  &
-            part(j)%prob,part(j)%icbt,j)
+      call advance(itime,j)
 
     end do 
 

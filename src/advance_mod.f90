@@ -449,7 +449,6 @@ subroutine advance_PBL(itime,itimec,&
     settling = 0.                   ! settling velocity
   integer ::                      &
     loop,                         & ! loop variable for time in the PBL
-    nrand,                        & ! random number used for turbulence
     nsp,                          & ! loop variable for species
     flagrein,                     & ! flag used in CBL scheme
     i                               ! ĺoop variable

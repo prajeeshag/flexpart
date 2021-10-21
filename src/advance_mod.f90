@@ -200,7 +200,7 @@ subroutine advance(itime,ipart)
   if (zeta.le.1.) then
     abovePBL=.false.
     call advance_PBL(itime,itimec,&
-      dxsave,dysave,dawsave,dcwsave,abovePBL,ipart)
+      dxsave,dysave,dawsave,dcwsave,abovePBL,nrand,ipart)
   endif 
 
   !**********************************************************
@@ -411,7 +411,7 @@ subroutine advance_abovePBL(itime,itimec,dxsave,dysave,&
 end subroutine advance_abovePBL
 
 subroutine advance_PBL(itime,itimec,&
-  dxsave,dysave,dawsave,dcwsave,abovePBL,ipart)
+  dxsave,dysave,dawsave,dcwsave,abovePBL,nrand,ipart)
 
   use point_mod
   use par_mod
@@ -432,7 +432,8 @@ subroutine advance_PBL(itime,itimec,&
     dxsave,dysave,                & ! accumulated displacement in long and lat
     dawsave,dcwsave                 ! accumulated displacement in wind directions
   integer, intent(inout) ::       &
-    itimec                          ! next timestep
+    itimec,                       & ! next timestep
+    nrand                           ! random number used for turbulence
   real ::                         &
     dt,                           & ! real(ldt)
     xts,yts,                      & ! local 'real' copy of the particle position

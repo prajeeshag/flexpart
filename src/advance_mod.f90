@@ -157,8 +157,21 @@ subroutine advance(itime,ipart)
   ! is to be used
   ! Furthermore, determine which nesting level to be used
   !*****************************************************************
-  call find_ngrid(part(ipart)%xlon,part(ipart)%ylat)
-
+  ! call find_ngrid(part(ipart)%xlon,part(ipart)%ylat)
+  if (nglobal.and.(part(ipart)%ylat.gt.switchnorthg)) then
+    ngrid=-1
+  else if (sglobal.and.(part(ipart)%ylat.lt.switchsouthg)) then
+    ngrid=-2
+  else
+    ngrid=0
+    do j=numbnests,1,-1
+      if ((part(ipart)%xlon.gt.xln(j)+eps).and.(part(ipart)%xlon.lt.xrn(j)-eps).and. &
+           (part(ipart)%ylat.gt.yln(j)+eps).and.(part(ipart)%ylat.lt.yrn(j)-eps)) then
+        ngrid=j
+        exit
+      endif
+    end do
+  endif
   !***************************
   ! Interpolate necessary data
   !***************************
@@ -274,8 +287,24 @@ subroutine advance(itime,ipart)
   ! Apply it also only if starting and ending point of current time step are on
   ! the same grid; otherwise do nothing
   !*****************************************************************************
-  ngr = ngrid 
-  call find_ngrid(part(ipart)%xlon,part(ipart)%ylat)
+  ! ngr = ngrid 
+  ! call find_ngrid(part(ipart)%xlon,part(ipart)%ylat)
+
+  if (nglobal.and.(real(part(ipart)%ylat).gt.switchnorthg)) then
+    ngr=-1
+  else if (sglobal.and.(real(part(ipart)%ylat).lt.switchsouthg)) then
+    ngr=-2
+  else
+    ngr=0
+    do j=numbnests,1,-1
+      if ((real(part(ipart)%xlon).gt.xln(j)+eps).and.(real(part(ipart)%xlon).lt.xrn(j)-eps).and. &
+           (real(part(ipart)%ylat).gt.yln(j)+eps).and.(real(part(ipart)%ylat).lt.yrn(j)-eps)) then
+        ngr=j
+        exit
+      endif
+    end do
+  endif
+
   if (ngr.ne.ngrid) return
 
   call advance_PettersonCorrection(itime,ipart)
@@ -932,8 +961,8 @@ subroutine advance_updateXY(xchange,ychange,ipart)
     xpol=xpol+xchange/gridsize*real(ldirect)        !position in grid unit polar stereographic
     ypol=ypol+ychange/gridsize*real(ldirect)
     call cxy2ll(northpolemap,xpol,ypol,ylat,xlon)   !convert to lat long coordinate
-    call update_xlon(ipart,real((xlon-xlon0)/dx,kind=dp))!convert to grid units in lat long coordinate, comment by mc
-    call update_ylat(ipart,real((ylat-ylat0)/dy,kind=dp))
+    call set_xlon(ipart,real((xlon-xlon0)/dx,kind=dp))!convert to grid units in lat long coordinate, comment by mc
+    call set_ylat(ipart,real((ylat-ylat0)/dy,kind=dp))
   else if (ngrid.eq.-2) then    ! around south pole
     xlon=xlon0+real(part(ipart)%xlon)*dx
     ylat=ylat0+real(part(ipart)%ylat)*dy
@@ -942,8 +971,8 @@ subroutine advance_updateXY(xchange,ychange,ipart)
     xpol=xpol+xchange/gridsize*real(ldirect)
     ypol=ypol+ychange/gridsize*real(ldirect)
     call cxy2ll(southpolemap,xpol,ypol,ylat,xlon)
-    call update_xlon(ipart,real((xlon-xlon0)/dx,kind=dp))
-    call update_ylat(ipart,real((ylat-ylat0)/dy,kind=dp))
+    call set_xlon(ipart,real((xlon-xlon0)/dx,kind=dp))
+    call set_ylat(ipart,real((ylat-ylat0)/dy,kind=dp))
   endif
 
   ! If global data are available, use cyclic boundary condition

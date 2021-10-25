@@ -149,14 +149,14 @@ subroutine releaseparticles(itime)
 
   ! Determine horizontal particle position
   !***************************************
-        call set_xlon(ipart,xpoint1(i)+ran1(idummy)*xaux)
+        call set_xlon(ipart,real(xpoint1(i)+ran1(idummy)*xaux,kind=dp))
         if (xglobal) then
           if (part(ipart)%xlon.gt.real(nxmin1,kind=dp)) &
             call set_xlon(ipart,-real(nxmin1,kind=dp))
           if (part(ipart)%xlon.lt.0.) &
             call set_xlon(ipart,real(nxmin1,kind=dp))
         endif
-        call set_ylat(ipart,ypoint1(i)+ran1(idummy)*yaux)
+        call set_ylat(ipart,real(ypoint1(i)+ran1(idummy)*yaux,kind=dp))
 
   ! Assign mass to particle: Total mass divided by total number of particles.
   ! Time variation has partly been taken into account already by a species-average

@@ -188,7 +188,7 @@ subroutine timemanager(metdata_format)
 !$OMP PARALLEL PRIVATE(i)
 !$OMP DO
       do i=1,numpart
-        call z_to_zeta(itime,part(i)%xlon,part(i)%ylat,part(i)%z,part(i)%zeta)
+        call update_z_to_zeta(itime, i)
       end do
 !$OMP END DO
 !$OMP END PARALLEL
@@ -445,7 +445,7 @@ endif
   ! Initialize newly released particle
   !***********************************
       if ((part(j)%tstart.eq.itime).or.(itime.eq.0)) then
-        call update_zcoord(itime, j)
+        call update_zeta_to_z(itime, j)
         call initialize(itime,part(j)%idt, &
             part(j)%turbvel%u,part(j)%turbvel%v,part(j)%turbvel%w, &
             part(j)%mesovel%u,part(j)%mesovel%v,part(j)%mesovel%w, &
@@ -468,7 +468,7 @@ endif
       if  (DRYBKDEP) then
         do ks=1,nspec
           if  ((xscav_frac1(j,ks).lt.0)) then
-            call update_zcoord(itime,j)
+            call update_zeta_to_z(itime,j)
             call get_vdep_prob(itime,part(j)%xlon,part(j)%ylat,part(j)%z,prob_rec)
             if (DRYDEPSPEC(ks)) then        ! dry deposition
               xscav_frac1(j,ks)=prob_rec(ks)

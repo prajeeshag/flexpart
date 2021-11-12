@@ -45,7 +45,7 @@ subroutine initial_cond_calc(itime,i)
 
 
   if (linit_cond.eq.1) then     ! mass unit
-    call update_zcoord(itime,i)
+    call update_zeta_to_z(itime,i)
     call interpol_density(i,rhoi)
   elseif (linit_cond.eq.2) then    ! mass mixing ratio unit
     rhoi=1.
@@ -69,7 +69,7 @@ subroutine initial_cond_calc(itime,i)
   endif
 
   do kz=1,numzgrid                ! determine height of cell
-    if (outheight(kz).gt.part(i)%z) exit
+    if (real(outheight(kz),kind=dp).gt.part(i)%z) exit
   end do
 
   if (kz.le.numzgrid) then           ! inside output domain

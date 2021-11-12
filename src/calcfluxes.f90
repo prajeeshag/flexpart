@@ -47,7 +47,7 @@ subroutine calcfluxes(itime,nage,jpart,xold,yold,zold)
   else
      kp=1
   endif
-  call update_zcoord(itime,jpart)
+  call update_zeta_to_z(itime,jpart)
   xmean=(xold+part(jpart)%xlon)/2.
   ymean=(yold+part(jpart)%ylat)/2.
 

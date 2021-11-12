@@ -111,7 +111,7 @@ subroutine partoutput(itime)!,active_per_rel)
 
   ! Convert eta z coordinate to meters if necessary
   !************************************************
-      call update_zcoord(itime, i)
+      call update_zeta_to_z(itime, i)
       ztemp(i)=part(i)%z
 
   ! Assign the masses

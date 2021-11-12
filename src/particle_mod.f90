@@ -39,7 +39,8 @@ module particle_mod
       mesovel                       ! Mesoscale turbulent velocities
     logical            ::         &
       alive=.false.,              & ! Flag to show if the particle is still in the running
-      etaupdate=.false.,          & ! Set when the z(meter) is up-to-date with z(eta)
+      etaupdate=.false.,          & ! If false, z(meter) is more up-to-date than z(eta)
+      meterupdate=.false.,         & ! If false, z(eta) is more up-to-date than z(meter)
       nstop=.false.                 ! Flag to stop particle (used in advance, stopped in timemanager)
     integer(kind=2)    ::         &
       icbt                          ! Forbidden state flag   
@@ -568,37 +569,6 @@ contains
 ! End Set_ylat
 
 ! Update z positions
-  subroutine update_z(ipart,zchange)
-    !**************************************
-    ! Updates the height of the particle
-    !**************************************
-    implicit none
-
-    integer, intent(in)    :: &
-      ipart                        ! particle index
-    real, intent(in)       :: &
-      zchange
-
-    part(ipart)%z = part(ipart)%z + zchange
-  end subroutine update_z  
-
-  subroutine update_zeta(ipart,zchange)
-    !**************************************
-    ! Updates the height of the particle
-    !**************************************
-    implicit none
-
-    integer, intent(in)    :: &
-      ipart                        ! particle index
-    real, intent(in)       :: &
-      zchange
-
-    part(ipart)%zeta = part(ipart)%zeta + zchange
-    part(ipart)%etaupdate=.false.
-  end subroutine update_zeta
-! End update z positions
-
-! Update z positions
   subroutine update_z_dp(ipart,zchange)
     !**************************************
     ! Updates the height of the particle
@@ -611,6 +581,8 @@ contains
       zchange
 
     part(ipart)%z = part(ipart)%z + zchange
+    part(ipart)%meterupdate=.false.
+    part(ipart)%etaupdate=.true.
   end subroutine update_z_dp
 
   subroutine update_z_float(ipart,zchange)
@@ -625,8 +597,9 @@ contains
       zchange
 
     part(ipart)%z = part(ipart)%z + real(zchange,kind=dp)
+    part(ipart)%meterupdate=.false.
+    part(ipart)%etaupdate=.true.
   end subroutine update_z_float  
-
 
   subroutine update_zeta_dp(ipart,zchange)
     !**************************************
@@ -641,6 +614,7 @@ contains
 
     part(ipart)%zeta = part(ipart)%zeta + zchange
     part(ipart)%etaupdate=.false.
+    part(ipart)%meterupdate=.true.
   end subroutine update_zeta_dp
 
   subroutine update_zeta_float(ipart,zchange)
@@ -656,6 +630,7 @@ contains
 
     part(ipart)%zeta = part(ipart)%zeta + real(zchange,kind=dp)
     part(ipart)%etaupdate=.false.
+    part(ipart)%meterupdate=.true.
   end subroutine update_zeta_float
 ! End update z positions
 
@@ -672,6 +647,8 @@ contains
       zvalue
 
     part(ipart)%z = zvalue
+    part(ipart)%meterupdate=.false.
+    part(ipart)%etaupdate=.true.
   end subroutine set_z_dp  
 
   subroutine set_z_float(ipart,zvalue)
@@ -686,6 +663,8 @@ contains
       zvalue
 
     part(ipart)%z = real(zvalue,kind=dp)
+    part(ipart)%meterupdate=.false.
+    part(ipart)%etaupdate=.true.
   end subroutine set_z_float
 
   subroutine set_zeta_dp(ipart,zvalue)
@@ -701,6 +680,7 @@ contains
 
     part(ipart)%zeta = zvalue
     part(ipart)%etaupdate=.false.
+    part(ipart)%meterupdate=.true.
   end subroutine set_zeta_dp
 
   subroutine set_zeta_float(ipart,zvalue)
@@ -716,6 +696,7 @@ contains
 
     part(ipart)%zeta = real(zvalue,kind=dp)
     part(ipart)%etaupdate=.false.
+    part(ipart)%meterupdate=.true.
   end subroutine set_zeta_float
 ! End update z positions
 

@@ -195,7 +195,7 @@ subroutine advance(itime,ipart)
   ! Convert z(eta) to z(m) for the turbulence scheme, w(m/s) 
   ! is computed in verttransform_ecmwf.f90
 
-  call update_zcoord(itime,ipart)
+  call update_zeta_to_z(itime,ipart)
 
   ! Compute the height of the troposphere and the PBL at the x-y location of the particle
   call interpol_htropo_hmix(tropop,h)
@@ -424,7 +424,7 @@ subroutine advance_abovePBL(itime,itimec,dxsave,dysave,&
     case ('ETA')
       call update_z(ipart,wp*dt*real(ldirect))
       if (part(ipart)%z.lt.0.) call set_z(ipart,min(h-eps2,-1.*part(ipart)%z))  ! if particle below ground -> reflection
-      call z_to_zeta(itime,part(ipart)%xlon,part(ipart)%ylat,part(ipart)%z,part(ipart)%zeta)
+      call update_z_to_zeta(itime,ipart)
       call update_zeta(ipart,weta*dt*real(ldirect))
       if (part(ipart)%zeta.ge.1.) call set_zeta(ipart,1.-(part(ipart)%zeta-1.))
       if (part(ipart)%zeta.eq.1.) call update_zeta(ipart,-eps_eta)
@@ -493,7 +493,7 @@ subroutine advance_PBL(itime,itimec,&
       itimec=itime+lsynctime
     endif
     dt=real(part(ipart)%idt)
-    call update_zcoord(itime,ipart)
+    call update_zeta_to_z(itime,ipart)
     xts=real(part(ipart)%xlon)
     yts=real(part(ipart)%ylat)
     zts=real(part(ipart)%z)
@@ -723,8 +723,7 @@ subroutine advance_PBL(itime,itimec,&
     if (zts.ge.height(nz)) call set_z(ipart,height(nz)-100.*eps)
 
     if (zts.gt.h) then
-      if (wind_coord_type.eq.'ETA') &
-        call z_to_zeta(itime,part(ipart)%xlon,part(ipart)%ylat,part(ipart)%z,part(ipart)%zeta)
+      call update_z_to_zeta(itime,ipart)
       if (itimec.ne.itime+lsynctime) abovePBL=.true. ! complete the current interval above PBL
       return 
     endif
@@ -758,8 +757,7 @@ subroutine advance_PBL(itime,itimec,&
     if (itimec.eq.(itime+lsynctime)) then
       call interpol_average()
       ! Converting the z position that changed through turbulence motions to eta coords
-      if (wind_coord_type.eq.'ETA') &
-        call z_to_zeta(itime,part(ipart)%xlon,part(ipart)%ylat,part(ipart)%z,part(ipart)%zeta)
+      call update_z_to_zeta(itime,ipart)
       return  ! finished
     endif
   end do pbl_loop
@@ -883,9 +881,8 @@ subroutine advance_PettersonCorrection(itime,ipart)
         select case (wind_coord_type)
 
           case ('ETA')
-            call update_zcoord(itime+part(ipart)%idt, ipart)
-            call get_settling(itime+part(ipart)%idt,real(part(ipart)%xlon),&
-              real(part(ipart)%ylat),part(ipart)%z,nsp,settling) !bugfix
+            call update_zeta_to_z(itime+part(ipart)%idt,ipart)
+            call get_settling(itime+part(ipart)%idt,xts,yts,real(part(ipart)%z),nsp,settling) !bugfix
             call z_to_zeta(itime+part(ipart)%idt,part(ipart)%xlon,part(ipart)%ylat,&
               part(ipart)%z+real(settling*real(part(ipart)%idt*ldirect),kind=dp),ztemp)
             weta=weta+(real(ztemp)-ztseta)/real(part(ipart)%idt*ldirect)

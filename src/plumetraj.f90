@@ -82,7 +82,7 @@ subroutine plumetraj(itime)
       n=n+1
       xplum(n)=xlon0+part(i)%xlon*dx
       yplum(n)=ylat0+part(i)%ylat*dy
-      call update_zcoord(itime,i)
+      call update_zeta_to_z(itime,i)
       zplum(n)=part(i)%z
 
   ! Interpolate PBL height, PV, and tropopause height to each

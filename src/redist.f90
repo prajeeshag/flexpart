@@ -284,9 +284,8 @@ subroutine redist (itime,ipart,ktop,ipconv)
           endif
 
           ! Convert new z(m) back to z(eta)
-          call z_to_zeta(itime,part(abs(ipart))%xlon,part(abs(ipart))%ylat, &
-            part(abs(ipart))%z,part(abs(ipart))%zeta)
-
+          call update_z_to_zeta(itime, ipart)
+          
         case ('METER')
           ztold = part(abs(ipart))%z
           dz1 = ztold - uvzlev(levold)

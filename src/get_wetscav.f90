@@ -130,7 +130,7 @@ subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc
   if ((lsp.lt.0.01).and.(convp.lt.0.01)) return
 
 ! get the level were the actual particle is in
-  call update_zcoord(itime,jpart)
+  call update_zeta_to_z(itime,jpart)
   do il=2,nz
     if (height(il).gt.part(jpart)%z) then
       hz=il-1

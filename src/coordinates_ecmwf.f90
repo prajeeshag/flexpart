@@ -172,7 +172,7 @@ contains
     ztout = ztemp1*(1.-frac)+ztemp2*frac
   end subroutine zeta_to_z
 
-  subroutine update_zcoord(itime, ipart)
+  subroutine update_zeta_to_z(itime, ipart)
     use particle_mod
     implicit none 
 
@@ -186,6 +186,24 @@ contains
 
     call zeta_to_z(itime,part(ipart)%xlon,part(ipart)%ylat,part(ipart)%zeta,part(ipart)%z)
     part(ipart)%etaupdate = .true.
-  end subroutine update_zcoord
+    part(ipart)%meterupdate = .true.
+  end subroutine update_zeta_to_z
+
+  subroutine update_z_to_zeta(itime, ipart)
+    use particle_mod
+    implicit none 
+
+    integer, intent(in) ::          &
+      itime,                        & ! time index
+      ipart                           ! particle index
+
+    if (.not. wind_coord_type.eq.'ETA') return
+
+    if (part(ipart)%meterupdate) return
+
+    call z_to_zeta(itime,part(ipart)%xlon,part(ipart)%ylat,part(ipart)%z,part(ipart)%zeta)
+    part(ipart)%etaupdate = .true.
+    part(ipart)%meterupdate = .true.
+  end subroutine update_z_to_zeta
 
 end module coordinates_ecmwf

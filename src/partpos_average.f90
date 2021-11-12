@@ -75,10 +75,8 @@ subroutine partpos_average(itime,j)
 
   ! Convert eta z coordinate to meters if necessary. Can be moved to output only
   !************************************************
-  if (wind_coord_type.eq.'ETA') then
-    call update_zcoord(itime,j)
-  endif
-
+  call update_zeta_to_z(itime,j)
+  
   ! energy=tti*cpa+(ztemp1+topo)*9.81+qvi*2501000.+(uui**2+vvi**2)/2.
 
   ! Add new values to sum and increase counter by one

@@ -218,14 +218,9 @@ subroutine init_domainfill
               call set_ylat(numpart+jj,real(real(ljy)-0.5+ran1(idummy),kind=dp))
               call set_z(numpart+jj,(height(kz)*dz2+height(kz+1)*dz1)*dz)
               if (real(part(numpart+jj)%z).gt.height(nz)-0.5) &
-                  call set_z(numpart+jj,height(nz)-0.5)
+                call set_z(numpart+jj,height(nz)-0.5)
 
-
-              if (wind_coord_type.eq.'ETA') then
-                call z_to_zeta(0,part(numpart+jj)%xlon,part(numpart+jj)%ylat, &
-                  part(numpart+jj)%z,part(numpart+jj)%zeta)
-                part(numpart+jj)%etaupdate = .true. ! The z(meter) coordinate is up to date
-              endif
+              call update_z_to_zeta(0, numpart+jj)
               
 ! Interpolate PV to the particle position
 !****************************************
@@ -245,7 +240,7 @@ subroutine init_domainfill
 !***************************************************************************
 
               do i=2,nz
-                if (height(i).gt.real(part(numpart+jj)%z)) then
+                if (real(height(i),kind=dp).gt.part(numpart+jj)%z) then
                   indzm=i-1
                   indzp=i
                   exit

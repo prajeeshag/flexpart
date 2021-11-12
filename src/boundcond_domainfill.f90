@@ -213,22 +213,17 @@ subroutine boundcond_domainfill(itime,loutend)
             call set_ylat(ipart,real(real(jy)+(ran1(idummy)-.5),kind=dp))
           endif
           if (j.eq.1) then
-            part(ipart)%z=zcolumn_we(k,jy,1)+(zcolumn_we(k,jy,2)- &
-                 zcolumn_we(k,jy,1))/4.
+            call set_z(ipart,zcolumn_we(k,jy,1)+(zcolumn_we(k,jy,2)- &
+                 zcolumn_we(k,jy,1))/4.)
           else if (j.eq.numcolumn_we(k,jy)) then
-            part(ipart)%z=(2.*zcolumn_we(k,jy,j)+ &
-                 zcolumn_we(k,jy,j-1)+height(nz))/4.
+            call set_z(ipart,(2.*zcolumn_we(k,jy,j)+ &
+                 zcolumn_we(k,jy,j-1)+height(nz))/4.)
           else
-            part(ipart)%z=zcolumn_we(k,jy,j-1)+ran1(idummy)* &
-                 (zcolumn_we(k,jy,j+1)-zcolumn_we(k,jy,j-1))
+            call set_z(ipart,zcolumn_we(k,jy,j-1)+ran1(idummy)* &
+                 (zcolumn_we(k,jy,j+1)-zcolumn_we(k,jy,j-1)))
           endif
 
-
-          if (wind_coord_type.eq.'ETA') then
-            call z_to_zeta(itime,part(ipart)%xlon,part(ipart)%ylat, &
-              part(ipart)%z,part(ipart)%zeta)
-            part(ipart)%etaupdate = .true. ! The z(meter) coordinate is up to date
-          endif
+          call update_z_to_zeta(itime, ipart)
 
   ! Interpolate PV to the particle position
   !****************************************
@@ -245,14 +240,14 @@ subroutine boundcond_domainfill(itime,loutend)
           p3=rddx*ddy
           p4=ddx*ddy
           do i=2,nz
-            if (height(i).gt.part(ipart)%z) then
+            if (real(height(i),kind=dp).gt.part(ipart)%z) then
               indzm=i-1
               indzp=i
               exit
             endif
           end do
-          dz1=part(ipart)%z-height(indzm)
-          dz2=height(indzp)-part(ipart)%z
+          dz1=real(part(ipart)%z)-height(indzm)
+          dz2=height(indzp)-real(part(ipart)%z)
           dz=1./(dz1+dz2)
           do mm=1,2
             indexh=memind(mm)
@@ -428,21 +423,17 @@ subroutine boundcond_domainfill(itime,loutend)
             call set_xlon(ipart,real(real(ix)+(ran1(idummy)-.5),kind=dp))
           endif
           if (j.eq.1) then
-            part(ipart)%z=zcolumn_sn(k,ix,1)+(zcolumn_sn(k,ix,2)- &
-                 zcolumn_sn(k,ix,1))/4.
+            call set_z(ipart,zcolumn_sn(k,ix,1)+(zcolumn_sn(k,ix,2)- &
+                 zcolumn_sn(k,ix,1))/4.)
           else if (j.eq.numcolumn_sn(k,ix)) then
-            part(ipart)%z=(2.*zcolumn_sn(k,ix,j)+ &
-                 zcolumn_sn(k,ix,j-1)+height(nz))/4.
+            call set_z(ipart,(2.*zcolumn_sn(k,ix,j)+ &
+                 zcolumn_sn(k,ix,j-1)+height(nz))/4.)
           else
-            part(ipart)%z=zcolumn_sn(k,ix,j-1)+ran1(idummy)* &
-                 (zcolumn_sn(k,ix,j+1)-zcolumn_sn(k,ix,j-1))
+            call set_z(ipart,zcolumn_sn(k,ix,j-1)+ran1(idummy)* &
+                 (zcolumn_sn(k,ix,j+1)-zcolumn_sn(k,ix,j-1)))
           endif
 
-          if (wind_coord_type.eq.'ETA') then
-            call z_to_zeta(itime,part(ipart)%xlon,part(ipart)%ylat, &
-              part(ipart)%z,part(ipart)%zeta)
-            part(ipart)%etaupdate = .true. ! The z(meter) coordinate is up to date
-          endif
+          call update_z_to_zeta(itime, ipart)
 
   ! Interpolate PV to the particle position
   !****************************************
@@ -459,14 +450,14 @@ subroutine boundcond_domainfill(itime,loutend)
           p3=rddx*ddy
           p4=ddx*ddy
           do i=2,nz
-            if (height(i).gt.part(ipart)%z) then
+            if (real(height(i),kind=dp).gt.part(ipart)%z) then
               indzm=i-1
               indzp=i
               exit
             endif
           end do
-          dz1=part(ipart)%z-height(indzm)
-          dz2=height(indzp)-part(ipart)%z
+          dz1=real(part(ipart)%z)-height(indzm)
+          dz2=height(indzp)-real(part(ipart)%z)
           dz=1./(dz1+dz2)
           do mm=1,2
             indexh=memind(mm)

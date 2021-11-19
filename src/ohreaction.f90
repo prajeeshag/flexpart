@@ -58,11 +58,11 @@ subroutine ohreaction(itime,ltsample,loutnext)
 
   ! Loop over particles
   !*****************************************
-!$OMP PARALLEL PRIVATE(jpart,xtn,ytn,j,k,ix,jy,interp_time, &
-!$OMP n,indz,i,xlon,ylat,OHx,OHy,OHz,oh_average,temp,ohrate, &
-!$OMP restmass,ohreacted,altOHtop,ngrid)
+! !$OMP PARALLEL PRIVATE(jpart,xtn,ytn,j,k,ix,jy,interp_time, &
+! !$OMP n,indz,i,xlon,ylat,OHx,OHy,OHz,oh_average,temp,ohrate, &
+! !$OMP restmass,ohreacted,altOHtop,ngrid)
 
-!$OMP DO
+! !$OMP DO
   do jpart=1,numpart
 
     ! Determine which nesting level to be used
@@ -155,8 +155,8 @@ subroutine ohreaction(itime,ltsample,loutnext)
 
   end do  !continue loop over all particles
 
-!$OMP END DO
-!$OMP END PARALLEL
+! !$OMP END DO
+! !$OMP END PARALLEL
 
 end subroutine ohreaction
 

@@ -92,7 +92,8 @@ unc_mod.o            oh_mod.o \
 xmass_mod.o          flux_mod.o \
 point_mod.o          outg_mod.o \
 mean_mod.o	 	random_mod.o \
-class_gribfile_mod.o	advance_mod.o 
+class_gribfile_mod.o	advance_mod.o \
+readoptions.o
 
 ## Serial versions (MPI version with same functionality and name '_mpi.f90' exists)
 OBJECTS_SERIAL = \
@@ -120,22 +121,20 @@ writeheader_surf.o     	assignland.o\
 part0.o 		gethourlyOH.o\
 caldate.o               partdep.o \
 coordtrafo.o            psih.o \
-raerod.o 		readcommand.o 	\
-drydepokernel.o         readreceptors.o \
-erf.o                   readavailable.o \
-ew.o			readreleases.o  \
-readdepo.o              get_vdep_prob.o   \
+raerod.o 		drydepokernel.o \
+erf.o                    \
+ew.o			 \
+get_vdep_prob.o   \
 get_wetscav.o		readwind_gfs.o \
 psim.o			outgrid_init.o 	\
 outgrid_init_nest.o   	calcmatrix.o \
-photo_O1D.o 		readlanduse.o \
-readoutgrid.o 		readpaths.o \
+photo_O1D.o 		  \
 getrb.o                 obukhov.o \
 getrc.o                 convmix.o \
-getvdep.o               readspecies.o \
+getvdep.o \
 richardson.o \
 scalev.o                verttransform_ecmwf.o \
-pbl_profile.o           readOHfield.o \
+pbl_profile.o \
 juldate.o               verttransform_gfs.o \
 wetdepokernel.o \
 calcpar.o               wetdepo.o \
@@ -143,7 +142,7 @@ windalign.o		gridcheck_ecmwf.o \
 gridcheck_gfs.o         gridcheck_nests.o \
 readwind_nests.o        calcpar_nests.o \
 verttransform_nests.o \
-readageclasses.o        detectformat.o  \
+detectformat.o  \
 calcfluxes.o            fluxoutput.o \
 qvsat.o                 skplin.o \
 convect43c.o            \
@@ -153,7 +152,6 @@ openouttraj.o           calcpv.o \
 calcpv_nests.o          distance2.o \
 clustering.o 		shift_field_0.o \
 shift_field.o           openreceptors.o \
-readoutgrid_nest.o \
 writeheader_nest.o writeheader_nest_surf.o \
 wetdepokernel_nest.o \
 drydepokernel_nest.o    zenithangle.o \
@@ -232,7 +230,7 @@ drydepokernel.o: com_mod.o par_mod.o unc_mod.o
 drydepokernel_nest.o: com_mod.o par_mod.o unc_mod.o
 erf.o: par_mod.o
 FLEXPART.o: com_mod.o conv_mod.o netcdf_output_mod.o par_mod.o point_mod.o \
-	random_mod.o
+	random_mod.o readoptions.o
 fluxoutput.o: com_mod.o flux_mod.o outg_mod.o par_mod.o
 get_settling.o: com_mod.o par_mod.o
 get_vdep_prob.o: com_mod.o interpol_mod.o par_mod.o point_mod.o
@@ -281,20 +279,9 @@ psih.o: par_mod.o
 psim.o: par_mod.o
 raerod.o: par_mod.o
 re_initialize_particle.o: com_mod.o par_mod.o
-readageclasses.o: com_mod.o par_mod.o
-readavailable.o: com_mod.o par_mod.o
-readcommand.o: com_mod.o par_mod.o
-readdepo.o: com_mod.o par_mod.o
-readlanduse.o: com_mod.o par_mod.o
-readOHfield.o: com_mod.o oh_mod.o par_mod.o
-readoutgrid.o: com_mod.o outg_mod.o par_mod.o
-readoutgrid_nest.o: com_mod.o outg_mod.o par_mod.o
+readoptions.o: com_mod.o par_mod.o
 readpartpositions.o: com_mod.o par_mod.o random_mod.o particle_mod.o \
 	particle_mod.o coordinates_ecmwf.o
-readpaths.o: com_mod.o par_mod.o
-readreceptors.o: com_mod.o par_mod.o
-readreleases.o: com_mod.o par_mod.o point_mod.o xmass_mod.o
-readspecies.o: com_mod.o par_mod.o
 readwind_ecmwf.o: com_mod.o par_mod.o
 readwind_emos.o: com_mod.o par_mod.o
 readwind_gfs.o: com_mod.o par_mod.o

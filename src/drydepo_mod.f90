@@ -120,9 +120,7 @@ subroutine drydepokernel(nunc,deposit,x,y,nage,kp)
 	    endif ! deposit>0
 	  end do
 	end if
-
 end subroutine drydepokernel
-
 
 subroutine drydepokernel_nest(nunc,deposit,x,y,nage,kp)
   !                               i      i    i i  i
@@ -337,5 +335,587 @@ subroutine part0(dquer,dsigma,density,fract,schmi,cun,vsh)
   !stop 'part0' 
 end subroutine part0
 
+subroutine get_vdep_prob(itime,xt,yt,zt,prob)
+  !                    i     i  i  i  o
+  !*****************************************************************************
+  !                                                                            *
+  !  Calculation of the probability for dry deposition                         * 
+  !                                                                            *
+  !  Particle positions are read in - prob returned                            *
+  !                                                                            *
+  !*****************************************************************************
+  !                                                                            *
+  ! Variables:                                                                 *
+  ! itime [s]          time at which this subroutine is entered                *
+  ! itimec [s]         actual time, which is incremented in this subroutine    *
+  ! href [m]           height for which dry deposition velocity is calculated  *
+  ! ldirect            1 forward, -1 backward                                  *
+  ! ldt [s]            Time step for the next integration                      *
+  ! lsynctime [s]      Synchronisation interval of FLEXPART                    *
+  ! ngrid              index which grid is to be used                          *
+  ! prob               probability of absorption due to dry deposition         *
+  ! vdepo              Deposition velocities for all species                   *
+  ! xt,yt,zt           Particle position                                       *
+  !                                                                            *
+  !*****************************************************************************
+
+  use point_mod
+  use par_mod
+  use com_mod
+  use interpol_mod
+
+  implicit none
+
+  real(kind=dp) :: xt,yt
+  real :: zt!,xtn,ytn
+  integer :: itime,i,j,k,memindnext
+  integer :: ks!nix,njy,
+  real :: prob(maxspec),vdepo(maxspec)
+  real,parameter :: eps=nxmax/3.e5
+
+  if (DRYDEP) then    ! reset probability for deposition
+    do ks=1,nspec
+      depoindicator(ks)=.true.
+      prob(ks)=0.
+    end do
+  endif
+
+
+  ! Determine whether lat/long grid or polarstereographic projection
+  ! is to be used
+  ! Furthermore, determine which nesting level to be used
+  !*****************************************************************
+
+  if (nglobal.and.(yt.gt.switchnorthg)) then
+    ngrid=-1
+  else if (sglobal.and.(yt.lt.switchsouthg)) then
+    ngrid=-2
+  else
+    ngrid=0
+    do j=numbnests,1,-1
+      if ((xt.gt.xln(j)+eps).and.(xt.lt.xrn(j)-eps).and. &
+           (yt.gt.yln(j)+eps).and.(yt.lt.yrn(j)-eps)) then
+        ngrid=j
+        exit
+      endif
+    end do
+  endif
+
+
+  !***************************
+  ! Interpolate necessary data
+  !***************************
+
+  if (abs(itime-memtime(1)).lt.abs(itime-memtime(2))) then
+    memindnext=1
+  else
+    memindnext=2
+  endif
+
+  ! Determine nested grid coordinates
+  !**********************************
+
+  if (ngrid.gt.0) then
+    xtn=(xt-xln(ngrid))*xresoln(ngrid)
+    ytn=(yt-yln(ngrid))*yresoln(ngrid)
+    ix=int(xtn)
+    jy=int(ytn)
+    nix=nint(xtn)
+    njy=nint(ytn)
+  else
+    ix=int(xt)
+    jy=int(yt)
+    nix=nint(xt)
+    njy=nint(yt)
+  endif
+  ixp=ix+1
+  jyp=jy+1
+
+
+  ! Determine probability of deposition
+  !************************************
+
+      if ((DRYDEP).and.(zt.lt.2.*href)) then
+        do ks=1,nspec
+          if (DRYDEPSPEC(ks)) then
+            if (depoindicator(ks)) then
+              if (ngrid.le.0) then
+                call interpol_vdep(ks,vdepo(ks))
+              else
+                call interpol_vdep_nests(ks,vdepo(ks))
+              endif
+            endif
+  ! correction by Petra Seibert, 10 April 2001
+  !   this formulation means that prob(n) = 1 - f(0)*...*f(n)
+  !   where f(n) is the exponential term
+               prob(ks)=vdepo(ks)
+  !               prob(ks)=vdepo(ks)/2./href
+  ! instead of prob - return vdepo -> result kg/m2/s
+          endif
+        end do
+      endif
+end subroutine get_vdep_prob
+
+subroutine getvdep(n,ix,jy,ust,temp,pa,L,gr,rh,rr,snow,vdepo)
+  !                   i i  i   i   i   i  i i  i  i    i o
+  !*****************************************************************************
+  !                                                                            *
+  !  This routine calculates the dry deposition velocities.                    *
+  !                                                                            *
+  !     Author: A. Stohl                                                       *
+  !                                                                            *
+  !     20 December 1996                                                       *
+  !     Sabine Eckhardt, Jan 07                                                *
+  !     if the latitude is negative: add half a year to the julian day         *
+  !                                                                            *
+  !*****************************************************************************
+  !                                                                            *
+  ! Variables:                                                                 *
+  ! gr [W/m2]         global radiation                                         *
+  ! L [m]             Obukhov length                                           *
+  ! nyl               kinematic viscosity                                      *
+  ! pa [Pa]           surface air pressure                                     *
+  ! ra [s/m]          aerodynamic resistance                                   *
+  ! raquer [s/m]      average aerodynamic resistance                           *
+  ! rh [0-1]          relative humidity                                        *
+  ! rhoa              density of the air                                       *
+  ! rr [mm/h]         precipitation rate                                       *
+  ! temp [K]          2m temperature                                           *
+  ! tc [C]            2m temperature                                           *
+  ! ust [m/s]         friction velocity                                        *
+  ! snow [m of water equivalent] snow depth                                    *
+  ! xlanduse          fractions of numclasS landuses for each model grid point *
+  !                                                                            *
+  !*****************************************************************************
+
+  implicit none
+
+  integer :: yyyymmdd,hhmmss,yyyy,mmdd,n,lseason,i,j,ix,jy
+  real :: vdepo(maxspec),vd,rb(maxspec),rc(maxspec),raquer,ylat
+  real :: raerod,ra,ust,temp,tc,pa,L,gr,rh,rr,myl,nyl,rhoa,diffh2o,snow
+  real :: slanduse(numclass)
+  real,parameter :: eps=1.e-5
+  real(kind=dp) :: jul
+
+  ! Calculate month and determine the seasonal category
+  !****************************************************
+
+  jul=bdate+real(wftime(n),kind=dp)/86400._dp
+
+  ylat=jy*dy+ylat0
+  if (ylat.lt.0) then
+      jul=jul+365/2
+  endif
+
+
+  call caldate(jul,yyyymmdd,hhmmss)
+  yyyy=yyyymmdd/10000
+  mmdd=yyyymmdd-10000*yyyy
+
+  if ((ylat.gt.-20).and.(ylat.lt.20)) then
+     mmdd=600 ! summer
+  endif
+
+  if ((mmdd.ge.1201).or.(mmdd.le.301)) then
+    lseason=4
+  else if ((mmdd.ge.1101).or.(mmdd.le.331)) then
+    lseason=3
+  else if ((mmdd.ge.401).and.(mmdd.le.515)) then
+    lseason=5
+  else if ((mmdd.ge.516).and.(mmdd.le.915)) then
+    lseason=1
+  else
+    lseason=2
+  endif
+
+  ! Calculate diffusivity of water vapor
+  !************************************
+  diffh2o=2.11e-5*(temp/273.15)**1.94*(101325/pa)
+
+  ! Conversion of temperature from K to C
+  !**************************************
+
+  tc=temp-273.15
+
+  ! Calculate dynamic viscosity
+  !****************************
+
+  if (tc.lt.0) then
+    myl=(1.718+0.0049*tc-1.2e-05*tc**2)*1.e-05
+  else
+    myl=(1.718+0.0049*tc)*1.e-05
+  endif
+
+  ! Calculate kinematic viscosity
+  !******************************
+
+  rhoa=pa/(287.*temp)
+  nyl=myl/rhoa
+
+
+  ! 0. Set all deposition velocities zero
+  !**************************************
+
+  do i=1,nspec
+    vdepo(i)=0.
+  end do
+
+
+  ! 1. Compute surface layer resistances rb
+  !****************************************
+
+  call getrb(nspec,ust,nyl,diffh2o,reldiff,rb)
+
+  ! change for snow
+  do j=1,numclass
+    if (snow.gt.0.001) then ! 10 mm
+       if (j.eq.12) then
+         slanduse(j)=1.
+       else
+         slanduse(j)=0.
+       endif
+    else
+       slanduse(j)=xlanduse(ix,jy,j)
+    endif
+  end do
+
+  raquer=0.
+  do j=1,numclass            ! loop over all landuse classes
+
+    if (slanduse(j).gt.eps)  then
+
+  ! 2. Calculate aerodynamic resistance ra
+  !***************************************
+
+      ra=raerod(L,ust,z0(j))
+      raquer=raquer+ra*slanduse(j)
+
+  ! 3. Calculate surface resistance for gases
+  !******************************************
+
+      call getrc(nspec,lseason,j,tc,gr,rh,rr,rc)
+
+  ! 4. Calculate deposition velocities for gases and ...
+  ! 5. ... sum deposition velocities for all landuse classes
+  !*********************************************************
+
+      do i=1,nspec
+        if (reldiff(i).gt.0.) then
+          if ((ra+rb(i)+rc(i)).gt.0.) then
+            vd=1./(ra+rb(i)+rc(i))
+          else
+            vd=9.999
+          endif
+          vdepo(i)=vdepo(i)+vd*slanduse(j)
+        endif
+      end do
+    endif
+  end do
+
+
+  ! 6. Calculate deposition velocities for particles
+  !*************************************************
+
+  call partdep(nspec,density,fract,schmi,vset,raquer,ust,nyl,vdepo)
+
+  !if (debug_mode) then
+  !  print*,'getvdep:188: vdepo=', vdepo
+    !stop
+  !endif
+
+  ! 7. If no detailed parameterization available, take constant deposition
+  !    velocity if that is available
+  !***********************************************************************
+
+  do i=1,nspec
+    if ((reldiff(i).lt.0.).and.(density(i).lt.0.).and. &
+         (dryvel(i).gt.0.)) then
+      vdepo(i)=dryvel(i)
+    endif
+  end do
+end subroutine getvdep
+
+subroutine getvdep_nests(n,ix,jy,ust,temp,pa, &
+       L,gr,rh,rr,snow,vdepo,lnest)
+  !                   i i  i   i   i   i  i i  i  i    i o i
+  !*****************************************************************************
+  !                                                                            *
+  !  This routine calculates the dry deposition velocities.                    *
+  !                                                                            *
+  !     Author: A. Stohl                                                       *
+  !                                                                            *
+  !     20 December 1996                                                       *
+  !     Sabine Eckhardt, Jan 07                                                *
+  !     if the latitude is negative: add half a year to the julian day         *
+  !                                                                            *
+  !*****************************************************************************
+  !                                                                            *
+  ! Variables:                                                                 *
+  ! gr [W/m2]         global radiation                                         *
+  ! L [m]             Obukhov length                                           *
+  ! nyl               kinematic viscosity                                      *
+  ! pa [Pa]           surface air pressure                                     *
+  ! ra [s/m]          aerodynamic resistance                                   *
+  ! raquer [s/m]      average aerodynamic resistance                           *
+  ! rh [0-1]          relative humidity                                        *
+  ! rhoa              density of the air                                       *
+  ! rr [mm/h]         precipitation rate                                       *
+  ! temp [K]          2m temperature                                           *
+  ! tc [C]            2m temperature                                           *
+  ! ust [m/s]         friction velocity                                        *
+  ! snow [m of water equivalent] snow depth                                    *
+  ! xlanduse          fractions of numclasS landuses for each model grid point *
+  !                                                                            *
+  !*****************************************************************************
+
+  implicit none
+
+  integer :: yyyymmdd,hhmmss,yyyy,mmdd,n,lseason,i,j,ix,jy,lnest
+  real :: vdepo(maxspec),vd,rb(maxspec),rc(maxspec),raquer,ylat
+  real :: raerod,ra,ust,temp,tc,pa,L,gr,rh,rr,myl,nyl,rhoa,diffh2o,snow
+  real :: slanduse(numclass)
+  real,parameter :: eps=1.e-5
+  real(kind=dp) :: jul
+
+  ! Calculate month and determine the seasonal category
+  !****************************************************
+
+  jul=bdate+real(wftime(n),kind=dp)/86400._dp
+
+  ylat=jy*dy+ylat0
+  if (ylat.lt.0) then
+      jul=jul+365/2
+  endif
+
+
+  call caldate(jul,yyyymmdd,hhmmss)
+  yyyy=yyyymmdd/10000
+  mmdd=yyyymmdd-10000*yyyy
+
+  if ((ylat.gt.-20).and.(ylat.lt.20)) then
+     mmdd=600 ! summer
+  endif
+
+  if ((mmdd.ge.1201).or.(mmdd.le.301)) then
+    lseason=4
+  else if ((mmdd.ge.1101).or.(mmdd.le.331)) then
+    lseason=3
+  else if ((mmdd.ge.401).and.(mmdd.le.515)) then
+    lseason=5
+  else if ((mmdd.ge.516).and.(mmdd.le.915)) then
+    lseason=1
+  else
+    lseason=2
+  endif
+
+  ! Calculate diffusivity of water vapor
+  !************************************
+  diffh2o=2.11e-5*(temp/273.15)**1.94*(101325/pa)
+
+  ! Conversion of temperature from K to C
+  !**************************************
+
+  tc=temp-273.15
+
+  ! Calculate dynamic viscosity
+  !****************************
+
+  if (tc.lt.0) then
+    myl=(1.718+0.0049*tc-1.2e-05*tc**2)*1.e-05
+  else
+    myl=(1.718+0.0049*tc)*1.e-05
+  endif
+
+  ! Calculate kinematic viscosity
+  !******************************
+
+  rhoa=pa/(287.*temp)
+  nyl=myl/rhoa
+
+
+  ! 0. Set all deposition velocities zero
+  !**************************************
+
+  do i=1,nspec
+    vdepo(i)=0.
+  end do
+
+
+  ! 1. Compute surface layer resistances rb
+  !****************************************
+
+  call getrb(nspec,ust,nyl,diffh2o,reldiff,rb)
+
+  ! change for snow
+  do j=1,numclass
+    if (snow.gt.0.001) then ! 10 mm
+       if (j.eq.12) then
+         slanduse(j)=1.
+       else
+         slanduse(j)=0.
+       endif
+    else
+       slanduse(j)=xlandusen(ix,jy,j,lnest)
+    endif
+  end do
+
+  raquer=0.
+  do j=1,numclass            ! loop over all landuse classes
+
+    if (slanduse(j).gt.eps)  then
+
+  ! 2. Calculate aerodynamic resistance ra
+  !***************************************
+
+      ra=raerod(L,ust,z0(j))
+      raquer=raquer+ra*slanduse(j)
+
+  ! 3. Calculate surface resistance for gases
+  !******************************************
+
+      call getrc(nspec,lseason,j,tc,gr,rh,rr,rc)
+
+  ! 4. Calculate deposition velocities for gases and ...
+  ! 5. ... sum deposition velocities for all landuse classes
+  !*********************************************************
+
+      do i=1,nspec
+        if (reldiff(i).gt.0.) then
+          if ((ra+rb(i)+rc(i)).gt.0.) then
+            vd=1./(ra+rb(i)+rc(i))
+  ! XXXXXXXXXXXXXXXXXXXXXXXXXX TEST
+  !         vd=1./rc(i)
+  ! XXXXXXXXXXXXXXXXXXXXXXXXXX TEST
+          else
+            vd=9.999
+          endif
+          vdepo(i)=vdepo(i)+vd*slanduse(j)
+        endif
+      end do
+    endif
+  end do
+
+
+  ! 6. Calculate deposition velocities for particles
+  !*************************************************
+
+  call partdep(nspec,density,fract,schmi,vset,raquer,ust,nyl,vdepo)
+
+
+  ! 7. If no detailed parameterization available, take constant deposition
+  !    velocity if that is available
+  !***********************************************************************
+
+  do i=1,nspec
+    if ((reldiff(i).lt.0.).and.(density(i).lt.0.).and. &
+         (dryvel(i).gt.0.)) then
+      vdepo(i)=dryvel(i)
+    endif
+  end do
+end subroutine getvdep_nests
+
+subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,vdep)
+  !                   i     i      i     i    i   i    i    i  i/o
+  !*****************************************************************************
+  !                                                                            *
+  !      Calculation of the dry deposition velocities of particles.            *
+  !      This routine is based on Stokes' law for considering settling and     *
+  !      assumes constant dynamic viscosity of the air.                        *
+  !                                                                            *
+  !     AUTHOR: Andreas Stohl, 12 November 1993                                *
+  !                            Update: 20 December 1996                        *
+  !                                                                            *
+  !     Literature:                                                            *
+  !     [1]  Hicks/Baldocchi/Meyers/Hosker/Matt (1987), A Preliminary          *
+  !             Multiple Resistance Routine for Deriving Dry Deposition        *
+  !             Velocities from Measured Quantities.                           *
+  !             Water, Air and Soil Pollution 36 (1987), pp.311-330.           *
+  !     [2]  Slinn (1982), Predictions for Particle Deposition to              *
+  !             Vegetative Canopies. Atm.Env.16-7 (1982), pp.1785-1794.        *
+  !     [3]  Slinn/Slinn (1980),  Predictions for Particle Deposition on       *
+  !             Natural Waters. Atm.Env.14 (1980), pp.1013-1016.               *
+  !     [4]  Scire/Yamartino/Carmichael/Chang (1989),                          *
+  !             CALGRID: A Mesoscale Photochemical Grid Model.                 *
+  !             Vol II: User's Guide. (Report No.A049-1, June, 1989)           *
+  !     [5]  Langer M. (1992): Ein einfaches Modell zur Abschaetzung der       *
+  !             Depositionsgeschwindigkeit von Teilchen und Gasen.             *
+  !             Internal report.                                               *
+  !                                                                            *
+  !*****************************************************************************
+  !                                                                            *
+  ! Variables:                                                                 *
+  ! alpha                help variable                                         *
+  ! fract(nc,ni)         mass fraction of each diameter interval               *
+  ! lpdep(nc)            1 for particle deposition, 0 else                     *
+  ! nc                   actual number of chemical components                  *
+  ! ni                   number of diameter intervals, for which vdepj is calc.*
+  ! rdp [s/m]            deposition layer resistance                           *
+  ! ra [s/m]             aerodynamical resistance                              *
+  ! schmi(nc,ni)         Schmidt number**2/3 of each diameter interval         *
+  ! stokes               Stokes number                                         *
+  ! ustar [m/s]          friction velocity                                     *
+  ! vdep(nc) [m/s]       deposition velocities of all components               *
+  ! vdepj [m/s]          help, deposition velocity of 1 interval               *
+  ! vset(nc,ni)          gravitational settling velocity of each interval      *
+  !                                                                            *
+  ! Constants:                                                                 *
+  ! nc                   number of chemical species                            *
+  ! ni                   number of diameter intervals, for which deposition    *
+  !                      is calculated                                         *
+  !                                                                            *
+  !*****************************************************************************
+
+  implicit none
+
+  real :: density(maxspec),schmi(maxspec,ni),fract(maxspec,ni)
+  real :: vset(maxspec,ni)
+  real :: vdep(maxspec),stokes,vdepj,rdp,ustar,alpha,ra,nyl
+  real,parameter :: eps=1.e-5
+  integer :: ic,j,nc
+
+
+  do ic=1,nc                  ! loop over all species
+    if (density(ic).gt.0.) then
+      do j=1,ni              ! loop over all diameter intervals
+        if (ustar.gt.eps) then
+
+  ! Stokes number for each diameter interval
+  !*****************************************
+
+          stokes=vset(ic,j)/ga*ustar*ustar/nyl
+          alpha=-3./stokes
+
+  ! Deposition layer resistance
+  !****************************
+
+          if (alpha.le.log10(eps)) then
+            rdp=1./(schmi(ic,j)*ustar)
+          else
+            rdp=1./((schmi(ic,j)+10.**alpha)*ustar)
+          endif
+          vdepj=vset(ic,j)+1./(ra+rdp+ra*rdp*vset(ic,j))
+        else
+          vdepj=vset(ic,j)
+        endif
+
+  ! deposition velocities of each interval are weighted with mass fraction
+  !***********************************************************************
+
+        vdep(ic)=vdep(ic)+vdepj*fract(ic,j)
+        
+        !print*, 'partdep:113: ic', ic, 'vdep', vdep
+        !stop
+      end do
+    endif
+
+
+  end do
+
+  !if (debug_mode) then
+  !  print*, 'partdep:122:'
+  !  write(*,*) (vdep(ic), ic=1,nc)
+    !stop
+  !endif
+end subroutine partdep
 
 end module drydepo_mod

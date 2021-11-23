@@ -2012,6 +2012,7 @@ subroutine readreleases
 
   use point_mod
   use xmass_mod
+  use drydepo_mod
 
   implicit none
 

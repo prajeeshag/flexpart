@@ -94,8 +94,8 @@ xmass_mod.o          flux_mod.o \
 point_mod.o          outg_mod.o \
 mean_mod.o	 	random_mod.o \
 class_gribfile_mod.o	advance_mod.o \
-readoptions.o  		binary_output_mod.o	
-
+readoptions.o  		binary_output_mod.o \
+drydepo_mod.o
 
 ## Serial versions (MPI version with same functionality and name '_mpi.f90' exists)
 OBJECTS_SERIAL = \
@@ -112,11 +112,11 @@ OBJECTS_NCF = netcdf_output_mod.o
 OBJECTS = \
 initialize.o		\
 writeprecip.o \
-assignland.o\
-part0.o 		gethourlyOH.o\
+assignland.o \
+gethourlyOH.o \
 caldate.o               partdep.o \
 coordtrafo.o            psih.o \
-raerod.o 		drydepokernel.o \
+raerod.o 		\
 erf.o                    \
 ew.o			 \
 get_vdep_prob.o   \
@@ -144,7 +144,7 @@ openouttraj.o           calcpv.o \
 distance2.o \
 clustering.o 		openreceptors.o \
 wetdepokernel_nest.o \
-drydepokernel_nest.o    zenithangle.o \
+zenithangle.o \
 ohreaction.o            getvdep_nests.o \
 initial_cond_calc.o     \
 dynamic_viscosity.o     get_settling.o	\
@@ -186,7 +186,7 @@ binary_output_mod.o: com_mod.o mean_mod.o outg_mod.o par_mod.o point_mod.o unc_m
 boundcond_domainfill.o: com_mod.o par_mod.o point_mod.o random_mod.o \
 	coordinates_ecmwf.o interpol_mod.o particle_mod.o
 calcfluxes.o: com_mod.o flux_mod.o outg_mod.o par_mod.o coordinates_ecmwf.o particle_mod.o
-calcpar.o: com_mod.o par_mod.o
+calcpar.o: com_mod.o par_mod.o drydepo_mod.o
 calcpar_nests.o: com_mod.o par_mod.o
 calcpv.o: com_mod.o par_mod.o
 caldate.o: par_mod.o
@@ -202,21 +202,17 @@ coordtrafo.o: com_mod.o par_mod.o point_mod.o
 detectformat.o: com_mod.o par_mod.o
 distance.o: par_mod.o
 distance2.o: par_mod.o
-drydepokernel.o: com_mod.o par_mod.o unc_mod.o
-drydepokernel_nest.o: com_mod.o par_mod.o unc_mod.o
+drydepo_mod.o: com_mod.o par_mod.o unc_mod.o interpol_mod.o point_mod.o
 erf.o: par_mod.o
 FLEXPART.o: com_mod.o conv_mod.o netcdf_output_mod.o par_mod.o point_mod.o \
 	random_mod.o readoptions.o binary_output_mod.o
 fluxoutput.o: com_mod.o flux_mod.o outg_mod.o par_mod.o
 get_settling.o: com_mod.o par_mod.o
-get_vdep_prob.o: com_mod.o interpol_mod.o par_mod.o point_mod.o
 get_wetscav.o: com_mod.o par_mod.o point_mod.o interpol_mod.o particle_mod.o \
 	coordinates_ecmwf.o
 gethourlyOH.o: com_mod.o oh_mod.o par_mod.o
 getrb.o: par_mod.o
 getrc.o: com_mod.o par_mod.o
-getvdep.o: com_mod.o par_mod.o
-getvdep_nests.o: com_mod.o par_mod.o
 grib2check.o: com_mod.o par_mod.o
 init_domainfill.o: com_mod.o par_mod.o point_mod.o random_mod.o \
        interpol_mod.o coordinates_ecmwf.o particle_mod.o
@@ -237,8 +233,6 @@ openreceptors.o: com_mod.o par_mod.o
 outg_mod.o: par_mod.o
 outgrid_init.o: com_mod.o flux_mod.o oh_mod.o outg_mod.o par_mod.o unc_mod.o
 outgrid_init_nest.o: com_mod.o outg_mod.o par_mod.o unc_mod.o
-part0.o: par_mod.o
-partdep.o: com_mod.o par_mod.o
 particle_mod.o: com_mod.o par_mod.o
 partoutput.o: com_mod.o par_mod.o interpol_mod.o coordinates_ecmwf.o netcdf_output_mod.o \
 	particle_mod.o
@@ -248,7 +242,7 @@ psih.o: par_mod.o
 psim.o: par_mod.o
 raerod.o: par_mod.o
 re_initialize_particle.o: com_mod.o par_mod.o
-readoptions.o: com_mod.o par_mod.o
+readoptions.o: com_mod.o par_mod.o drydepo_mod.o
 readpartpositions.o: com_mod.o par_mod.o random_mod.o particle_mod.o \
 	particle_mod.o coordinates_ecmwf.o
 redist.o: com_mod.o conv_mod.o par_mod.o random_mod.o interpol_mod.o coordinates_ecmwf.o \
@@ -261,7 +255,7 @@ shift_field.o: par_mod.o
 shift_field_0.o: par_mod.o
 timemanager.o: com_mod.o flux_mod.o netcdf_output_mod.o oh_mod.o outg_mod.o advance_mod.o\
 	par_mod.o point_mod.o unc_mod.o xmass_mod.o particle_mod.o coordinates_ecmwf.o \
-	binary_output_mod.o
+	binary_output_mod.o drydepo_mod.o
 turbulence_mod.o: par_mod.o com_mod.o random_mod.o particle_mod.o
 unc_mod.o: par_mod.o
 wetdepo.o: com_mod.o par_mod.o point_mod.o particle_mod.o

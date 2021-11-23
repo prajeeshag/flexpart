@@ -87,7 +87,7 @@ MODOBJS = \
 par_mod.o    		com_mod.o \
 particle_mod.o       interpol_mod.o \
 coordinates_ecmwf.o  conv_mod.o \
-windfields_mod.o \
+windfields_mod.o     \
 turbulence_mod.o     cmapf_mod.o \
 unc_mod.o            oh_mod.o \
 xmass_mod.o          flux_mod.o \
@@ -95,7 +95,7 @@ point_mod.o          outg_mod.o \
 mean_mod.o	 	random_mod.o \
 class_gribfile_mod.o	advance_mod.o \
 readoptions.o  		binary_output_mod.o \
-drydepo_mod.o
+drydepo_mod.o 		wetdepo_mod.o
 
 ## Serial versions (MPI version with same functionality and name '_mpi.f90' exists)
 OBJECTS_SERIAL = \
@@ -126,8 +126,7 @@ richardson.o \
 scalev.o                \
 pbl_profile.o \
 juldate.o               \
-wetdepokernel.o \
-calcpar.o               wetdepo.o \
+calcpar.o               \
 windalign.o		\
 detectformat.o  \
 calcfluxes.o            fluxoutput.o \
@@ -137,7 +136,6 @@ centerofmass.o          plumetraj.o \
 openouttraj.o           calcpv.o \
 distance2.o \
 clustering.o 		openreceptors.o \
-wetdepokernel_nest.o \
 zenithangle.o \
 ohreaction.o            \
 initial_cond_calc.o     \
@@ -241,13 +239,11 @@ richardson.o: par_mod.o
 scalev.o: par_mod.o
 timemanager.o: com_mod.o flux_mod.o netcdf_output_mod.o oh_mod.o outg_mod.o advance_mod.o\
 	par_mod.o point_mod.o unc_mod.o xmass_mod.o particle_mod.o coordinates_ecmwf.o \
-	binary_output_mod.o drydepo_mod.o
+	binary_output_mod.o drydepo_mod.o wetdepo_mod.o conv_mod.o windfields_mod.o
 turbulence_mod.o: par_mod.o com_mod.o random_mod.o particle_mod.o
 unc_mod.o: par_mod.o
-wetdepo.o: com_mod.o par_mod.o point_mod.o particle_mod.o interpol_mod.o \
-	coordinates_ecmwf.o
-wetdepokernel.o: com_mod.o par_mod.o unc_mod.o
-wetdepokernel_nest.o: com_mod.o par_mod.o unc_mod.o
+wetdepo_mod.o: com_mod.o par_mod.o point_mod.o particle_mod.o interpol_mod.o \
+	coordinates_ecmwf.o unc_mod.o
 windfields_mod.o: par_mod.o com_mod.o conv_mod.o cmapf_mod.o
 writeprecip.o: com_mod.o par_mod.o point_mod.o
 zenithangle.o: par_mod.o

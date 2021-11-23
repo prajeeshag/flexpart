@@ -86,6 +86,7 @@ subroutine timemanager(metdata_format)
   use windfields_mod
   use advance_mod, only: advance
   use drydepo_mod
+  use wetdepo_mod
 
   implicit none
   real, parameter ::        &

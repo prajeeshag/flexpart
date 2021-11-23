@@ -1,48 +1,51 @@
-! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
-! SPDX-License-Identifier: GPL-3.0-or-later
-
-subroutine wetdepo(itime,ltsample,loutnext)
-!                  i      i        i
-!*****************************************************************************
-!                                                                            *
-! Calculation of wet deposition using the concept of scavenging coefficients.*
-! For lack of detailed information, washout and rainout are jointly treated. *
-! It is assumed that precipitation does not occur uniformly within the whole *
-! grid cell, but that only a fraction of the grid cell experiences rainfall. *
-! This fraction is parameterized from total cloud cover and rates of large   *
-! scale and convective precipitation.                                        *
-!                                                                            *
-!    Author: A. Stohl                                                        *
-!                                                                            *
-!    1 December 1996                                                         *
-!                                                                            *
-! Correction by Petra Seibert, Sept 2002:                                    *
-! use centred precipitation data for integration                             *
-! Code may not be correct for decay of deposition!                           *
-!                                                                            *
-!*****************************************************************************
-!                                                                            *
-! Variables:                                                                 *
-! ix,jy              indices of output grid cell for each particle           *
-! itime [s]          actual simulation time [s]                              *
-! jpart              particle index                                          *
-! ldeltat [s]        interval since radioactive decay was computed           *
-! loutnext [s]       time for which gridded deposition is next output        *
-! loutstep [s]       interval at which gridded deposition is output          *
-! ltsample [s]       interval over which mass is deposited                   *
-! wetdeposit         mass that is wet deposited                              *
-! wetgrid            accumulated deposited mass on output grid               *
-! wetscav            scavenging coefficient                                  *
-!                                                                            *
-! Constants:                                                                 *
-!                                                                            *
-!*****************************************************************************
-
+module wetdepo_mod
   use point_mod
   use par_mod
   use com_mod
-  use unc_mod, only:wetgridunc
   use particle_mod
+
+  implicit none
+
+contains
+
+subroutine wetdepo(itime,ltsample,loutnext)
+  !                  i      i        i
+  !*****************************************************************************
+  !                                                                            *
+  ! Calculation of wet deposition using the concept of scavenging coefficients.*
+  ! For lack of detailed information, washout and rainout are jointly treated. *
+  ! It is assumed that precipitation does not occur uniformly within the whole *
+  ! grid cell, but that only a fraction of the grid cell experiences rainfall. *
+  ! This fraction is parameterized from total cloud cover and rates of large   *
+  ! scale and convective precipitation.                                        *
+  !                                                                            *
+  !    Author: A. Stohl                                                        *
+  !                                                                            *
+  !    1 December 1996                                                         *
+  !                                                                            *
+  ! Correction by Petra Seibert, Sept 2002:                                    *
+  ! use centred precipitation data for integration                             *
+  ! Code may not be correct for decay of deposition!                           *
+  !                                                                            *
+  !*****************************************************************************
+  !                                                                            *
+  ! Variables:                                                                 *
+  ! ix,jy              indices of output grid cell for each particle           *
+  ! itime [s]          actual simulation time [s]                              *
+  ! jpart              particle index                                          *
+  ! ldeltat [s]        interval since radioactive decay was computed           *
+  ! loutnext [s]       time for which gridded deposition is next output        *
+  ! loutstep [s]       interval at which gridded deposition is output          *
+  ! ltsample [s]       interval over which mass is deposited                   *
+  ! wetdeposit         mass that is wet deposited                              *
+  ! wetgrid            accumulated deposited mass on output grid               *
+  ! wetscav            scavenging coefficient                                  *
+  !                                                                            *
+  ! Constants:                                                                 *
+  !                                                                            *
+  !*****************************************************************************
+
+  use unc_mod, only:wetgridunc
 
   implicit none
 
@@ -54,8 +57,8 @@ subroutine wetdepo(itime,ltsample,loutnext)
   real :: wetdeposit(maxspec),restmass
   real,parameter :: smallnum = tiny(0.0) ! smallest number that can be handled
 
-! Compute interval since radioactive decay of deposited mass was computed
-!************************************************************************
+  ! Compute interval since radioactive decay of deposited mass was computed
+  !************************************************************************
 
   if (itime.le.loutnext) then
     ldeltat=itime-(loutnext-loutstep)
@@ -63,13 +66,13 @@ subroutine wetdepo(itime,ltsample,loutnext)
     ldeltat=itime-loutnext
   endif
 
-! Loop over all particles
-!************************
+  ! Loop over all particles
+  !************************
 
   blc_count(:)=0
   inc_count(:)=0
 
-! OMP doesn't work yet, a reduction is necessary for the kernel function
+  ! OMP doesn't work yet, a reduction is necessary for the kernel function
   do jpart=1,numpart
 
     ! Check if memory has been deallocated
@@ -78,8 +81,8 @@ subroutine wetdepo(itime,ltsample,loutnext)
     ! Check if particle is still allive
     if (.not. part(jpart)%alive) cycle
 
-! Determine age class of the particle - nage is used for the kernel
-!******************************************************************
+  ! Determine age class of the particle - nage is used for the kernel
+  !******************************************************************
      itage=abs(itime-part(jpart)%tstart)
      do nage=1,nageclass
        if (itage.lt.lage(nage)) exit
@@ -89,40 +92,17 @@ subroutine wetdepo(itime,ltsample,loutnext)
 
       if (WETDEPSPEC(ks).eqv..false.) cycle 
 
-!**************************************************
-! CALCULATE DEPOSITION 
-!**************************************************
-!       wetscav=0.
-       
-!        write(*,*) ks,dquer(ks), crain_aero(ks),csnow_aero(ks)
-!       if (((dquer(ks).le.0.).and.(weta_gas(ks).gt.0..or.wetb_gas(ks).gt.0.)) &
-!          .or. &
-!          ((dquer(ks).gt.0.).and.(crain_aero(ks).gt.0..or.csnow_aero(ks).gt.0.).or. &
-!            (ccn_aero(ks).gt0) .or. (in_aero(ks).gt.0) .or. (henry(ks).gt.0)))  then
+  !**************************************************
+  ! CALCULATE DEPOSITION 
+  !**************************************************
 
       call get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc_count,wetscav) ! OMP carefully check
 
-      ! WETBKDEP moved here from timemanager.f90
-      ! xscav_frac1...factor used to weight the wet depostion along the back-trajectory
-      ! (based on wetdepo at receptor)
-      ! jpart...particle index
-      ! ks...species index
-      ! grfraction(1)...fraction of grid, for which precipitation occurs; set in get_wetscav
-      ! zpoint2(npoint(jpart))...forced to be 20000m for wetdepo backward
-      ! zpoint1(npoint(jpart))...forced to be 0m for wetdepo backward
-      ! zpoint1,zpoint2...height range, over which release takes place; set in RELEASE file
-      ! as z1 and z2 => but for wetdepo backward always set to 0 and 20000m
       if (WETBKDEP) then
         if ((xscav_frac1(jpart,ks).lt.-0.1)) then   ! particle marked as starting particle
           if (wetscav.gt.0.) then
              xscav_frac1(jpart,ks)=wetscav*(zpoint2(part(jpart)%npoint)-&
              zpoint1(part(jpart)%npoint))*grfraction(1)
-             ! apl3 => print out particle number, wetscav, xscav_frac1
-!              ! apl_8
-!              if (ks.eq.1) write(*,924) 'wetdepo:',itime,jpart,wetscav,&
-!                    zpoint2(npoint(jpart)),zpoint1(npoint(jpart)),&
-!                    grfraction(1),xscav_frac1(jpart,ks)
-! 924 format(a,1x,2i9,5es13.5)
           else
             part(jpart)%mass(ks)=0.
             xscav_frac1(jpart,ks)=0.
@@ -145,24 +125,24 @@ subroutine wetdepo(itime,ltsample,loutnext)
       endif
       if (restmass .gt. smallnum) then
         part(jpart)%mass(ks)=restmass
-!   depostatistic
-!   wetdepo_sum(ks,kp)=wetdepo_sum(ks,kp)+wetdeposit(ks)
-!   depostatistic
+  !   depostatistic
+  !   wetdepo_sum(ks,kp)=wetdepo_sum(ks,kp)+wetdeposit(ks)
+  !   depostatistic
       else
         part(jpart)%mass(ks)=0.
       endif
-!   Correct deposited mass to the last time step when radioactive decay of
-!   gridded deposited mass was calculated
+  !   Correct deposited mass to the last time step when radioactive decay of
+  !   gridded deposited mass was calculated
       if (decay(ks).gt.0.) then
         wetdeposit(ks)=wetdeposit(ks)*exp(abs(ldeltat)*decay(ks))
       endif
 
-!    endif ! no deposition
+  !    endif ! no deposition
     end do ! loop over species
 
-! Sabine Eckhardt, June 2008 create deposition runs only for forward runs
-! Add the wet deposition to accumulated amount on output grid and nested output grid
-!*****************************************************************************
+  ! Sabine Eckhardt, June 2008 create deposition runs only for forward runs
+  ! Add the wet deposition to accumulated amount on output grid and nested output grid
+  !*****************************************************************************
 
     if (ldirect.eq.1) then !OMP reduction necessary for wetgridunc
       call wetdepokernel(part(jpart)%nclass,wetdeposit,real(part(jpart)%xlon), &
@@ -173,10 +153,9 @@ subroutine wetdepo(itime,ltsample,loutnext)
 
   end do ! all particles
 
-! count the total number of below-cloud and in-cloud occurences:
+  ! count the total number of below-cloud and in-cloud occurences:
   tot_blc_count(1:nspec)=tot_blc_count(1:nspec)+blc_count(1:nspec)
   tot_inc_count(1:nspec)=tot_inc_count(1:nspec)+inc_count(1:nspec)
-
 end subroutine wetdepo
 
 subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc_count,wetscav)
@@ -221,11 +200,7 @@ subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc
   !                                                                            *
   !*****************************************************************************
 
-  use point_mod
-  use par_mod
-  use com_mod
   use interpol_mod, only: interpol_rain, interpol_rain_nests
-  use particle_mod
   use coordinates_ecmwf
 
   implicit none
@@ -489,5 +464,214 @@ subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc
       wetscav=incloud_ratio*S_i*(prec(1)/3.6E6)
     endif ! positive in-cloud scavenging parameters given in Species file
   endif !incloud
-
 end subroutine get_wetscav
+
+subroutine wetdepokernel(nunc,deposit,x,y,nage,kp)
+  !                          i      i    i i  i
+  !*****************************************************************************
+  !                                                                            *
+  !     Attribution of the deposition from an individual particle to the       *
+  !     deposition fields using a uniform kernel with bandwidths dxout and dyout.*
+  !                                                                            *
+  !     Author: A. Stohl                                                       *
+  !                                                                            *
+  !     26 December 1996                                                       *
+  !                                                                            *
+  !*****************************************************************************
+  !                                                                            *
+  ! Variables:                                                                 *
+  !                                                                            *
+  ! nunc             uncertainty class of the respective particle              *
+  ! nage             age class of the respective particle                      *
+  ! deposit          amount (kg) to be deposited                               *
+  !                                                                            *
+  !*****************************************************************************
+  ! Changes:
+  ! eso 10/2016: Added option to disregard kernel 
+  ! 
+  !*****************************************************************************
+
+  use unc_mod
+
+  implicit none
+
+  real :: x,y,deposit(maxspec),ddx,ddy,xl,yl,wx,wy,w
+  integer :: ix,jy,ixp,jyp,nunc,nage,ks,kp
+
+  xl=(x*dx+xoutshift)/dxout
+  yl=(y*dy+youtshift)/dyout
+  ix=int(xl)
+  jy=int(yl)
+  ddx=xl-real(ix)                   ! distance to left cell border
+  ddy=yl-real(jy)                   ! distance to lower cell border
+
+  if (ddx.gt.0.5) then
+    ixp=ix+1
+    wx=1.5-ddx
+  else
+    ixp=ix-1
+    wx=0.5+ddx
+  endif
+
+  if (ddy.gt.0.5) then
+    jyp=jy+1
+    wy=1.5-ddy
+  else
+    jyp=jy-1
+    wy=0.5+ddy
+  endif
+
+  ! If no kernel is used, direct attribution to grid cell
+  !******************************************************
+
+  if (.not.lusekerneloutput) then
+    do ks=1,nspec
+      if ((ix.ge.0).and.(jy.ge.0).and.(ix.le.numxgrid-1).and. &
+           (jy.le.numygrid-1)) then
+        wetgridunc(ix,jy,ks,kp,nunc,nage)= &
+             wetgridunc(ix,jy,ks,kp,nunc,nage)+deposit(ks)
+      end if
+    end do
+  else ! use kernel 
+    
+  ! Determine mass fractions for four grid points
+  !**********************************************
+
+  do ks=1,nspec
+
+    if ((ix.ge.0).and.(jy.ge.0).and.(ix.le.numxgrid-1).and. &
+       (jy.le.numygrid-1)) then
+      w=wx*wy
+      wetgridunc(ix,jy,ks,kp,nunc,nage)= &
+           wetgridunc(ix,jy,ks,kp,nunc,nage)+deposit(ks)*w
+    endif
+
+    if ((ixp.ge.0).and.(jyp.ge.0).and.(ixp.le.numxgrid-1).and. &
+       (jyp.le.numygrid-1)) then
+      w=(1.-wx)*(1.-wy)
+      wetgridunc(ixp,jyp,ks,kp,nunc,nage)= &
+           wetgridunc(ixp,jyp,ks,kp,nunc,nage)+deposit(ks)*w
+    endif
+
+    if ((ixp.ge.0).and.(jy.ge.0).and.(ixp.le.numxgrid-1).and. &
+       (jy.le.numygrid-1)) then
+      w=(1.-wx)*wy
+      wetgridunc(ixp,jy,ks,kp,nunc,nage)= &
+           wetgridunc(ixp,jy,ks,kp,nunc,nage)+deposit(ks)*w
+    endif
+
+    if ((ix.ge.0).and.(jyp.ge.0).and.(ix.le.numxgrid-1).and. &
+       (jyp.le.numygrid-1)) then
+      w=wx*(1.-wy)
+      wetgridunc(ix,jyp,ks,kp,nunc,nage)= &
+           wetgridunc(ix,jyp,ks,kp,nunc,nage)+deposit(ks)*w
+    endif
+
+  end do
+  end if
+end subroutine wetdepokernel
+
+subroutine wetdepokernel_nest(nunc,deposit,x,y,nage,kp)
+  !                           i    i       i i i    i
+  !*****************************************************************************
+  !                                                                            *
+  !     Attribution of the deposition from an individual particle to the       *
+  !     nested deposition fields using a uniform kernel with bandwidths        *
+  !     dxoutn and dyoutn.                                                     *
+  !                                                                            *
+  !     Author: A. Stohl                                                       *
+  !                                                                            *
+  !     26 December 1996                                                       *
+  !                                                                            *
+  !      2 September 2004: Adaptation from wetdepokernel.                      *
+  !                                                                            *
+  !                                                                            *
+  !*****************************************************************************
+  !                                                                            *
+  ! Variables:                                                                 *
+  !                                                                            *
+  ! nunc             uncertainty class of the respective particle              *
+  ! nage             age class of the respective particle                      *
+  ! deposit          amount (kg) to be deposited                               *
+  !                                                                            *
+  !*****************************************************************************
+
+  use unc_mod
+
+  implicit none
+
+  real :: x,y,deposit(maxspec),ddx,ddy,xl,yl,wx,wy,w
+  integer :: ix,jy,ixp,jyp,ks,kp,nunc,nage
+
+  xl=(x*dx+xoutshiftn)/dxoutn
+  yl=(y*dy+youtshiftn)/dyoutn
+
+  ! old:
+  ! ix=int(xl) 
+  ! jy=int(yl)
+
+  ! ESO: for xl,yl in range <-.5,-1> we get ix,jy=0 and thus negative
+  ! wx,wy as the int function rounds upwards for negative numbers.
+  ! Either use the floor function, or (perhaps more correctly?) use "(xl.gt.-0.5)" 
+  ! in place of "(ix.ge.0)" and similar for the upper boundary.
+
+  ! new:
+  ix=floor(xl)
+  jy=floor(yl)
+
+  ddx=xl-real(ix)                   ! distance to left cell border
+  ddy=yl-real(jy)                   ! distance to lower cell border
+
+
+  if (ddx.gt.0.5) then
+    ixp=ix+1
+    wx=1.5-ddx
+  else
+    ixp=ix-1
+    wx=0.5+ddx
+  endif
+
+  if (ddy.gt.0.5) then
+    jyp=jy+1
+    wy=1.5-ddy
+  else
+    jyp=jy-1
+    wy=0.5+ddy
+  endif
+
+  ! Determine mass fractions for four grid points
+  !**********************************************
+
+  do ks=1,nspec
+    if ((ix.ge.0).and.(jy.ge.0).and.(ix.le.numxgridn-1).and. &
+         (jy.le.numygridn-1)) then
+      w=wx*wy
+      wetgriduncn(ix,jy,ks,kp,nunc,nage)= &
+           wetgriduncn(ix,jy,ks,kp,nunc,nage)+deposit(ks)*w
+    endif
+
+    if ((ixp.ge.0).and.(jyp.ge.0).and.(ixp.le.numxgridn-1).and. &
+         (jyp.le.numygridn-1)) then
+      w=(1.-wx)*(1.-wy)
+      wetgriduncn(ixp,jyp,ks,kp,nunc,nage)= &
+           wetgriduncn(ixp,jyp,ks,kp,nunc,nage)+deposit(ks)*w
+    endif
+
+    if ((ixp.ge.0).and.(jy.ge.0).and.(ixp.le.numxgridn-1).and. &
+         (jy.le.numygridn-1)) then
+      w=(1.-wx)*wy
+      wetgriduncn(ixp,jy,ks,kp,nunc,nage)= &
+           wetgriduncn(ixp,jy,ks,kp,nunc,nage)+deposit(ks)*w
+    endif
+
+    if ((ix.ge.0).and.(jyp.ge.0).and.(ix.le.numxgridn-1).and. &
+         (jyp.le.numygridn-1)) then
+      w=wx*(1.-wy)
+      wetgriduncn(ix,jyp,ks,kp,nunc,nage)= &
+           wetgriduncn(ix,jyp,ks,kp,nunc,nage)+deposit(ks)*w
+    endif
+
+  end do
+end subroutine wetdepokernel_nest
+
+end module wetdepo_mod

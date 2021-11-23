@@ -58,11 +58,9 @@ subroutine get_settling(itime,xt,yt,zt,nsp,settling)
   do i=2,nz
     if (height(i).gt.zt) then
       indz=i-1
-      goto 6
+      exit
     endif
   end do
-6   continue
-
 
   ! Vertical distance to the level below and above current position
   !****************************************************************
@@ -118,12 +116,11 @@ subroutine get_settling(itime,xt,yt,zt,nsp,settling)
          sqrt(4*ga*dquer(nsp)/1.e6*density(nsp)*cunningham(nsp)/ &
          (3.*c_d*airdens))
 
-    if (abs((settling-settling_old)/settling).lt.0.01) goto 11  ! stop iteration
+    if (abs((settling-settling_old)/settling).lt.0.01) exit  ! stop iteration
 
     reynolds=dquer(nsp)/1.e6*abs(settling)/vis_kin
     settling_old=settling
   end do
 
-11   continue
 
 end subroutine get_settling

@@ -318,6 +318,7 @@ subroutine calcpar_nests(n,uuhn,vvhn,pvhn,metdata_format)
 
   use par_mod
   use com_mod
+  use drydepo_mod
 
   implicit none
 

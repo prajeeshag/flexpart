@@ -114,19 +114,16 @@ initialize.o		\
 writeprecip.o \
 assignland.o \
 gethourlyOH.o \
-caldate.o               partdep.o \
+caldate.o               \
 coordtrafo.o            psih.o \
 raerod.o 		\
 erf.o                    \
 ew.o			 \
-get_vdep_prob.o   \
 get_wetscav.o \
 psim.o			outgrid_init.o 	\
 outgrid_init_nest.o   	\
 photo_O1D.o 		  \
-getrb.o                 obukhov.o \
-getrc.o                 \
-getvdep.o \
+obukhov.o \
 richardson.o \
 scalev.o                \
 pbl_profile.o \
@@ -134,7 +131,6 @@ juldate.o               \
 wetdepokernel.o \
 calcpar.o               wetdepo.o \
 windalign.o		\
-calcpar_nests.o \
 detectformat.o  \
 calcfluxes.o            fluxoutput.o \
 qvsat.o                 skplin.o \
@@ -145,7 +141,7 @@ distance2.o \
 clustering.o 		openreceptors.o \
 wetdepokernel_nest.o \
 zenithangle.o \
-ohreaction.o            getvdep_nests.o \
+ohreaction.o            \
 initial_cond_calc.o     \
 dynamic_viscosity.o     get_settling.o	\
 initialize_cbl_vel.o	re_initialize_particle.o \
@@ -187,7 +183,6 @@ boundcond_domainfill.o: com_mod.o par_mod.o point_mod.o random_mod.o \
 	coordinates_ecmwf.o interpol_mod.o particle_mod.o
 calcfluxes.o: com_mod.o flux_mod.o outg_mod.o par_mod.o coordinates_ecmwf.o particle_mod.o
 calcpar.o: com_mod.o par_mod.o drydepo_mod.o
-calcpar_nests.o: com_mod.o par_mod.o
 calcpv.o: com_mod.o par_mod.o
 caldate.o: par_mod.o
 cbl.o: com_mod.o par_mod.o
@@ -211,8 +206,6 @@ get_settling.o: com_mod.o par_mod.o
 get_wetscav.o: com_mod.o par_mod.o point_mod.o interpol_mod.o particle_mod.o \
 	coordinates_ecmwf.o
 gethourlyOH.o: com_mod.o oh_mod.o par_mod.o
-getrb.o: par_mod.o
-getrc.o: com_mod.o par_mod.o
 grib2check.o: com_mod.o par_mod.o
 init_domainfill.o: com_mod.o par_mod.o point_mod.o random_mod.o \
        interpol_mod.o coordinates_ecmwf.o particle_mod.o
@@ -251,8 +244,6 @@ releaseparticles.o: com_mod.o par_mod.o point_mod.o random_mod.o xmass_mod.o \
 	interpol_mod.o coordinates_ecmwf.o
 richardson.o: par_mod.o
 scalev.o: par_mod.o
-shift_field.o: par_mod.o
-shift_field_0.o: par_mod.o
 timemanager.o: com_mod.o flux_mod.o netcdf_output_mod.o oh_mod.o outg_mod.o advance_mod.o\
 	par_mod.o point_mod.o unc_mod.o xmass_mod.o particle_mod.o coordinates_ecmwf.o \
 	binary_output_mod.o drydepo_mod.o

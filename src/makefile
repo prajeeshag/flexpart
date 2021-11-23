@@ -146,7 +146,7 @@ clustering.o 		openreceptors.o \
 wetdepokernel_nest.o \
 drydepokernel_nest.o    zenithangle.o \
 ohreaction.o            getvdep_nests.o \
-initial_cond_calc.o     initial_cond_output.o initial_cond_output_inversion.o \
+initial_cond_calc.o     \
 dynamic_viscosity.o     get_settling.o	\
 initialize_cbl_vel.o	re_initialize_particle.o \
 cbl.o 
@@ -222,9 +222,6 @@ init_domainfill.o: com_mod.o par_mod.o point_mod.o random_mod.o \
        interpol_mod.o coordinates_ecmwf.o particle_mod.o
 initial_cond_calc.o: com_mod.o outg_mod.o par_mod.o unc_mod.o particle_mod.o \
 	coordinates_ecmwf.o
-initial_cond_output.o: com_mod.o outg_mod.o par_mod.o point_mod.o unc_mod.o
-initial_cond_output_inversion.o: com_mod.o outg_mod.o par_mod.o point_mod.o \
-	unc_mod.o
 initialize.o: com_mod.o turbulence_mod.o interpol_mod.o par_mod.o random_mod.o \
 	interpol_mod.o coordinates_ecmwf.o particle_mod.o
 initialize_cbl_vel.o: com_mod.o par_mod.o random_mod.o

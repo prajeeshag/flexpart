@@ -508,8 +508,8 @@ endif
   ! Calculate the gross fluxes across layer interfaces
   !***************************************************
 
-      if (iflux.eq.1) call calcfluxes(itime,nage,j,part(j)%xlon_prev, &
-        part(j)%ylat_prev,part(j)%z_prev) !OMP reduction necessary for flux array
+      if (iflux.eq.1) call calcfluxes(itime,nage,j,real(part(j)%xlon_prev), &
+        real(part(j)%ylat_prev),real(part(j)%z_prev)) !OMP reduction necessary for flux array
 
 
   ! Determine, when next time step is due

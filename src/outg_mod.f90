@@ -31,6 +31,16 @@ module outg_mod
   real,allocatable, dimension (:) :: sparse_dump_u
   integer,allocatable, dimension (:) :: sparse_dump_i
 
+  real,allocatable, dimension (:,:,:,:,:,:,:) :: flux
+
+  !1 fluxw west - east
+  !2 fluxe east - west
+  !3 fluxs south - north
+  !4 fluxn north - south
+  !5 fluxu upward
+  !6 fluxd downward
+  !real,allocatable, dimension (:,:,:) :: areanorth
+  !real,allocatable, dimension (:,:,:) :: areaeast
 contains
 
 subroutine outgrid_init
@@ -54,7 +64,6 @@ subroutine outgrid_init
   !                                                                            *
   !*****************************************************************************
 
-  use flux_mod
   use oh_mod
   use unc_mod
   use par_mod

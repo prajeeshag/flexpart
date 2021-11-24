@@ -128,7 +128,6 @@ juldate.o               \
 calcpar.o               \
 windalign.o		\
 detectformat.o  \
-calcfluxes.o            fluxoutput.o \
 qvsat.o                 skplin.o \
 sort2.o                 distance.o \
 centerofmass.o          plumetraj.o \
@@ -176,7 +175,6 @@ assignland.o: com_mod.o par_mod.o
 binary_output_mod.o: com_mod.o mean_mod.o outg_mod.o par_mod.o point_mod.o unc_mod.o
 boundcond_domainfill.o: com_mod.o par_mod.o point_mod.o random_mod.o \
 	coordinates_ecmwf.o interpol_mod.o particle_mod.o
-calcfluxes.o: com_mod.o flux_mod.o outg_mod.o par_mod.o coordinates_ecmwf.o particle_mod.o
 calcpar.o: com_mod.o par_mod.o drydepo_mod.o
 calcpv.o: com_mod.o par_mod.o
 caldate.o: par_mod.o
@@ -197,7 +195,7 @@ drydepo_mod.o: com_mod.o par_mod.o unc_mod.o interpol_mod.o point_mod.o
 erf.o: par_mod.o
 FLEXPART.o: com_mod.o conv_mod.o netcdf_output_mod.o par_mod.o point_mod.o \
 	random_mod.o readoptions.o binary_output_mod.o
-fluxoutput.o: com_mod.o flux_mod.o outg_mod.o par_mod.o
+flux_mod.o: com_mod.o outg_mod.o par_mod.o coordinates_ecmwf.o particle_mod.o
 get_settling.o: com_mod.o par_mod.o
 gethourlyOH.o: com_mod.o oh_mod.o par_mod.o
 grib2check.o: com_mod.o par_mod.o
@@ -217,7 +215,7 @@ obukhov.o: par_mod.o
 ohreaction.o: com_mod.o oh_mod.o par_mod.o particle_mod.o 
 openouttraj.o: com_mod.o par_mod.o point_mod.o
 openreceptors.o: com_mod.o par_mod.o
-outg_mod.o: par_mod.o com_mod.o flux_mod.o oh_mod.o par_mod.o unc_mod.o
+outg_mod.o: par_mod.o com_mod.o oh_mod.o par_mod.o unc_mod.o
 particle_mod.o: com_mod.o par_mod.o
 partoutput.o: com_mod.o par_mod.o interpol_mod.o coordinates_ecmwf.o netcdf_output_mod.o \
 	particle_mod.o

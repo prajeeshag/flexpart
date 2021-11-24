@@ -451,7 +451,7 @@ endif
   !***********************************
       if ((part(j)%tstart.eq.itime).or.(itime.eq.0)) then
         call update_zeta_to_z(itime, j)
-        call initialize(itime,part(j)%idt, &
+        call initialize_particle(itime,part(j)%idt, &
             part(j)%turbvel%u,part(j)%turbvel%v,part(j)%turbvel%w, &
             part(j)%mesovel%u,part(j)%mesovel%v,part(j)%mesovel%w, &
             part(j)%xlon,part(j)%ylat,part(j)%z, &

@@ -1,7 +1,7 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
 
-subroutine initialize(itime,ldt,up,vp,wp, &
+subroutine initialize_particle(itime,ldt,up,vp,wp, &
        usigold,vsigold,wsigold,xt,yt,zt,zteta,icbt)
   !                        i    i   o  o  o
   !        o       o       o    i  i  i   o
@@ -227,4 +227,4 @@ subroutine initialize(itime,ldt,up,vp,wp, &
       wsigold=rannumb(nrand+2)*wsig
   end select  
 
-end subroutine initialize
+end subroutine initialize_particle

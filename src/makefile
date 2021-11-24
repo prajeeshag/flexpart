@@ -108,8 +108,7 @@ OBJECTS_NCF = netcdf_output_mod.o
 
 OBJECTS = \
 domainfill.o \
-initialize.o		\
-writeprecip.o \
+initialize_particle.o		\
 assignland.o \
 caldate.o               \
 coordtrafo.o            psih.o \
@@ -124,7 +123,6 @@ plumetraj.o \
 calcpv.o \
 initial_cond_calc.o     \
 get_settling.o	\
-initialize_cbl_vel.o	re_initialize_particle.o \
 cbl.o 
 
 ifeq ($(ncf), no)
@@ -162,7 +160,7 @@ binary_output_mod.o: com_mod.o mean_mod.o outg_mod.o par_mod.o point_mod.o unc_m
 calcpar.o: com_mod.o par_mod.o drydepo_mod.o
 calcpv.o: com_mod.o par_mod.o
 caldate.o: par_mod.o
-cbl.o: com_mod.o par_mod.o
+cbl.o: com_mod.o par_mod.o random_mod.o
 cmapf_mod.o: par_mod.o
 com_mod.o: par_mod.o
 conccalc.o: com_mod.o outg_mod.o par_mod.o unc_mod.o coordinates_ecmwf.o particle_mod.o
@@ -181,9 +179,8 @@ get_settling.o: com_mod.o par_mod.o
 grib2check.o: com_mod.o par_mod.o
 initial_cond_calc.o: com_mod.o outg_mod.o par_mod.o unc_mod.o particle_mod.o \
 	coordinates_ecmwf.o
-initialize.o: com_mod.o turbulence_mod.o interpol_mod.o par_mod.o random_mod.o \
+initialize_particle.o: com_mod.o turbulence_mod.o interpol_mod.o par_mod.o random_mod.o \
 	interpol_mod.o coordinates_ecmwf.o particle_mod.o
-initialize_cbl_vel.o: com_mod.o par_mod.o random_mod.o
 interpol_mod.o: par_mod.o com_mod.o turbulence_mod.o particle_mod.o
 juldate.o: par_mod.o
 mean_mod.o: par_mod.o
@@ -198,7 +195,6 @@ pbl_profile.o: par_mod.o
 plumetraj.o: com_mod.o mean_mod.o par_mod.o point_mod.o particle_mod.o coordinates_ecmwf.o
 psih.o: par_mod.o
 psim.o: par_mod.o
-re_initialize_particle.o: com_mod.o par_mod.o
 readoptions.o: com_mod.o par_mod.o drydepo_mod.o
 readpartpositions.o: com_mod.o par_mod.o random_mod.o particle_mod.o \
 	particle_mod.o coordinates_ecmwf.o netcdf_output_mod.o
@@ -208,7 +204,7 @@ timemanager.o: com_mod.o flux_mod.o netcdf_output_mod.o oh_mod.o outg_mod.o adva
 	par_mod.o point_mod.o unc_mod.o xmass_mod.o particle_mod.o coordinates_ecmwf.o \
 	binary_output_mod.o drydepo_mod.o wetdepo_mod.o conv_mod.o windfields_mod.o
 turbulence_mod.o: par_mod.o com_mod.o random_mod.o particle_mod.o
-txt_output_mod.o: com_mod.o par_mod.o point_mod.o
+txt_output_mod.o: com_mod.o par_mod.o point_mod.o outg_mod.o
 unc_mod.o: par_mod.o
 wetdepo_mod.o: com_mod.o par_mod.o point_mod.o particle_mod.o interpol_mod.o \
 	coordinates_ecmwf.o unc_mod.o

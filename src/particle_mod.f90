@@ -391,7 +391,6 @@ contains
     endif
   end subroutine deallocate_all_particles
 
-
 ! Update_xlon
   subroutine update_xlon_dp(ipart,xchange)
     !**************************************

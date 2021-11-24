@@ -87,7 +87,7 @@ MODOBJS = \
 par_mod.o    		com_mod.o \
 particle_mod.o       interpol_mod.o \
 coordinates_ecmwf.o  conv_mod.o \
-windfields_mod.o     \
+windfields_mod.o     txt_output_mod.o \
 turbulence_mod.o     cmapf_mod.o \
 unc_mod.o            oh_mod.o \
 xmass_mod.o          flux_mod.o \
@@ -176,7 +176,7 @@ domainfill.o: com_mod.o par_mod.o point_mod.o random_mod.o \
        interpol_mod.o coordinates_ecmwf.o particle_mod.o
 drydepo_mod.o: com_mod.o par_mod.o unc_mod.o interpol_mod.o point_mod.o
 FLEXPART.o: com_mod.o conv_mod.o netcdf_output_mod.o par_mod.o point_mod.o \
-	random_mod.o readoptions.o binary_output_mod.o
+	random_mod.o readoptions.o binary_output_mod.o txt_output_mod.o
 flux_mod.o: com_mod.o outg_mod.o par_mod.o coordinates_ecmwf.o particle_mod.o
 get_settling.o: com_mod.o par_mod.o
 grib2check.o: com_mod.o par_mod.o
@@ -209,9 +209,9 @@ timemanager.o: com_mod.o flux_mod.o netcdf_output_mod.o oh_mod.o outg_mod.o adva
 	par_mod.o point_mod.o unc_mod.o xmass_mod.o particle_mod.o coordinates_ecmwf.o \
 	binary_output_mod.o drydepo_mod.o wetdepo_mod.o conv_mod.o windfields_mod.o
 turbulence_mod.o: par_mod.o com_mod.o random_mod.o particle_mod.o
+txt_output_mod.o: com_mod.o par_mod.o point_mod.o
 unc_mod.o: par_mod.o
 wetdepo_mod.o: com_mod.o par_mod.o point_mod.o particle_mod.o interpol_mod.o \
 	coordinates_ecmwf.o unc_mod.o
-windfields_mod.o: par_mod.o com_mod.o conv_mod.o cmapf_mod.o
-writeprecip.o: com_mod.o par_mod.o point_mod.o
+windfields_mod.o: par_mod.o com_mod.o conv_mod.o cmapf_mod.o txt_output_mod.o
 zenithangle.o: par_mod.o

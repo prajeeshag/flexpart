@@ -1597,6 +1597,7 @@ subroutine getfields(itime,nstop,metdata_format)
   !*****************************************************************************
 
   use class_gribfile
+  use txt_output_mod
 
   implicit none
 

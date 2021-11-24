@@ -117,7 +117,6 @@ psim.o			\
 pbl_profile.o \
 juldate.o               \
 calcpar.o               \
-windalign.o		\
 detectformat.o  \
 qvsat.o                 \
 sort2.o                 \

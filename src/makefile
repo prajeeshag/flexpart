@@ -114,7 +114,6 @@ assignland.o \
 caldate.o               \
 coordtrafo.o            psih.o \
 psim.o			\
-scalev.o                \
 pbl_profile.o \
 juldate.o               \
 calcpar.o               \
@@ -207,7 +206,6 @@ readpartpositions.o: com_mod.o par_mod.o random_mod.o particle_mod.o \
 	particle_mod.o coordinates_ecmwf.o
 releaseparticles.o: com_mod.o par_mod.o point_mod.o random_mod.o xmass_mod.o \
 	interpol_mod.o coordinates_ecmwf.o
-scalev.o: par_mod.o
 timemanager.o: com_mod.o flux_mod.o netcdf_output_mod.o oh_mod.o outg_mod.o advance_mod.o\
 	par_mod.o point_mod.o unc_mod.o xmass_mod.o particle_mod.o coordinates_ecmwf.o \
 	binary_output_mod.o drydepo_mod.o wetdepo_mod.o conv_mod.o windfields_mod.o

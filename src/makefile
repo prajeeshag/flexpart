@@ -126,8 +126,7 @@ detectformat.o  \
 qvsat.o                 skplin.o \
 sort2.o                 \
 plumetraj.o \
-openouttraj.o           calcpv.o \
-openreceptors.o \
+calcpv.o \
 zenithangle.o \
 initial_cond_calc.o     \
 get_settling.o	\
@@ -197,8 +196,6 @@ mean_mod.o: par_mod.o
 netcdf_output_mod.o: com_mod.o mean_mod.o outg_mod.o par_mod.o point_mod.o \
 	unc_mod.o particle_mod.o
 oh_mod.o: com_mod.o par_mod.o particle_mod.o 
-openouttraj.o: com_mod.o par_mod.o point_mod.o
-openreceptors.o: com_mod.o par_mod.o
 outg_mod.o: par_mod.o com_mod.o oh_mod.o par_mod.o unc_mod.o
 particle_mod.o: com_mod.o par_mod.o
 partoutput.o: com_mod.o par_mod.o interpol_mod.o coordinates_ecmwf.o netcdf_output_mod.o \

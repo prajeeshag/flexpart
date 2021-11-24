@@ -128,11 +128,10 @@ calcpar.o               \
 windalign.o		\
 detectformat.o  \
 qvsat.o                 skplin.o \
-sort2.o                 distance.o \
-centerofmass.o          plumetraj.o \
+sort2.o                 \
+plumetraj.o \
 openouttraj.o           calcpv.o \
-distance2.o \
-clustering.o 		openreceptors.o \
+openreceptors.o \
 zenithangle.o \
 initial_cond_calc.o     \
 dynamic_viscosity.o     get_settling.o	\
@@ -177,8 +176,6 @@ calcpar.o: com_mod.o par_mod.o drydepo_mod.o
 calcpv.o: com_mod.o par_mod.o
 caldate.o: par_mod.o
 cbl.o: com_mod.o par_mod.o
-centerofmass.o: par_mod.o
-clustering.o: par_mod.o particle_mod.o
 cmapf_mod.o: par_mod.o
 com_mod.o: par_mod.o
 conccalc.o: com_mod.o outg_mod.o par_mod.o unc_mod.o coordinates_ecmwf.o particle_mod.o
@@ -187,8 +184,6 @@ conv_mod.o: par_mod.o com_mod.o flux_mod.o par_mod.o particle_mod.o class_gribfi
 coordinates_ecmwf.o: par_mod.o com_mod.o interpol_mod.o particle_mod.o
 coordtrafo.o: com_mod.o par_mod.o point_mod.o
 detectformat.o: com_mod.o par_mod.o
-distance.o: par_mod.o
-distance2.o: par_mod.o
 drydepo_mod.o: com_mod.o par_mod.o unc_mod.o interpol_mod.o point_mod.o
 erf.o: par_mod.o
 FLEXPART.o: com_mod.o conv_mod.o netcdf_output_mod.o par_mod.o point_mod.o \

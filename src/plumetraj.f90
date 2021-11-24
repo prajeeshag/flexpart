@@ -225,6 +225,261 @@ subroutine plumetraj(itime)
     endif
 
   end do
-
-
 end subroutine plumetraj
+
+subroutine centerofmass(xl,yl,n,xcenter,ycenter)
+  !                        i  i  i    o       o
+  !*****************************************************************************
+  !                                                                            *
+  !   This routine calculates the center of mass of n points on the Earth.     *
+  !   Input are the longitudes (xl) and latitudes (yl) of the individual       *
+  !   points, output is the longitude and latitude of the centre of mass.      *
+  !                                                                            *
+  !     Author: A. Stohl                                                       *
+  !                                                                            *
+  !     24 January 2002                                                        *
+  !                                                                            *
+  !*****************************************************************************
+
+  use par_mod
+
+  implicit none
+
+  integer :: n,l
+  real :: xl(n),yl(n),xll,yll,xav,yav,zav,x,y,z,xcenter,ycenter
+
+
+  xav=0.
+  yav=0.
+  zav=0.
+
+  do l=1,n
+
+  ! Convert longitude and latitude from degrees to radians
+  !*******************************************************
+
+    xll=xl(l)*pi180
+    yll=yl(l)*pi180
+
+  ! Calculate 3D coordinates from longitude and latitude
+  !*****************************************************
+
+    x = cos(yll)*sin(xll)
+    y = -1.*cos(yll)*cos(xll)
+    z = sin(yll)
+
+
+  ! Find the mean location in Cartesian coordinates
+  !************************************************
+
+    xav=xav+x
+    yav=yav+y
+    zav=zav+z
+  end do
+
+  xav=xav/real(n)
+  yav=yav/real(n)
+  zav=zav/real(n)
+
+
+  ! Project the point back onto Earth's surface
+  !********************************************
+
+  xcenter=atan2(xav,-1.*yav)
+  ycenter=atan2(zav,sqrt(xav*xav+yav*yav))
+
+  ! Convert back to degrees
+  !************************
+
+  xcenter=xcenter/pi180
+  ycenter=ycenter/pi180
+end subroutine centerofmass
+
+subroutine clustering(n,xclust,yclust,zclust,fclust,rms, &
+       rmsclust,zrms)
+  !                      i  i  i  i   o      o      o      o     o
+  !   o      o
+  !*****************************************************************************
+  !                                                                            *
+  !   This routine clusters the particle position into ncluster custers.       *
+  !   Input are the longitudes (xl) and latitudes (yl) of the individual       *
+  !   points, output are the cluster mean positions (xclust,yclust).           *
+  !   Vertical positions are not directly used for the clustering.             *
+  !                                                                            *
+  !   For clustering, the procedure described in Dorling et al. (1992) is used.*
+  !                                                                            *
+  !   Dorling, S.R., Davies, T.D. and Pierce, C.E. (1992):                     *
+  !   Cluster analysis: a technique for estimating the synoptic meteorological *
+  !   controls on air and precipitation chemistry - method and applications.   *
+  !   Atmospheric Environment 26A, 2575-2581.                                  *
+  !                                                                            *
+  !                                                                            *
+  !     Author: A. Stohl                                                       *
+  !                                                                            *
+  !     1 February 2002                                                        *
+  !                                                                            *
+  ! Variables:                                                                 *
+  ! fclust          fraction of particles belonging to each cluster            *
+  ! ncluster        number of clusters to be used                              *
+  ! rms             total horizontal rms distance after clustering             *
+  ! rmsclust        horizontal rms distance for each individual cluster        *
+  ! zrms            total vertical rms distance after clustering               *
+  ! xclust,yclust,  Cluster centroid positions                                 *
+  ! zclust                                                                     *
+  ! xl,yl,zl        particle positions                                         *
+  !                                                                            *
+  !*****************************************************************************
+
+  use par_mod
+  use particle_mod
+
+  implicit none
+
+  integer :: n,i,j,l,numb(ncluster),ncl
+  real :: xclust(ncluster),yclust(ncluster),x,y,z
+  real :: zclust(ncluster),distance2,distances,distancemin,rms,rmsold
+  real :: xav(ncluster),yav(ncluster),zav(ncluster),fclust(ncluster)
+  real :: rmsclust(ncluster)
+  real :: zdist,zrms
+
+
+
+  if (n.lt.ncluster) return
+  rmsold=-5.
+
+  ! Convert longitude and latitude from degrees to radians
+  !*******************************************************
+
+  do i=1,n
+    nclust(i)=i
+    xplum(i)=xplum(i)*pi180
+    yplum(i)=yplum(i)*pi180
+  end do
+
+
+  ! Generate a seed for each cluster
+  !*********************************
+
+  do j=1,ncluster
+    zclust(j)=0.
+    xclust(j)=xplum(j*n/ncluster)
+    yclust(j)=yplum(j*n/ncluster)
+  end do
+
+
+  ! Iterative loop to compute the cluster means
+  !********************************************
+
+  do l=1,100
+
+  ! Assign each particle to a cluster: criterion minimum distance to the
+  ! cluster mean position
+  !*********************************************************************
+
+
+    do i=1,n
+      distancemin=10.**10.
+      do j=1,ncluster
+        distances=distance2(yplum(i),xplum(i),yclust(j),xclust(j))
+        if (distances.lt.distancemin) then
+          distancemin=distances
+          ncl=j
+        endif
+      end do
+      nclust(i)=ncl
+    end do
+
+
+  ! Recalculate the cluster centroid position: convert to 3D Cartesian coordinates,
+  ! calculate mean position, and re-project this point onto the Earth's surface
+  !*****************************************************************************
+
+    do j=1,ncluster
+      xav(j)=0.
+      yav(j)=0.
+      zav(j)=0.
+      rmsclust(j)=0.
+      numb(j)=0
+    end do
+    rms=0.
+
+    do i=1,n
+      numb(nclust(i))=numb(nclust(i))+1
+      distances=distance2(yplum(i),xplum(i), &
+           yclust(nclust(i)),xclust(nclust(i)))
+
+  ! rms is the total rms of all particles
+  ! rmsclust is the rms for a particular cluster
+  !*********************************************
+
+      rms=rms+distances*distances
+      rmsclust(nclust(i))=rmsclust(nclust(i))+distances*distances
+
+  ! Calculate Cartesian 3D coordinates from longitude and latitude
+  !***************************************************************
+
+      x = cos(yplum(i))*sin(xplum(i))
+      y = -1.*cos(yplum(i))*cos(xplum(i))
+      z = sin(yplum(i))
+      xav(nclust(i))=xav(nclust(i))+x
+      yav(nclust(i))=yav(nclust(i))+y
+      zav(nclust(i))=zav(nclust(i))+z
+    end do
+
+    rms=sqrt(rms/real(n))
+
+
+  ! Find the mean location in Cartesian coordinates
+  !************************************************
+
+    do j=1,ncluster
+      if (numb(j).gt.0) then
+        rmsclust(j)=sqrt(rmsclust(j)/real(numb(j)))
+        xav(j)=xav(j)/real(numb(j))
+        yav(j)=yav(j)/real(numb(j))
+        zav(j)=zav(j)/real(numb(j))
+
+  ! Project the point back onto Earth's surface
+  !********************************************
+
+        xclust(j)=atan2(xav(j),-1.*yav(j))
+        yclust(j)=atan2(zav(j),sqrt(xav(j)*xav(j)+yav(j)*yav(j)))
+      endif
+    end do
+
+
+  ! Leave the loop if the RMS distance decreases only slightly between 2 iterations
+  !*****************************************************************************
+
+    if ((l.gt.1).and.(abs(rms-rmsold)/rmsold.lt.0.005)) exit
+    rmsold=rms
+
+  end do
+
+  ! Convert longitude and latitude from radians to degrees
+  !*******************************************************
+
+  do i=1,n
+    xplum(i)=xplum(i)/pi180
+    yplum(i)=yplum(i)/pi180
+    zclust(nclust(i))=zclust(nclust(i))+zplum(i)
+  end do
+
+  do j=1,ncluster
+    xclust(j)=xclust(j)/pi180
+    yclust(j)=yclust(j)/pi180
+    if (numb(j).gt.0) zclust(j)=zclust(j)/real(numb(j))
+    fclust(j)=100.*real(numb(j))/real(n)
+  end do
+
+  ! Determine total vertical RMS deviation
+  !***************************************
+
+  zrms=0.
+  do i=1,n
+    zdist=zplum(i)-zclust(nclust(i))
+    zrms=zrms+zdist*zdist
+  end do
+  if (zrms.gt.0.) zrms=sqrt(zrms/real(n))
+
+end subroutine clustering

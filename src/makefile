@@ -115,7 +115,6 @@ caldate.o               \
 coordtrafo.o            psih.o \
 psim.o			\
 photo_O1D.o 		  \
-richardson.o \
 scalev.o                \
 pbl_profile.o \
 juldate.o               \
@@ -209,7 +208,6 @@ readpartpositions.o: com_mod.o par_mod.o random_mod.o particle_mod.o \
 	particle_mod.o coordinates_ecmwf.o
 releaseparticles.o: com_mod.o par_mod.o point_mod.o random_mod.o xmass_mod.o \
 	interpol_mod.o coordinates_ecmwf.o
-richardson.o: par_mod.o
 scalev.o: par_mod.o
 timemanager.o: com_mod.o flux_mod.o netcdf_output_mod.o oh_mod.o outg_mod.o advance_mod.o\
 	par_mod.o point_mod.o unc_mod.o xmass_mod.o particle_mod.o coordinates_ecmwf.o \

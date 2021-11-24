@@ -7,6 +7,48 @@ module drydepo_mod
 
 contains
 
+real function raerod (l,ust,z0)
+  !*****************************************************************************
+  !                                                                            *
+  !     Calculation of the aerodynamical resistance ra from ground up to href  *
+  !                                                                            *
+  !     AUTHOR: Matthias Langer, modified by Andreas Stohl (6 August 1993)     *
+  !                                                                            *
+  !     Literature:                                                            *
+  !     [1]  Hicks/Baldocchi/Meyers/Hosker/Matt (1987), A Preliminary          *
+  !             Multiple Resistance Routine for Deriving Dry Deposition        *
+  !             Velocities from Measured Quantities.                           *
+  !             Water, Air and Soil Pollution 36 (1987), pp.311-330.           *
+  !     [2]  Scire/Yamartino/Carmichael/Chang (1989),                          *
+  !             CALGRID: A Mesoscale Photochemical Grid Model.                 *
+  !             Vol II: User's Guide. (Report No.A049-1, June, 1989)           *
+  !                                                                            *
+  !     Variable list:                                                         *
+  !     L     = Monin-Obukhov-length [m]                                       *
+  !     ust   = friction velocity [m/sec]                                      *
+  !     z0    = surface roughness length [m]                                   *
+  !     href  = reference height [m], for which deposition velocity is         *
+  !             calculated                                                     *
+  !                                                                            *
+  !     Constants:                                                             *
+  !     karman    = von Karman-constant (~0.4)                                 *
+  !     ramin = minimum resistence of ra (1 s/m)                               *
+  !                                                                            *
+  !     Subprograms and functions:                                             *
+  !     function psih (z/L)                                                    *
+  !                                                                            *
+  !*****************************************************************************
+
+  use par_mod
+
+  implicit none
+
+  real :: l,psih,ust,z0
+
+  raerod=(alog(href/z0)-psih(href,l)+psih(z0,l))/(karman*ust)
+
+end function raerod
+
 subroutine drydepokernel(nunc,deposit,x,y,nage,kp)
   !                          i      i    i i  i
   !*****************************************************************************
@@ -491,7 +533,7 @@ subroutine getvdep(n,ix,jy,ust,temp,pa,L,gr,rh,rr,snow,vdepo)
 
   integer :: yyyymmdd,hhmmss,yyyy,mmdd,n,lseason,i,j,ix,jy
   real :: vdepo(maxspec),vd,rb(maxspec),rc(maxspec),raquer,ylat
-  real :: raerod,ra,ust,temp,tc,pa,L,gr,rh,rr,myl,nyl,rhoa,diffh2o,snow
+  real :: ra,ust,temp,tc,pa,L,gr,rh,rr,myl,nyl,rhoa,diffh2o,snow
   real :: slanduse(numclass)
   real,parameter :: eps=1.e-5
   real(kind=dp) :: jul
@@ -671,7 +713,7 @@ subroutine getvdep_nests(n,ix,jy,ust,temp,pa, &
 
   integer :: yyyymmdd,hhmmss,yyyy,mmdd,n,lseason,i,j,ix,jy,lnest
   real :: vdepo(maxspec),vd,rb(maxspec),rc(maxspec),raquer,ylat
-  real :: raerod,ra,ust,temp,tc,pa,L,gr,rh,rr,myl,nyl,rhoa,diffh2o,snow
+  real :: ra,ust,temp,tc,pa,L,gr,rh,rr,myl,nyl,rhoa,diffh2o,snow
   real :: slanduse(numclass)
   real,parameter :: eps=1.e-5
   real(kind=dp) :: jul
@@ -916,49 +958,6 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,vdep)
     !stop
   !endif
 end subroutine partdep
-
-function raerod (l,ust,z0)
-
-  !*****************************************************************************
-  !                                                                            *
-  !     Calculation of the aerodynamical resistance ra from ground up to href  *
-  !                                                                            *
-  !     AUTHOR: Matthias Langer, modified by Andreas Stohl (6 August 1993)     *
-  !                                                                            *
-  !     Literature:                                                            *
-  !     [1]  Hicks/Baldocchi/Meyers/Hosker/Matt (1987), A Preliminary          *
-  !             Multiple Resistance Routine for Deriving Dry Deposition        *
-  !             Velocities from Measured Quantities.                           *
-  !             Water, Air and Soil Pollution 36 (1987), pp.311-330.           *
-  !     [2]  Scire/Yamartino/Carmichael/Chang (1989),                          *
-  !             CALGRID: A Mesoscale Photochemical Grid Model.                 *
-  !             Vol II: User's Guide. (Report No.A049-1, June, 1989)           *
-  !                                                                            *
-  !     Variable list:                                                         *
-  !     L     = Monin-Obukhov-length [m]                                       *
-  !     ust   = friction velocity [m/sec]                                      *
-  !     z0    = surface roughness length [m]                                   *
-  !     href  = reference height [m], for which deposition velocity is         *
-  !             calculated                                                     *
-  !                                                                            *
-  !     Constants:                                                             *
-  !     karman    = von Karman-constant (~0.4)                                 *
-  !     ramin = minimum resistence of ra (1 s/m)                               *
-  !                                                                            *
-  !     Subprograms and functions:                                             *
-  !     function psih (z/L)                                                    *
-  !                                                                            *
-  !*****************************************************************************
-
-  use par_mod
-
-  implicit none
-
-  real :: l,psih,raerod,ust,z0
-
-  raerod=(alog(href/z0)-psih(href,l)+psih(z0,l))/(karman*ust)
-
-end function raerod
 
 subroutine getrb(nc,ustar,nyl,diffh2o,reldiff,rb)
   !                 i    i    i     i       i    o

@@ -118,8 +118,7 @@ coordtrafo.o            psih.o \
 raerod.o 		\
 erf.o                    \
 ew.o			 \
-psim.o			outgrid_init.o 	\
-outgrid_init_nest.o   	\
+psim.o			\
 photo_O1D.o 		  \
 obukhov.o \
 richardson.o \
@@ -218,9 +217,7 @@ obukhov.o: par_mod.o
 ohreaction.o: com_mod.o oh_mod.o par_mod.o particle_mod.o 
 openouttraj.o: com_mod.o par_mod.o point_mod.o
 openreceptors.o: com_mod.o par_mod.o
-outg_mod.o: par_mod.o
-outgrid_init.o: com_mod.o flux_mod.o oh_mod.o outg_mod.o par_mod.o unc_mod.o
-outgrid_init_nest.o: com_mod.o outg_mod.o par_mod.o unc_mod.o
+outg_mod.o: par_mod.o com_mod.o flux_mod.o oh_mod.o par_mod.o unc_mod.o
 particle_mod.o: com_mod.o par_mod.o
 partoutput.o: com_mod.o par_mod.o interpol_mod.o coordinates_ecmwf.o netcdf_output_mod.o \
 	particle_mod.o

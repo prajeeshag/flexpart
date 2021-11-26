@@ -1552,8 +1552,8 @@ subroutine write_particles_initialoutput(itime,istart,iend)
    releasetimes=itime
    call nf90_err(nf90_put_var(ncid,tIDi,releasetimes,(/ partinitpointer+1 /),(/ newpart /)))
    deallocate (releasetimes)
-   call nf90_err(nf90_put_var(ncid,lonIDi,part(partinitpointer+1:iend)%xlon, (/ partinitpointer+1 /),(/ newpart /)))
-   call nf90_err(nf90_put_var(ncid,latIDi,part(partinitpointer+1:iend)%ylat, (/ partinitpointer+1 /),(/ newpart /)))
+   call nf90_err(nf90_put_var(ncid,lonIDi,xlon0+part(partinitpointer+1:iend)%xlon*dx, (/ partinitpointer+1 /),(/ newpart /)))
+   call nf90_err(nf90_put_var(ncid,latIDi,ylat0+part(partinitpointer+1:iend)%ylat*dy, (/ partinitpointer+1 /),(/ newpart /)))
    call nf90_err(nf90_put_var(ncid,levIDi,part(partinitpointer+1:iend)%z, (/ partinitpointer+1 /),(/ newpart /)))
 
    call nf90_err(nf90_close(ncid))

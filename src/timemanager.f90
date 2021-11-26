@@ -215,7 +215,13 @@ subroutine timemanager(metdata_format)
         call boundcond_domainfill(itime,loutend)
       endif
     else
-      if (itime.eq.0) call create_particles_initialoutput(ibtime,ibdate,ibtime,ibdate)
+      if (itime.eq.0) then
+        if (ldirect.eq.1) then
+          call create_particles_initialoutput(ibtime,ibdate,ibtime,ibdate)
+        else
+          call create_particles_initialoutput(ietime,iedate,ietime,iedate)
+        endif
+      endif
       call releaseparticles(itime)
     endif
 

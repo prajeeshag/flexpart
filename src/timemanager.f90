@@ -77,7 +77,8 @@ subroutine timemanager(metdata_format)
   use com_mod
 #ifdef USE_NCF
   use netcdf_output_mod, only: concoutput_netcdf,concoutput_nest_netcdf,&
-       &concoutput_surf_netcdf,concoutput_surf_nest_netcdf,writeheader_partoutput
+       &concoutput_surf_netcdf,concoutput_surf_nest_netcdf,writeheader_partoutput,&
+       create_particles_initialoutput
 #endif
   use binary_output_mod
   use coordinates_ecmwf
@@ -214,6 +215,7 @@ subroutine timemanager(metdata_format)
         call boundcond_domainfill(itime,loutend)
       endif
     else
+      if (itime.eq.0) call create_particles_initialoutput(ibtime,ibdate,ibtime,ibdate)
       call releaseparticles(itime)
     endif
 

@@ -35,6 +35,7 @@ subroutine releaseparticles(itime)
   use random_mod, only: ran1
   use interpol_mod
   use coordinates_ecmwf
+  use netcdf_output_mod
 
   implicit none
 
@@ -44,7 +45,7 @@ subroutine releaseparticles(itime)
   real :: dz1,dz2,dz,xlonav,timecorrect(maxspec),press,pressold
   real :: presspart,average_timecorrect
   integer :: itime,numrel,i,j,k,n,ipart,minpart,ii
-  integer :: kz
+  integer :: kz,istart,iend
   integer :: nweeks,ndayofweek,nhour,jjjjmmdd,ihmmss,mm
   real(kind=dp) :: juldate,julmonday,jul,jullocal,juldiff
   real,parameter :: eps=nxmax/3.e5,eps2=1.e-6
@@ -75,6 +76,7 @@ subroutine releaseparticles(itime)
     end do 
   end if 
 
+  call get_total_part_num(istart)
   minpart=1
   do i=1,numpoint
     if ((itime.ge.ireleasestart(i)).and. &! are we within release interval?
@@ -371,7 +373,8 @@ subroutine releaseparticles(itime)
     endif ! releasepoint
   end do ! numpoint
 
-
+  call get_total_part_num(iend)
+  if (iend-istart.gt.0) call write_particles_initialoutput(itime,istart,iend)
   return
 
 996   continue

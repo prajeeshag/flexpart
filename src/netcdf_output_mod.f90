@@ -67,17 +67,18 @@ module netcdf_output_mod
 
   public :: writeheader_netcdf,concoutput_surf_nest_netcdf,concoutput_netcdf,&
        &concoutput_nest_netcdf,concoutput_surf_netcdf,writeheader_partoutput,partoutput_netcdf,&
-       open_partoutput_file,close_partoutput_file,readpartpositions_netcdf
+       open_partoutput_file,close_partoutput_file,readpartpositions_netcdf,create_particles_initialoutput,&
+       write_particles_initialoutput
 
   !  include 'netcdf.inc'
 
   ! parameter for data compression (1-9, 9 = most aggressive)
-  integer, parameter :: deflate_level = 9
+  integer, parameter :: deflate_level = 5
   logical, parameter :: min_size = .false.   ! if set true, redundant fields (topography) are not written to minimize file size
   character(len=255), parameter :: institution = 'NILU'
 
-  integer            :: tpointer=0,tpointer_part=0,ppointer_part=0
-  character(len=255) :: ncfname, ncfnamen, ncfname_part!(maxpoint)
+  integer            :: tpointer=0,tpointer_part=0,ppointer_part=0,partinitpointer=0
+  character(len=255) :: ncfname, ncfnamen, ncfname_part, ncfname_partinit!(maxpoint)
 
   ! netcdf dimension and variable IDs for main and nested output grid
   integer, dimension(maxspec) :: specID,specIDppt, wdspecID,ddspecID
@@ -90,6 +91,7 @@ module netcdf_output_mod
   integer             :: partID
   integer             :: itramemID,topoID,pvID,qvID,rhoID
   integer             :: hmixID,trID,ttID,lonID,latID,levID,massID(maxspec)
+  integer             :: partIDi,tIDi,lonIDi,latIDi,levIDi ! For initial particle outputs
 
   real,parameter :: eps=nxmax/3.e5
 
@@ -1429,6 +1431,135 @@ subroutine concoutput_surf_nest_netcdf(itime,outnum)
 
   print*,'Netcdf output for surface only not yet implemented'
 end subroutine concoutput_surf_nest_netcdf
+
+subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
+
+  implicit none
+
+  integer, intent(in) :: itime,idate,itime_start,idate_start
+  ! integer, intent(in) :: irelease
+  integer             :: cache_size,ncid,j,totpart
+  integer             :: partDimID
+  character(len=11)   :: fprefix
+  character(len=3)    :: anspec,arelease
+  character           :: adate*8,atime*6,adate_start*8,atime_start*6,timeunit*32
+  character(len=255)  :: fname_partoutput
+  real                :: fillval
+
+  write(adate,'(i8.8)') idate
+  write(atime,'(i6.6)') itime
+  write(adate_start,'(i8.8)') idate_start
+  write(atime_start,'(i6.6)') itime_start
+  ! write(arelease, '(i3.3)') irelease
+  fprefix = 'partinit_'!rel'//arelease//'_'
+
+  fname_partoutput = path(2)(1:length(2))//trim(fprefix)//adate//atime//'.nc'
+  !ncfname_part(irelease) = fname_partoutput
+  ncfname_partinit = fname_partoutput
+
+  call nf90_err(nf90_create(trim(fname_partoutput), cmode = nf90_hdf5, ncid = ncid))!, &
+    ! cache_size = cache_size))
+
+  ! create dimensions:
+  !*************************
+  
+  ! particle
+  partinitpointer=0
+  call nf90_err(nf90_def_dim(ncid, 'particle', nf90_unlimited, partDimID))
+
+  ! create variables
+  !*************************
+
+  ! particles
+  call nf90_err(nf90_def_var(ncid, 'particle', nf90_int, (/ partDimID/), partIDi))
+  call nf90_err(nf90_put_att(ncid, partIDi, 'long_name', 'particle index'))
+
+  fillval = -1.
+  ! time
+  timeunit = 'seconds since '//adate_start(1:4)//'-'//adate_start(5:6)// &
+     '-'//adate_start(7:8)//' '//atime_start(1:2)//':'//atime_start(3:4)
+
+  call nf90_err(nf90_def_var(ncid, 'time', nf90_int, (/ partDimID /), tIDi))
+  call nf90_err(nf90_def_var_deflate(ncid,tIDi,shuffle=0,deflate=1,deflate_level=1))
+  call nf90_err(nf90_put_att(ncid, tIDi, 'long_name', 'time of release'))
+  call nf90_err(nf90_put_att(ncid, tIDi, '_FillValue', -1))
+  call nf90_err(nf90_put_att(ncid, tIDi, 'axis', 't'))
+  call nf90_err(nf90_put_att(ncid, tIDi, 'units', timeunit))
+  call nf90_err(nf90_put_att(ncid, tIDi, 'calendar', 'proleptic_gregorian'))
+  call nf90_err(nf90_put_att(ncid, tIDi, 'standard_name', 'time'))
+  call nf90_err(nf90_put_att(ncid, tIDi, 'description', 'time of release'))
+
+
+  ! lon
+  call nf90_err(nf90_def_var(ncid, 'longitude', nf90_float, (/ partDimID /), lonIDi))
+  call nf90_err(nf90_def_var_deflate(ncid,lonIDi,shuffle=0,deflate=1,deflate_level=1))
+  call nf90_err(nf90_put_att(ncid, lonIDi, 'long_name', 'longitude in degree east'))
+  call nf90_err(nf90_put_att(ncid, lonIDi, '_FillValue', fillval))
+  call nf90_err(nf90_put_att(ncid, lonIDi, 'axis', 'Lon'))
+  call nf90_err(nf90_put_att(ncid, lonIDi, 'units', 'degrees_east'))
+  call nf90_err(nf90_put_att(ncid, lonIDi, 'standard_name', 'longitude'))
+  call nf90_err(nf90_put_att(ncid, lonIDi, 'description', 'longitude of particles'))
+
+  ! lat
+  call nf90_err(nf90_def_var(ncid, 'latitude', nf90_float, (/ partDimID /), latIDi))
+  call nf90_err(nf90_def_var_deflate(ncid,latIDi,shuffle=0,deflate=1,deflate_level=1))
+  call nf90_err(nf90_put_att(ncid, latIDi, 'long_name', 'latitude in degree north'))
+  call nf90_err(nf90_put_att(ncid, latIDi, 'axis', 'Lat'))
+  call nf90_err(nf90_put_att(ncid, latIDi, '_FillValue', fillval))
+  call nf90_err(nf90_put_att(ncid, latIDi, 'units', 'degrees_north'))
+  call nf90_err(nf90_put_att(ncid, latIDi, 'standard_name', 'latitude'))
+  call nf90_err(nf90_put_att(ncid, latIDi, 'description', 'latitude of particles'))
+
+  ! height
+  call nf90_err(nf90_def_var(ncid, 'height', nf90_float, (/ partDimID /), levIDi))
+  call nf90_err(nf90_def_var_deflate(ncid,levIDi,shuffle=0,deflate=1,deflate_level=1))
+  call nf90_err(nf90_put_att(ncid, levIDi, 'units', 'meters'))
+  call nf90_err(nf90_put_att(ncid, levIDi, '_FillValue', fillval))
+  call nf90_err(nf90_put_att(ncid, levIDi, 'positive', 'up'))
+  call nf90_err(nf90_put_att(ncid, levIDi, 'standard_name', 'height'))
+  call nf90_err(nf90_put_att(ncid, levIDi, 'long_name', 'height above ground'))
+
+  ! moves the file from define to data mode
+  call nf90_err(nf90_enddef(ncid))
+
+  call nf90_err(nf90_close(ncid))
+end subroutine create_particles_initialoutput
+
+subroutine write_particles_initialoutput(itime,istart,iend)
+   use particle_mod
+
+   implicit none
+
+   integer, intent(in) ::  &
+      itime,               & ! time of particle release
+      istart,              & ! index of first newly released particle
+      iend                   ! index of last newly released partile
+   integer, allocatable    :: partindices(:),releasetimes(:)
+   integer :: newpart,ncid,j
+
+   newpart = iend-istart
+   call nf90_err(nf90_open(trim(ncfname_partinit), nf90_write, ncid))
+
+   allocate ( partindices(newpart) )
+  
+   do j=1,newpart
+      partindices(j)=j+partinitpointer
+   end do 
+   call nf90_err(nf90_put_var(ncid,partIDi,partindices,(/ partinitpointer+1 /),(/ newpart /)))
+   deallocate (partindices)
+   
+   allocate ( releasetimes(newpart) )
+   releasetimes=itime
+   call nf90_err(nf90_put_var(ncid,tIDi,releasetimes,(/ partinitpointer+1 /),(/ newpart /)))
+   deallocate (releasetimes)
+   call nf90_err(nf90_put_var(ncid,lonIDi,part(partinitpointer+1:iend)%xlon, (/ partinitpointer+1 /),(/ newpart /)))
+   call nf90_err(nf90_put_var(ncid,latIDi,part(partinitpointer+1:iend)%ylat, (/ partinitpointer+1 /),(/ newpart /)))
+   call nf90_err(nf90_put_var(ncid,levIDi,part(partinitpointer+1:iend)%z, (/ partinitpointer+1 /),(/ newpart /)))
+
+   call nf90_err(nf90_close(ncid))
+
+   partinitpointer = partinitpointer+newpart
+end subroutine write_particles_initialoutput
 
 subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease)
 

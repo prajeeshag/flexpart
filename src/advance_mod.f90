@@ -388,9 +388,11 @@ subroutine advance_abovePBL(itime,itimec,dxsave,dysave,&
  
   select case (wind_coord_type)
     case ('ETA')
-      call update_z(ipart,wp*dt*real(ldirect))
-      if (part(ipart)%z.lt.0.) call set_z(ipart,min(h-eps2,-1.*part(ipart)%z))  ! if particle below ground -> reflection
-      call update_z_to_zeta(itime,ipart)
+      if ((.not.turboff).and.(.not.lsettling)) then
+        call update_z(ipart,wp*dt*real(ldirect))
+        if (part(ipart)%z.lt.0.) call set_z(ipart,min(h-eps2,-1.*part(ipart)%z))  ! if particle below ground -> reflection
+        call update_z_to_zeta(itime,ipart)
+      endif
       call update_zeta(ipart,weta*dt*real(ldirect))
       if (part(ipart)%zeta.ge.1.) call set_zeta(ipart,1.-(part(ipart)%zeta-1.))
       if (part(ipart)%zeta.eq.1.) call update_zeta(ipart,-eps_eta)
@@ -532,14 +534,25 @@ subroutine advance_PBL(itime,itimec,&
     dawsave=dawsave+part(ipart)%turbvel%u*dt
     dcwsave=dcwsave+part(ipart)%turbvel%v*dt
     ! How can I change the w to w(eta) efficiently?
-    call update_z(ipart,w*dt*real(ldirect))
+    select case (wind_coord_type)
+      case ('ETA')
+        if ((.not.turboff).and.(.not.lsettling)) then
+          call update_z(ipart,w*dt*real(ldirect))
+          ! HSO/AL: Particle managed to go over highest level -> interpolation error in goto 700
+          !          alias interpol_wind (division by zero)
+          if (zts.ge.height(nz)) call set_z(ipart,height(nz)-100.*eps)
+        else
+          call update_zeta(ipart,weta*dt*real(ldirect))
+          call advance_adjusttopheight(ipart)
+        endif
+      case ('METER')
+        call update_z(ipart,w*dt*real(ldirect))
+        call advance_adjusttopheight(ipart)
+    end select
 
-    ! HSO/AL: Particle managed to go over highest level -> interpolation error in goto 700
-    !          alias interpol_wind (division by zero)
-    if (zts.ge.height(nz)) call set_z(ipart,height(nz)-100.*eps)
-
+    
     if (zts.gt.h) then
-      call update_z_to_zeta(itime,ipart)
+      if ((.not.turboff).and.(.not.lsettling)) call update_z_to_zeta(itime,ipart)
       if (itimec.ne.itime+lsynctime) abovePBL=.true. ! complete the current interval above PBL
       return 
     endif

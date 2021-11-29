@@ -4212,14 +4212,14 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
     !************************************************
     do kz=1,nuvz-1
       if (kz.eq.1) then
-        dpdeta=(akz(kz+1)-akz(kz)+(bkz(kz+1)-bkz(kz))*ps(:,:,1,n))/ &
-          (uvheight(kz+1)-uvheight(kz))
+        dpdeta=(akm(kz+1)-akm(kz)+(bkm(kz+1)-bkm(kz))*ps(:,:,1,n))/ &
+          (wheight(kz+1)-wheight(kz))
       else if (kz.eq.nuvz-1) then
-        dpdeta=(akz(kz)-akz(kz-1)+(bkz(kz)-bkz(kz-1))*ps(:,:,1,n))/ &
-          (uvheight(kz)-uvheight(kz-1))
+        dpdeta=(akm(kz)-akm(kz-1)+(bkm(kz)-bkm(kz-1))*ps(:,:,1,n))/ &
+          (wheight(kz)-wheight(kz-1))
       else
-        dpdeta=(akz(kz+1)-akz(kz)+(bkz(kz+1)-bkz(kz))*ps(:,:,1,n))/ &
-          (uvheight(kz+1)-uvheight(kz))
+        dpdeta=(akm(kz+1)-akm(kz-1)+(bkm(kz+1)-bkm(kz-1))*ps(:,:,1,n))/ &
+          (wheight(kz+1)-wheight(kz-1))
       endif
       wweta(:,:,kz,n)=wwh(:,:,kz)/dpdeta
     end do

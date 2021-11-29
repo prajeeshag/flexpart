@@ -263,7 +263,7 @@ subroutine timemanager(metdata_format)
     if ((ldirect*itime.ge.ldirect*loutstart).and.(ldirect*itime.le.ldirect*loutend)) then
       ! If it is not time yet to write outputs, skip
       !***********************************************
-      if ((itime.eq.loutend).and.(outnum.le.0)) then
+      if ((itime.eq.loutend).and.(outnum.gt.0)) then
 
         if ((iout.eq.4).or.(iout.eq.5)) call plumetraj(itime)
         if (iflux.eq.1) call fluxoutput(itime)

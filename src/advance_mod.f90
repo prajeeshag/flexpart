@@ -536,15 +536,12 @@ subroutine advance_PBL(itime,itimec,&
     ! How can I change the w to w(eta) efficiently?
     select case (wind_coord_type)
       case ('ETA')
-        if ((.not.turboff).and.(.not.lsettling)) then
-          call update_z(ipart,w*dt*real(ldirect))
-          ! HSO/AL: Particle managed to go over highest level -> interpolation error in goto 700
-          !          alias interpol_wind (division by zero)
-          if (zts.ge.height(nz)) call set_z(ipart,height(nz)-100.*eps)
-        else
-          call update_zeta(ipart,weta*dt*real(ldirect))
-          call advance_adjusttopheight(ipart)
-        endif
+        call update_z(ipart,w*dt*real(ldirect))
+        zts=real(part(ipart)%z)
+        ! HSO/AL: Particle managed to go over highest level -> interpolation error in goto 700
+        !          alias interpol_wind (division by zero)
+        if (zts.ge.height(nz)) call set_z(ipart,height(nz)-100.*eps)
+        zts=real(part(ipart)%z)
       case ('METER')
         call update_z(ipart,w*dt*real(ldirect))
         call advance_adjusttopheight(ipart)
@@ -552,7 +549,7 @@ subroutine advance_PBL(itime,itimec,&
 
     
     if (zts.gt.h) then
-      if ((.not.turboff).and.(.not.lsettling)) call update_z_to_zeta(itime,ipart)
+      call update_z_to_zeta(itime,ipart)
       if (itimec.ne.itime+lsynctime) abovePBL=.true. ! complete the current interval above PBL
       return 
     endif

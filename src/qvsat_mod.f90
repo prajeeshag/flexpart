@@ -10,8 +10,13 @@
 !######                                                      ######
 !##################################################################
 !##################################################################
+module qvsat_mod
+  
+  implicit none
 
-function f_qvsat( p, t )
+contains
+
+real function f_qvsat( p, t )
 
   !PURPOSE:
   !
@@ -36,8 +41,7 @@ function f_qvsat( p, t )
 
   real :: p         ! Pressure (Pascal)
   real :: t         ! Temperature (K)
-  real :: f_qvsat   ! Saturation water vapor specific humidity (kg/kg)
-  real :: f_esl,f_esi,fespt
+  real :: fespt
 
   real,parameter ::  rd     = 287.0 ! Gas constant for dry air  (m**2/(s**2*K))
   real,parameter ::  rv     = 461.0 ! Gas constant for water vapor  (m**2/(s**2*K)).
@@ -64,14 +68,12 @@ function f_qvsat( p, t )
 end function f_qvsat
 
 
-function f_esl( p, t )
-
+real function f_esl( p, t )
+  ! Saturation water vapor pressure over liquid water
   implicit none
 
   real :: p         ! Pressure (Pascal)
   real :: t         ! Temperature (K)
-  real :: f_esl     ! Saturation water vapor pressure over liquid water
-
   real :: f
 
   !#######################################################################
@@ -101,14 +103,12 @@ function f_esl( p, t )
   return
 end function f_esl
 
-function f_esi( p, t )
-
+real function f_esi( p, t )
+  ! Saturation water vapor pressure over ice (Pa)
   implicit none
 
   real :: p         ! Pressure (Pascal)
   real :: t         ! Temperature (K)
-  real :: f_esi     ! Saturation water vapor pressure over ice (Pa)
-
   real :: f
 
   !#######################################################################
@@ -147,7 +147,7 @@ real function ew(x,p)
 
   implicit none
 
-  real :: x, y, a, p, f_qvsat!, c, d
+  real :: x, y, a, p !, c, d
 
   ew=0.
   if(x.le.0.) stop 'sorry: t not in [k]'
@@ -191,3 +191,5 @@ real function ew(x,p)
   ! ew=101324.6*(10.**y)       ! Saettigungsdampfdruck in Pa
 
 end function ew
+
+end module qvsat_mod

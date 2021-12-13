@@ -52,13 +52,14 @@ subroutine calcpar(n,uuh,vvh,pvh,metdata_format)
   use class_gribfile
   use drydepo_mod
   use windfields_mod
+  use qvsat_mod
 
   implicit none
 
   integer :: metdata_format
   integer :: n,ix,jy,i,kz,lz,kzmin,llev,loop_start
   real :: ttlev(nuvzmax),qvlev(nuvzmax),obukhov,scalev,ol,hmixplus
-  real :: ulev(nuvzmax),vlev(nuvzmax),ew,rh,vd(maxspec),subsceff,ylat
+  real :: ulev(nuvzmax),vlev(nuvzmax),rh,vd(maxspec),subsceff,ylat
   real :: altmin,tvold,pold,zold,pint,tv,zlev(nuvzmax),hmixdummy,akzdummy
   real :: uuh(0:nxmax-1,0:nymax-1,nuvzmax)
   real :: vvh(0:nxmax-1,0:nymax-1,nuvzmax)
@@ -319,13 +320,14 @@ subroutine calcpar_nests(n,uuhn,vvhn,pvhn,metdata_format)
   use par_mod
   use com_mod
   use drydepo_mod
+  use qvsat_mod
 
   implicit none
 
   integer :: metdata_format
   integer :: n,ix,jy,i,l,kz,lz,kzmin
   real :: ttlev(nuvzmax),qvlev(nuvzmax),obukhov,scalev,ol,hmixplus,dummyakzllev
-  real :: ulev(nuvzmax),vlev(nuvzmax),ew,rh,vd(maxspec),subsceff,ylat
+  real :: ulev(nuvzmax),vlev(nuvzmax),rh,vd(maxspec),subsceff,ylat
   real :: altmin,tvold,pold,zold,pint,tv,zlev(nuvzmax)
   real :: uuhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,maxnests)
   real :: vvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,maxnests)
@@ -419,7 +421,7 @@ subroutine calcpar_nests(n,uuhn,vvhn,pvhn,metdata_format)
 
   ! Calculate relative humidity at surface
   !***************************************
-        rh=ew(td2n(ix,jy,1,n,l))/ew(tt2n(ix,jy,1,n,l))
+        rh=ew(td2n(ix,jy,1,n,l),psn(ix,jy,1,n,l))/ew(tt2n(ix,jy,1,n,l),psn(ix,jy,1,n,l))
 
         call getvdep_nests(n,ix,jy,ustarn(ix,jy,1,n,l), &
              tt2n(ix,jy,1,n,l),psn(ix,jy,1,n,l),1./olin(ix,jy,1,n,l), &
@@ -439,7 +441,7 @@ subroutine calcpar_nests(n,uuhn,vvhn,pvhn,metdata_format)
   ! 1) Calculate altitudes of ECMWF model levels
   !*********************************************
 
-      tvold=tt2n(ix,jy,1,n,l)*(1.+0.378*ew(td2n(ix,jy,1,n,l))/ &
+      tvold=tt2n(ix,jy,1,n,l)*(1.+0.378*ew(td2n(ix,jy,1,n,l),psn(ix,jy,1,n,l))/ &
            psn(ix,jy,1,n,l))
       pold=psn(ix,jy,1,n,l)
       zold=0.
@@ -540,12 +542,13 @@ real function obukhov(ps,tsurf,tdsurf,tlev,ustar,hf,akm,bkm,plev,metdata_format)
 
   use par_mod
   use class_gribfile
+  use qvsat_mod
 
   implicit none
 
   integer :: metdata_format
   real :: akm(nwzmax),bkm(nwzmax)
-  real :: ps,tsurf,tdsurf,tlev,ustar,hf,e,ew,tv,rhoa,plev
+  real :: ps,tsurf,tdsurf,tlev,ustar,hf,e,tv,rhoa,plev
   real :: ak1,bk1,theta,thetastar
 
 
@@ -622,16 +625,17 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
 
   use par_mod
   use class_gribfile
+  use qvsat_mod
 
   implicit none
 
   integer :: metdata_format
   integer :: i,k,nuvz,iter,llev,loop_start
   real :: tv,tvold,zref,z,zold,pint,pold,theta,thetaref,ri
-  real :: akz(nuvz),bkz(nuvz),ulev(nuvz),vlev(nuvz),hf,wst,tt2,td2,ew
+  real :: akz(nuvz),bkz(nuvz),ulev(nuvz),vlev(nuvz),hf,wst,tt2,td2
   real :: psurf,ust,ttlev(nuvz),qvlev(nuvz),h,excess
   real :: thetaold,zl,ul,vl,thetal,ril,hmixplus,wspeed,bvfsq,bvf
-  real :: f_qvsat,rh,rhold,rhl,theta1,theta2,zl1,zl2,thetam
+  real :: rh,rhold,rhl,theta1,theta2,zl1,zl2,thetam
   real,parameter    :: const=r_air/ga, ric=0.25, b=100., bs=8.5
   integer,parameter :: itmax=3
 
@@ -787,10 +791,11 @@ real function scalev(ps,t,td,stress)
   !********************************************************************
   
   use par_mod
+  use qvsat_mod
 
   implicit none
 
-  real :: ps,t,td,e,ew,tv,rhoa,stress
+  real :: ps,t,td,e,tv,rhoa,stress
 
   e=ew(td,ps)                       ! vapor pressure
   tv=t*(1.+0.378*e/ps)           ! virtual temperature

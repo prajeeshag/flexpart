@@ -2502,6 +2502,7 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
   !***********************************************************************
 
   use grib_api
+  use qvsat_mod
 
   implicit none
 
@@ -2518,7 +2519,7 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
 
   ! NCEP
   integer :: numpt,numpu,numpv,numpw,numprh,numpclwch
-  real :: help, temp, ew
+  real :: help, temp
   real :: elev
   real :: ulev1(0:nxmax-1,0:nymax-1),vlev1(0:nxmax-1,0:nymax-1)
   real :: tlev1(0:nxmax-1,0:nymax-1)
@@ -3075,7 +3076,7 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
         help=qvh(i,j,k,n)
         temp=tth(i,j,k,n)
         plev1=akm(k)+bkm(k)*ps(i,j,1,n)
-        elev=ew(temp)*help/100.0
+        elev=ew(temp,plev1)*help/100.0
         qvh(i,j,k,n)=xmwml*(elev/(plev1-((1.0-xmwml)*elev)))
       end do
     end do
@@ -3089,7 +3090,8 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
     do i=0,nxfield-1
         help=qvh2(i,j)
         temp=tt2(i,j,1,n)
-        elev=ew(temp)/100.*help/100.   !vapour pressure in hPa
+        plev1=akm(k)+bkm(k)*ps(i,j,1,n)
+        elev=ew(temp,plev1)/100.*help/100.   !vapour pressure in hPa
         td2(i,j,1,n)=243.5/(17.67/log(elev/6.112)-1)+273.
         if (help.le.0.) td2(i,j,1,n)=tt2(i,j,1,n)
     end do
@@ -3791,6 +3793,7 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
   use par_mod
   use com_mod
   use cmapf_mod, only: cc2gll
+  use qvsat_mod
 
   implicit none
 
@@ -3807,8 +3810,8 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
   integer,dimension(0:nxmax-1,0:nymax-1) :: rain_cloud_above,idx
 
   integer :: ix,jy,kz,iz,n,kmin,ix1,jy1,ixp,jyp,ixm,jym,kz_inv
-  real :: f_qvsat,pressure,rh,lsp,convp,cloudh_min,prec
-  real :: ew,dz1,dz2,dz
+  real :: pressure,rh,lsp,convp,cloudh_min,prec
+  real :: dz1,dz2,dz
   real :: xlon,ylat,xlonr,dzdx,dzdy
   real :: dzdx1,dzdx2,dzdy1,dzdy2
   real :: uuaux,vvaux,uupolaux,vvpolaux,ddpol,ffpol,wdummy
@@ -4609,15 +4612,16 @@ subroutine verttransform_gfs(n,uuh,vvh,wwh,pvh)
   use par_mod
   use com_mod
   use cmapf_mod
+  use qvsat_mod
 
   implicit none
 
   integer :: ix,jy,kz,iz,n,kmin,kl,klp,ix1,jy1,ixp,jyp,ixm,jym
   integer :: rain_cloud_above,kz_inv
-  real :: f_qvsat,pressure
+  real :: pressure
   real :: rh,lsp,cloudh_min,convp,prec
   real :: rhoh(nuvzmax),pinmconv(nzmax)
-  real :: ew,pint,tv,tvold,pold,dz1,dz2,dz,ui,vi
+  real :: pint,tv,tvold,pold,dz1,dz2,dz,ui,vi
   real :: xlon,ylat,xlonr,dzdx,dzdy
   real :: dzdx1,dzdx2,dzdy1,dzdy2,cosf
   real :: uuaux,vvaux,uupolaux,vvpolaux,ddpol,ffpol,wdummy
@@ -4658,8 +4662,8 @@ subroutine verttransform_gfs(n,uuh,vvh,wwh,pvh)
 3   continue
 
 
-    tvold=tt2(ixm,jym,1,n)*(1.+0.378*ew(td2(ixm,jym,1,n))/ &
-    ps(ixm,jym,1,n))
+    tvold=tt2(ixm,jym,1,n)*(1.+0.378*ew(td2(ixm,jym,1,n),ps(ixm,jym,1,n))/ &
+      ps(ixm,jym,1,n))
     pold=ps(ixm,jym,1,n)
     height(1)=0.
 
@@ -5207,6 +5211,7 @@ subroutine verttransform_nests(n,uuhn,vvhn,wwhn,pvhn)
 
   use par_mod
   use com_mod
+  use qvsat_mod
 
   implicit none
 
@@ -5221,9 +5226,9 @@ subroutine verttransform_nests(n,uuhn,vvhn,wwhn,pvhn)
   integer,dimension(0:nxmaxn-1,0:nymaxn-1) :: rain_cloud_above, idx
 
   integer :: ix,jy,kz,iz,n,l,kmin,kl,klp,ix1,jy1,ixp,jyp,kz_inv
-  real :: f_qvsat,pressure,rh,lsp,convp,cloudh_min,prec
+  real :: pressure,rh,lsp,convp,cloudh_min,prec
 
-  real :: ew,dz1,dz2,dz
+  real :: dz1,dz2,dz
   real :: dzdx,dzdy
   real :: dzdx1,dzdx2,dzdy1,dzdy2
   real,parameter :: const=r_air/ga
@@ -5244,7 +5249,7 @@ subroutine verttransform_nests(n,uuhn,vvhn,wwhn,pvhn)
 
     do jy=0,nyn(l)-1
       do ix=0,nxn(l)-1
-        tvold(ix,jy)=tt2n(ix,jy,1,n,l)*(1.+0.378*ew(td2n(ix,jy,1,n,l))/ &
+        tvold(ix,jy)=tt2n(ix,jy,1,n,l)*(1.+0.378*ew(td2n(ix,jy,1,n,l),psn(ix,jy,1,n,l))/ &
              psn(ix,jy,1,n,l))
       end do
     end do

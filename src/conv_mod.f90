@@ -440,6 +440,7 @@ subroutine calcmatrix(lconv,delt,cbmf,metdata_format)
   use par_mod
   use com_mod
   use class_gribfile
+  use qvsat_mod
 
   implicit none
 
@@ -451,7 +452,7 @@ subroutine calcmatrix(lconv,delt,cbmf,metdata_format)
   !1-d variables for convection
   !variables for redistribution matrix
   real :: cbmfold, precip, qprime
-  real :: tprime, wd, f_qvsat
+  real :: tprime, wd
   real :: delt,cbmf
   logical :: lconv
 
@@ -585,6 +586,7 @@ subroutine redist (itime,ipart,ktop,ipconv)
   use interpol_mod
   use coordinates_ecmwf
   use particle_mod
+  use qvsat_mod
 
   implicit none
 
@@ -597,7 +599,7 @@ subroutine redist (itime,ipart,ktop,ipconv)
   real :: temp_levold,temp_levold1
   real :: sub_levold,sub_levold1
   real :: pint, pold, rn, tv, tvold, dlevfrac
-  real :: ew,ztold,ffraction
+  real :: ztold,ffraction
   real :: tv1, tv2, dlogp, dz, dz1, dz2
   save :: iseed, uvzlev
   integer :: iseed = -88

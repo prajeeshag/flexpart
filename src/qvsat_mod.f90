@@ -13,6 +13,9 @@
 module qvsat_mod
   
   implicit none
+  private
+
+  public :: f_qvsat, ew
 
 contains
 

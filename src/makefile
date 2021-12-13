@@ -108,7 +108,7 @@ conccalc.o \
 FLEXPART.o	\
 assignland.o \
 caldate.o               \
-coordtrafo.o            psih.o \
+psih.o \
 psim.o			\
 pbl_profile.o \
 juldate.o               \
@@ -159,7 +159,6 @@ conccalc.o: com_mod.o outg_mod.o par_mod.o unc_mod.o coordinates_ecmwf.o particl
 conv_mod.o: par_mod.o com_mod.o flux_mod.o par_mod.o particle_mod.o class_gribfile_mod.o \
 	random_mod.o interpol_mod.o coordinates_ecmwf.o windfields_mod.o qvsat_mod.o
 coordinates_ecmwf.o: par_mod.o com_mod.o interpol_mod.o particle_mod.o windfields_mod.o
-coordtrafo.o: com_mod.o par_mod.o point_mod.o
 detectformat.o: com_mod.o par_mod.o
 drydepo_mod.o: com_mod.o par_mod.o unc_mod.o interpol_mod.o point_mod.o windfields_mod.o
 FLEXPART.o: com_mod.o conv_mod.o netcdf_output_mod.o par_mod.o point_mod.o \
@@ -186,6 +185,7 @@ partoutput.o: com_mod.o par_mod.o interpol_mod.o coordinates_ecmwf.o netcdf_outp
 pbl_profile.o: par_mod.o qvsat_mod.o
 plume_mod.o: com_mod.o mean_mod.o par_mod.o point_mod.o particle_mod.o coordinates_ecmwf.o \
 	windfields_mod.o
+point_mod.o: com_mod.o par_mod.o
 psih.o: par_mod.o
 psim.o: par_mod.o
 readoptions.o: com_mod.o par_mod.o drydepo_mod.o

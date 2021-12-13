@@ -10,6 +10,7 @@ module advance_mod
   use coordinates_ecmwf
   use particle_mod
   use turbulence_mod
+  use settling_mod
 
   implicit none 
     real, parameter ::              &

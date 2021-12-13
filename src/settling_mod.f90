@@ -1,5 +1,12 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
+module settling_mod
+  
+  implicit none
+
+  private :: viscosity
+  public :: get_settling
+contains
 
 subroutine get_settling(itime,xt,yt,zt,nsp,settling)
   !                          i   i  i  i   i     o
@@ -41,7 +48,7 @@ subroutine get_settling(itime,xt,yt,zt,nsp,settling)
 
   ! Auxiliary variables needed for interpolation
   real :: dz1,dz2,dz
-  real :: rho1(2),tt1(2),temperature,airdens,vis_dyn,vis_kin,viscosity
+  real :: rho1(2),tt1(2),temperature,airdens,vis_dyn,vis_kin
   real :: settling,settling_old,reynolds,c_d
   integer :: i,n,nix,njy,indzh,nsp
 
@@ -135,3 +142,5 @@ real function viscosity(t)
   return
 
 end function viscosity
+
+end module settling_mod

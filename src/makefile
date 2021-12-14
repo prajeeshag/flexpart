@@ -107,7 +107,6 @@ OBJECTS = \
 FLEXPART.o	\
 psih.o \
 psim.o			\
-pbl_profile.o \
 detectformat.o  \
 initial_cond_calc.o     \
 cbl.o 
@@ -174,7 +173,6 @@ outg_mod.o: par_mod.o com_mod.o oh_mod.o par_mod.o unc_mod.o windfields_mod.o
 output_mod.o: com_mod.o par_mod.o interpol_mod.o coordinates_ecmwf.o netcdf_output_mod.o \
 	particle_mod.o date_mod.o binary_output_mod.o txt_output_mod.o outg_mod.o unc_mod.o
 particle_mod.o: com_mod.o par_mod.o
-pbl_profile.o: par_mod.o qvsat_mod.o
 plume_mod.o: com_mod.o mean_mod.o par_mod.o point_mod.o particle_mod.o coordinates_ecmwf.o \
 	windfields_mod.o
 point_mod.o: com_mod.o par_mod.o

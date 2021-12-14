@@ -104,7 +104,6 @@ date_mod.o 		output_mod.o
 OBJECTS_NCF = netcdf_output_mod.o
 
 OBJECTS = \
-conccalc.o \
 FLEXPART.o	\
 assignland.o \
 psih.o \
@@ -150,7 +149,6 @@ binary_output_mod.o: com_mod.o mean_mod.o outg_mod.o par_mod.o point_mod.o unc_m
 cbl.o: com_mod.o par_mod.o random_mod.o
 cmapf_mod.o: par_mod.o
 com_mod.o: par_mod.o
-conccalc.o: com_mod.o outg_mod.o par_mod.o unc_mod.o coordinates_ecmwf.o particle_mod.o
 conv_mod.o: par_mod.o com_mod.o flux_mod.o par_mod.o particle_mod.o class_gribfile_mod.o \
 	random_mod.o interpol_mod.o coordinates_ecmwf.o windfields_mod.o qvsat_mod.o
 coordinates_ecmwf.o: par_mod.o com_mod.o interpol_mod.o particle_mod.o windfields_mod.o
@@ -176,7 +174,7 @@ netcdf_output_mod.o: com_mod.o mean_mod.o outg_mod.o par_mod.o point_mod.o \
 oh_mod.o: com_mod.o par_mod.o date_mod.o particle_mod.o windfields_mod.o
 outg_mod.o: par_mod.o com_mod.o oh_mod.o par_mod.o unc_mod.o windfields_mod.o
 output_mod.o: com_mod.o par_mod.o interpol_mod.o coordinates_ecmwf.o netcdf_output_mod.o \
-	particle_mod.o date_mod.o binary_output_mod.o txt_output_mod.o
+	particle_mod.o date_mod.o binary_output_mod.o txt_output_mod.o outg_mod.o unc_mod.o
 particle_mod.o: com_mod.o par_mod.o
 pbl_profile.o: par_mod.o qvsat_mod.o
 plume_mod.o: com_mod.o mean_mod.o par_mod.o point_mod.o particle_mod.o coordinates_ecmwf.o \

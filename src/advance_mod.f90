@@ -614,11 +614,7 @@ subroutine advance_PettersonCorrection(itime,ipart)
   ! Interpolate wind at new position and time
   !******************************************
 
-  if (ngrid.le.0) then
-    call interpol_wind_short(itime+part(ipart)%idt*ldirect,xts,yts,zts,ztseta)
-  else
-    call interpol_wind_short_nests(itime+part(ipart)%idt*ldirect,xtn,ytn,zts)
-  endif
+  call interpol_wind_short(itime+part(ipart)%idt*ldirect,xts,yts,zts,ztseta)
 
   if (mdomainfill.eq.0) then
     if (lsettling) then

@@ -390,7 +390,7 @@ subroutine bilinear_horizontal_interpolation_nests(field,output,zlevel,ztot)
   implicit none
 
   integer, intent(in) :: zlevel,ztot                                       ! interpolation z level, z
-  real, intent(in)    :: field(0:nxmax-1,0:nymax-1,ztot,numwfmem,maxnests) ! input field to interpolate over
+  real, intent(in)    :: field(0:nxmax-1,0:nymax-1,ztot,numwfmem,numbnests) ! input field to interpolate over
   real, intent(inout) :: output(2)                                         ! interpolated values
   integer             :: m, indexh
 
@@ -432,12 +432,12 @@ end subroutine bilinear_spatial_interpolation
 subroutine bilinear_spatial_interpolation_nests(field,output,zlevel,dz1,dz2,ztot)
   implicit none
   integer, intent(in) :: zlevel,ztot                                        ! interpolation z level
-  real, intent(in)    :: field(0:nxmax-1,0:nymax-1,ztot,numwfmem,maxnests)  ! input field to interpolate over
+  real, intent(in)    :: field(0:nxmax-1,0:nymax-1,ztot,numwfmem,numbnests)  ! input field to interpolate over
   real, intent(in)    :: dz1,dz2
   real, intent(inout) :: output(2)                                          ! interpolated values
   integer             :: m,n,indexh,indzh
   real                :: output1(2)
-
+  
   do m=1,2
     indexh=memind(m)
     do n=1,2
@@ -815,14 +815,23 @@ subroutine interpol_wind_short(itime,xt,yt,zt,zteta)
   !**********************************************************
   select case (wind_coord_type)
     case ('ETA')
-      call interpol_wind_short_eta(zt,zteta)
-      call interpol_wind_short_eta_nests(zt,zteta)
+      if (ngrid.le.0) then
+        call interpol_wind_short_eta(zt,zteta)
+      else
+        call interpol_wind_short_eta_nests(zt,zteta)
+      endif
     case ('METER')
-      call interpol_wind_short_meter(zt)
-      call interpol_wind_short_meter_nests(zt)
+      if (ngrid.le.0) then
+        call interpol_wind_short_meter(zt)
+      else
+        call interpol_wind_short_meter_nests(zt)
+      endif
     case default
-      call interpol_wind_short_meter(zt)
-      call interpol_wind_short_meter_nests(zt)
+      if (ngrid.le.0) then
+        call interpol_wind_short_meter(zt)
+      else
+        call interpol_wind_short_meter_nests(zt)
+      endif
   end select
 end subroutine interpol_wind_short
 

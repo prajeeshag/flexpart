@@ -1847,6 +1847,13 @@ subroutine readreceptors
     return
   endif
 
+  ! If receptors are switched off, return and set number of receptors to zero
+  !**************************************************************************
+  if (ind_receptor.eq.0) then
+    numreceptor=0
+    return
+  endif
+
   ! Open the RECEPTORS file and read output grid specifications
   !************************************************************
 

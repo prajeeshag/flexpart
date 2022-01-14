@@ -27,7 +27,7 @@
  IFLUX=                 0, ! Output of mass fluxes through output grid box boundaries
  MDOMAINFILL=           0, ! Switch for domain-filling, if limited-area particles generated at boundary
  IND_SOURCE=            1, ! Unit to be used at the source; [1]mass 2]mass mixing ratio 
- IND_RECEPTOR=          1, ! Unit to be used at the receptor; [1]mass 2]mass mixing ratio 3]wet depo. 4]dry depo.
+ IND_RECEPTOR=          1, ! Unit to be used at the receptor; [0]no receptor [1]mass 2]mass mixing ratio 3]wet depo. 4]dry depo.
  MQUASILAG=             0, ! Quasi-Lagrangian mode to track individual numbered particles 
  NESTED_OUTPUT=         0, ! Output also for a nested domain 
  LINIT_COND=            0, ! Output sensitivity to initial conditions (bkw mode only) [0]off 1]conc 2]mmr 

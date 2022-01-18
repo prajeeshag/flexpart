@@ -1259,21 +1259,18 @@ subroutine calcpar_nests(n)
   !    thermal tropopause criterion
   !************************************************************************
 
-      do kz=kzmin,nuvz
-        do lz=kz+1,nuvz
+      kzloop : do kz=kzmin,nuvz
+        lzloop : do lz=kz+1,nuvz
           if ((zlev(lz)-zlev(kz)).gt.2000.) then
             if (((tthn(ix,jy,kz,n,l)-tthn(ix,jy,lz,n,l))/ &
                  (zlev(lz)-zlev(kz))).lt.0.002) then
               tropopausen(ix,jy,1,n,l)=zlev(kz)
-              goto 51
+              exit kzloop
             endif
-            goto 50
+            exit lzloop
           endif
-        end do
-50      continue
-      end do
-51    continue
-
+        end do lzloop
+      end do kzloop
 
     end do
   end do

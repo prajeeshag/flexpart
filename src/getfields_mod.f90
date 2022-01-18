@@ -310,8 +310,8 @@ subroutine calcpv(n)
 !$OMP jj,j,uy,dudy)
 !$OMP DO
   do jy=0,nymin1
-    if (sglobal.and.jy.eq.0) goto 10
-    if (nglobal.and.jy.eq.nymin1) goto 10
+    if (sglobal.and.jy.eq.0) cycle
+    if (nglobal.and.jy.eq.nymin1) cycle
     phi = (ylat0 + jy * dy) * pi / 180.
     f = 0.00014585 * sin(phi)
     tanphi = tan(phi)
@@ -376,7 +376,7 @@ subroutine calcpv(n)
   !*****************************************************************
   ! a) in x direction
         ii=0
-        do i=ixvm,ixvp,jumpx
+        x_loop: do i=ixvm,ixvp,jumpx
           ivr=i
           if (xglobal) then
              if (i.lt.0) ivr=ivr+nxmin1
@@ -388,62 +388,59 @@ subroutine calcpv(n)
           kup=klpt-1
           kdn=klpt
           kch=0
-40        continue
+          x_lev_loop: do while (kch.lt.nlck)
   ! Upward branch
-          kup=kup+1
-          if (kch.ge.nlck) goto 21     ! No more levels to check,
-  !                                       ! and no values found
-          if (kup.ge.nuvz) goto 41
-          kch=kch+1
-          k=kup
-          thdn=tth(ivr,jy,k,n)*ppmk(ivr,jy,k)
-          thup=tth(ivr,jy,k+1,n)*ppmk(ivr,jy,k+1)
+            kup=kup+1
+            if (kup.lt.nuvz) then
+              kch=kch+1
+              k=kup
+              thdn=tth(ivr,jy,k,n)*ppmk(ivr,jy,k)
+              thup=tth(ivr,jy,k+1,n)*ppmk(ivr,jy,k+1)
 
 
-          if (((thdn.ge.theta).and.(thup.le.theta)).or. &
-          ((thdn.le.theta).and.(thup.ge.theta))) then
-            dt1=abs(theta-thdn)
-            dt2=abs(theta-thup)
-            dt=dt1+dt2
-            if (dt.lt.eps) then   ! Avoid division by zero error
-              dt1=0.5             ! G.W., 10.4.1996
-              dt2=0.5
-              dt=1.0
+              if (((thdn.ge.theta).and.(thup.le.theta)).or. &
+              ((thdn.le.theta).and.(thup.ge.theta))) then
+                dt1=abs(theta-thdn)
+                dt2=abs(theta-thup)
+                dt=dt1+dt2
+                if (dt.lt.eps) then   ! Avoid division by zero error
+                  dt1=0.5             ! G.W., 10.4.1996
+                  dt2=0.5
+                  dt=1.0
+                endif
+                vx(ii)=(vvh(ivr,jy,k)*dt2+vvh(ivr,jy,k+1)*dt1)/dt
+                cycle x_loop
+              endif
             endif
-            vx(ii)=(vvh(ivr,jy,k)*dt2+vvh(ivr,jy,k+1)*dt1)/dt
-            goto 20
-          endif
-41        continue
-  ! Downward branch
-          kdn=kdn-1
-          if (kdn.lt.1) goto 40
-          kch=kch+1
-          k=kdn
-          thdn=tth(ivr,jy,k,n)*ppmk(ivr,jy,k)
-          thup=tth(ivr,jy,k+1,n)*ppmk(ivr,jy,k+1)
+    ! Downward branch
+            kdn=kdn-1
+            if (kdn.ge.1) then
+              kch=kch+1
+              k=kdn
+              thdn=tth(ivr,jy,k,n)*ppmk(ivr,jy,k)
+              thup=tth(ivr,jy,k+1,n)*ppmk(ivr,jy,k+1)
 
-          if (((thdn.ge.theta).and.(thup.le.theta)).or. &
-          ((thdn.le.theta).and.(thup.ge.theta))) then
-            dt1=abs(theta-thdn)
-            dt2=abs(theta-thup)
-            dt=dt1+dt2
-            if (dt.lt.eps) then   ! Avoid division by zero error
-              dt1=0.5             ! G.W., 10.4.1996
-              dt2=0.5
-              dt=1.0
+              if (((thdn.ge.theta).and.(thup.le.theta)).or. &
+              ((thdn.le.theta).and.(thup.ge.theta))) then
+                dt1=abs(theta-thdn)
+                dt2=abs(theta-thup)
+                dt=dt1+dt2
+                if (dt.lt.eps) then   ! Avoid division by zero error
+                  dt1=0.5             ! G.W., 10.4.1996
+                  dt2=0.5
+                  dt=1.0
+                endif
+                vx(ii)=(vvh(ivr,jy,k)*dt2+vvh(ivr,jy,k+1)*dt1)/dt
+                cycle x_loop
+              endif
             endif
-            vx(ii)=(vvh(ivr,jy,k)*dt2+vvh(ivr,jy,k+1)*dt1)/dt
-            goto 20
-          endif
-          goto 40
-  ! This section used when no values were found
-21        continue
+          end do x_lev_loop
+    ! This section used when no values were found
   ! Must use vv at current level and long. jux becomes smaller by 1
           vx(ii)=vvh(ix,jy,kl)
           jux=jux-1
   ! Otherwise OK
-20        continue
-        end do
+        end do x_loop
         if (jux.gt.0) then
           dvdx=(vx(2)-vx(1))/real(jux)/(dx*pi/180.)
         else
@@ -457,82 +454,78 @@ subroutine calcpv(n)
   ! b) in y direction
 
         jj=0
-        do j=jyvm,jyvp,jumpy
+        y_loop: do j=jyvm,jyvp,jumpy
           jj=jj+1
   ! Search adjacent levels for current theta value
   ! Spiral out from current level for efficiency
           kup=klpt-1
           kdn=klpt
           kch=0
-70        continue
+          y_lev_loop: do while (kch.lt.nlck)
   ! Upward branch
-          kup=kup+1
-          if (kch.ge.nlck) goto 51     ! No more levels to check,
-  !                                     ! and no values found
-          if (kup.ge.nuvz) goto 71
-          kch=kch+1
-          k=kup
-          thdn=tth(ix,j,k,n)*ppmk(ix,j,k)
-          thup=tth(ix,j,k+1,n)*ppmk(ix,j,k+1)
-          if (((thdn.ge.theta).and.(thup.le.theta)).or. &
-          ((thdn.le.theta).and.(thup.ge.theta))) then
-            dt1=abs(theta-thdn)
-            dt2=abs(theta-thup)
-            dt=dt1+dt2
-            if (dt.lt.eps) then   ! Avoid division by zero error
-              dt1=0.5             ! G.W., 10.4.1996
-              dt2=0.5
-              dt=1.0
+            kup=kup+1
+            if (kup.lt.nuvz) then
+              kch=kch+1
+              k=kup
+              thdn=tth(ix,j,k,n)*ppmk(ix,j,k)
+              thup=tth(ix,j,k+1,n)*ppmk(ix,j,k+1)
+              if (((thdn.ge.theta).and.(thup.le.theta)).or. &
+              ((thdn.le.theta).and.(thup.ge.theta))) then
+                dt1=abs(theta-thdn)
+                dt2=abs(theta-thup)
+                dt=dt1+dt2
+                if (dt.lt.eps) then   ! Avoid division by zero error
+                  dt1=0.5             ! G.W., 10.4.1996
+                  dt2=0.5
+                  dt=1.0
+                endif
+                uy(jj)=(uuh(ix,j,k)*dt2+uuh(ix,j,k+1)*dt1)/dt
+                cycle y_loop
+              endif
             endif
-            uy(jj)=(uuh(ix,j,k)*dt2+uuh(ix,j,k+1)*dt1)/dt
-            goto 50
-          endif
-71        continue
-  ! Downward branch
-          kdn=kdn-1
-          if (kdn.lt.1) goto 70
-          kch=kch+1
-          k=kdn
-          thdn=tth(ix,j,k,n)*ppmk(ix,j,k)
-          thup=tth(ix,j,k+1,n)*ppmk(ix,j,k+1)
-          if (((thdn.ge.theta).and.(thup.le.theta)).or. &
-          ((thdn.le.theta).and.(thup.ge.theta))) then
-            dt1=abs(theta-thdn)
-            dt2=abs(theta-thup)
-            dt=dt1+dt2
-            if (dt.lt.eps) then   ! Avoid division by zero error
-              dt1=0.5             ! G.W., 10.4.1996
-              dt2=0.5
-              dt=1.0
+    ! Downward branch
+            kdn=kdn-1
+            if (kdn.ge.1) then
+              kch=kch+1
+              k=kdn
+              thdn=tth(ix,j,k,n)*ppmk(ix,j,k)
+              thup=tth(ix,j,k+1,n)*ppmk(ix,j,k+1)
+              if (((thdn.ge.theta).and.(thup.le.theta)).or. &
+              ((thdn.le.theta).and.(thup.ge.theta))) then
+                dt1=abs(theta-thdn)
+                dt2=abs(theta-thup)
+                dt=dt1+dt2
+                if (dt.lt.eps) then   ! Avoid division by zero error
+                  dt1=0.5             ! G.W., 10.4.1996
+                  dt2=0.5
+                  dt=1.0
+                endif
+                uy(jj)=(uuh(ix,j,k)*dt2+uuh(ix,j,k+1)*dt1)/dt
+                cycle y_loop
+              endif
             endif
-            uy(jj)=(uuh(ix,j,k)*dt2+uuh(ix,j,k+1)*dt1)/dt
-            goto 50
-          endif
-          goto 70
+          end do y_lev_loop
   ! This section used when no values were found
-51        continue
   ! Must use uu at current level and lat. juy becomes smaller by 1
           uy(jj)=uuh(ix,jy,kl)
           juy=juy-1
   ! Otherwise OK
-50        continue
-        end do
-      if (juy.gt.0) then
-      dudy=(uy(2)-uy(1))/real(juy)/(dy*pi/180.)
-      else
-      dudy=uuh(ix,jyvp,kl)-uuh(ix,jyvm,kl)
-      dudy=dudy/real(jumpy)/(dy*pi/180.)
-      end if
-  !
-      pvh(ix,jy,kl)=dthetadp*(f+(dvdx/cosphi-dudy &
-           +uuh(ix,jy,kl)*tanphi)/r_earth)*(-1.e6)*9.81
+        end do y_loop
+        if (juy.gt.0) then
+          dudy=(uy(2)-uy(1))/real(juy)/(dy*pi/180.)
+        else
+          dudy=uuh(ix,jyvp,kl)-uuh(ix,jyvm,kl)
+          dudy=dudy/real(jumpy)/(dy*pi/180.)
+        end if
+    !
+        pvh(ix,jy,kl)=dthetadp*(f+(dvdx/cosphi-dudy &
+             +uuh(ix,jy,kl)*tanphi)/r_earth)*(-1.e6)*9.81
   !
   ! Resest jux and juy
-      jux=jumpx
-      juy=jumpy
+        jux=jumpx
+        juy=jumpy
       end do
     end do
-10  continue
   end do
 !$OMP END DO 
 !$OMP END PARALLEL
@@ -662,7 +655,7 @@ subroutine calcpv_nests(l,n)
   !*****************************************************************
   ! a) in x direction
         ii=0
-        do i=ixvm,ixvp,jumpx
+        x_loop: do i=ixvm,ixvp,jumpx
           ivr=i
           ii=ii+1
   ! Search adjacent levels for current theta value
@@ -670,146 +663,141 @@ subroutine calcpv_nests(l,n)
           kup=klpt-1
           kdn=klpt
           kch=0
-40        continue
+          x_lev_loop: do while (kch.lt.nlck)
   ! Upward branch
-          kup=kup+1
-          if (kch.ge.nlck) goto 21     ! No more levels to check,
-  !                                       ! and no values found
-          if (kup.ge.nuvz) goto 41
-          kch=kch+1
-          k=kup
-          thdn=tthn(ivr,jy,k,n,l)*ppmk(ivr,jy,k)
-          thup=tthn(ivr,jy,k+1,n,l)*ppmk(ivr,jy,k+1)
+            kup=kup+1
+            if (kup.lt.nuvz) then
+              kch=kch+1
+              k=kup
+              thdn=tthn(ivr,jy,k,n,l)*ppmk(ivr,jy,k)
+              thup=tthn(ivr,jy,k+1,n,l)*ppmk(ivr,jy,k+1)
 
-      if (((thdn.ge.theta).and.(thup.le.theta)).or. &
-           ((thdn.le.theta).and.(thup.ge.theta))) then
-              dt1=abs(theta-thdn)
-              dt2=abs(theta-thup)
-              dt=dt1+dt2
-              if (dt.lt.eps) then   ! Avoid division by zero error
-                dt1=0.5             ! G.W., 10.4.1996
-                dt2=0.5
-                dt=1.0
+              if (((thdn.ge.theta).and.(thup.le.theta)).or. &
+              ((thdn.le.theta).and.(thup.ge.theta))) then
+                dt1=abs(theta-thdn)
+                dt2=abs(theta-thup)
+                dt=dt1+dt2
+                if (dt.lt.eps) then   ! Avoid division by zero error
+                  dt1=0.5             ! G.W., 10.4.1996
+                  dt2=0.5
+                  dt=1.0
+                endif
+                vx(ii)=(vvhn(ivr,jy,k,l)*dt2+vvhn(ivr,jy,k+1,l)*dt1)/dt
+                cycle x_loop
               endif
-    vx(ii)=(vvhn(ivr,jy,k,l)*dt2+vvhn(ivr,jy,k+1,l)*dt1)/dt
-              goto 20
             endif
-41        continue
   ! Downward branch
-          kdn=kdn-1
-          if (kdn.lt.1) goto 40
-          kch=kch+1
-          k=kdn
-          thdn=tthn(ivr,jy,k,n,l)*ppmk(ivr,jy,k)
-          thup=tthn(ivr,jy,k+1,n,l)*ppmk(ivr,jy,k+1)
-      if (((thdn.ge.theta).and.(thup.le.theta)).or. &
-           ((thdn.le.theta).and.(thup.ge.theta))) then
-              dt1=abs(theta-thdn)
-              dt2=abs(theta-thup)
-              dt=dt1+dt2
-              if (dt.lt.eps) then   ! Avoid division by zero error
-                dt1=0.5             ! G.W., 10.4.1996
-                dt2=0.5
-                dt=1.0
+            kdn=kdn-1
+            if (kdn.ge.1) then
+              kch=kch+1
+              k=kdn
+              thdn=tthn(ivr,jy,k,n,l)*ppmk(ivr,jy,k)
+              thup=tthn(ivr,jy,k+1,n,l)*ppmk(ivr,jy,k+1)
+              
+              if (((thdn.ge.theta).and.(thup.le.theta)).or. &
+              ((thdn.le.theta).and.(thup.ge.theta))) then
+                dt1=abs(theta-thdn)
+                dt2=abs(theta-thup)
+                dt=dt1+dt2
+                if (dt.lt.eps) then   ! Avoid division by zero error
+                  dt1=0.5             ! G.W., 10.4.1996
+                  dt2=0.5
+                  dt=1.0
+                endif
+                vx(ii)=(vvhn(ivr,jy,k,l)*dt2+vvhn(ivr,jy,k+1,l)*dt1)/dt
+                cycle x_loop
               endif
-    vx(ii)=(vvhn(ivr,jy,k,l)*dt2+vvhn(ivr,jy,k+1,l)*dt1)/dt
-              goto 20
             endif
-            goto 40
+          end do x_lev_loop
   ! This section used when no values were found
-21      continue
   ! Must use vv at current level and long. jux becomes smaller by 1
-        vx(ii)=vvhn(ix,jy,kl,l)
-        jux=jux-1
+          vx(ii)=vvhn(ix,jy,kl,l)
+          jux=jux-1
   ! Otherwise OK
-20        continue
-        end do
-      if (jux.gt.0) then
-      dvdx=(vx(2)-vx(1))/real(jux)/(dxn(l)*pi/180.)
-      else
-      dvdx=vvhn(ivrp,jy,kl,l)-vvhn(ivrm,jy,kl,l)
-      dvdx=dvdx/real(jumpx)/(dxn(l)*pi/180.)
+        end do x_loop
+        if (jux.gt.0) then
+          dvdx=(vx(2)-vx(1))/real(jux)/(dxn(l)*pi/180.)
+        else
+          dvdx=vvhn(ivrp,jy,kl,l)-vvhn(ivrm,jy,kl,l)
+          dvdx=dvdx/real(jumpx)/(dxn(l)*pi/180.)
   ! Only happens if no equivalent theta value
   ! can be found on either side, hence must use values
   ! from either side, same pressure level.
-      end if
+        end if
 
   ! b) in y direction
 
         jj=0
-        do j=jyvm,jyvp,jumpy
+        y_loop: do j=jyvm,jyvp,jumpy
           jj=jj+1
   ! Search adjacent levels for current theta value
   ! Spiral out from current level for efficiency
           kup=klpt-1
           kdn=klpt
           kch=0
-70        continue
+          y_lev_loop: do while (kch.lt.nlck)
   ! Upward branch
-          kup=kup+1
-          if (kch.ge.nlck) goto 51     ! No more levels to check,
-  !                                     ! and no values found
-          if (kup.ge.nuvz) goto 71
-          kch=kch+1
-          k=kup
-          thdn=tthn(ix,j,k,n,l)*ppmk(ix,j,k)
-          thup=tthn(ix,j,k+1,n,l)*ppmk(ix,j,k+1)
-      if (((thdn.ge.theta).and.(thup.le.theta)).or. &
-           ((thdn.le.theta).and.(thup.ge.theta))) then
-              dt1=abs(theta-thdn)
-              dt2=abs(theta-thup)
-              dt=dt1+dt2
-              if (dt.lt.eps) then   ! Avoid division by zero error
-                dt1=0.5             ! G.W., 10.4.1996
-                dt2=0.5
-                dt=1.0
+            kup=kup+1
+            if (kup.lt.nuvz) then
+              kch=kch+1
+              k=kup
+              thdn=tthn(ix,j,k,n,l)*ppmk(ix,j,k)
+              thup=tthn(ix,j,k+1,n,l)*ppmk(ix,j,k+1)
+              if (((thdn.ge.theta).and.(thup.le.theta)).or. &
+              ((thdn.le.theta).and.(thup.ge.theta))) then
+                dt1=abs(theta-thdn)
+                dt2=abs(theta-thup)
+                dt=dt1+dt2
+                if (dt.lt.eps) then   ! Avoid division by zero error
+                  dt1=0.5             ! G.W., 10.4.1996
+                  dt2=0.5
+                  dt=1.0
+                endif
+                uy(jj)=(uuhn(ix,j,k,l)*dt2+uuhn(ix,j,k+1,l)*dt1)/dt
+                cycle y_loop
               endif
-        uy(jj)=(uuhn(ix,j,k,l)*dt2+uuhn(ix,j,k+1,l)*dt1)/dt
-              goto 50
             endif
-71        continue
   ! Downward branch
-          kdn=kdn-1
-          if (kdn.lt.1) goto 70
-          kch=kch+1
-          k=kdn
-          thdn=tthn(ix,j,k,n,l)*ppmk(ix,j,k)
-          thup=tthn(ix,j,k+1,n,l)*ppmk(ix,j,k+1)
-      if (((thdn.ge.theta).and.(thup.le.theta)).or. &
-           ((thdn.le.theta).and.(thup.ge.theta))) then
-              dt1=abs(theta-thdn)
-              dt2=abs(theta-thup)
-              dt=dt1+dt2
-              if (dt.lt.eps) then   ! Avoid division by zero error
-                dt1=0.5             ! G.W., 10.4.1996
-                dt2=0.5
-                dt=1.0
+            kdn=kdn-1
+            if (kdn.ge.1) then
+              kch=kch+1
+              k=kdn
+              thdn=tthn(ix,j,k,n,l)*ppmk(ix,j,k)
+              thup=tthn(ix,j,k+1,n,l)*ppmk(ix,j,k+1)
+              if (((thdn.ge.theta).and.(thup.le.theta)).or. &
+              ((thdn.le.theta).and.(thup.ge.theta))) then
+                dt1=abs(theta-thdn)
+                dt2=abs(theta-thup)
+                dt=dt1+dt2
+                if (dt.lt.eps) then   ! Avoid division by zero error
+                  dt1=0.5             ! G.W., 10.4.1996
+                  dt2=0.5
+                  dt=1.0
+                endif
+                uy(jj)=(uuhn(ix,j,k,l)*dt2+uuhn(ix,j,k+1,l)*dt1)/dt
+                cycle y_loop
               endif
-        uy(jj)=(uuhn(ix,j,k,l)*dt2+uuhn(ix,j,k+1,l)*dt1)/dt
-              goto 50
             endif
-            goto 70
+          end do y_lev_loop
   ! This section used when no values were found
-51      continue
   ! Must use uu at current level and lat. juy becomes smaller by 1
-        uy(jj)=uuhn(ix,jy,kl,l)
-        juy=juy-1
+          uy(jj)=uuhn(ix,jy,kl,l)
+          juy=juy-1
   ! Otherwise OK
-50        continue
-        end do
-      if (juy.gt.0) then
-      dudy=(uy(2)-uy(1))/real(juy)/(dyn(l)*pi/180.)
-      else
-      dudy=uuhn(ix,jyvp,kl,l)-uuhn(ix,jyvm,kl,l)
-      dudy=dudy/real(jumpy)/(dyn(l)*pi/180.)
-      end if
+        end do y_loop
+        if (juy.gt.0) then
+          dudy=(uy(2)-uy(1))/real(juy)/(dyn(l)*pi/180.)
+        else
+          dudy=uuhn(ix,jyvp,kl,l)-uuhn(ix,jyvm,kl,l)
+          dudy=dudy/real(jumpy)/(dyn(l)*pi/180.)
+        end if
 
-      pvhn(ix,jy,kl,l)=dthetadp*(f+(dvdx/cosphi-dudy &
-           +uuhn(ix,jy,kl,l)*tanphi)/r_earth)*(-1.e6)*9.81
+        pvhn(ix,jy,kl,l)=dthetadp*(f+(dvdx/cosphi-dudy &
+             +uuhn(ix,jy,kl,l)*tanphi)/r_earth)*(-1.e6)*9.81
 
   ! Resest jux and juy
-      jux=jumpx
-      juy=jumpy
+        jux=jumpx
+        juy=jumpy
       end do
     end do
   end do

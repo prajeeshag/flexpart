@@ -913,7 +913,7 @@ subroutine interpol_htropo_hmix(tropop,h)
         end do
       end do
     endif
-    tropop=tropopause(nix,njy,1,1)
+    tropop=tropopause(nix,njy,1,memind(1))
   else
     do k=1,2
       mind=memind(k)
@@ -923,7 +923,7 @@ subroutine interpol_htropo_hmix(tropop,h)
         end do
       end do
     end do
-    tropop=tropopausen(nix,njy,1,1,ngrid)
+    tropop=tropopausen(nix,njy,1,memind(1),ngrid)
   endif
 
   if (interpolhmix) h=(h1(1)*dt2+h1(2)*dt1)*dtt 

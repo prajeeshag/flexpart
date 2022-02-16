@@ -54,7 +54,6 @@ subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd)
 
   ! Horizontal components
   !**********************
-  ! sigu,sigv, tlv and tlu are defined in hanna_mod, would be better to move below there
     if (nrand+1.gt.maxrand) nrand=1
     if (dt/tlu.lt..5) then
       part(ipart)%turbvel%u=(1.-dt/tlu)*part(ipart)%turbvel%u+rannumb(nrand)*sigu*sqrt(2.*dt/tlu)

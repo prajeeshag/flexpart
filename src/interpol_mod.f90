@@ -1086,7 +1086,7 @@ subroutine interpol_vdep(field,level,output)
   integer, intent(in) ::  &
     level                    ! number of species for which interpolation is done
   real, intent(in) ::     &
-    field(:,:,:,:)           ! vdep
+    field(0:nxmax-1,0:nymax-1,maxspec,numwfmem)           ! vdep
   real, intent(inout) ::  &
     output                   ! interpolated value
   integer :: indexh,m

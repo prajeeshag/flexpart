@@ -1943,7 +1943,8 @@ subroutine partoutput_netcdf(itime,field,fieldname,imass,ncid)
       call nf90_err(nf90_put_var(ncid,ttID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('MA') ! Mass
       if (mdomainfill.ge.1) then
-        if (mass_written.eqv..false.) call nf90_err(nf90_put_var(ncid=ncid,varid=massID(1),values=field(1)))
+        if (mass_written.eqv..false.) call nf90_err(nf90_put_var(ncid=ncid,varid=massID(1),values=field(1), &
+          (/ 1 /),(/ 1 /)))
         mass_written=.true.
       else
         call nf90_err(nf90_put_var(ncid,massID(imass),field, (/ tpointer_part,1 /),(/ 1,numpart /)))

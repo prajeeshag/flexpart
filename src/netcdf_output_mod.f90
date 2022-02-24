@@ -1799,8 +1799,9 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
   call nf90_err(nf90_put_att(ncid, ttID, 'standard_name', 'temperature'))
   call nf90_err(nf90_put_att(ncid, ttID, 'long_name', 'temperature'))
 
+  ! Mass
   if (mdomainfill.ge.1) then
-    call nf90_err(nf90_def_var(ncid, 'mass', nf90_float, massID(1)))
+    call nf90_err(nf90_def_var(ncid=ncid, name='mass', xtype=nf90_float, dimids=1, varid=massID(1)))
     call nf90_err(nf90_put_att(ncid, massID(1), 'units', 'kg'))
     call nf90_err(nf90_put_att(ncid, massID(1), '_FillValue', fillval))
     call nf90_err(nf90_put_att(ncid, massID(1), 'positive', 'up'))
@@ -1942,7 +1943,7 @@ subroutine partoutput_netcdf(itime,field,fieldname,imass,ncid)
       call nf90_err(nf90_put_var(ncid,ttID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('MA') ! Mass
       if (mdomainfill.ge.1) then
-        if (mass_written.eqv..false.) call nf90_err(nf90_put_var(ncid,massID(1),field(1)))
+        if (mass_written.eqv..false.) call nf90_err(nf90_put_var(ncid=ncid,varid=massID(1),values=field(1)))
         mass_written=.true.
       else
         call nf90_err(nf90_put_var(ncid,massID(imass),field, (/ tpointer_part,1 /),(/ 1,numpart /)))

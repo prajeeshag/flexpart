@@ -62,7 +62,7 @@ subroutine get_settling(itime,xt,yt,zt,nsp,settling)
 
   ! Determine the level below the current position for u,v
   !*******************************************************
-
+  indz=nz-1
   do i=2,nz
     if (height(i).gt.zt) then
       indz=i-1

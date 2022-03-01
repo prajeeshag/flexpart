@@ -241,6 +241,7 @@ subroutine ohreaction(itime,ltsample,loutnext)
     n=2
     if(abs(memtime(1)-interp_time).lt.abs(memtime(2)-interp_time)) n=1
 
+    indz=nz-1
     do i=2,nz
       if (height(i).gt.part(jpart)%z) then
         indz=i-1

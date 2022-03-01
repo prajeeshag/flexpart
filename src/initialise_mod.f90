@@ -1065,7 +1065,8 @@ subroutine init_domainfill
               p4=ddx*ddy
 
   !***************************************************************************
-
+              indzm=nz-1
+              indzp=nz
               do i=2,nz
                 if (real(height(i),kind=dp).gt.part(numpart+jj)%z) then
                   indzm=i-1
@@ -1368,7 +1369,8 @@ subroutine boundcond_domainfill(itime,loutend)
 
   ! Determine the model level below the release position
   !*****************************************************
-
+        indz=nz-1
+        indzp=nz
         do i=2,nz
           if (height(i).gt.zcolumn_we(k,jy,j)) then
             indz=i-1
@@ -1483,6 +1485,8 @@ subroutine boundcond_domainfill(itime,loutend)
           p2=ddx*rddy
           p3=rddx*ddy
           p4=ddx*ddy
+          indzm=nz-1
+          indzp=nz
           do i=2,nz
             if (real(height(i),kind=dp).gt.part(ipart)%z) then
               indzm=i-1
@@ -1580,7 +1584,8 @@ subroutine boundcond_domainfill(itime,loutend)
 
   ! Determine the model level below the release position
   !*****************************************************
-
+        indz=nz-1
+        indzp=nz
         do i=2,nz
           if (height(i).gt.zcolumn_sn(k,ix,j)) then
             indz=i-1
@@ -1693,6 +1698,8 @@ subroutine boundcond_domainfill(itime,loutend)
           p2=ddx*rddy
           p3=rddx*ddy
           p4=ddx*ddy
+          indzm=nz-1
+          indzp=nz
           do i=2,nz
             if (real(height(i),kind=dp).gt.part(ipart)%z) then
               indzm=i-1

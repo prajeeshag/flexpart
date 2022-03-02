@@ -292,6 +292,35 @@ subroutine find_vertical_variables(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
   ! endif
 end subroutine find_vertical_variables
 
+subroutine find_vertical_variables_lin(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
+  implicit none
+  real, intent(in)    :: vertlevels(:)     ! vertical levels in coordinate system
+  real, intent(in)    :: zpos              ! verticle particle position
+  integer, intent(in) :: zlevel            ! vertical level of interest
+  logical, intent(in) :: bounds(2),wlevel         ! flag marking if particles are outside bounds  
+  real, intent(inout) :: dz1,dz2           ! fractional distance to point 1 (closer to ground) and 2
+  real                :: dz,dh1,dh,pfact
+  real                :: psint1(2),psint,pr1,pr2,temp       ! pressure of encompassing levels
+
+  ! If the particle is below bounds (bounds(1)==.true.):
+  if (bounds(1)) then
+    dz1=0.
+    dz2=1.
+  ! If above bounds (bounds(2)==.true.):
+  else if (bounds(2)) then
+    dz1=1.
+    dz2=0.
+
+  ! Instead of the linear z variables, we need the ones that correspond to 
+  ! the pressure of the height of the particle in relation to the model levels
+  !***************************************************************************
+  else
+    dz=1./(vertlevels(zlevel+1)-vertlevels(zlevel))
+    dz1=(zpos-vertlevels(zlevel))*dz
+    dz2=(vertlevels(zlevel+1)-zpos)*dz
+  endif
+end subroutine find_vertical_variables_lin
+
 subroutine find_ngrid(xt,yt)
 
   implicit none

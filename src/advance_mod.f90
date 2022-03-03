@@ -372,7 +372,7 @@ subroutine advance_abovePBL(itime,itimec,dxsave,dysave,&
         call get_settling(itime,xts,yts,zts,nsp,settling)  !bugfix
         w=w+settling
         if (wind_coord_type.eq.'ETA') then 
-          call update_zeta_to_z(itime,part)
+          call update_zeta_to_z(itime,ipart)
           call update_z(ipart,settling*dt*real(ldirect))
         endif
       end if

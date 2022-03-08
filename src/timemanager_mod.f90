@@ -314,6 +314,7 @@ subroutine timemanager
       part(j)%xlon_prev=part(j)%xlon
       part(j)%ylat_prev=part(j)%ylat
       part(j)%z_prev=part(j)%z
+      part(j)%zeta_prev=part(j)%zeta
 
   ! RECEPTOR: dry/wet depovel
   !****************************

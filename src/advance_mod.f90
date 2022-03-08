@@ -142,7 +142,7 @@ subroutine advance(itime,ipart)
     depoindicator=.true.
     part(ipart)%prob=0.
   endif
-
+  if (ipart.eq.1) write(*,*) 'Mass: ', part(ipart)%mass(:), itime
   dxsave=0.           ! reset position displacements
   dysave=0.           ! due to mean wind
   dawsave=0.          ! and turbulent wind
@@ -181,6 +181,11 @@ subroutine advance(itime,ipart)
     memindnext=2
   endif
 
+  ! Convert z(eta) to z(m) for the turbulence scheme, w(m/s) 
+  ! is computed in verttransform_ecmwf.f90
+
+  call update_zeta_to_z(itime,ipart)
+
   ! Determine nested grid coordinates
   ! Determine the lower left corner and its distance to the current position
   ! Calculate variables for time interpolation
@@ -190,11 +195,6 @@ subroutine advance(itime,ipart)
 
   ! Compute maximum mixing height around particle position
   !*******************************************************
-  
-  ! Convert z(eta) to z(m) for the turbulence scheme, w(m/s) 
-  ! is computed in verttransform_ecmwf.f90
-
-  call update_zeta_to_z(itime,ipart)
 
   ! Compute the height of the troposphere and the PBL at the x-y location of the particle
   call interpol_htropo_hmix(tropop,h)
@@ -542,12 +542,11 @@ subroutine advance_PBL(itime,itimec,&
         ! HSO/AL: Particle managed to go over highest level -> interpolation error in goto 700
         !          alias interpol_wind (division by zero)
         if (zts.ge.height(nz)) call set_z(ipart,height(nz)-100.*eps)
-        zts=real(part(ipart)%z)
       case ('METER')
         call update_z(ipart,w*dt*real(ldirect))
         call advance_adjusttopheight(ipart)
     end select
-
+    zts=real(part(ipart)%z)
     
     if (zts.gt.h) then
       call update_z_to_zeta(itime,ipart)
@@ -636,7 +635,7 @@ subroutine advance_PettersonCorrection(itime,ipart)
             call z_to_zeta(itime+part(ipart)%idt,part(ipart)%xlon,part(ipart)%ylat,&
               part(ipart)%z+real(settling*real(part(ipart)%idt*ldirect),kind=dp),ztemp)
             weta=weta+(real(ztemp)-ztseta)/real(part(ipart)%idt*ldirect)
-
+            woldeta=real(part(ipart)%zeta-part(ipart)%zeta_prev)/real(part(ipart)%idt*ldirect)
           case ('METER')
             call get_settling(itime+part(ipart)%idt,xts,yts,zts,nsp,settling)
             w=w+settling

@@ -32,7 +32,8 @@ module particle_mod
       z,                          & ! height in meters
       z_prev                        ! Previous position
     real(kind=dp)      ::         &
-      zeta                          ! Height in eta (ECMWF) coordinates
+      zeta,                       & ! Height in eta (ECMWF) coordinates
+      zeta_prev                     ! Previous position
     type(velocities)   ::         &
       vel,                        & ! Velocities from interpolated windfields
       turbvel,                    & ! Random turbulent velocities

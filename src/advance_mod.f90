@@ -541,7 +541,7 @@ subroutine advance_PBL(itime,itimec,&
         zts=real(part(ipart)%z)
         ! HSO/AL: Particle managed to go over highest level -> interpolation error in goto 700
         !          alias interpol_wind (division by zero)
-        if (zts.ge.height(nz)) call set_z(ipart,height(nz)-100.*eps)
+        if (zts.ge.height(nz)) call set_z(ipart,height(nz)-100.*eps) ! Manually for z instead
       case ('METER')
         call update_z(ipart,w*dt*real(ldirect))
         call advance_adjusttopheight(ipart)

@@ -758,6 +758,8 @@ subroutine interpol_wind(itime,xt,yt,zt,zteta,pp)
   real, intent(in)    :: xt,yt,zt
   real, intent(in)    :: zteta
 
+
+  call determine_grid_coordinates(xt,yt)
   ! ! Multilinear interpolation in time and space
   ! !********************************************
 
@@ -829,6 +831,7 @@ subroutine interpol_wind_short(itime,xt,yt,zt,zteta)
   !********************************************
   ! Multilinear interpolation in time and space
   !********************************************
+  call determine_grid_coordinates(xt,yt)
   call find_grid_distances(xt,yt)
 
   ! Calculate variables for time interpolation

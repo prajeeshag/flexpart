@@ -140,36 +140,38 @@ program flexpart
   !******************************************************************
   call readavailable
 
-  ! Detect metdata format. GFS not supported, but can be added if converted
-  ! to ECMWF eta coordinates or the appropriate parts in advance and the
-  ! interpolation subroutines need to be changed.
+  ! Detect metdata format
   !**********************
   call detectformat
 
   if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
     print *,'ECMWF metdata detected'
-  ! elseif (metdata_format.eq.GRIBFILE_CENTRE_NCEP) then
-  !   print *,'NCEP metdata detected'
+  elseif (metdata_format.eq.GRIBFILE_CENTRE_NCEP) then
+    print *,'NCEP metdata detected'
   else
     print *,'Unknown metdata format'
     stop
   endif
 
-  ! ! If nested wind fields are used, allocate arrays
-  ! !************************************************
-  ! call com_mod_allocate_nests
-
-  ! ! Allocate memory for windfields
-  ! !*******************************
-  ! call windfields_allocate
-
+  ! Allocate memory for windfields
+  !*******************************
+  call windfields_allocate
   ! Read the model grid specifications,
   ! both for the mother domain and eventual nests
   !**********************************************
-  call windfields_allocate
-  call gridcheck_ecmwf
+  if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
+    call gridcheck_ecmwf
+  else 
+    call gridcheck_gfs    
+  endif
+
+  ! Set the upper level for where the convection will be working
+  !*************************************************************
   call set_upperlevel_convect
+
   if (numbnests.ge.1) then
+  ! If nested wind fields are used, allocate arrays
+  !************************************************
     call windfields_nest_allocate
     call gridcheck_nests
   endif
@@ -223,7 +225,6 @@ program flexpart
   ! For continuation of previous run, read in particle positions
   !*************************************************************
   if (ipin.eq.1) then
-    !stop "Convert readpartpositions to netcdf and then use particle module"
     call readpartpositions
   else
     numpart=0
@@ -257,17 +258,9 @@ program flexpart
   ! Initialize cloud-base mass fluxes for the convection scheme
   !************************************************************
 
-  do jy=0,nymin1
-    do ix=0,nxmin1
-      cbaseflux(ix,jy)=0.
-    end do
-  end do
+  cbaseflux(0:nxmin1,0:nymin1)=0.
   do inest=1,numbnests
-    do jy=0,nyn(inest)-1
-      do ix=0,nxn(inest)-1
-        cbasefluxn(ix,jy,inest)=0.
-      end do
-    end do
+    cbasefluxn(0:nxn(inset)-1,0:nyn(inest)-1,inest)=0.
   end do
 
   ! Inform whether output kernel is used or not

@@ -173,7 +173,6 @@ subroutine convmix(itime)
   integer :: cnt,kk
   integer,allocatable,dimension(:) :: frst
   double precision :: tmarray(2)
-  integer :: conv_cnt, thread, part_cnt
 
   integer :: totpart,alivepart
   real:: eps
@@ -297,13 +296,8 @@ subroutine convmix(itime)
   end do 
   frst(cnt) = numpart+1
 
-  conv_cnt = 0
-  part_cnt = 0
-
-
-!$OMP PARALLEL PRIVATE(kk,jy,ix,thread,tmarray,j,kz,ktop,lconv,kpart,ipart,&
-!$OMP ztold,nage,ipconv) REDUCTION(+:conv_cnt,part_cnt)
-!$    thread = OMP_GET_THREAD_NUM()
+!$OMP PARALLEL PRIVATE(kk,jy,ix,tmarray,j,kz,ktop,lconv,kpart,ipart,&
+!$OMP ztold,nage,ipconv)
 
 !$OMP DO SCHEDULE(static)
   do kk=1,cnt-1

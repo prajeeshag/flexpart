@@ -230,7 +230,6 @@ subroutine output_particles(itime)
           do ns=1,nspec
             masstemp_av(i,ns)=part(i)%val_av(i_av+(ns-1))/part(i)%ntime
           end do
-
           cycle
         case ('lo')
           if (.not. cartxyz_comp) then
@@ -317,7 +316,7 @@ subroutine output_particles(itime)
           do ns=1,nspec
             call partoutput_netcdf(itime,masstemp(:,ns),'MA',ns,ncid)
           end do
-        else if (partopt(np)%name.eq.'MA') then
+        else if (partopt(np)%name.eq.'ma') then
           do ns=1,nspec
             call partoutput_netcdf(itime,masstemp_av(:,ns),'ma',ns,ncid)
           end do          

@@ -1009,8 +1009,6 @@ subroutine init_domainfill
       pnew=pp(1)+deltacol/2.
       jj=0
       do j=1,ncolumn
-        jj=jj+1
-
 
   ! For columns with many particles (i.e. around the equator), distribute
   ! the particles equally, for columns with few particles (i.e. around the
@@ -1037,6 +1035,7 @@ subroutine init_domainfill
             if (ipin.eq.0) then
               ! First spawn the particle into existence
               !****************************************
+              jj=jj+1
               call spawn_particle(0,numpart+jj)
               call set_xlon(numpart+jj,real(real(lix)-0.5+ran1(idummy),kind=dp))
               if (lix.eq.0) call set_xlon(numpart+jj,real(ran1(idummy),kind=dp))
@@ -1105,6 +1104,7 @@ subroutine init_domainfill
                 if (mdomainfill.eq.2) part(numpart+jj)%mass(1)= &
                      part(numpart+jj)%mass(1)*pvpart*48./29.*ozonescale/10.**9
               else
+                call terminate_particle(numpart+jj)
                 jj=jj-1
               endif
             endif

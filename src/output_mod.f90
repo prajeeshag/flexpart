@@ -152,104 +152,143 @@ subroutine output_particles(itime)
   implicit none
 
   real(kind=dp) :: jul
-  integer :: itime,i,j,jjjjmmdd,ihmmss
-  real :: tr(2),hm(2)
+  integer :: itime,i,j,jjjjmmdd,ihmmss,np,ns,i_av
+  real :: tmp(2)
   character :: adate*8,atime*6
 
-  real :: xlon(numpart),ylat(numpart),ztemp1,ztemp2
+  real :: xlon(numpart),ylat(numpart),ztemp1,ztemp2,val_av(numpart,2),z_av(numpart)
   real :: tti(numpart),rhoi(numpart),pvi(numpart),qvi(numpart),pri(numpart)
   real :: topo(numpart),hmixi(numpart),tri(numpart),ztemp(numpart)
-  real :: masstemp(numpart,nspec)
+  real :: masstemp(numpart,nspec),masstemp_av(numpart,nspec)
+
+  real :: output(num_partopt, numpart)
+
+  ! For averaged output
+  real :: xlon_av(numpart),ylat_av(numpart)
+
+  real :: cartxyz(3)
+  logical :: cartxyz_comp
 
 #ifdef USE_NCF
   integer  :: ncid, mythread, thread_divide(12),mass_divide(nspec)
 #endif
 
-!$OMP PARALLEL PRIVATE(i,j,tr,hm)
+!$OMP PARALLEL PRIVATE(i,j,tmp,ns,i_av,cartxyz_comp,np)
   ! Some variables needed for temporal interpolation
   !*************************************************
   call find_time_variables(itime)
 
 !$OMP DO
   do i=1,numpart
-  ! Take only valid particles
-  !**************************
-    xlon(i)=-1.
-    ylat(i)=-1.
-    tti(i)=-1.
-    rhoi(i)=-1.
-    pri(i)=-1.
-    pvi(i)=-1.
-    qvi(i)=-1.
-    topo(i)=-1.
-    hmixi(i)=-1.
-    tri(i)=-1.
-    ztemp(i)=-1.
-    do j=1,nspec
-      masstemp(i,j)=-1.
+    if (.not. part(i)%alive) then
+      output(:,i) = -1
+      cycle
+    endif
+    !*****************************************************************************
+    ! Interpolate several variables (PV, specific humidity, etc.) to particle position
+    !*****************************************************************************
+    call determine_grid_coordinates(real(part(i)%xlon),real(part(i)%ylat))
+    call find_grid_distances(real(part(i)%xlon),real(part(i)%ylat))
+    ! First set dz1out from interpol_mod to -1 so it only is calculated once per particle
+    !************************************************************************************
+    dz1out=-1
+    cartxyz_comp=.false.
+    do np=1,num_partopt
+      if (.not. partopt(np)%print) cycle ! Only compute when field should be printed
+      i_av = partopt(np)%i_average
+      select case (partopt(np)%name)
+        case ('LO')
+          output(np,i)=xlon0+part(i)%xlon*dx
+          cycle
+        case ('LA')
+          output(np,i)=ylat0+part(i)%ylat*dy
+          cycle
+        case ('TO') ! Topography
+          call bilinear_horizontal_interpolation_2dim(oro,output(np,i))
+          cycle
+        case ('TR') ! Tropopause
+          call bilinear_horizontal_interpolation(tropopause,tmp,1,1)
+          call temporal_interpolation(tmp(1),tmp(2),output(np,i))
+          cycle
+        case ('HM') ! PBL height
+          call bilinear_horizontal_interpolation(hmix,tmp,1,1)
+          call temporal_interpolation(tmp(1),tmp(2),output(np,i))
+          cycle
+        case ('ZZ') ! Height
+          call update_zeta_to_z(itime, i) ! Convert eta z coordinate to meters if necessary
+          output(np,i)=part(i)%z
+          cycle
+        ! case ('UU') ! Longitudinal velocity
+        !   output(np,i)=part(i)%vel%u !This would be preferred, but not implemented yet
+        !   cycle
+        case ('MA') ! Mass
+          do ns=1,nspec
+            masstemp(i,ns)=part(i)%mass(ns)
+          end do
+          cycle
+        case ('ma') ! Mass averaged
+          do ns=1,nspec
+            masstemp_av(i,ns)=part(i)%val_av(i_av+(ns-1))/part(i)%ntime
+          end do
+
+          cycle
+        case ('lo')
+          if (.not. cartxyz_comp) then
+            cartxyz(1) = part(i)%cartx_av/part(i)%ntime
+            cartxyz(2) = part(i)%carty_av/part(i)%ntime
+            cartxyz(3) = part(i)%cartz_av/part(i)%ntime
+            cartxyz_comp=.true.
+          endif
+          output(np,i) = atan2(cartxyz(1),-1.*cartxyz(2))/pi180
+          if (output(np,i).gt.360.) output(np,i)=output(np,i)-360.
+          if (output(np,i).lt.0.) output(np,i)=output(np,i)+360.
+          cycle
+        case ('la')
+          if (.not. cartxyz_comp) then
+            cartxyz(1) = part(i)%cartx_av/part(i)%ntime
+            cartxyz(2) = part(i)%carty_av/part(i)%ntime
+            cartxyz(3) = part(i)%cartz_av/part(i)%ntime
+            cartxyz_comp=.true.
+          endif
+          output(np,i) = atan2(cartxyz(3),sqrt(cartxyz(1)*cartxyz(1)+ &
+            cartxyz(2)*cartxyz(2)))/pi180
+        case default
+          if (.not. partopt(np)%average) then
+            call interpol_partoutput_value(partopt(np)%name,output(np,i),i)
+          else
+            output(np,i) = part(i)%val_av(i_av)/part(i)%ntime
+          endif
+      end select
     end do
-    if (part(i)%alive) then
-      xlon(i)=xlon0+part(i)%xlon*dx
-      ylat(i)=ylat0+part(i)%ylat*dy
+    ! Reset dz1out
+    !*************
+    dz1out=-1
+    cartxyz_comp=.false.
 
-  !*****************************************************************************
-  ! Interpolate several variables (PV, specific humidity, etc.) to particle position
-  !*****************************************************************************
-      call determine_grid_coordinates(real(part(i)%xlon),real(part(i)%ylat))
-      call find_grid_distances(real(part(i)%xlon),real(part(i)%ylat))
-  ! Topography
-  !***********
-      call bilinear_horizontal_interpolation_2dim(oro,topo(i))
-
-      ! First set dz1out from interpol_mod to -1 so it only is calculated once per particle
-      !************************************************************************************
-      dz1out=-1
-      ! Pressure
-      call interpol_partoutput_value('PR',pri(i),i)
-      ! Potential vorticity
-      call interpol_partoutput_value('PV',pvi(i),i)
-      ! Specific humidity
-      call interpol_partoutput_value('QV',qvi(i),i)
-      ! Temperature
-      call interpol_partoutput_value('TT',tti(i),i)
-      ! Density
-      call interpol_partoutput_value('RH',rhoi(i),i)
-      ! Reset dz1out
-      !*************
-      dz1out=-1
-
-  ! Tropopause and PBL height
-  !**************************
-  ! Tropopause
-      call bilinear_horizontal_interpolation(tropopause,tr,1,1)
-      call temporal_interpolation(tr(1),tr(2),tri(i))
-  ! PBL height
-      call bilinear_horizontal_interpolation(hmix,hm,1,1)
-      call temporal_interpolation(hm(1),hm(2),hmixi(i))
-
-
-  ! Convert eta z coordinate to meters if necessary
-  !************************************************
-      call update_zeta_to_z(itime, i)
-      ztemp(i)=part(i)%z
-
-  ! Assign the masses
-  !******************
-      do j=1,nspec
-        masstemp(i,j)=part(i)%mass(j)
-      end do
-    endif 
+    if (n_average.gt.0) then
+      part(i)%val_av = 0.
+      part(i)%ntime = 0.
+      part(i)%cartx_av = 0.
+      part(i)%carty_av = 0.
+      part(i)%cartz_av = 0.
+    endif
   end do
 
 !$OMP END DO
 !$OMP END PARALLEL
+
   if (numpart.gt.0) then
-    write(*,*) 'topo: ', topo(1), 'z:', part(1)%zeta,part(1)%z
-    write(*,*) 'xtra,xeta: ', part(1)%xlon
-    write(*,*) 'ytra,yeta: ', part(1)%ylat
-    write(*,*) 'mass,prob: ', part(1)%mass(:),part(1)%prob(:)
-    write(*,*) pvi(1),qvi(1),tti(1),rhoi(1),part(1)%alive,&
-      count%alive,count%spawned,count%terminated
+    do np=1,num_partopt
+      if (.not. partopt(np)%print) cycle
+      if (partopt(np)%name.eq.'MA') then
+        write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, masstemp(1,:)
+      else if (partopt(np)%name.eq.'ma') then
+        write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, masstemp_av(1,:)
+      else
+        write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, output(np,1)
+      endif
+    end do
+    write(*,*) part(1)%alive,count%alive,count%spawned,count%terminated
   endif
 
   ! Determine current calendar date, needed for the file name
@@ -259,66 +298,32 @@ subroutine output_particles(itime)
   call caldate(jul,jjjjmmdd,ihmmss)
   write(adate,'(i8.8)') jjjjmmdd
   write(atime,'(i6.6)') ihmmss
-
+  j=1
   if (lnetcdfout.eq.1) then
   ! open output file
     call open_partoutput_file(ncid)
-
-    ! Dividing the openmp threads for writing
-    j=0
-    do i=1,11 !number of fields
-      if (j.eq.numthreads) j = 0
-      thread_divide(i) = j
-      j = j + 1
-    end do
-    do i=1,nspec
-      if (j.eq.numthreads) j = 0
-      mass_divide(i) = j
-      j = j + 1
-    end do
 
     ! First allocate the time and particle dimention within the netcdf file
     call partoutput_netcdf(itime,xlon,'TI',j,ncid)
     call partoutput_netcdf(itime,xlon,'PA',j,ncid)
 
-
     ! Fill the fields in parallel
     if (numpart.gt.0) then
 
-    ! This bad way of parallelisation no longer works on Jet
-! !$OMP PARALLEL PRIVATE(j,mythread)
-! #ifdef USE_NCF
-!       mythread = omp_get_thread_num()
-!       if (mythread.eq.thread_divide(1)) call partoutput_netcdf(itime,xlon,'LO',j,ncid)
-!       if (mythread.eq.thread_divide(2)) call partoutput_netcdf(itime,ylat,'LA',j,ncid)
-!       if (mythread.eq.thread_divide(3)) call partoutput_netcdf(itime,ztemp,'ZZ',j,ncid)
-!       if (mythread.eq.thread_divide(5)) call partoutput_netcdf(itime,pvi,'PV',j,ncid)
-!       if (mythread.eq.thread_divide(6)) call partoutput_netcdf(itime,qvi,'QV',j,ncid)
-!       if (mythread.eq.thread_divide(7)) call partoutput_netcdf(itime,rhoi,'RH',j,ncid)
-!       if (mythread.eq.thread_divide(10)) call partoutput_netcdf(itime,tti,'TT',j,ncid)
-!       if (mythread.eq.thread_divide(11)) call partoutput_netcdf(itime,pri,'PR',j,ncid)
-!       if (mythread.eq.thread_divide(4)) call partoutput_netcdf(itime,topo,'TO',j,ncid)
-!       if (mythread.eq.thread_divide(9)) call partoutput_netcdf(itime,tri,'TR',j,ncid)
-!       if (mythread.eq.thread_divide(8)) call partoutput_netcdf(itime,hmixi,'HM',j,ncid)
-!       do j=1,nspec
-!         if (mythread.eq.mass_divide(j)) call partoutput_netcdf(itime,masstemp(:,j),'MA',j,ncid)
-!       end do
-! #endif
-! !$OMP END PARALLEL
 #ifdef USE_NCF
-      call partoutput_netcdf(itime,xlon,'LO',j,ncid)
-      call partoutput_netcdf(itime,ylat,'LA',j,ncid)
-      call partoutput_netcdf(itime,ztemp,'ZZ',j,ncid)
-      call partoutput_netcdf(itime,pvi,'PV',j,ncid)
-      call partoutput_netcdf(itime,qvi,'QV',j,ncid)
-      call partoutput_netcdf(itime,rhoi,'RH',j,ncid)
-      call partoutput_netcdf(itime,tti,'TT',j,ncid)
-      call partoutput_netcdf(itime,pri,'PR',j,ncid)
-      call partoutput_netcdf(itime,topo,'TO',j,ncid)
-      call partoutput_netcdf(itime,tri,'TR',j,ncid)
-      call partoutput_netcdf(itime,hmixi,'HM',j,ncid)
-      do j=1,nspec
-        call partoutput_netcdf(itime,masstemp(:,j),'MA',j,ncid)
+      do np=1,num_partopt
+        if (.not. partopt(np)%print) cycle
+        if (partopt(np)%name.eq.'MA') then
+          do ns=1,nspec
+            call partoutput_netcdf(itime,masstemp(:,ns),'MA',ns,ncid)
+          end do
+        else if (partopt(np)%name.eq.'MA') then
+          do ns=1,nspec
+            call partoutput_netcdf(itime,masstemp_av(:,ns),'ma',ns,ncid)
+          end do          
+        else 
+          call partoutput_netcdf(itime,output(np,:),partopt(np)%name,j,ncid)
+        endif
       end do
 #endif
     endif
@@ -963,21 +968,24 @@ subroutine partpos_average(itime,j)
 
   implicit none
 
-  integer :: itime,j
+  integer,intent(in) :: itime,j
+  integer :: np,i_av,ns
   real :: xlon,ylat,x,y,z
   real :: topo,hm(2),hmixi,pvi,qvi
   real :: tti,rhoi,ttemp
-  real :: uui,vvi
+  real :: uui,vvi,output
   real :: tr(2),tri!,energy
 
+  logical :: cart_comp
 
 
+  if (n_average.eq.0) return
  ! Some variables needed for temporal interpolation
   !*************************************************
   call find_time_variables(itime)
 
-  xlon=xlon0+part(j)%xlon*dx
-  ylat=ylat0+part(j)%ylat*dy
+  xlon=xlon0+real(part(j)%xlon)*dx
+  ylat=ylat0+real(part(j)%ylat)*dy
 
   !*****************************************************************************
   ! Interpolate several variables (PV, specific humidity, etc.) to particle position
@@ -986,61 +994,76 @@ subroutine partpos_average(itime,j)
   call determine_grid_coordinates(real(part(j)%xlon),real(part(j)%ylat))
   call find_grid_distances(real(part(j)%xlon),real(part(j)%ylat))
 
-  ! Topography
-  !***********
-  call bilinear_horizontal_interpolation_2dim(oro,topo)
-
-  ! Potential vorticity, specific humidity, temperature, and density
-  !*****************************************************************
   ! First set dz1out from interpol_mod to -1 so it only is calculated once per particle
   !************************************************************************************
+  part(j)%ntime=part(j)%ntime + 1
   dz1out=-1
-  ! Potential vorticity
-  call interpol_partoutput_value('PV',pvi,j)
-  ! Specific humidity
-  call interpol_partoutput_value('QV',qvi,j)
-  ! Temperature
-  call interpol_partoutput_value('TT',tti,j)
-  ! U wind
-  call interpol_partoutput_value('UU',uui,j)
-  ! V wind
-  call interpol_partoutput_value('VV',vvi,j)
-  ! Density
-  call interpol_partoutput_value('RH',rhoi,j)
+  cart_comp=.false.
+  do np=1,num_partopt
+    if ((.not. partopt(np)%print) .or. (.not. partopt(np)%average)) cycle
+    i_av = partopt(np)%i_average
+    select case (partopt(np)%name)
+      case ('to')
+        call bilinear_horizontal_interpolation_2dim(oro,output)
+        part(j)%val_av(i_av)=part(j)%val_av(i_av)+output
+      case ('tr')
+        call bilinear_horizontal_interpolation(tropopause,tr,1,1)
+        call temporal_interpolation(tr(1),tr(2),output)
+        part(j)%val_av(i_av)=part(j)%val_av(i_av)+output
+      case ('hm')
+        call bilinear_horizontal_interpolation(hmix,hm,1,1)
+        call temporal_interpolation(hm(1),hm(2),output)
+        part(j)%val_av(i_av)=part(j)%val_av(i_av)+output
+      case ('lo')
+        if (.not. cart_comp) then
+          ! Calculate Cartesian 3D coordinates suitable for averaging
+          !**********************************************************
+
+          xlon=xlon*pi180
+          ylat=ylat*pi180
+          x = cos(ylat)*sin(xlon)
+          y = -1.*cos(ylat)*cos(xlon)
+          z = sin(ylat)
+
+          part(j)%cartx_av=part(j)%cartx_av+x
+          part(j)%carty_av=part(j)%carty_av+y
+          part(j)%cartz_av=part(j)%cartz_av+z
+          cart_comp=.true.
+        endif
+      case ('la')
+        if (.not. cart_comp) then
+          ! Calculate Cartesian 3D coordinates suitable for averaging
+          !**********************************************************
+
+          xlon=xlon*pi180
+          ylat=ylat*pi180
+          x = cos(ylat)*sin(xlon)
+          y = -1.*cos(ylat)*cos(xlon)
+          z = sin(ylat)
+
+          part(j)%cartx_av=part(j)%cartx_av+x
+          part(j)%carty_av=part(j)%carty_av+y
+          part(j)%cartz_av=part(j)%cartz_av+z
+          cart_comp=.true.
+        endif
+      case ('zz')
+        ! Convert eta z coordinate to meters if necessary. Can be moved to output only
+        !************************************************
+        call update_zeta_to_z(itime,j)
+        part(j)%val_av(i_av)=part(j)%val_av(i_av)+part(j)%z
+      case ('ma')
+        do ns=1,nspec
+          part(j)%val_av(i_av+(ns-1))=part(j)%val_av(i_av+(ns-1))+part(j)%mass(ns)
+        end do
+      case default
+        call interpol_partoutput_value(partopt(np)%name,output,j)
+        part(j)%val_av(i_av)=part(j)%val_av(i_av)+output
+    end select
+  end do
   ! Reset dz1out
   !*************
   dz1out=-1
-
-  ! Convert eta z coordinate to meters if necessary. Can be moved to output only
-  !************************************************
-  call update_zeta_to_z(itime,j)
-  
-  ! energy=tti*cpa+(ztemp1+topo)*9.81+qvi*2501000.+(uui**2+vvi**2)/2.
-
-  ! Add new values to sum and increase counter by one
-  !**************************************************
-
-  npart_av(j)=npart_av(j)+1
-
-  ! Calculate Cartesian 3D coordinates suitable for averaging
-  !**********************************************************
-
-  xlon=xlon*pi180
-  ylat=ylat*pi180
-  x = cos(ylat)*sin(xlon)
-  y = -1.*cos(ylat)*cos(xlon)
-  z = sin(ylat)
-
-  part_av_cartx(j)=part_av_cartx(j)+x
-  part_av_carty(j)=part_av_carty(j)+y
-  part_av_cartz(j)=part_av_cartz(j)+z
-  part_av_z(j)=part_av_z(j)+part(j)%z
-  part_av_pv(j)=part_av_pv(j)+pvi
-  part_av_qv(j)=part_av_qv(j)+qvi
-  part_av_tt(j)=part_av_tt(j)+tti
-  part_av_uu(j)=part_av_uu(j)+uui
-  part_av_vv(j)=part_av_vv(j)+vvi
-  ! part_av_energy(j)=part_av_energy(j)+energy
+  cart_comp=.false.
 
   return
 end subroutine partpos_average

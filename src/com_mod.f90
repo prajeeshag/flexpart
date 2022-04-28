@@ -18,7 +18,19 @@ module com_mod
 
   implicit none
 
+  ! Partoptions derived type. This decides which fields are being computed and output
+  !**********************************************************************************
+  type :: particleoptions
+    character(2) :: name
+    character(20) :: long_name
+    logical :: print
+    logical :: average=.false.
+    integer :: i_average=0
+  end type particleoptions
 
+  integer :: num_partopt=30
+  integer :: n_average
+  type(particleoptions),allocatable :: partopt(:)
 
   !****************************************************************
   ! Variables defining where FLEXPART input/output files are stored
@@ -489,7 +501,7 @@ module com_mod
   
   !LB 04.05.2021, simple timing of IO and total running time
   real :: s_readwind=0, s_writepartav=0, s_writepart=0, s_temp=0, s_total=0
-  
+
 contains
   subroutine com_mod_allocate_part(nmpart)
   !*******************************************************************************    

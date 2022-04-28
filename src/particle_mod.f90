@@ -1,5 +1,5 @@
 module particle_mod
-  use com_mod, only: maxspec,DRYBKDEP,WETBKDEP,iout
+  use com_mod, only: maxspec,DRYBKDEP,WETBKDEP,iout,n_average
   use par_mod, only: dp
 
   implicit none
@@ -27,8 +27,7 @@ module particle_mod
     real(kind=dp)      ::         &
       xlon,                       & ! Longitude in grid coordinates
       ylat,                       & ! Latitude in grid coordinates
-      xlon_prev, ylat_prev          ! Keeping the previous positions in memory
-    real(kind=dp)      ::         &
+      xlon_prev, ylat_prev,       & ! Keeping the previous positions in memory
       z,                          & ! height in meters
       z_prev                        ! Previous position
     real(kind=dp)      ::         &
@@ -54,6 +53,15 @@ module particle_mod
     real               ::         &
       mass(maxspec),              & ! Particle mass for each particle species
       prob(maxspec)                 ! Probability of absorption at ground due to dry deposition
+    
+    real,allocatable   ::         &
+      val_av(:)                     ! Averaged values; only used when average_output=.true.
+    real               ::         &
+      ntime=0.,                   & ! Number of timesteps to average over
+      cartx_av=0.,                & ! Averaged x pos;
+      carty_av=0.,                & ! Averaged y pos;
+      cartz_av=0.                   ! Averaged z pos;
+
   end type particle
 
   type :: particlecount          
@@ -286,6 +294,7 @@ contains
     real, allocatable :: tmpxscav(:,:)
     real, allocatable :: tmpxl(:),tmpyl(:),tmpzl(:)
     integer, allocatable :: tmpnclust(:)
+    integer :: i
 
     if (nmpart.gt.100) write(*,*) 'Allocating ',nmpart,' particles'
 
@@ -301,6 +310,11 @@ contains
     !*******************************
 
     allocate( tmppart(count%allocated+nmpart) )
+    if (n_average.gt.0) then 
+      do i=1,count%allocated+nmpart
+        allocate( tmppart(i)%val_av(n_average) )
+      end do
+    endif
     if (count%allocated.gt.0) tmppart(1:count%allocated) = part
     call move_alloc(tmppart,part)
 
@@ -377,6 +391,13 @@ contains
 
     implicit none
 
+    integer :: i
+
+    if (n_average.gt.0) then 
+      do i=1,count%allocated
+        deallocate( part(i)%val_av )
+      end do
+    endif
     deallocate( part )
     deallocate( count%inmem )
 

@@ -263,7 +263,7 @@ module par_mod
   ! Unit numbers for input/output files
   !************************************
 
-  integer,parameter :: unitpath=1, unitcommand=1, unitageclasses=1, unitgrid=1
+  integer,parameter :: unitpath=1, unitcommand=1, unitageclasses=1, unitgrid=1, unitpartoptions=106
   integer,parameter :: unitavailab=1, unitreleases=88, unitpartout=93, unitpartout_average=105
   integer,parameter :: unitpartin=93, unitflux=98, unitouttraj=96
   integer,parameter :: unitvert=1, unitoro=1, unitpoin=1, unitreceptor=1
@@ -294,5 +294,7 @@ module par_mod
   !*****************************************************************
   character(len=256),parameter :: wind_coord_type='ETA'
   !character(len=256),parameter :: wind_coord_type='METER'
+
+  logical,parameter :: average_output=.true.
 
 end module par_mod

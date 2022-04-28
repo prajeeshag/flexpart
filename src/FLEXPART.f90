@@ -127,10 +127,6 @@ program flexpart
     write(*,*) "******************************************************"
     write(*,*)
   endif
- 
-  ! Initialize arrays in com_mod
-  !*****************************
-  ! call com_mod_allocate_part(maxpart)
 
   ! Read the age classes to be used
   !********************************
@@ -139,6 +135,8 @@ program flexpart
   ! Read, which wind fields are available within the modelling period
   !******************************************************************
   call readavailable
+
+  call readpartoptions
 
   ! Detect metdata format
   !**********************

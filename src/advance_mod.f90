@@ -142,7 +142,7 @@ subroutine advance(itime,ipart)
     depoindicator=.true.
     part(ipart)%prob=0.
   endif
-  if (ipart.eq.1) write(*,*) 'Mass: ', part(ipart)%mass(:), itime
+  !if (ipart.eq.1) write(*,*) 'Mass: ', part(ipart)%mass(:), itime
   dxsave=0.           ! reset position displacements
   dysave=0.           ! due to mean wind
   dawsave=0.          ! and turbulent wind

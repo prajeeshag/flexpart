@@ -73,9 +73,11 @@ subroutine readageclasses
     end do
     read(unitageclasses,*) nageclass
     read(unitageclasses,*) lage(1)
-    do i=2,nageclass
-      read(unitageclasses,*) lage(i)
-    end do
+    if (nageclass.gt.2) then
+      do i=2,nageclass
+        read(unitageclasses,*) lage(i)
+      end do
+    endif
     close(unitageclasses)
   endif
 
@@ -3080,6 +3082,284 @@ subroutine readspecies(id_spec,pos_spec)
   write(*,'(a)') path(2)(1:length(2))
   stop
 end subroutine readspecies
+
+subroutine readpartoptions
+
+  !*****************************************************************************
+  !                                                                            *
+  !     This routine reads the age classes to be used for the current model    *
+  !     run.                                                                   *
+  !                                                                            *
+  !     Author: A. Stohl                                                       *
+  !     20 March 2000                                                          *
+  !     HSO, 1 July 2014                                                       *
+  !     Added optional namelist input                                          *
+  !                                                                            *
+  !*****************************************************************************
+  !                                                                            *
+  ! Variables:                                                                 *
+  !                                                                            *
+  ! Constants:                                                                 *
+  !                                                                            *
+  !*****************************************************************************
+
+  implicit none
+
+  integer :: i,np
+
+  ! namelist help variables
+  integer :: readerror
+
+  logical ::                      &
+    longitude=.false.,            &
+    longitude_average=.false.,    &
+    latitude=.false.,             &
+    latitude_average=.false.,     &
+    height=.false.,               &
+    height_average=.false.,       &
+    pv=.false.,                   &
+    pv_average=.false.,           &
+    qv=.false.,                   &
+    qv_average=.false.,           &
+    density=.false.,              &
+    density_average=.false.,      &
+    temperature=.false.,          &
+    temperature_average=.false.,  &
+    pressure=.false.,             &
+    pressure_average=.false.,     &
+    mixingheight=.false.,         &
+    mixingheight_average=.false., &
+    tropopause=.false.,           &
+    tropopause_average=.false.,   &
+    topography=.false.,           &
+    topography_average=.false.,   &
+    mass=.false.,                 &
+    mass_average=.false.,         &
+    u=.false.,                    &
+    u_average=.false.,            &
+    v=.false.,                    &
+    v_average=.false.,            &
+    w=.false.,                    &
+    w_average=.false.
+
+  ! namelist declaration
+  namelist /partoptions/  &
+    longitude,            &
+    longitude_average,    &
+    latitude,             &
+    latitude_average,     &
+    height,               &
+    height_average,       &
+    pv,                   &
+    pv_average,           &
+    qv,                   &
+    qv_average,           &
+    density,          &
+    density_average,  &
+    temperature,          &
+    temperature_average,  &
+    pressure,             &
+    pressure_average,     &
+    mixingheight,         &
+    mixingheight_average, &
+    tropopause,           &
+    tropopause_average,   &
+    topography,           &
+    topography_average,   &
+    mass,                 &
+    mass_average,         &
+    u,                    &
+    u_average,            &
+    v,                    &
+    v_average,            &
+    w,                    &
+    w_average
+
+  ! If age spectra claculation is switched on,
+  ! open the AGECLASSSES file and read user options
+  !************************************************
+
+  open(unitpartoptions,file=path(1)(1:length(1))//'PARTOPTIONS',form='formatted',status='old',err=9999)
+
+  ! try to read in as a namelist
+  read(unitpartoptions,partoptions,iostat=readerror)
+  close(unitpartoptions)
+
+  if (readerror.ne.0) then
+    write(*,*) 'Namelist error in PARTOPTIONS file', trim(path(1)(1:length(1))//'PARTOPTIONS')
+    stop
+  endif
+  allocate( partopt(num_partopt) )
+  ! Save values in particle options derived type
+  !*********************************************
+  partopt(1)%long_name='longitude'
+  partopt(1)%name='LO'
+  partopt(1)%print=longitude
+
+  partopt(2)%long_name='longitude_average'
+  partopt(2)%name='lo'
+  partopt(2)%print=longitude_average
+  partopt(2)%average=.true.
+
+  partopt(3)%long_name='latitude'
+  partopt(3)%name='LA'
+  partopt(3)%print=latitude
+
+  partopt(4)%long_name='latitude_average'
+  partopt(4)%name='la'
+  partopt(4)%print=latitude_average
+  partopt(4)%average=.true.
+
+  partopt(5)%long_name='height'
+  partopt(5)%name='ZZ'
+  partopt(5)%print=height
+
+  partopt(6)%long_name='height_average'
+  partopt(6)%name='zz'
+  partopt(6)%print=height_average
+  partopt(6)%average=.true.
+
+  partopt(7)%long_name='pv'
+  partopt(7)%name='PV'
+  partopt(7)%print=pv
+
+  partopt(8)%long_name='pv_average'
+  partopt(8)%name='pv'
+  partopt(8)%print=pv_average
+  partopt(8)%average=.true.
+
+  partopt(9)%long_name='qv'
+  partopt(9)%name='QV'
+  partopt(9)%print=qv
+
+  partopt(10)%long_name='qv_average'
+  partopt(10)%name='qv'
+  partopt(10)%print=qv_average
+  partopt(10)%average=.true.
+
+  partopt(11)%long_name='density'
+  partopt(11)%name='RH'
+  partopt(11)%print=density
+
+  partopt(12)%long_name='density_average'
+  partopt(12)%name='rh'
+  partopt(12)%print=density_average
+  partopt(12)%average=.true.
+
+  partopt(13)%long_name='temperature'
+  partopt(13)%name='TT'
+  partopt(13)%print=temperature
+
+  partopt(14)%long_name='temperature_average'
+  partopt(14)%name='tt'
+  partopt(14)%print=temperature_average
+  partopt(14)%average=.true.
+
+  partopt(15)%long_name='pressure'
+  partopt(15)%name='PR'
+  partopt(15)%print=pressure
+
+  partopt(16)%long_name='pressure_average'
+  partopt(16)%name='pr'
+  partopt(16)%print=pressure_average
+  partopt(16)%average=.true.
+
+  partopt(17)%long_name='mixingheight'
+  partopt(17)%name='HM'
+  partopt(17)%print=mixingheight
+
+  partopt(18)%long_name='mixingheight_average'
+  partopt(18)%name='hm'
+  partopt(18)%print=mixingheight_average
+  partopt(18)%average=.true.
+
+  partopt(19)%long_name='tropopause'
+  partopt(19)%name='TR'
+  partopt(19)%print=tropopause
+
+  partopt(20)%long_name='tropopause_average'
+  partopt(20)%name='tr'
+  partopt(20)%print=tropopause_average
+  partopt(20)%average=.true.
+
+  partopt(21)%long_name='topography'
+  partopt(21)%name='TO'
+  partopt(21)%print=topography
+
+  partopt(22)%long_name='topography_average'
+  partopt(22)%name='to'
+  partopt(22)%print=topography_average
+  partopt(22)%average=.true.
+
+  partopt(23)%long_name='mass'
+  partopt(23)%name='MA'
+  partopt(23)%print=mass
+
+  partopt(24)%long_name='mass_average'
+  partopt(24)%name='ma'
+  partopt(24)%print=mass_average
+  partopt(24)%average=.true.
+  
+  partopt(25)%long_name='u'
+  partopt(25)%name='UU'
+  partopt(25)%print=u
+
+  partopt(26)%long_name='u_average'
+  partopt(26)%name='uu'
+  partopt(26)%print=u_average
+  partopt(26)%average=.true.
+
+  partopt(27)%long_name='v'
+  partopt(27)%name='VV'
+  partopt(27)%print=v
+
+  partopt(28)%long_name='v_average'
+  partopt(28)%name='vv'
+  partopt(28)%print=v_average
+  partopt(28)%average=.true.
+
+  partopt(29)%long_name='w'
+  partopt(29)%name='WW'
+  partopt(29)%print=w
+
+  partopt(30)%long_name='w_average'
+  partopt(30)%name='ww'
+  partopt(30)%print=w_average
+  partopt(30)%average=.true.
+
+  ! Numbers are assigned to the averaged fields for proper
+  ! allocation and reading in particle_mod and output_mod
+  !******************************************************
+  n_average=0
+  do np=1,num_partopt
+    if (partopt(np)%average .and. partopt(np)%print) then 
+      n_average=n_average+1
+      partopt(np)%i_average = n_average
+      if ((partopt(np)%name.eq.'MA') .or. (partopt(np)%name.eq.'ma')) then
+        n_average=n_average + (maxspec-1)
+      endif
+    endif
+  end do
+
+  ! write partoptions file in namelist format to output directory if requested
+  if (nmlout.and.lroot) then
+    open(unitpartoptions,file=path(2)(1:length(2))//'PARTOPTIONS.namelist',err=10000)
+    write(unitpartoptions,nml=partoptions)
+    close(unitpartoptions)
+  endif
+
+  return
+
+9999   write(*,*) ' #### FLEXPART MODEL ERROR! FILE "AGECLASSES" #### '
+  write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
+  write(*,'(a)') path(1)(1:length(1))
+  stop
+
+10000  write(*,*) ' #### FLEXPART MODEL ERROR! FILE "AGECLASSES" #### '
+  write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
+  write(*,'(a)') path(2)(1:length(2))
+  stop
+end subroutine readpartoptions
 
 end module readoptions
 

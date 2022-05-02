@@ -37,7 +37,7 @@ module netcdf_output_mod
                        wetgrid,wetgridsigma,drygrid,drygridsigma,grid,gridsigma,&
                        area,arean,volumen,orooutn
   use par_mod,   only: dep_prec, sp, dp, maxspec, maxreceptor, nclassunc,&
-                       unitoutrecept,unitoutreceptppt,unittmp,average_output
+                       unitoutrecept,unitoutreceptppt,unittmp
   use com_mod,   only: path,length,ldirect,ibdate,ibtime,iedate,ietime, &
                        loutstep,loutaver,loutsample,outlon0,outlat0,&
                        numxgrid,numygrid,dxout,dyout,numzgrid, &

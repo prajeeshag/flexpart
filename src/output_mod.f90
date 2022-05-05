@@ -173,7 +173,7 @@ subroutine output_particles(itime)
   integer  :: ncid, mythread, thread_divide(12),mass_divide(nspec)
 #endif
 
-!$OMP PARALLEL PRIVATE(i,j,tmp,ns,i_av,cartxyz_comp,np)
+!$OMP PARALLEL PRIVATE(i,j,tmp,ns,i_av,cartxyz_comp,cartxyz,np)
   ! Some variables needed for temporal interpolation
   !*************************************************
   call find_time_variables(itime)

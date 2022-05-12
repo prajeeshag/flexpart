@@ -338,10 +338,10 @@ subroutine convmix(itime)
     if (lconv .eqv. .true.) then
       ktop = 0
   ! assign new vertical position to particle
-  !LB th ctm version has a do loop, let's see if that changes anything
+  !LB the ctm version has a do loop, let's see if that changes anything
       do kpart=frst(kk), frst(kk+1)-1
         ipart = ipoint(kpart)
-        ztold=part(ipart)%z
+        ztold=real(part(ipart)%z)
         call redist(itime,ipart,ktop,ipconv)
   !    if (ipconv.le.0) sumconv = sumconv+1
 

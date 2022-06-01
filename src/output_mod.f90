@@ -977,6 +977,7 @@ subroutine partpos_average(itime,j)
 
   logical :: cart_comp
 
+  if (ipout.eq.0) return ! No need to compute averages since there is no particle output
 
   if (n_average.eq.0) return
 

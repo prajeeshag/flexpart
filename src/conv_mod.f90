@@ -21,49 +21,18 @@ module conv_mod
   !                     na = nconvlevmax+1
   !these parameters are defined in par_mod now!
   ! I do not know how to allocate each array for each thread, not automaticaly done...
-  real :: &!,allocatable,dimension(:) ::     &
-    pconv(nconvlevmax),                & ! 
-    phconv(na),                        & !
-    dpr(nconvlevmax),                  & !
-    pconv_hpa(nconvlevmax),            & !
-    phconv_hpa(na),                    & !
-    ft(nconvlevmax),                   & !
-    fq(nconvlevmax),                   & !
-    sub(nconvlevmax),                  & ! subsidence
-    tconv(na),                         & !
-    qconv(na),                         & !
-    qsconv(na)                            
   real :: &!,allocatable,dimension(:,:) ::    & !
-    fmass(nconvlevmax,nconvlevmax),     & !
-    fmassfrac(nconvlevmax,nconvlevmax), & !
     cbaseflux(0:nxmax-1,0:nymax-1)                         
   real :: &!,allocatable,dimension(:,:,:) :: &
     cbasefluxn(0:nxmaxn-1,0:nymaxn-1,maxnests)
-  ! integer,dimension(na) :: &
-  !   NENT
-  ! real,dimension(na,na) :: &
-  !   MENT,QENT,ELIJ,SIJ
-  ! real,dimension(na) ::    &
-  !   fup,fdown,M,MP,TVP,TV, &
-  !   WATER,QP,EP,TH,WT,     &
-  !   EVAP,CLW,SIGP,TP,CPN,  &
-  !   LV,LVCP,H,HP,GZ,HM
   real,dimension(na) ::    &
     uvzlev(nuvzmax),wsub(nuvzmax)
-  real :: psconv,tt2conv,td2conv
   
   integer :: nconvlev,nconvtop
 
   save :: uvzlev
 
-!$OMP THREADPRIVATE( ft, fq, fmass, sub, fmassfrac, &
-!$OMP pconv, phconv, dpr, pconv_hpa, phconv_hpa, &
-!$OMP tconv, qconv, qsconv, psconv, tt2conv, td2conv, &
-!$OMP nconvtop,uvzlev,wsub,cbaseflux,cbasefluxn)
-! , &
-! !$OMP fup,fdown,MENT,NENT,M,MP,QENT,ELIJ,SIJ,TVP,TV, &
-! !$OMP WATER,QP,EP,TH,WT,EVAP,CLW,SIGP,TP,CPN,LV,LVCP, &
-! !$OMP H,HP,GZ,HM)
+!$OMP THREADPRIVATE(nconvtop,uvzlev,wsub,cbaseflux,cbasefluxn)
 
 contains
 
@@ -153,9 +122,9 @@ subroutine convmix(itime)
 
   implicit none
 
-  integer :: igr,igrold, ipart, itime, ix, j, inest
-  integer :: ipconv
-  integer :: jy, kpart, ktop, ngrid,kz
+  integer, intent(in) :: itime
+  integer :: igr,igrold, ipart, ix, jy, j, inest
+  integer :: kpart, ktop, ngrid,kz
   integer,allocatable :: igrid(:), ipoint(:), igridn(:,:)
 
   ! itime [s]                 current time
@@ -163,17 +132,13 @@ subroutine convmix(itime)
   ! igridn(maxpart,maxnests)  dto. for nested grids
   ! ipoint(maxpart)           pointer to access particles according to grid position
 
-  logical :: lconv
   real :: x, y, xtn,ytn, ztold, delt
-  real :: dt1,dt2,dtt
-  integer :: mind1,mind2
-  ! dt1,dt2,dtt,mind1,mind2       variables used for time interpolation
+  real :: dt1,dt2,dtt !variables used for time interpolation
   integer :: itage,nage
 
   ! OMP changes
   integer :: cnt,kk
   integer,allocatable,dimension(:) :: frst
-  double precision :: tmarray(2)
 
   integer :: totpart,alivepart
   real:: eps
@@ -184,11 +149,7 @@ subroutine convmix(itime)
   dt1=real(itime-memtime(1))
   dt2=real(memtime(2)-itime)
   dtt=1./(dt1+dt2)
-  mind1=memind(1)
-  mind2=memind(2)
   delt=real(abs(lsynctime))
-
-  lconv = .false.
 
   ! if no particles are present return after initialization
   !********************************************************
@@ -297,72 +258,15 @@ subroutine convmix(itime)
   end do 
   frst(cnt) = numpart+1
 
-!$OMP PARALLEL PRIVATE(kk,jy,ix,tmarray,j,kz,ktop,lconv,kpart,ipart,&
-!$OMP ztold,nage,ipconv)
+!$OMP PARALLEL PRIVATE(kk)
 
 !$OMP DO SCHEDULE(static)
+  
   do kk=1,cnt-1
-    if (igrid(frst(kk)).eq.-1) cycle
-
-    ix = (igrid(frst(kk))-1)/ny
-    jy = igrid(frst(kk)) - ix*ny - 1
-    ! jy = (igrid(frst(kk))-1)/nx
-    ! ix = igrid(frst(kk)) - jy*nx - 1
-
-  ! Interpolate all meteorological data needed for the convection scheme
-    psconv=(ps(ix,jy,1,mind1)*dt2+ps(ix,jy,1,mind2)*dt1)*dtt
-    tt2conv=(tt2(ix,jy,1,mind1)*dt2+tt2(ix,jy,1,mind2)*dt1)*dtt
-    td2conv=(td2(ix,jy,1,mind1)*dt2+td2(ix,jy,1,mind2)*dt1)*dtt
-
-    if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-      do kz=1,nuvz-1           !bugfix
-        tconv(kz)=(tth(ix,jy,kz+1,mind1)*dt2+ &
-             tth(ix,jy,kz+1,mind2)*dt1)*dtt
-        qconv(kz)=(qvh(ix,jy,kz+1,mind1)*dt2+ &
-             qvh(ix,jy,kz+1,mind2)*dt1)*dtt
-      end do
-    else
-      do kz=1,nuvz-1           !bugfix
-        pconv(kz)=(pplev(ix,jy,kz,mind1)*dt2+ &
-            pplev(ix,jy,kz,mind2)*dt1)*dtt
-        tconv(kz)=(tt(ix,jy,kz,mind1)*dt2+ &
-            tt(ix,jy,kz,mind2)*dt1)*dtt
-        qconv(kz)=(qv(ix,jy,kz,mind1)*dt2+ &
-            qv(ix,jy,kz,mind2)*dt1)*dtt
-      end do
-    end if
-
-  ! Calculate translocation matrix
-    call calcmatrix(lconv,delt,cbaseflux(ix,jy))
-    
-  ! treat particle only if column has convection
-    if (lconv .eqv. .true.) then
-      ktop = 0
-  ! assign new vertical position to particle
-  !LB the ctm version has a do loop, let's see if that changes anything
-      do kpart=frst(kk), frst(kk+1)-1
-        ipart = ipoint(kpart)
-        ztold=real(part(ipart)%z)
-        call redist(itime,ipart,ktop,ipconv)
-  !    if (ipconv.le.0) sumconv = sumconv+1
-
-  ! Calculate the gross fluxes across layer interfaces
-  !***************************************************
-
-        if (iflux.eq.1) then
-          itage=abs(itime-part(ipart)%tstart)
-          do nage=1,nageclass
-            if ((itage.lt.lage(nage)).or.(.not.part(ipart)%alive)) exit
-          end do
-
-          if (nage.le.nageclass) &
-            call calcfluxes(itime,nage,ipart,real(part(ipart)%xlon), &
-               real(part(ipart)%ylat),ztold)
-        endif
-      enddo
-
-    endif   !(lconv .eqv. .true)
+    call conv_per_cell(itime,frst(kk),frst(kk+1)-1,igrid(frst(kk)), &
+      totpart,ipoint,dt1,dt2,dtt,delt)
   end do
+
 !$OMP END DO
 !$OMP END PARALLEL
 
@@ -387,60 +291,7 @@ subroutine convmix(itime)
 
     igrold = -1
     do kpart=1,numpart
-      igr = igrid(kpart)
-      if (igr .eq. -1) cycle
-      ipart = ipoint(kpart)
-      ! sumall = sumall + 1
-      if (igr .ne. igrold) then
-  ! we are in a new grid column
-        jy = (igr-1)/nxn(inest)
-        ix = igr - jy*nxn(inest) - 1
-
-  ! Interpolate all meteorological data needed for the convection scheme
-        psconv=(psn(ix,jy,1,mind1,inest)*dt2+ &
-             psn(ix,jy,1,mind2,inest)*dt1)*dtt
-        tt2conv=(tt2n(ix,jy,1,mind1,inest)*dt2+ &
-             tt2n(ix,jy,1,mind2,inest)*dt1)*dtt
-        td2conv=(td2n(ix,jy,1,mind1,inest)*dt2+ &
-             td2n(ix,jy,1,mind2,inest)*dt1)*dtt
-!!$        do kz=1,nconvlev+1    !old
-        do kz=1,nuvz-1           !bugfix
-          tconv(kz)=(tthn(ix,jy,kz+1,mind1,inest)*dt2+ &
-               tthn(ix,jy,kz+1,mind2,inest)*dt1)*dtt
-          qconv(kz)=(qvhn(ix,jy,kz+1,mind1,inest)*dt2+ &
-               qvhn(ix,jy,kz+1,mind2,inest)*dt1)*dtt
-        end do
-
-  ! calculate translocation matrix
-  !*******************************
-        call calcmatrix(lconv,delt,cbasefluxn(ix,jy,inest))
-        igrold = igr
-        ktop = 0
-      endif
-
-  ! treat particle only if column has convection
-      if (lconv .eqv. .true.) then
-  ! assign new vertical position to particle
-        ztold=part(ipart)%z
-        call redist(itime,ipart,ktop,ipconv)
-  !      if (ipconv.le.0) sumconv = sumconv+1
-
-  ! Calculate the gross fluxes across layer interfaces
-  !***************************************************
-
-        if (iflux.eq.1) then
-          itage=abs(itime-part(ipart)%tstart)
-          do nage=1,nageclass
-            if ((itage.lt.lage(nage)).or.(.not.part(ipart)%alive)) exit
-          end do
-
-          if (nage.le.nageclass) &
-               call calcfluxes(itime,nage,ipart,real(part(ipart)%xlon), &
-               real(part(ipart)%ylat),ztold)
-        endif
-
-      endif !(lconv .eqv. .true.)
-
+      call conv_per_cell_nested(itime,igrid(kpart),igrold,ipoint(kpart),inest,dt1,dt2,dtt,delt)
     end do
   end do
   !--------------------------------------------------------------------------
@@ -462,7 +313,184 @@ subroutine convmix(itime)
   return
 end subroutine convmix
 
-subroutine calcmatrix(lconv,delt,cbmf)
+subroutine conv_per_cell(itime, frst_a, frst_b, igrid_frst, totpart, ipoint, dt1, dt2, dtt, delt)
+
+  use flux_mod
+  use par_mod
+  use com_mod
+  use class_gribfile
+  use particle_mod
+
+  implicit none
+
+  integer, intent(in) :: igrid_frst, itime, totpart, frst_a, frst_b
+  integer, intent(in) :: ipoint(totpart)
+  real, intent(in) :: dt1, dt2, dtt, delt
+  integer :: ipart,kpart
+  real :: sub(nconvlevmax) ! subsidence
+  real :: &!,allocatable,dimension(:) ::     &
+    pconv(nconvlevmax),                & !
+    phconv(na),                        & !
+    dpr(nconvlevmax),                  & !
+    tconv(na),                         & !
+    qconv(na)
+  real :: fmassfrac(nconvlevmax,nconvlevmax)
+  real :: psconv,tt2conv,td2conv
+  real :: ztold
+  integer :: ix, jy, kz, ktop
+  integer :: itage,nage
+  logical :: lconv
+  
+  lconv = .false.
+
+  if (igrid_frst.eq.-1) return
+
+  ix = (igrid_frst-1)/ny
+  jy = igrid_frst - ix*ny - 1
+  ! jy = (igrid(frst(kk))-1)/nx
+  ! ix = igrid(frst(kk)) - jy*nx - 1
+
+  ! Interpolate all meteorological data needed for the convection scheme
+  psconv=(ps(ix,jy,1,memind(1))*dt2+ps(ix,jy,1,memind(2))*dt1)*dtt
+  tt2conv=(tt2(ix,jy,1,memind(1))*dt2+tt2(ix,jy,1,memind(2))*dt1)*dtt
+  td2conv=(td2(ix,jy,1,memind(1))*dt2+td2(ix,jy,1,memind(2))*dt1)*dtt
+
+  if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
+    do kz=1,nuvz-1           !bugfix
+      tconv(kz)=(tth(ix,jy,kz+1,memind(1))*dt2+ &
+           tth(ix,jy,kz+1,memind(2))*dt1)*dtt
+      qconv(kz)=(qvh(ix,jy,kz+1,memind(1))*dt2+ &
+           qvh(ix,jy,kz+1,memind(2))*dt1)*dtt
+    end do
+  else
+    do kz=1,nuvz-1           !bugfix
+      pconv(kz)=(pplev(ix,jy,kz,memind(1))*dt2+ &
+          pplev(ix,jy,kz,memind(2))*dt1)*dtt
+      tconv(kz)=(tt(ix,jy,kz,memind(1))*dt2+ &
+          tt(ix,jy,kz,memind(2))*dt1)*dtt
+      qconv(kz)=(qv(ix,jy,kz,memind(1))*dt2+ &
+          qv(ix,jy,kz,memind(2))*dt1)*dtt
+    end do
+  end if
+
+  ! Calculate translocation matrix
+  call calcmatrix(lconv,delt,cbaseflux(ix,jy),sub,psconv,&
+      pconv,tconv,qconv,phconv,dpr,fmassfrac)
+    
+  ! treat particle only if column has convection
+  if (lconv .eqv. .true.) then
+    ktop = 0
+  ! assign new vertical position to particle
+    do kpart=frst_a, frst_b
+      ipart = ipoint(kpart)
+      ztold = real(part(ipart)%z)
+      call redist(itime,ipart,ktop,sub,psconv,td2conv,tt2conv,pconv,&
+        tconv,qconv,phconv,dpr,fmassfrac)
+
+  ! Calculate the gross fluxes across layer interfaces
+  !***************************************************
+
+      if (iflux.eq.1) then
+        itage=abs(itime-part(ipart)%tstart)
+        do nage=1,nageclass
+          if ((itage.lt.lage(nage)).or.(.not.part(ipart)%alive)) exit
+        end do
+
+        if (nage.le.nageclass) &
+          call calcfluxes(itime,nage,ipart,real(part(ipart)%xlon), &
+             real(part(ipart)%ylat),ztold)
+      endif
+    enddo
+
+  endif   !(lconv .eqv. .true)
+end subroutine conv_per_cell
+
+subroutine conv_per_cell_nested(itime,igrid_frst,igrid_old,ipart,inest,dt1,dt2,dtt,delt)
+
+  use flux_mod
+  use par_mod
+  use com_mod
+  use class_gribfile
+  use particle_mod
+  
+  implicit none
+
+  integer, intent(in) :: itime,inest
+  integer, intent(in) :: igrid_frst
+  integer, intent(inout) :: igrid_old
+  integer, intent(in) :: ipart
+  real, intent(in) :: dt1,dt2,dtt,delt
+  real :: sub(nconvlevmax) ! subsidence
+  real ::                    &
+    pconv(nconvlevmax),      & !
+    phconv(na),              & !
+    dpr(nconvlevmax),        & !
+    tconv(na),               & !
+    qconv(na),               & !
+    fmassfrac(nconvlevmax,nconvlevmax)
+  real :: psconv,td2conv,tt2conv,ztold 
+  integer :: ix,jy,kz,ktop
+  integer :: itage,nage
+  logical :: lconv
+
+  lconv = .false.
+  
+  if (igrid_frst .eq. -1) return
+
+  if (igrid_frst .ne. igrid_old) then
+  ! we are in a new grid column
+    jy = (igrid_frst-1)/nxn(inest)
+    ix = igrid_frst - jy*nxn(inest) - 1
+
+  ! Interpolate all meteorological data needed for the convection scheme
+    psconv=(psn(ix,jy,1,memind(1),inest)*dt2+ &
+         psn(ix,jy,1,memind(2),inest)*dt1)*dtt
+    tt2conv=(tt2n(ix,jy,1,memind(1),inest)*dt2+ &
+         tt2n(ix,jy,1,memind(2),inest)*dt1)*dtt
+    td2conv=(td2n(ix,jy,1,memind(1),inest)*dt2+ &
+         td2n(ix,jy,1,memind(2),inest)*dt1)*dtt
+  !!$        do kz=1,nconvlev+1    !old
+    do kz=1,nuvz-1           !bugfix
+      tconv(kz)=(tthn(ix,jy,kz+1,memind(1),inest)*dt2+ &
+           tthn(ix,jy,kz+1,memind(2),inest)*dt1)*dtt
+      qconv(kz)=(qvhn(ix,jy,kz+1,memind(1),inest)*dt2+ &
+           qvhn(ix,jy,kz+1,memind(2),inest)*dt1)*dtt
+    end do
+
+  ! calculate translocation matrix
+  !*******************************
+    call calcmatrix(lconv,delt,cbasefluxn(ix,jy,inest),sub,psconv,&
+      pconv,tconv,qconv,phconv,dpr,fmassfrac)
+
+    igrid_old = igrid_frst
+    ktop = 0
+  endif
+
+  ! treat particle only if column has convection
+  if (lconv .eqv. .true.) then
+  ! assign new vertical position to particle
+    ztold=part(ipart)%z
+    call redist(itime,ipart,ktop,sub,psconv,td2conv,tt2conv, &
+      pconv,tconv,qconv,phconv,dpr,fmassfrac)
+
+  ! Calculate the gross fluxes across layer interfaces
+  !***************************************************
+
+    if (iflux.eq.1) then
+      itage=abs(itime-part(ipart)%tstart)
+      do nage=1,nageclass
+        if ((itage.lt.lage(nage)).or.(.not.part(ipart)%alive)) exit
+      end do
+
+      if (nage.le.nageclass) &
+        call calcfluxes(itime,nage,ipart,real(part(ipart)%xlon), &
+          real(part(ipart)%ylat),ztold)
+    endif
+
+  endif !(lconv .eqv. .true.)
+end subroutine conv_per_cell_nested
+
+subroutine calcmatrix(lconv,delt,cbmf,sub,psconv,pconv,tconv,qconv,phconv,dpr,fmassfrac)
   !                        o    i    o
   !*****************************************************************************
   !                                                                            *
@@ -499,7 +527,23 @@ subroutine calcmatrix(lconv,delt,cbmf)
   implicit none
 
   real :: rlevmass,summe
-
+  real, intent(out) :: sub(nconvlevmax) ! subsidence
+  real, intent(in) ::                  &
+    psconv,                            &
+    qconv(na),                         &
+    tconv(na)
+  real, intent(inout) ::               &
+    pconv(nconvlevmax),                &
+    phconv(na),                        &   
+    dpr(nconvlevmax)
+  real, intent(out)  ::                &
+    fmassfrac(nconvlevmax,nconvlevmax) !
+  real ::                              &
+    pconv_hpa(nconvlevmax),            & !
+    phconv_hpa(na),                    &
+    qsconv(na) 
+  real ::                              &
+    fmass(nconvlevmax,nconvlevmax)
   integer :: iflag, k, kk, kuvz
 
   !1-d variables for convection
@@ -507,7 +551,7 @@ subroutine calcmatrix(lconv,delt,cbmf)
   real :: cbmfold, precip, qprime
   real :: tprime, wd
   real :: delt,cbmf
-  logical :: lconv
+  logical, intent (out) :: lconv
 
   lconv = .false.
 
@@ -573,13 +617,12 @@ subroutine calcmatrix(lconv,delt,cbmf)
   !   phconv_hpa(k)=phconv(k)/100.
   ! end do
   ! phconv_hpa(nconvlev+1)=phconv(nconvlev+1)/100.
-  ! LB 04.05.2021, replace above with array operations
   pconv_hpa(1:nconvlev+1)=pconv(1:nconvlev+1)/100.
   phconv_hpa(1:nconvlev+1)=phconv(1:nconvlev+1)/100.
-  ! LB end
     
   call convect(nconvlevmax, nconvlev, delt, iflag, &
-       precip, wd, tprime, qprime, cbmf)
+       precip, wd, tprime, qprime, cbmf, sub, phconv, &
+       pconv_hpa, phconv_hpa, tconv, qconv, qsconv, fmass)
 
   ! do not update fmassfrac and cloudbase massflux
   ! if no convection takes place or
@@ -618,7 +661,8 @@ subroutine calcmatrix(lconv,delt,cbmf)
   ! LB end
 end subroutine calcmatrix
 
-subroutine redist(itime,ipart,ktop,ipconv)
+subroutine redist(itime,ipart,ktop,sub,psconv,td2conv,tt2conv,pconv, &
+  tconv,qconv,phconv,dpr,fmassfrac)
 
   !**************************************************************************
   ! Do the redistribution of particles due to convection
@@ -644,7 +688,16 @@ subroutine redist(itime,ipart,ktop,ipconv)
   implicit none
 
   real,parameter :: const=r_air/ga
-  integer :: ipart, ktop,ipconv,itime
+  real, intent(out) :: sub(nconvlevmax)
+  real, intent(in) :: psconv,td2conv,tt2conv
+  real, intent(in) ::     &
+    pconv(nconvlevmax),   &
+    tconv(na),            &
+    qconv(na),            &
+    phconv(na),           &
+    dpr(nconvlevmax),     &
+    fmassfrac(nconvlevmax,nconvlevmax)
+  integer :: ipart, ktop,itime
   integer :: k, kz, levnew, levold
 
   real :: totlevmass, wsubpart
@@ -662,8 +715,6 @@ subroutine redist(itime,ipart,ktop,ipconv)
 !$  endif
 
   ! ipart   ... number of particle to be treated
-
-  ipconv=1
 
   ! !  determine vertical grid position of particle in the eta system
   ! !****************************************************************
@@ -814,7 +865,6 @@ subroutine redist(itime,ipart,ktop,ipconv)
           call set_zeta(ipart,wheight(levnew)+dlogp)
           if (part(abs(ipart))%zeta.ge.1.) call set_zeta(ipart,1.-(part(abs(ipart))%zeta-1.))
           if (part(abs(ipart))%zeta.eq.1.) call update_zeta(ipart,-1.e-4)
-          if (ipconv.gt.0) ipconv=-1
         endif
 
       case ('METER')
@@ -826,7 +876,6 @@ subroutine redist(itime,ipart,ktop,ipconv)
           dz = dz1 + dz2
           call set_z(ipart,(uvzlev(levnew)*dz2+uvzlev(levnew+1)*dz1)/dz)
           if (part(abs(ipart))%z.lt.0.) call set_z(ipart,-1.*part(abs(ipart))%z)
-          if (ipconv.gt.0) ipconv=-1
         endif
 
       case default
@@ -930,9 +979,9 @@ end subroutine redist
 !****                          Kerry Emanuel                          *****
 !**************************************************************************
 !
-  SUBROUTINE CONVECT &
-         (ND,  NL,   DELT, IFLAG, &
-         PRECIP, WD,   TPRIME, QPRIME, CBMF    )
+  SUBROUTINE CONVECT(ND,  NL,   DELT, IFLAG, &
+         PRECIP, WD,   TPRIME, QPRIME, CBMF, SUB, phconv, &
+         pconv_hpa, phconv_hpa, tconv, qconv, qsconv, fmass)
   !
   !-cv *************************************************************************
   !-cv C. Forster, November 2003 - May 2004:
@@ -1082,6 +1131,17 @@ end subroutine redist
   !
   !Argument variables
   !
+  real, intent(in) ::                  & 
+    phconv(na),                        &
+    pconv_hpa(nconvlevmax),            & !
+    phconv_hpa(na),                    & 
+    tconv(na),                         &
+    qconv(na),                         &
+    qsconv(na)
+  real, intent(out) ::                 &
+    fmass(nconvlevmax,nconvlevmax)
+  real, intent(out) ::                 &
+    sub(nconvlevmax)                     ! subsidence
   integer :: iflag, nd, nl
   !
   real :: cbmf, delt, precip, qprime, tprime, wd
@@ -1102,6 +1162,9 @@ end subroutine redist
   real :: rdcp, revap, rh, scrit, sigt, sjmax
   real :: sjmin, smid, smin, stemp, tca
   real :: tvaplcl, tvpplcl, tvx, tvy, wdtrain
+
+  real :: ft(nconvlevmax), &
+          fq(nconvlevmax)
 
   !integer jc,jn
   !real alvnew,a2,ahm,alv,rm,sum,qnew,dphinv,tc,thbar,tnew,x
@@ -1399,7 +1462,7 @@ end subroutine redist
   !   ***  TEMPERATURE, THE ACTUAL TEMPERATURE AND THE ADIABATIC             ***
   !   ***                   LIQUID WATER CONTENT                             ***
   !
-  CALL TLIFT(GZ,ICB,NK,TVP,TP,CLW,ND,NL,1)
+  CALL TLIFT(GZ,ICB,NK,TVP,TP,CLW,ND,NL,1,pconv_hpa,qsconv,qconv,tconv)
   TVP(NK:ICB)=TVP(NK:ICB)-TP(NK:ICB)*QCONV(NK)
   !
   !   ***  If there was no convection at last time step and parcel    ***
@@ -1416,7 +1479,7 @@ end subroutine redist
   !
   !   ***  FIND THE REST OF THE LIFTED PARCEL TEMPERATURES          ***
   !
-  CALL TLIFT(GZ,ICB,NK,TVP,TP,CLW,ND,NL,2)
+  CALL TLIFT(GZ,ICB,NK,TVP,TP,CLW,ND,NL,2,pconv_hpa,qsconv,qconv,tconv)
   !
   !   ***  SET THE PRECIPITATION EFFICIENCIES AND THE FRACTION OF   ***
   !   ***          PRECIPITATION FALLING OUTSIDE OF CLOUD           ***
@@ -1953,7 +2016,7 @@ END SUBROUTINE CONVECT
 !
 ! ---------------------------------------------------------------------------
 !
-SUBROUTINE TLIFT(GZ,ICB,NK,TVP,TPK,CLW,ND,NL,KK)
+SUBROUTINE TLIFT(GZ,ICB,NK,TVP,TPK,CLW,ND,NL,KK,pconv_hpa,qsconv,qconv,tconv)
   !
   !-cv
   use par_mod
@@ -1964,6 +2027,11 @@ SUBROUTINE TLIFT(GZ,ICB,NK,TVP,TPK,CLW,ND,NL,KK)
   !
   !Argument variables
   !
+  real, intent(in) ::       &
+    pconv_hpa(nconvlevmax), & !
+    qsconv(na),             &
+    qconv(na),              &
+    tconv(na)
   integer :: icb, kk, nd, nk, nl
   !
   !Local variables

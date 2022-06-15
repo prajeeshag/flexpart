@@ -2270,7 +2270,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
 
   do i=1,plen
     if (part(i)%height.lt.0) then 
-      terminate_particle(i)
+      call terminate_particle(i)
       write(*,*) 'Particle ',i,'is not alive in the restart file.'
     endif
     part(i)%nclass=min(int(ran1(idummy)*real(nclassunc))+1, &

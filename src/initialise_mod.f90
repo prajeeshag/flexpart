@@ -896,6 +896,7 @@ subroutine init_domainfill
       gdomainfill=.false.
     endif
   endif
+  write(*,*) 'Global domain: ', gdomainfill
 
   ! Exit here if resuming a run from particle dump
   !***********************************************

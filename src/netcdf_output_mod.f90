@@ -83,7 +83,7 @@ module netcdf_output_mod
 
   !IDs for partoutput
   integer             :: partID
-  integer             :: itramemID,topoID,pvID,qvID,rhoID,prID,uID,vID,wID
+  integer             :: itramemID,topoID,pvID,qvID,rhoID,prID,uID,vID,wID,vsetID
   integer             :: hmixID,trID,ttID,lonIDpart,latIDpart,levIDpart,massID(maxspec)
   ! For averaged output
   integer          :: &
@@ -101,6 +101,7 @@ module netcdf_output_mod
     uavID,            &
     vavID,            &
     wavID,            &
+    vsetavID,          &
     massavID(maxspec)
   integer             :: partIDi,tIDi,lonIDi,latIDi,levIDi ! For initial particle outputs
 
@@ -1898,7 +1899,25 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
         call nf90_err(nf90_put_att(ncid, wavID, '_FillValue', fillval))
         call nf90_err(nf90_put_att(ncid, wavID, 'positive', 'up'))
         call nf90_err(nf90_put_att(ncid, wavID, 'standard_name', 'w_average'))
-        call nf90_err(nf90_put_att(ncid, wavID, 'long_name', 'vertical velocity averaged'))  
+        call nf90_err(nf90_put_att(ncid, wavID, 'long_name', 'vertical velocity averaged'))
+      case ('VS')
+        call nf90_err(nf90_def_var(ncid, 'settling', nf90_float, (/ timeDimID,partDimID /), vsetID))
+        call nf90_err(nf90_def_var_chunking(ncid,vsetID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+        call nf90_err(nf90_def_var_deflate(ncid,vsetID,shuffle=0,deflate=1,deflate_level=1))
+        call nf90_err(nf90_put_att(ncid, vsetID, 'units', 'm/s'))
+        call nf90_err(nf90_put_att(ncid, vsetID, '_FillValue', fillval))
+        call nf90_err(nf90_put_att(ncid, vsetID, 'positive', 'up'))
+        call nf90_err(nf90_put_att(ncid, vsetID, 'standard_name', 'settling_velocity'))
+        call nf90_err(nf90_put_att(ncid, vsetID, 'long_name', 'settling velocity'))  
+      case ('vs')
+        call nf90_err(nf90_def_var(ncid, 'settling_av', nf90_float, (/ timeDimID,partDimID /), vsetavID))
+        call nf90_err(nf90_def_var_chunking(ncid,vsetavID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+        call nf90_err(nf90_def_var_deflate(ncid,vsetavID,shuffle=0,deflate=1,deflate_level=1))
+        call nf90_err(nf90_put_att(ncid, vsetavID, 'units', 'm/s'))
+        call nf90_err(nf90_put_att(ncid, vsetavID, '_FillValue', fillval))
+        call nf90_err(nf90_put_att(ncid, vsetavID, 'positive', 'up'))
+        call nf90_err(nf90_put_att(ncid, vsetavID, 'standard_name', 'settling_velocity_average'))
+        call nf90_err(nf90_put_att(ncid, vsetavID, 'long_name', 'settling velocity averaged'))  
       case ('MA') ! Mass
         if (mdomainfill.ge.1) then
           call nf90_err(nf90_def_var(ncid=ncid, name='mass', xtype=nf90_float, dimids=1, varid=massID(1)))
@@ -2147,6 +2166,10 @@ subroutine partoutput_netcdf(itime,field,fieldname,imass,ncid)
       call nf90_err(nf90_put_var(ncid,wID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('ww') ! Vertical velocity averaged
       call nf90_err(nf90_put_var(ncid,wavID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+    case('VS') ! Settling velocity
+      call nf90_err(nf90_put_var(ncid,vsetID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+    case('vs') ! Settling velocity averaged
+      call nf90_err(nf90_put_var(ncid,vsetavID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
     case('HM') ! Mixing height
       if (mdomainfill.ge.1) then 
         call nf90_err(nf90_put_var(ncid,hmixID,hmix(0:nx-1,0:ny-1,1,memind(1)), &

@@ -28,7 +28,7 @@ module com_mod
     integer :: i_average=0
   end type particleoptions
 
-  integer :: num_partopt=30
+  integer :: num_partopt=32
   integer :: n_average
   type(particleoptions),allocatable :: partopt(:)
 

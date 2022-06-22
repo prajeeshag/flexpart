@@ -142,6 +142,9 @@ subroutine advance(itime,ipart)
     depoindicator=.true.
     part(ipart)%prob=0.
   endif
+  
+  if (lsettling) part(ipart)%settling=0.
+
   !if (ipart.eq.1) write(*,*) 'Mass: ', part(ipart)%mass(:), itime
   dxsave=0.           ! reset position displacements
   dysave=0.           ! due to mean wind
@@ -324,8 +327,7 @@ subroutine advance_abovePBL(itime,itimec,dxsave,dysave,&
   real ::                         &
     dt,                           & ! real(ldt)
     xts,yts,zts,ztseta,           & ! local 'real' copy of the particle position
-    wp,                           & ! random turbulence velocities
-    settling                        ! settling velocity
+    wp                              ! random turbulence velocities
   integer ::                      &
     nsp                             ! loop variables for number of species
 
@@ -333,7 +335,8 @@ subroutine advance_abovePBL(itime,itimec,dxsave,dysave,&
   ztseta=real(part(ipart)%zeta)
   xts=real(part(ipart)%xlon)
   yts=real(part(ipart)%ylat)
-  settling=0.
+  if (lsettling) part(ipart)%settling=0.
+
   call interpol_wind(itime,xts,yts,zts,ztseta,ipart)
 
   ! Compute everything for above the PBL
@@ -370,11 +373,11 @@ subroutine advance_abovePBL(itime,itimec,dxsave,dysave,&
       end if
       ! LB needs to be checked if this works with openmp and change to eta coords
       if (density(nsp).gt.0.) then
-        call get_settling(itime,xts,yts,zts,nsp,settling)  !bugfix
-        w=w+settling
+        call get_settling(itime,xts,yts,zts,nsp,part(ipart)%settling)  !bugfix
+        w=w+part(ipart)%settling
         if (wind_coord_type.eq.'ETA') then 
           call update_zeta_to_z(itime,ipart)
-          call update_z(ipart,settling*dt*real(ldirect))
+          call update_z(ipart,part(ipart)%settling*dt*real(ldirect))
         endif
       end if
     endif
@@ -426,14 +429,13 @@ subroutine advance_PBL(itime,itimec,&
     dt,                           & ! real(ldt)
     xts,yts,zts,ztseta,           & ! local 'real' copy of the particle position
     rhoa,                         & ! air density, used in CBL
-    rhograd,                      & ! vertical gradient of the air density, used in CBL
-    settling                        ! settling velocity
+    rhograd                         ! vertical gradient of the air density, used in CBL
   integer ::                      &
     loop,                         & ! loop variable for time in the PBL
     nsp                             ! loop variable for species
 
   eps=nxmax/3.e5
-  settling=0.
+  if (lsettling) part(ipart)%settling=0.
 
   ! BEGIN TIME LOOP
   !================
@@ -520,8 +522,8 @@ subroutine advance_PBL(itime,itimec,&
           nsp=nspec
         end if
         if (density(nsp).gt.0.) then
-          call get_settling(itime,xts,yts,zts,nsp,settling)  !bugfix
-          w=w+settling
+          call get_settling(itime,xts,yts,zts,nsp,part(ipart)%settling)  !bugfix
+          w=w+part(ipart)%settling
         end if
       end if
     endif
@@ -584,8 +586,7 @@ subroutine advance_PettersonCorrection(itime,ipart)
     nsp                             ! loop variables for number of species
   real ::                         &
     xts,yts,zts,ztseta,           & ! local 'real' copy of the particle position
-    uold,vold,wold,woldeta,       & !
-    settling                        ! settling velocity
+    uold,vold,wold,woldeta       
   real(kind=dp) ::                &
     ztemp                           ! temporarily storing z position
 
@@ -594,7 +595,7 @@ subroutine advance_PettersonCorrection(itime,ipart)
   yts=real(part(ipart)%ylat)
   zts=real(part(ipart)%z)
   ztseta=real(part(ipart)%zeta)
-  settling=0.
+  if (lsettling) part(ipart)%settling=0.
 
 
   ! Determine nested grid coordinates
@@ -634,18 +635,18 @@ subroutine advance_PettersonCorrection(itime,ipart)
 
           case ('ETA')
             call update_zeta_to_z(itime+part(ipart)%idt,ipart)
-            call get_settling(itime+part(ipart)%idt,xts,yts,real(part(ipart)%z),nsp,settling) !bugfix
+            call get_settling(itime+part(ipart)%idt,xts,yts,real(part(ipart)%z),nsp,part(ipart)%settling) !bugfix
             call z_to_zeta(itime+part(ipart)%idt,part(ipart)%xlon,part(ipart)%ylat,&
-              part(ipart)%z+real(settling*real(part(ipart)%idt*ldirect),kind=dp),ztemp)
+              part(ipart)%z+real(part(ipart)%settling*real(part(ipart)%idt*ldirect),kind=dp),ztemp)
             weta=weta+(real(ztemp)-ztseta)/real(part(ipart)%idt*ldirect)
             woldeta=real(part(ipart)%zeta-part(ipart)%zeta_prev)/real(part(ipart)%idt*ldirect)
           case ('METER')
-            call get_settling(itime+part(ipart)%idt,xts,yts,zts,nsp,settling)
-            w=w+settling
+            call get_settling(itime+part(ipart)%idt,xts,yts,zts,nsp,part(ipart)%settling)
+            w=w+part(ipart)%settling
 
           case default 
-            call get_settling(itime+part(ipart)%idt,xts,yts,zts,nsp,settling)
-            w=w+settling
+            call get_settling(itime+part(ipart)%idt,xts,yts,zts,nsp,part(ipart)%settling)
+            w=w+part(ipart)%settling
         end select            
       end if
     endif

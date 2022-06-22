@@ -35,4 +35,6 @@
   V_AVERAGE=             .false., !
   W=                     .false., !
   W_AVERAGE=             .false., !
+  VSETTLING=             .false., !
+  VSETTLING_AVERAGE=     .false.,
   /

@@ -37,6 +37,8 @@ module particle_mod
       vel,                        & ! Velocities from interpolated windfields
       turbvel,                    & ! Random turbulent velocities
       mesovel                       ! Mesoscale turbulent velocities
+    real               ::         &
+      settling                      ! Settling velocity for dry and wet(?) deposit
     logical            ::         &
       alive=.false.,              & ! Flag to show if the particle is still in the running
       etaupdate=.false.,          & ! If false, z(meter) is more up-to-date than z(eta)

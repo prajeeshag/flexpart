@@ -299,6 +299,7 @@ subroutine output_particles(itime)
   write(atime,'(i6.6)') ihmmss
   j=1
   if (lnetcdfout.eq.1) then
+#ifdef USE_NCF
   ! open output file
     call open_partoutput_file(ncid)
 
@@ -308,8 +309,6 @@ subroutine output_particles(itime)
 
     ! Fill the fields in parallel
     if (numpart.gt.0) then
-
-#ifdef USE_NCF
       do np=1,num_partopt
         if (.not. partopt(np)%print) cycle
         if (partopt(np)%name.eq.'MA') then
@@ -324,11 +323,11 @@ subroutine output_particles(itime)
           call partoutput_netcdf(itime,output(np,:),partopt(np)%name,j,ncid)
         endif
       end do
-#endif
     endif
     call close_partoutput_file(ncid)
     mass_written=.true. ! needs to be reduced within openmp loop
     topo_written=.true. ! same
+#endif
   else
     ! Open output file and write the output
     !**************************************

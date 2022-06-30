@@ -41,7 +41,7 @@ subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd)
     flagrein,                     & ! flag used in CBL scheme
     i                               ! ĺoop variable
 
-
+  ! tlw,dsigwdz and dsigw2dz are defined in hanna
     if (turbswitch) then
       call hanna(zts)
     else
@@ -78,7 +78,7 @@ subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd)
 
   ! Loop over ifine short time steps for vertical component
   !********************************************************
-  ! tlw,dsigwdz and dsigw2dz is defined in hanna_mod, maybe move some below there
+
     do i=1,ifine
 
   ! Determine the drift velocity and density correction velocity

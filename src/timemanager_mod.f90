@@ -111,14 +111,12 @@ subroutine timemanager
     thread                    ! openmp change (not sure if necessary)
   ! logical ::                &
   !   active_per_rel(maxpoint)  ! are there particles active in each release
-#ifdef USE_NCF
   real ::                   &
     filesize!(maxpoint)        ! Keeping track of the size of the particledump output, so it can be splitted
   ! real(kind=dp) ::          &
   !   jul
   ! integer ::                &
   !   jjjjmmdd,ihmmss
-#endif
   real ::                   &
     outnum,                 & ! concentration calculation sample number
     prob_rec(maxspec),      & ! dry deposition related
@@ -146,10 +144,8 @@ subroutine timemanager
   write(*,46) float(itime)/3600,itime,numpart
 46      format(' Simulated ',f7.1,' hours (',i13,' s), ',i13, ' particles')
 
-#ifdef USE_NCF
   filesize=0.
   ! active_per_rel=.false.
-#endif
 
   ! ! Allocate memory for windfields
   ! !*******************************

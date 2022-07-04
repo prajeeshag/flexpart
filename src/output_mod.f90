@@ -221,13 +221,14 @@ subroutine output_particles(itime)
         ! case ('UU') ! Longitudinal velocity
         !   output(np,i)=part(i)%vel%u !This would be preferred, but not implemented yet
         !   cycle
+        case ('VS') ! Settling velocity
+          output(np,i)=part(i)%settling
+          cycle
         case ('MA') ! Mass
           do ns=1,nspec
             masstemp(i,ns)=part(i)%mass(ns)
           end do
           cycle
-        case ('VS') ! Settling velocity
-          output(np,i)=part(i)%settling
         case ('ma') ! Mass averaged
           do ns=1,nspec
             masstemp_av(i,ns)=part(i)%val_av(i_av+(ns-1))/part(i)%ntime

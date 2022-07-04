@@ -726,46 +726,30 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
 
   ! Determine nested grid coordinates
   !**********************************
-
-  if (ngrid.gt.0) then
-    xtn=(xt-xln(ngrid))*xresoln(ngrid)
-    ytn=(yt-yln(ngrid))*yresoln(ngrid)
-    ix=int(xtn)
-    jy=int(ytn)
-    nix=nint(xtn)
-    njy=nint(ytn)
-  else
-    ix=int(xt)
-    jy=int(yt)
-    nix=nint(xt)
-    njy=nint(yt)
-  endif
-  ixp=ix+1
-  jyp=jy+1
-
+  call determine_grid_coordinates(real(xt),real(yt))
 
   ! Determine probability of deposition
   !************************************
 
-      if ((DRYDEP).and.(zt.lt.2.*href)) then
-        do ks=1,nspec
-          if (DRYDEPSPEC(ks)) then
-            if (depoindicator(ks)) then
-              if (ngrid.le.0) then
-                call interpol_vdep(vdep,ks,vdepo(ks))
-              else
-                call interpol_vdep_nests(vdepn,ks,vdepo(ks))
-              endif
-            endif
+  if ((DRYDEP).and.(real(zt).lt.2.*href)) then
+    do ks=1,nspec
+      if (DRYDEPSPEC(ks)) then
+        if (depoindicator(ks)) then
+          if (ngrid.le.0) then
+            call interpol_vdep(vdep,ks,vdepo(ks))
+          else
+            call interpol_vdep_nests(vdepn,ks,vdepo(ks))
+          endif
+        endif
   ! correction by Petra Seibert, 10 April 2001
   !   this formulation means that prob(n) = 1 - f(0)*...*f(n)
   !   where f(n) is the exponential term
-               prob(ks)=vdepo(ks)
+        prob(ks)=vdepo(ks)
   !               prob(ks)=vdepo(ks)/2./href
   ! instead of prob - return vdepo -> result kg/m2/s
-          endif
-        end do
       endif
+    end do
+  endif
 end subroutine get_vdep_prob
 
 subroutine drydepo_probability(prob,dt,zts)
@@ -1297,7 +1281,7 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
               settling_old=settling
             end do
             ! No layer resistance: deposition velocity is equal to settling velocity 
-            vdep(ic)=abs(settling)
+            vdepj=abs(settling)
           endif
 
         else

@@ -1096,7 +1096,7 @@ subroutine interpol_rain(yy1,yy2,yy3,nxmax,nymax,nzmax,nx, &
    yint3=y3(1)
 end subroutine interpol_rain
 
-subroutine interpol_vdep(field,level,output)
+subroutine interpol_vdep(field,nspec,output)
   !                           i     o
   !****************************************************************************
   !                                                                           *
@@ -1116,13 +1116,13 @@ subroutine interpol_vdep(field,level,output)
   !                                                                           *
   ! Variables:                                                                *
   !                                                                           *
-  ! level                number of species for which interpolation is done    *
+  ! nspec                number of the species for which interpolation is done*
   !                                                                           *
   !****************************************************************************
   implicit none
 
   integer, intent(in) ::  &
-    level                    ! number of species for which interpolation is done
+    nspec                    ! number of species for which interpolation is done
   real, intent(in) ::     &
     field(0:nxmax-1,0:nymax-1,maxspec,numwfmem)           ! vdep
   real, intent(inout) ::  &
@@ -1134,17 +1134,17 @@ subroutine interpol_vdep(field,level,output)
   do m=1,2
     indexh=memind(m)
 
-    y(m)=p1*field(ix ,jy ,level,indexh) &
-         +p2*field(ixp,jy ,level,indexh) &
-         +p3*field(ix ,jyp,level,indexh) &
-         +p4*field(ixp,jyp,level,indexh)
+    y(m)=p1*field(ix ,jy ,nspec,indexh) &
+         +p2*field(ixp,jy ,nspec,indexh) &
+         +p3*field(ix ,jyp,nspec,indexh) &
+         +p4*field(ixp,jyp,nspec,indexh)
   end do
 
   ! b) Temporal interpolation
 
   output=(y(1)*dt2+y(2)*dt1)*dtt
 
-  depoindicator(level)=.false.
+  depoindicator(nspec)=.false.
 end subroutine interpol_vdep
 
 subroutine interpol_density(ipart,output)

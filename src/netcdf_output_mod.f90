@@ -86,24 +86,11 @@ module netcdf_output_mod
   integer             :: itramemID,topoID,pvID,qvID,rhoID,prID,uID,vID,wID,vsetID
   integer             :: hmixID,trID,ttID,lonIDpart,latIDpart,levIDpart,massID(maxspec)
   ! For averaged output
-  integer          :: &
-    lonavIDpart,      &
-    latavIDpart,      &
-    levavIDpart,      &
-    pvavID,           &
-    qvavID,           &
-    pravID,           &
-    rhoavID,          &
-    ttavID,           &
-    topoavID,         &
-    hmixavID,         &
-    travID,           &
-    uavID,            &
-    vavID,            &
-    wavID,            &
-    vsetavID,          &
-    massavID(maxspec)
-  integer             :: partIDi,tIDi,lonIDi,latIDi,levIDi ! For initial particle outputs
+  integer  :: lonavIDpart,latavIDpart,levavIDpart,pvavID,qvavID,pravID, &
+    rhoavID,ttavID,topoavID,hmixavID,travID,uavID,vavID,wavID,vsetavID,massavID(maxspec)
+  ! For initial particle outputs
+  integer  :: partIDi,tIDi,lonIDi,latIDi,levIDi,pvIDi,prIDi,qvIDi, &
+    rhoIDi,ttIDi,uIDi,vIDi,wIDi,vsetIDi,massIDi(maxspec),topoIDi,trIDi
 
   real :: eps
   !  private:: writemetadata, output_units, nf90_err
@@ -1465,7 +1452,7 @@ subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
 
   integer, intent(in) :: itime,idate,itime_start,idate_start
   ! integer, intent(in) :: irelease
-  integer             :: cache_size,ncid,j,totpart
+  integer             :: cache_size,ncid,j,totpart,np
   integer             :: partDimID
   character(len=11)   :: fprefix
   character(len=3)    :: anspec,arelease
@@ -1506,45 +1493,76 @@ subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
   timeunit = 'seconds since '//adate_start(1:4)//'-'//adate_start(5:6)// &
      '-'//adate_start(7:8)//' '//atime_start(1:2)//':'//atime_start(3:4)
 
-  call nf90_err(nf90_def_var(ncid, 'time', nf90_int, (/ partDimID /), tIDi))
-  call nf90_err(nf90_def_var_deflate(ncid,tIDi,shuffle=0,deflate=1,deflate_level=1))
-  call nf90_err(nf90_put_att(ncid, tIDi, 'long_name', 'time of release'))
-  call nf90_err(nf90_put_att(ncid, tIDi, '_FillValue', -1))
+  call write_to_file(ncid,'time',nf90_int,(/ partDimID /),tIDi,(/ 1 /), &
+    timeunit,.false.,'time','time of release')
   call nf90_err(nf90_put_att(ncid, tIDi, 'axis', 't'))
-  call nf90_err(nf90_put_att(ncid, tIDi, 'units', timeunit))
   call nf90_err(nf90_put_att(ncid, tIDi, 'calendar', 'proleptic_gregorian'))
-  call nf90_err(nf90_put_att(ncid, tIDi, 'standard_name', 'time'))
   call nf90_err(nf90_put_att(ncid, tIDi, 'description', 'time of release'))
 
-
-  ! lon
-  call nf90_err(nf90_def_var(ncid, 'longitude', nf90_float, (/ partDimID /), lonIDi))
-  call nf90_err(nf90_def_var_deflate(ncid,lonIDi,shuffle=0,deflate=1,deflate_level=1))
-  call nf90_err(nf90_put_att(ncid, lonIDi, 'long_name', 'longitude in degree east'))
-  call nf90_err(nf90_put_att(ncid, lonIDi, '_FillValue', fillval))
+  ! lon  
+  call write_to_file(ncid,'longitude',nf90_float,(/ partDimID /),lonIDi,(/ 1 /), &
+    'degrees_east',.false.,'longitude','longitude in degree east')
   call nf90_err(nf90_put_att(ncid, lonIDi, 'axis', 'Lon'))
-  call nf90_err(nf90_put_att(ncid, lonIDi, 'units', 'degrees_east'))
-  call nf90_err(nf90_put_att(ncid, lonIDi, 'standard_name', 'longitude'))
   call nf90_err(nf90_put_att(ncid, lonIDi, 'description', 'longitude of particles'))
 
   ! lat
-  call nf90_err(nf90_def_var(ncid, 'latitude', nf90_float, (/ partDimID /), latIDi))
-  call nf90_err(nf90_def_var_deflate(ncid,latIDi,shuffle=0,deflate=1,deflate_level=1))
-  call nf90_err(nf90_put_att(ncid, latIDi, 'long_name', 'latitude in degree north'))
+  call write_to_file(ncid,'latitude',nf90_float,(/ partDimID /),latIDi,(/ 1 /), &
+    'degrees_north',.false.,'latitude','latitude in degree north')
   call nf90_err(nf90_put_att(ncid, latIDi, 'axis', 'Lat'))
-  call nf90_err(nf90_put_att(ncid, latIDi, '_FillValue', fillval))
-  call nf90_err(nf90_put_att(ncid, latIDi, 'units', 'degrees_north'))
-  call nf90_err(nf90_put_att(ncid, latIDi, 'standard_name', 'latitude'))
   call nf90_err(nf90_put_att(ncid, latIDi, 'description', 'latitude of particles'))
 
   ! height
-  call nf90_err(nf90_def_var(ncid, 'height', nf90_float, (/ partDimID /), levIDi))
-  call nf90_err(nf90_def_var_deflate(ncid,levIDi,shuffle=0,deflate=1,deflate_level=1))
-  call nf90_err(nf90_put_att(ncid, levIDi, 'units', 'meters'))
-  call nf90_err(nf90_put_att(ncid, levIDi, '_FillValue', fillval))
-  call nf90_err(nf90_put_att(ncid, levIDi, 'positive', 'up'))
-  call nf90_err(nf90_put_att(ncid, levIDi, 'standard_name', 'height'))
-  call nf90_err(nf90_put_att(ncid, levIDi, 'long_name', 'height above ground'))
+  call write_to_file(ncid,'height',nf90_float,(/ partDimID /),levIDi,(/ 1 /), &
+   'meters',.true.,'height','height above ground')
+
+  do np=1,num_partopt
+    if (.not. partopt(np)%print) cycle
+    select case(partopt(np)%name)
+      case ('PV') ! Potential vorticity
+        call write_to_file(ncid,'pv',nf90_float,(/ partDimID /),pvIDi,(/ 1 /), &
+          'pvu',.false.,'potential_vorticity','potential vorticity')
+      case ('PR') ! Pressure
+        call write_to_file(ncid,'pr',nf90_float,(/ partDimID /),prIDi,(/ 1 /), &
+          'Pa',.false.,'pressure','pressure')
+      case ('QV') ! Specific humidity
+        call write_to_file(ncid,'qv',nf90_float,(/ partDimID /),qvIDi,(/ 1 /), &
+          '',.false.,'specific_humidity','specific humidity')
+      case ('RH') ! Density
+        call write_to_file(ncid,'rho',nf90_float,(/ partDimID /),rhoIDi,(/ 1 /), &
+          'kg/m3',.true.,'density','density')
+      case ('TT') ! Temperature
+        call write_to_file(ncid,'temperature',nf90_float,(/ partDimID /),ttIDi,(/ 1 /), &
+          'K',.true.,'temperature','temperature')
+      case ('UU')
+        call write_to_file(ncid,'u',nf90_float,(/ partDimID /),uIDi,(/ 1 /), &
+          'm/s',.false.,'u','longitudinal velocity')
+      case ('VV')
+        call write_to_file(ncid,'v',nf90_float,(/ partDimID /),vIDi,(/ 1 /), &
+          'm/s',.false.,'v','latitudinal velocity')
+      case ('WW')
+        call write_to_file(ncid,'w',nf90_float,(/ partDimID /),wIDi,(/ 1 /), &
+          'm/s',.false.,'w','vertical velocity')
+      case ('VS')
+        call write_to_file(ncid,'settling',nf90_float,(/ partDimID /),vsetIDi,(/ 1 /), &
+          'm/s',.false.,'settling_velocity','settling velocity')
+      case ('MA')
+        do j=1,nspec
+          ! Masses
+          write(anspec, '(i3.3)') j
+          call write_to_file(ncid,'mass'//anspec,nf90_float,(/ partDimID /),massIDi(j), &
+            (/ 1 /),'kg',.true.,'mass'//anspec,'mass for nspec'//anspec) 
+        end do        
+      case ('TO')
+        call write_to_file(ncid,'topo',nf90_float,(/ partDimID /),topoIDi,(/ 1 /), &
+            'meters',.false.,'topography','topography above sealevel')
+      case ('TR')
+        call write_to_file(ncid,'tr',nf90_float,(/ partDimID /),trIDi,(/ 1 /), &
+            'meters',.true.,'htropo','height above ground of tropopause')
+      case default
+        cycle
+    end select
+  end do
+
 
   ! moves the file from define to data mode
   call nf90_err(nf90_enddef(ncid))
@@ -1655,19 +1673,15 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
     call nf90_err(nf90_def_dim(ncid, 'lat', ny, latDimID))
 
     ! lon
-    call nf90_err(nf90_def_var(ncid, 'lon', nf90_float, (/ lonDimID /), lonID))
-    call nf90_err(nf90_put_att(ncid, lonID, 'long_name', 'longitude in degree east'))
+    call write_to_file(ncid,'lon',nf90_float,(/ lonDimID /),lonID,(/ 1 /), &
+      'degrees_east',.false.,'grid_longitude','longitude in degree east')
     call nf90_err(nf90_put_att(ncid, lonID, 'axis', 'Lon'))
-    call nf90_err(nf90_put_att(ncid, lonID, 'units', 'degrees_east'))
-    call nf90_err(nf90_put_att(ncid, lonID, 'standard_name', 'grid_longitude'))
     call nf90_err(nf90_put_att(ncid, lonID, 'description', 'grid cell centers'))
 
     ! lat
-    call nf90_err(nf90_def_var(ncid, 'lat', nf90_float, (/ latDimID /), latID))
-    call nf90_err(nf90_put_att(ncid, latID, 'long_name', 'latitude in degree north'))
+    call write_to_file(ncid,'lat',nf90_float,(/ latDimID /),latID,(/ 1 /), &
+      'degrees_east',.false.,'grid_latitude','latitude in degree north')
     call nf90_err(nf90_put_att(ncid, latID, 'axis', 'Lat'))
-    call nf90_err(nf90_put_att(ncid, latID, 'units', 'degrees_north'))
-    call nf90_err(nf90_put_att(ncid, latID, 'standard_name', 'grid_latitude'))
     call nf90_err(nf90_put_att(ncid, latID, 'description', 'grid cell centers'))
 
     if (.not.allocated(coord)) allocate(coord(nx))
@@ -1700,224 +1714,89 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
   call nf90_err(nf90_put_att(ncid, partID, 'long_name', 'particle index'))
 
   fillval = -1.
-  ! lon
   do np=1,num_partopt
     if (.not. partopt(np)%print) cycle
     select case(partopt(np)%name)
       case ('LO') ! Longitude
-        call nf90_err(nf90_def_var(ncid, 'longitude', nf90_float, (/ timeDimID,partDimID /), lonIDpart))
-        call nf90_err(nf90_def_var_chunking(ncid,lonIDpart,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,lonIDpart,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, lonIDpart, 'long_name', 'longitude in degree east'))
-        call nf90_err(nf90_put_att(ncid, lonIDpart, '_FillValue', fillval))
+        call write_to_file(ncid,'longitude',nf90_float,(/ timeDimID,partDimID /),lonIDpart,(/ 1,totpart /), &
+          'degrees_east',.false.,'longitude','longitude of particles')
         call nf90_err(nf90_put_att(ncid, lonIDpart, 'axis', 'Lon'))
-        call nf90_err(nf90_put_att(ncid, lonIDpart, 'units', 'degrees_east'))
-        call nf90_err(nf90_put_att(ncid, lonIDpart, 'standard_name', 'longitude'))
         call nf90_err(nf90_put_att(ncid, lonIDpart, 'description', 'longitude of particles'))
       case ('lo') ! Longitude averaged
-        call nf90_err(nf90_def_var(ncid, 'longitude_av', nf90_float, (/ timeDimID,partDimID /), lonavIDpart))
-        call nf90_err(nf90_def_var_chunking(ncid,lonavIDpart,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,lonavIDpart,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, lonavIDpart, 'long_name', 'averaged longitude in degree east'))
-        call nf90_err(nf90_put_att(ncid, lonavIDpart, '_FillValue', fillval))
+        call write_to_file(ncid,'longitude_av',nf90_float,(/ timeDimID,partDimID /),lonavIDpart,(/ 1,totpart /), &
+          'degrees_east',.false.,'longitude_average','averaged longitude of particles')
         call nf90_err(nf90_put_att(ncid, lonavIDpart, 'axis', 'Lon'))
-        call nf90_err(nf90_put_att(ncid, lonavIDpart, 'units', 'degrees_east'))
-        call nf90_err(nf90_put_att(ncid, lonavIDpart, 'standard_name', 'longitude_average'))
         call nf90_err(nf90_put_att(ncid, lonavIDpart, 'description', 'averaged longitude of particles'))
       case ('LA') ! Latitude
-        call nf90_err(nf90_def_var(ncid, 'latitude', nf90_float, (/ timeDimID,partDimID /), latIDpart))
-        call nf90_err(nf90_def_var_chunking(ncid,latIDpart,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,latIDpart,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, latIDpart, 'long_name', 'latitude in degree north'))
-        call nf90_err(nf90_put_att(ncid, latIDpart, 'axis', 'Lat'))
-        call nf90_err(nf90_put_att(ncid, latIDpart, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, latIDpart, 'units', 'degrees_north'))
-        call nf90_err(nf90_put_att(ncid, latIDpart, 'standard_name', 'latitude'))
+        call write_to_file(ncid,'latitude',nf90_float,(/ timeDimID,partDimID /),latIDpart,(/ 1,totpart /), &
+          'degrees_north',.false.,'latitude','latitude in degree north')
+        call nf90_err(nf90_put_att(ncid, latavIDpart, 'axis', 'Lat'))
         call nf90_err(nf90_put_att(ncid, latIDpart, 'description', 'latitude of particles'))
       case ('la') ! Latitude averaged
-        call nf90_err(nf90_def_var(ncid, 'latitude_av', nf90_float, (/ timeDimID,partDimID /), latavIDpart))
-        call nf90_err(nf90_def_var_chunking(ncid,latavIDpart,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,latavIDpart,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, latavIDpart, 'long_name', 'averaged latitude in degree north'))
+        call write_to_file(ncid,'latitude_av',nf90_float,(/ timeDimID,partDimID /),latavIDpart,(/ 1,totpart /), &
+          'degrees_north',.false.,'latitude_average','averaged latitude in degree north')
         call nf90_err(nf90_put_att(ncid, latavIDpart, 'axis', 'Lat'))
-        call nf90_err(nf90_put_att(ncid, latavIDpart, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, latavIDpart, 'units', 'degrees_north'))
-        call nf90_err(nf90_put_att(ncid, latavIDpart, 'standard_name', 'latitude_average'))
         call nf90_err(nf90_put_att(ncid, latavIDpart, 'description', 'averaged latitude of particles'))
       case ('ZZ') ! Height
-        call nf90_err(nf90_def_var(ncid, 'height', nf90_float, (/ timeDimID,partDimID /), levIDpart))
-        call nf90_err(nf90_def_var_chunking(ncid,levIDpart,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,levIDpart,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, levIDpart, 'units', 'meters'))
-        call nf90_err(nf90_put_att(ncid, levIDpart, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, levIDpart, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, levIDpart, 'standard_name', 'height'))
-        call nf90_err(nf90_put_att(ncid, levIDpart, 'long_name', 'height above ground'))
+        call write_to_file(ncid,'height',nf90_float,(/ timeDimID,partDimID /),levIDpart,(/ 1,totpart /), &
+          'meters',.false.,'height','height above ground')
       case ('zz') ! Heights averaged
-        call nf90_err(nf90_def_var(ncid, 'height_av', nf90_float, (/ timeDimID,partDimID /), levavIDpart))
-        call nf90_err(nf90_def_var_chunking(ncid,levavIDpart,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,levavIDpart,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, levavIDpart, 'units', 'meters'))
-        call nf90_err(nf90_put_att(ncid, levavIDpart, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, levavIDpart, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, levavIDpart, 'standard_name', 'height_average'))
-        call nf90_err(nf90_put_att(ncid, levavIDpart, 'long_name', 'averaged height above ground'))
+        call write_to_file(ncid,'height_av',nf90_float,(/ timeDimID,partDimID /),levavIDpart,(/ 1,totpart /), &
+          'meters',.false.,'height_average','averaged height above ground')
       case ('PV') ! Potential vorticity
-        call nf90_err(nf90_def_var(ncid, 'pv', nf90_float, (/ timeDimID,partDimID /), pvID))
-        call nf90_err(nf90_def_var_chunking(ncid,pvID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,pvID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, pvID, 'units', 'pvu'))
-        call nf90_err(nf90_put_att(ncid, pvID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, pvID, 'standard_name', 'potential_vorticity'))
-        call nf90_err(nf90_put_att(ncid, pvID, 'long_name', 'potential vorticity'))
+        call write_to_file(ncid,'pv',nf90_float,(/ timeDimID,partDimID /),pvID,(/ 1,totpart /), &
+          'pvu',.false.,'potential_vorticity','potential vorticity')
       case ('pv') ! Potential vorticity averaged
-        call nf90_err(nf90_def_var(ncid, 'pv_av', nf90_float, (/ timeDimID,partDimID /), pvavID))
-        call nf90_err(nf90_def_var_chunking(ncid,pvavID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,pvavID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, pvavID, 'units', 'pvu'))
-        call nf90_err(nf90_put_att(ncid, pvavID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, pvavID, 'standard_name', 'potential_vorticity_average'))
-        call nf90_err(nf90_put_att(ncid, pvavID, 'long_name', 'averaged potential vorticity'))
+        call write_to_file(ncid,'pv_av',nf90_float,(/ timeDimID,partDimID /),pvavID,(/ 1,totpart /), &
+          'pvu',.false.,'potential_vorticity_average','averaged potential vorticity')
       case ('PR') ! Pressure
-        call nf90_err(nf90_def_var(ncid, 'pr', nf90_float, (/ timeDimID,partDimID /), prID))
-        call nf90_err(nf90_def_var_chunking(ncid,prID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,prID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, prID, 'units', 'Pa'))
-        call nf90_err(nf90_put_att(ncid, prID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, prID, 'standard_name', 'pressure'))
-        call nf90_err(nf90_put_att(ncid, prID, 'long_name', 'pressure'))
+        call write_to_file(ncid,'pr',nf90_float,(/ timeDimID,partDimID /),prID,(/ 1,totpart /), &
+          'Pa',.false.,'pressure','pressure')
       case ('pr') ! Pressure averaged
-        call nf90_err(nf90_def_var(ncid, 'pr_av', nf90_float, (/ timeDimID,partDimID /), pravID))
-        call nf90_err(nf90_def_var_chunking(ncid,pravID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,pravID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, pravID, 'units', 'Pa'))
-        call nf90_err(nf90_put_att(ncid, pravID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, pravID, 'standard_name', 'pressure_average'))
-        call nf90_err(nf90_put_att(ncid, pravID, 'long_name', 'averaged pressure'))
+        call write_to_file(ncid,'pr_av',nf90_float,(/ timeDimID,partDimID /),pravID,(/ 1,totpart /), &
+          'Pa',.false.,'pressure_average','averaged pressure')
       case ('QV') ! Specific humidity
-        call nf90_err(nf90_def_var(ncid, 'qv', nf90_float, (/ timeDimID,partDimID /), qvID))
-        call nf90_err(nf90_def_var_chunking(ncid,qvID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,qvID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, qvID, 'units', ''))
-        call nf90_err(nf90_put_att(ncid, qvID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, qvID, 'standard_name', 'specific_humidity'))
-        call nf90_err(nf90_put_att(ncid, qvID, 'long_name', 'specific humidity'))
+        call write_to_file(ncid,'qv',nf90_float,(/ timeDimID,partDimID /),qvID,(/ 1,totpart /), &
+          '',.false.,'specific_humidity','specific humidity')
       case ('qv') ! Specific humidity averaged
-        call nf90_err(nf90_def_var(ncid, 'qv_av', nf90_float, (/ timeDimID,partDimID /), qvavID))
-        call nf90_err(nf90_def_var_chunking(ncid,qvavID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,qvavID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, qvavID, 'units', ''))
-        call nf90_err(nf90_put_att(ncid, qvavID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, qvavID, 'standard_name', 'specific_humidity_average'))
-        call nf90_err(nf90_put_att(ncid, qvavID, 'long_name', 'averaged specific humidity'))
+        call write_to_file(ncid,'qv_av',nf90_float,(/ timeDimID,partDimID /),qvavID,(/ 1,totpart /), &
+          '',.false.,'specific_humidity_average','averaged specific humidity')
       case ('RH') ! Density
-        call nf90_err(nf90_def_var(ncid, 'rho', nf90_float, (/ timeDimID,partDimID /), rhoID))
-        call nf90_err(nf90_def_var_chunking(ncid,rhoID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,rhoID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, rhoID, 'units', 'kg/m3'))
-        call nf90_err(nf90_put_att(ncid, rhoID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, rhoID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, rhoID, 'standard_name', 'density'))
-        call nf90_err(nf90_put_att(ncid, rhoID, 'long_name', 'density'))
+        call write_to_file(ncid,'rho',nf90_float,(/ timeDimID,partDimID /),rhoID,(/ 1,totpart /), &
+          'kg/m3',.true.,'density','density')
       case ('rh') ! Density averaged
-        call nf90_err(nf90_def_var(ncid, 'rho_av', nf90_float, (/ timeDimID,partDimID /), rhoavID))
-        call nf90_err(nf90_def_var_chunking(ncid,rhoavID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,rhoavID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, rhoavID, 'units', 'kg/m3'))
-        call nf90_err(nf90_put_att(ncid, rhoavID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, rhoavID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, rhoavID, 'standard_name', 'density_average'))
-        call nf90_err(nf90_put_att(ncid, rhoavID, 'long_name', 'averaged density'))
+        call write_to_file(ncid,'rho_av',nf90_float,(/ timeDimID,partDimID /),rhoavID,(/ 1,totpart /), &
+          'kg/m3',.true.,'density_average','averaged density')
       case ('TT') ! Temperature
-        call nf90_err(nf90_def_var(ncid, 'temperature', nf90_float, (/ timeDimID,partDimID /), ttID))
-        call nf90_err(nf90_def_var_chunking(ncid,ttID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,ttID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, ttID, 'units', 'K'))
-        call nf90_err(nf90_put_att(ncid, ttID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, ttID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, ttID, 'standard_name', 'temperature'))
-        call nf90_err(nf90_put_att(ncid, ttID, 'long_name', 'temperature'))
+        call write_to_file(ncid,'temperature',nf90_float,(/ timeDimID,partDimID /),ttID,(/ 1,totpart /), &
+          'K',.true.,'temperature','temperature') 
       case ('tt') ! Temperature averaged
-        call nf90_err(nf90_def_var(ncid, 'temperature_av', nf90_float, (/ timeDimID,partDimID /), ttavID))
-        call nf90_err(nf90_def_var_chunking(ncid,ttavID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,ttavID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, ttavID, 'units', 'K'))
-        call nf90_err(nf90_put_att(ncid, ttavID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, ttavID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, ttavID, 'standard_name', 'temperature_average'))
-        call nf90_err(nf90_put_att(ncid, ttavID, 'long_name', 'averaged temperature'))
+        call write_to_file(ncid,'temperature_av',nf90_float,(/ timeDimID,partDimID /),ttavID,(/ 1,totpart /), &
+          'K',.true.,'temperature_average','averaged temperature') 
       case ('UU')
-        call nf90_err(nf90_def_var(ncid, 'u', nf90_float, (/ timeDimID,partDimID /), uID))
-        call nf90_err(nf90_def_var_chunking(ncid,uID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,uID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, uID, 'units', 'm/s'))
-        call nf90_err(nf90_put_att(ncid, uID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, uID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, uID, 'standard_name', 'u'))
-        call nf90_err(nf90_put_att(ncid, uID, 'long_name', 'longitudinal velocity'))      
+        call write_to_file(ncid,'u',nf90_float,(/ timeDimID,partDimID /),uID,(/ 1,totpart /), &
+          'm/s',.false.,'u','longitudinal velocity')    
       case ('uu')
-        call nf90_err(nf90_def_var(ncid, 'u_av', nf90_float, (/ timeDimID,partDimID /), uavID))
-        call nf90_err(nf90_def_var_chunking(ncid,uavID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,uavID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, uavID, 'units', 'm/s'))
-        call nf90_err(nf90_put_att(ncid, uavID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, uavID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, uavID, 'standard_name', 'u_average'))
-        call nf90_err(nf90_put_att(ncid, uavID, 'long_name', 'averaged longitudinal velocity')) 
+        call write_to_file(ncid,'u_av',nf90_float,(/ timeDimID,partDimID /),uavID,(/ 1,totpart /), &
+          'm/s',.false.,'u_av','averaged longitudinal velocity')
       case ('VV')
-        call nf90_err(nf90_def_var(ncid, 'v', nf90_float, (/ timeDimID,partDimID /), vID))
-        call nf90_err(nf90_def_var_chunking(ncid,vID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,vID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, vID, 'units', 'm/s'))
-        call nf90_err(nf90_put_att(ncid, vID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, vID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, vID, 'standard_name', 'v'))
-        call nf90_err(nf90_put_att(ncid, vID, 'long_name', 'latitudinal velocity'))  
+        call write_to_file(ncid,'v',nf90_float,(/ timeDimID,partDimID /),vID,(/ 1,totpart /), &
+          'm/s',.false.,'v','latitudinal velocity')
       case ('vv')
-        call nf90_err(nf90_def_var(ncid, 'v_av', nf90_float, (/ timeDimID,partDimID /), vavID))
-        call nf90_err(nf90_def_var_chunking(ncid,vavID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,vavID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, vavID, 'units', 'm/s'))
-        call nf90_err(nf90_put_att(ncid, vavID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, vavID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, vavID, 'standard_name', 'v_average'))
-        call nf90_err(nf90_put_att(ncid, vavID, 'long_name', 'latitudinal velocity averaged'))
+        call write_to_file(ncid,'v_av',nf90_float,(/ timeDimID,partDimID /),vavID,(/ 1,totpart /), &
+          'm/s',.false.,'v_average','latitudinal velocity averaged')
       case ('WW')
-        call nf90_err(nf90_def_var(ncid, 'w', nf90_float, (/ timeDimID,partDimID /), wID))
-        call nf90_err(nf90_def_var_chunking(ncid,wID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,wID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, wID, 'units', 'm/s'))
-        call nf90_err(nf90_put_att(ncid, wID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, wID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, wID, 'standard_name', 'w'))
-        call nf90_err(nf90_put_att(ncid, wID, 'long_name', 'vertical velocity'))  
+        call write_to_file(ncid,'w',nf90_float,(/ timeDimID,partDimID /),wID,(/ 1,totpart /), &
+          'm/s',.false.,'w','vertical velocity')
       case ('ww')
-        call nf90_err(nf90_def_var(ncid, 'w_av', nf90_float, (/ timeDimID,partDimID /), wavID))
-        call nf90_err(nf90_def_var_chunking(ncid,wavID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,wavID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, wavID, 'units', 'm/s'))
-        call nf90_err(nf90_put_att(ncid, wavID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, wavID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, wavID, 'standard_name', 'w_average'))
-        call nf90_err(nf90_put_att(ncid, wavID, 'long_name', 'vertical velocity averaged'))
+        call write_to_file(ncid,'w_av',nf90_float,(/ timeDimID,partDimID /),wavID,(/ 1,totpart /), &
+          'm/s',.false.,'w_average','vertical velocity averaged')
       case ('VS')
-        call nf90_err(nf90_def_var(ncid, 'settling', nf90_float, (/ timeDimID,partDimID /), vsetID))
-        call nf90_err(nf90_def_var_chunking(ncid,vsetID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,vsetID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, vsetID, 'units', 'm/s'))
-        call nf90_err(nf90_put_att(ncid, vsetID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, vsetID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, vsetID, 'standard_name', 'settling_velocity'))
-        call nf90_err(nf90_put_att(ncid, vsetID, 'long_name', 'settling velocity'))  
+        call write_to_file(ncid,'settling',nf90_float,(/ timeDimID,partDimID /),vsetID,(/ 1,totpart /), &
+          'm/s',.false.,'settling_velocity','settling velocity')
       case ('vs')
-        call nf90_err(nf90_def_var(ncid, 'settling_av', nf90_float, (/ timeDimID,partDimID /), vsetavID))
-        call nf90_err(nf90_def_var_chunking(ncid,vsetavID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,vsetavID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, vsetavID, 'units', 'm/s'))
-        call nf90_err(nf90_put_att(ncid, vsetavID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, vsetavID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, vsetavID, 'standard_name', 'settling_velocity_average'))
-        call nf90_err(nf90_put_att(ncid, vsetavID, 'long_name', 'settling velocity averaged'))  
+        call write_to_file(ncid,'settling_av',nf90_float,(/ timeDimID,partDimID /),vsetavID,(/ 1,totpart /), &
+          'm/s',.false.,'settling_velocity_average','settling velocity averaged')
       case ('MA') ! Mass
         if (mdomainfill.ge.1) then
           call nf90_err(nf90_def_var(ncid=ncid, name='mass', xtype=nf90_float, dimids=1, varid=massID(1)))
@@ -1930,14 +1809,8 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
           do j=1,nspec
             ! Masses
             write(anspec, '(i3.3)') j
-            call nf90_err(nf90_def_var(ncid, 'mass'//anspec, nf90_float, (/ timeDimID,partDimID /), massID(j)))
-            call nf90_err(nf90_def_var_chunking(ncid,massID(j),NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-            call nf90_err(nf90_def_var_deflate(ncid,massID(j),shuffle=0,deflate=1,deflate_level=1))
-            call nf90_err(nf90_put_att(ncid, massID(j), 'units', 'kg'))
-            call nf90_err(nf90_put_att(ncid, massID(j), '_FillValue', fillval))
-            call nf90_err(nf90_put_att(ncid, massID(j), 'positive', 'up'))
-            call nf90_err(nf90_put_att(ncid, massID(j), 'standard_name', 'mass'//anspec))
-            call nf90_err(nf90_put_att(ncid, massID(j), 'long_name', 'mass for nspec'//anspec))    
+            call write_to_file(ncid,'mass'//anspec,nf90_float,(/ timeDimID,partDimID /),massID(j), &
+              (/ 1,totpart /),'kg',.true.,'mass'//anspec,'mass for nspec'//anspec) 
           end do
         endif
       case ('ma') ! Mass averaged
@@ -1952,83 +1825,43 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
           do j=1,nspec
             ! Masses averaged
             write(anspec, '(i3.3)') j
-            call nf90_err(nf90_def_var(ncid, 'mass_av'//anspec, nf90_float, (/ timeDimID,partDimID /), massavID(j)))
-            call nf90_err(nf90_def_var_chunking(ncid,massavID(j),NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-            call nf90_err(nf90_def_var_deflate(ncid,massavID(j),shuffle=0,deflate=1,deflate_level=1))
-            call nf90_err(nf90_put_att(ncid, massavID(j), 'units', 'kg'))
-            call nf90_err(nf90_put_att(ncid, massavID(j), '_FillValue', fillval))
-            call nf90_err(nf90_put_att(ncid, massavID(j), 'positive', 'up'))
-            call nf90_err(nf90_put_att(ncid, massavID(j), 'standard_name', 'mass'//anspec))
-            call nf90_err(nf90_put_att(ncid, massavID(j), 'long_name', 'averaged mass for nspec'//anspec))    
+            call write_to_file(ncid,'mass_av'//anspec,nf90_float,(/ timeDimID,partDimID /),massavID(j), &
+              (/ 1,totpart /),'kg',.true.,'mass'//anspec,'averaged mass for nspec'//anspec) 
           end do
         endif
       case ('TO')  ! Topography, written to grid if domainfill
         if (mdomainfill.lt.1) then
-          call nf90_err(nf90_def_var(ncid, 'topo', nf90_float, (/ timeDimID,partDimID /), topoID))
-          call nf90_err(nf90_def_var_chunking(ncid,topoID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+          call write_to_file(ncid,'topo',nf90_float,(/ timeDimID,partDimID /),topoID,(/ 1,totpart /), &
+            'meters',.false.,'topography','topography above sealevel')
         else
-          call nf90_err(nf90_def_var(ncid, 'topo', nf90_float, (/ lonDimID,latDimID /), topoID))
-          call nf90_err(nf90_def_var_chunking(ncid,topoID,NF90_CHUNKED,chunksizes=(/ nx,ny /)))
+          call write_to_file(ncid,'topo',nf90_float,(/ lonDimID,latDimID /),topoID,(/ nx,ny /), &
+            'meters',.false.,'topography','topography above sealevel')
         endif
-        call nf90_err(nf90_def_var_deflate(ncid,topoID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, topoID, 'units', 'meters'))
-        call nf90_err(nf90_put_att(ncid, topoID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, topoID, 'standard_name', 'topography'))
-        call nf90_err(nf90_put_att(ncid, topoID, 'long_name', 'topography above sealevel'))
       case ('to') ! Topography averaged, no grid when domainfill
-        call nf90_err(nf90_def_var(ncid, 'topo_av', nf90_float, (/ timeDimID,partDimID /), topoavID))
-        call nf90_err(nf90_def_var_chunking(ncid,topoavID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,topoavID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, topoavID, 'units', 'meters'))
-        call nf90_err(nf90_put_att(ncid, topoavID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, topoavID, 'standard_name', 'topography'))
-        call nf90_err(nf90_put_att(ncid, topoavID, 'long_name', 'averaged topography above sealevel'))
+        call write_to_file(ncid,'topo_av',nf90_float,(/ timeDimID,partDimID /),topoavID,(/ 1,totpart /), &
+          'meters',.false.,'topography','averaged topography above sealevel')
       case ('HM') ! Mixing layer height
         if (mdomainfill.lt.1) then
-          call nf90_err(nf90_def_var(ncid, 'hmix', nf90_float, (/ timeDimID,partDimID /), hmixID))
-          call nf90_err(nf90_def_var_chunking(ncid,hmixID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+          call write_to_file(ncid,'hmix',nf90_float,(/ timeDimID,partDimID /),hmixID,(/ 1,totpart /), &
+            'meters',.true.,'hmix','height above ground of mixing layer')
         else
-          call nf90_err(nf90_def_var(ncid, 'hmix', nf90_float, (/ timeDimID,lonDimID,latDimID /), hmixID))
-          call nf90_err(nf90_def_var_chunking(ncid,hmixID,NF90_CHUNKED,chunksizes=(/ 1,nx,ny /)))    
+          call write_to_file(ncid,'hmix',nf90_float,(/ timeDimID,lonDimID,latDimID /),hmixID,(/ 1,nx,ny /), &
+            'meters',.true.,'hmix','height above ground of mixing layer')  
         endif
-        call nf90_err(nf90_def_var_deflate(ncid,hmixID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, hmixID, 'units', 'meters'))
-        call nf90_err(nf90_put_att(ncid, hmixID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, hmixID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, hmixID, 'standard_name', 'hmix'))
-        call nf90_err(nf90_put_att(ncid, hmixID, 'long_name', 'height above ground of mixing layer'))
       case ('hm') ! Mixing layer height averaged
-        call nf90_err(nf90_def_var(ncid, 'hmix_av', nf90_float, (/ timeDimID,partDimID /), hmixavID))
-        call nf90_err(nf90_def_var_chunking(ncid,hmixavID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,hmixavID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, hmixavID, 'units', 'meters'))
-        call nf90_err(nf90_put_att(ncid, hmixavID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, hmixavID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, hmixavID, 'standard_name', 'hmix_average'))
-        call nf90_err(nf90_put_att(ncid, hmixavID, 'long_name', 'averaged height above ground of mixing layer'))
+        call write_to_file(ncid,'hmix_av',nf90_float,(/ timeDimID,partDimID /),hmixavID,(/ 1,totpart /), &
+          'meters',.true.,'hmix_average','averaged height above ground of mixing layer')
       case ('TR') ! Tropopause
         if (mdomainfill.lt.1) then
-          call nf90_err(nf90_def_var(ncid, 'tr', nf90_float, (/ timeDimID,partDimID /), trID))
-          call nf90_err(nf90_def_var_chunking(ncid,trID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
+          call write_to_file(ncid,'tr',nf90_float,(/ timeDimID,partDimID /),trID,(/ 1,totpart /), &
+            'meters',.true.,'htropo','height above ground of tropopause')
         else
-          call nf90_err(nf90_def_var(ncid, 'tr', nf90_float, (/ timeDimID,lonDimID,latDimID /), trID))
-          call nf90_err(nf90_def_var_chunking(ncid,trID,NF90_CHUNKED,chunksizes=(/ 1,nx,ny /)))
+          call write_to_file(ncid,'tr',nf90_float,(/ timeDimID,lonDimID,latDimID /),trID,(/ 1,nx,ny /), &
+            'meters',.true.,'htropo','height above ground of tropopause')
         endif
-        call nf90_err(nf90_def_var_deflate(ncid,trID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, trID, 'units', 'meters'))
-        call nf90_err(nf90_put_att(ncid, trID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, trID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, trID, 'standard_name', 'htropo'))
-        call nf90_err(nf90_put_att(ncid, trID, 'long_name', 'height above ground of tropopause'))
       case ('tr') ! Tropopause averaged
-        call nf90_err(nf90_def_var(ncid, 'tr_av', nf90_float, (/ timeDimID,partDimID /), travID))
-        call nf90_err(nf90_def_var_chunking(ncid,travID,NF90_CHUNKED,chunksizes=(/ 1,totpart /)))
-        call nf90_err(nf90_def_var_deflate(ncid,travID,shuffle=0,deflate=1,deflate_level=1))
-        call nf90_err(nf90_put_att(ncid, travID, 'units', 'meters'))
-        call nf90_err(nf90_put_att(ncid, travID, '_FillValue', fillval))
-        call nf90_err(nf90_put_att(ncid, travID, 'positive', 'up'))
-        call nf90_err(nf90_put_att(ncid, travID, 'standard_name', 'htropo_average'))
-        call nf90_err(nf90_put_att(ncid, travID, 'long_name', 'averaged height above ground of tropopause'))
+        call write_to_file(ncid,'tr_av',nf90_float,(/ timeDimID,partDimID /),travID,(/ 1,totpart /), &
+          'meters',.true.,'htropo_average','averaged height above ground of tropopause')
       case default
         write(*,*) 'The field you are trying to write to file is not coded in yet: ', partopt(np)%long_name
         stop
@@ -2051,6 +1884,32 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
   write(*,FMT='(80("#"))')
   stop
 end subroutine writeheader_partoutput
+
+subroutine write_to_file(ncid,short_name,xtype,dimids,varid,chunksizes,units,l_positive, &
+  standard_name,long_name)
+
+  implicit none
+
+  integer, intent(in) :: ncid, xtype
+  integer, intent(out) :: varid
+  character(len = *), intent(in) :: short_name,standard_name,long_name,units
+  integer, dimension(:), intent(in) :: dimids,chunksizes
+  logical, intent(in) :: l_positive
+
+  call nf90_err(nf90_def_var(ncid, short_name, xtype, dimids, varid))
+  call nf90_err(nf90_def_var_chunking(ncid,varid,NF90_CHUNKED,chunksizes=chunksizes))
+  call nf90_err(nf90_def_var_deflate(ncid,varid,shuffle=0,deflate=1,deflate_level=1))
+  call nf90_err(nf90_put_att(ncid, varid, 'units', units))
+  if(xtype.eq.nf90_float) then
+    call nf90_err(nf90_put_att(ncid, varid, '_FillValue', -1.))
+  else 
+    call nf90_err(nf90_put_att(ncid, varid, '_FillValue', -1))
+  endif
+  if(l_positive) call nf90_err(nf90_put_att(ncid, varid, 'positive', 'up'))
+  call nf90_err(nf90_put_att(ncid, varid, 'standard_name', standard_name))
+  call nf90_err(nf90_put_att(ncid, varid, 'long_name', long_name))
+
+end subroutine write_to_file
 
 subroutine open_partoutput_file(ncid)!,irelease)
   

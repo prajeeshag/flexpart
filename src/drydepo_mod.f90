@@ -600,10 +600,10 @@ subroutine part0(dquer,dsigma,density,ni,fract,schmi,cun,vsh)
   ! particles diameters are split up to ni intervals between
   ! dquer-3*dsigma and dquer+3*dsigma
   !*********************************************************
-  ! Normalisation
-  !**************
+  ! Normalisation. Why was it not normalised?
+  !******************************************
   x01=alog(dsigma**3)/xdummy
-  x02=alog(dsigma**-3)/xdummy
+  x02=alog(dsigma**(-3))/xdummy
   fract_norm=0.5*(erf(x01)-erf(x02))
 
   delta=6./real(ni)

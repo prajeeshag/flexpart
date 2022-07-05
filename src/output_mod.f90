@@ -182,6 +182,8 @@ subroutine output_particles(itime)
   do i=1,numpart
     if (.not. part(i)%alive) then
       output(:,i) = -1
+      masstemp(i,ns) = -1
+      masstemp_av(i,ns) = -1
       cycle
     endif
     !*****************************************************************************

@@ -757,7 +757,7 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
   endif
 end subroutine get_vdep_prob
 
-subroutine drydepo_probability(prob,dt,zts)
+subroutine drydepo_probability(prob,dt,zts,vdepo)
   use par_mod
   use com_mod
   use interpol_mod
@@ -765,24 +765,24 @@ subroutine drydepo_probability(prob,dt,zts)
   implicit none
 
   real,intent(inout) :: prob(maxspec)
-  real :: dt,zts                      ! real(ldt), real(zt)
-  real :: vdepo(maxspec)              ! deposition velocities for all species
-  integer :: ks                       ! loop variable over species
+  real,intent(inout) :: vdepo(maxspec)  ! deposition velocities for all species
+  real,intent(in) :: dt,zts             ! real(ldt), real(zt)
+  integer :: ns                      ! loop variable over species
 
   if ((DRYDEP).and.(zts.lt.2.*href)) then
-    do ks=1,nspec
-      if (DRYDEPSPEC(ks)) then
-        if (depoindicator(ks)) then
+    do ns=1,nspec
+      if (DRYDEPSPEC(ns)) then
+        if (depoindicator(ns)) then
           if (ngrid.le.0) then
-            call interpol_vdep(vdep,ks,vdepo(ks))
+            call interpol_vdep(vdep,ns,vdepo(ns))
           else
-            call interpol_vdep_nests(vdepn,ks,vdepo(ks))
+            call interpol_vdep_nests(vdepn,ns,vdepo(ns))
           endif
         endif
   ! correction by Petra Seibert, 10 April 2001
   !   this formulation means that prob(n) = 1 - f(0)*...*f(n)
   !   where f(n) is the exponential term
-        prob=1.+(prob-1.)*exp(-vdepo(ks)*abs(dt)/(2.*href))
+        prob=1.+(prob-1.)*exp(-vdepo(ns)*abs(dt)/(2.*href))
         !if (pp.eq.535) write(*,*) 'advance1', ks,dtt,p1,vdep(ix,jy,ks,1)
       endif
     end do

@@ -1096,7 +1096,7 @@ subroutine interpol_rain(yy1,yy2,yy3,nxmax,nymax,nzmax,nx, &
    yint3=y3(1)
 end subroutine interpol_rain
 
-subroutine interpol_vdep(field,nspec,output)
+subroutine interpol_vdep(field,ns,output)
   !                           i     o
   !****************************************************************************
   !                                                                           *
@@ -1122,7 +1122,7 @@ subroutine interpol_vdep(field,nspec,output)
   implicit none
 
   integer, intent(in) ::  &
-    nspec                    ! number of species for which interpolation is done
+    ns                    ! number of species for which interpolation is done
   real, intent(in) ::     &
     field(0:nxmax-1,0:nymax-1,maxspec,numwfmem)           ! vdep
   real, intent(inout) ::  &
@@ -1134,17 +1134,17 @@ subroutine interpol_vdep(field,nspec,output)
   do m=1,2
     indexh=memind(m)
 
-    y(m)=p1*field(ix ,jy ,nspec,indexh) &
-         +p2*field(ixp,jy ,nspec,indexh) &
-         +p3*field(ix ,jyp,nspec,indexh) &
-         +p4*field(ixp,jyp,nspec,indexh)
+    y(m)=p1*field(ix ,jy ,ns,indexh) &
+         +p2*field(ixp,jy ,ns,indexh) &
+         +p3*field(ix ,jyp,ns,indexh) &
+         +p4*field(ixp,jyp,ns,indexh)
   end do
 
   ! b) Temporal interpolation
 
   output=(y(1)*dt2+y(2)*dt1)*dtt
 
-  depoindicator(nspec)=.false.
+  depoindicator(ns)=.false. ! Only doing this once per pbl_loop
 end subroutine interpol_vdep
 
 subroutine interpol_density(ipart,output)

@@ -433,6 +433,7 @@ subroutine advance_PBL(itime,itimec,&
   integer ::                      &
     loop,                         & ! loop variable for time in the PBL
     nsp                             ! loop variable for species
+  real :: vdepo(maxspec)  ! deposition velocities for all species
 
   eps=nxmax/3.e5
   if (lsettling) part(ipart)%settling=0.
@@ -560,7 +561,7 @@ subroutine advance_PBL(itime,itimec,&
     
   ! Determine probability of deposition
   !************************************
-    call drydepo_probability(part(ipart)%prob,dt,zts)
+    call drydepo_probability(part(ipart)%prob,dt,zts,vdepo)
 
     if (zts.lt.0.) call set_z(ipart,min(h-eps2,-1.*part(ipart)%z))    ! if particle below ground -> reflection
 

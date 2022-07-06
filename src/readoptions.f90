@@ -73,7 +73,7 @@ subroutine readageclasses
     end do
     read(unitageclasses,*) nageclass
     read(unitageclasses,*) lage(1)
-    if (nageclass.gt.2) then
+    if (nageclass.ge.2) then
       do i=2,nageclass
         read(unitageclasses,*) lage(i)
       end do

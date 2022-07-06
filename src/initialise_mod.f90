@@ -79,6 +79,7 @@ subroutine releaseparticles(itime)
   use point_mod
   use xmass_mod
   use netcdf_output_mod
+  use output_mod
 
   implicit none
 
@@ -429,7 +430,10 @@ subroutine releaseparticles(itime)
 
   ! NetCDF only: write initial positions of new particles
 #ifdef USE_NCF
-  if (iend-istart.gt.0) call write_particles_initialoutput(itime,istart,iend)
+  if (iend-istart.gt.0) then 
+    call write_particles_initialoutput(itime,istart,iend)
+    call output_particles(itime,.true.)
+  endif
 #endif
   return
 

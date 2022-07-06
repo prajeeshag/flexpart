@@ -71,7 +71,7 @@ module netcdf_output_mod
   logical, parameter :: min_size = .false.   ! if set true, redundant fields (topography) are not written to minimize file size
   character(len=255), parameter :: institution = 'NILU'
 
-  integer            :: tpointer=0,tpointer_part=0,ppointer_part=0,partinitpointer=0
+  integer            :: tpointer=0,tpointer_part=0,ppointer_part=0,partinitpointer=0,partinitpointer1=0
   character(len=255) :: ncfname, ncfnamen, ncfname_part, ncfname_partinit!(maxpoint)
 
   ! netcdf dimension and variable IDs for main and nested output grid
@@ -90,7 +90,7 @@ module netcdf_output_mod
     rhoavID,ttavID,topoavID,hmixavID,travID,uavID,vavID,wavID,vsetavID,massavID(maxspec)
   ! For initial particle outputs
   integer  :: partIDi,tIDi,lonIDi,latIDi,levIDi,pvIDi,prIDi,qvIDi, &
-    rhoIDi,ttIDi,uIDi,vIDi,wIDi,vsetIDi,massIDi(maxspec),topoIDi,trIDi
+    rhoIDi,ttIDi,uIDi,vIDi,wIDi,vsetIDi,massIDi(maxspec),topoIDi,trIDi,hmixIDi
 
   real :: eps
   !  private:: writemetadata, output_units, nf90_err
@@ -116,7 +116,7 @@ module netcdf_output_mod
   public :: writeheader_netcdf,concoutput_surf_nest_netcdf,concoutput_netcdf,&
        &concoutput_nest_netcdf,concoutput_surf_netcdf,writeheader_partoutput,partoutput_netcdf,&
        open_partoutput_file,close_partoutput_file,readpartpositions_netcdf,create_particles_initialoutput,&
-       write_particles_initialoutput,topo_written,mass_written
+       write_particles_initialoutput,topo_written,mass_written,partinit_netcdf,open_partinit_file
 contains
 
 !****************************************************************
@@ -1542,9 +1542,6 @@ subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
       case ('WW')
         call write_to_file(ncid,'w',nf90_float,(/ partDimID /),wIDi,(/ 1 /), &
           'm/s',.false.,'w','vertical velocity')
-      case ('VS')
-        call write_to_file(ncid,'settling',nf90_float,(/ partDimID /),vsetIDi,(/ 1 /), &
-          'm/s',.false.,'settling_velocity','settling velocity')
       case ('MA')
         do j=1,nspec
           ! Masses
@@ -1554,10 +1551,13 @@ subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
         end do        
       case ('TO')
         call write_to_file(ncid,'topo',nf90_float,(/ partDimID /),topoIDi,(/ 1 /), &
-            'meters',.false.,'topography','topography above sealevel')
+          'meters',.false.,'topography','topography above sealevel')
       case ('TR')
         call write_to_file(ncid,'tr',nf90_float,(/ partDimID /),trIDi,(/ 1 /), &
-            'meters',.true.,'htropo','height above ground of tropopause')
+          'meters',.true.,'htropo','height above ground of tropopause')
+      case ('HM') ! Mixing layer height
+        call write_to_file(ncid,'hmix',nf90_float,(/ partDimID /),hmixIDi,(/ 1 /), &
+          'meters',.true.,'hmix','height above ground of mixing layer')        
       case default
         cycle
     end select
@@ -1591,22 +1591,78 @@ subroutine write_particles_initialoutput(itime,istart,iend)
   
    do j=1,newpart
       partindices(j)=j+partinitpointer
-   end do 
-   call nf90_err(nf90_put_var(ncid,partIDi,partindices,(/ partinitpointer+1 /),(/ newpart /)))
+   end do
+
+   partinitpointer1= partinitpointer+1 ! this is also used in partinit_netcdf
+   call nf90_err(nf90_put_var(ncid,partIDi,partindices,(/ partinitpointer1 /),(/ newpart /)))
    deallocate (partindices)
    
    allocate ( releasetimes(newpart) )
    releasetimes=itime
-   call nf90_err(nf90_put_var(ncid,tIDi,releasetimes,(/ partinitpointer+1 /),(/ newpart /)))
+   call nf90_err(nf90_put_var(ncid,tIDi,releasetimes,(/ partinitpointer1 /),(/ newpart /)))
    deallocate (releasetimes)
-   call nf90_err(nf90_put_var(ncid,lonIDi,xlon0+part(partinitpointer+1:iend)%xlon*dx, (/ partinitpointer+1 /),(/ newpart /)))
-   call nf90_err(nf90_put_var(ncid,latIDi,ylat0+part(partinitpointer+1:iend)%ylat*dy, (/ partinitpointer+1 /),(/ newpart /)))
-   call nf90_err(nf90_put_var(ncid,levIDi,part(partinitpointer+1:iend)%z, (/ partinitpointer+1 /),(/ newpart /)))
+   call nf90_err(nf90_put_var(ncid,lonIDi,xlon0+part(partinitpointer1:iend)%xlon*dx, (/ partinitpointer1 /),(/ newpart /)))
+   call nf90_err(nf90_put_var(ncid,latIDi,ylat0+part(partinitpointer1:iend)%ylat*dy, (/ partinitpointer1 /),(/ newpart /)))
+   call nf90_err(nf90_put_var(ncid,levIDi,part(partinitpointer1:iend)%z, (/ partinitpointer1 /),(/ newpart /)))
 
    call nf90_err(nf90_close(ncid))
 
    partinitpointer = partinitpointer+newpart
 end subroutine write_particles_initialoutput
+
+subroutine partinit_netcdf(itime,field,fieldname,imass,ncid)
+  implicit none
+
+  integer, intent(in)            :: itime,imass
+  real, intent(in)               :: field(:)
+  character(2), intent(in)       :: fieldname  ! input field to interpolate over
+  integer, allocatable           :: partindices(:)
+  integer                        :: ncid,newpart,j,iend
+
+  newpart = partinitpointer - (partinitpointer1-1)
+
+  select case(fieldname)
+    case('TO') ! Topography
+      call nf90_err(nf90_put_var(ncid,topoIDi,field(partinitpointer1:partinitpointer), &
+        (/ partinitpointer1 /),(/ newpart /)))
+    case('PV') ! Potential vorticity
+      call nf90_err(nf90_put_var(ncid,pvIDi,field(partinitpointer1:partinitpointer), &
+        (/ partinitpointer1 /),(/ newpart /)))
+    case('PR') ! Pressure
+      call nf90_err(nf90_put_var(ncid,prIDi,field(partinitpointer1:partinitpointer), &
+        (/ partinitpointer1 /),(/ newpart /)))
+    case('QV') ! Specific humidity
+      call nf90_err(nf90_put_var(ncid,qvIDi,field(partinitpointer1:partinitpointer), &
+        (/ partinitpointer1 /),(/ newpart /)))
+    case('RH') ! Air density
+      call nf90_err(nf90_put_var(ncid,rhoIDi,field(partinitpointer1:partinitpointer), &
+        (/ partinitpointer1 /),(/ newpart /)))
+    case('UU') ! Longitudinal velocity
+      call nf90_err(nf90_put_var(ncid,uIDi,field(partinitpointer1:partinitpointer), &
+        (/ partinitpointer1 /),(/ newpart /)))
+    case('VV') ! Latitudinal velocity
+      call nf90_err(nf90_put_var(ncid,vIDi,field(partinitpointer1:partinitpointer), &
+        (/ partinitpointer1 /),(/ newpart /)))
+    case('WW') ! Vertical velocity
+      call nf90_err(nf90_put_var(ncid,wIDi,field(partinitpointer1:partinitpointer), &
+        (/ partinitpointer1 /),(/ newpart /)))
+    case('TT') ! Temperature
+      call nf90_err(nf90_put_var(ncid,ttIDi,field(partinitpointer1:partinitpointer), &
+        (/ partinitpointer1 /),(/ newpart /)))
+    case('MA') ! Mass
+      call nf90_err(nf90_put_var(ncid,massIDi(imass),field(partinitpointer1:partinitpointer), &
+        (/ partinitpointer1 /),(/ newpart /)))
+    case('TR') ! Tropopause
+      call nf90_err(nf90_put_var(ncid,trIDi,field(partinitpointer1:partinitpointer), &
+        (/ partinitpointer1 /),(/ newpart /)))
+    case('HM') ! Mixing height
+      call nf90_err(nf90_put_var(ncid,hmixIDi,field(partinitpointer1:partinitpointer), &
+        (/ partinitpointer1 /),(/ newpart /)))
+    case default
+      return
+  end select
+
+end subroutine partinit_netcdf
 
 subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease)
 
@@ -1929,6 +1985,16 @@ subroutine close_partoutput_file(ncid)
 
   call nf90_err(nf90_close(ncid))
 end subroutine close_partoutput_file
+
+subroutine open_partinit_file(ncid)!,irelease)
+  
+  implicit none 
+
+  integer, intent(inout)         :: ncid
+  !integer, intent(in)            :: irelease
+
+  call nf90_err(nf90_open(trim(ncfname_partinit), nf90_write, ncid))
+end subroutine open_partinit_file
 
 subroutine partoutput_netcdf(itime,field,fieldname,imass,ncid)
   

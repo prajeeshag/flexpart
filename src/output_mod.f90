@@ -124,7 +124,7 @@ subroutine finalise_output(itime)
   endif
 end subroutine finalise_output
 
-subroutine output_particles(itime)
+subroutine output_particles(itime,initial_output)
   !                        i
   !*****************************************************************************
   !                                                                            *
@@ -152,8 +152,11 @@ subroutine output_particles(itime)
 
   implicit none
 
+  integer,intent(in) :: itime
+  logical,optional,intent(in) :: initial_output
+  logical :: init_out
+  integer :: i,j,jjjjmmdd,ihmmss,np,ns,i_av
   real(kind=dp) :: jul
-  integer :: itime,i,j,jjjjmmdd,ihmmss,np,ns,i_av
   real :: tmp(2)
   character :: adate*8,atime*6
 
@@ -176,6 +179,12 @@ subroutine output_particles(itime)
   write(*,*) 'NETCDF missing! Please compile with netcdf if you want the particle dump.'
   stop
 #endif
+
+  if (present(initial_output)) then
+    init_out=initial_output
+  else
+    init_out=.false.
+  endif
 
 !$OMP PARALLEL PRIVATE(i,j,tmp,ns,i_av,cartxyz_comp,cartxyz,np)
   ! Some variables needed for temporal interpolation
@@ -202,6 +211,7 @@ subroutine output_particles(itime)
     do np=1,num_partopt
       if (.not. partopt(np)%print) cycle ! Only compute when field should be printed
       i_av = partopt(np)%i_average
+      if (init_out.and.(i_av.ne.0)) cycle ! no averages for initial particle output
       select case (partopt(np)%name)
         case ('LO')
           output(np,i)=xlon0+part(i)%xlon*dx
@@ -285,7 +295,7 @@ subroutine output_particles(itime)
 !$OMP END DO
 !$OMP END PARALLEL
 
-  if (numpart.gt.0) then
+  if ((.not. init_out).and.(numpart.gt.0)) then
     do np=1,num_partopt
       if (.not. partopt(np)%print) cycle
       if (partopt(np)%name.eq.'MA') then
@@ -310,32 +320,49 @@ subroutine output_particles(itime)
   if (lnetcdfout.eq.1) then
 #ifdef USE_NCF
   ! open output file
-    call open_partoutput_file(ncid)
+    if (init_out) then
+      call open_partinit_file(ncid)
+    else
+      call open_partoutput_file(ncid)
 
-    ! First allocate the time and particle dimention within the netcdf file
-    call partoutput_netcdf(itime,xlon,'TI',j,ncid)
-    call partoutput_netcdf(itime,xlon,'PA',j,ncid)
+      ! First allocate the time and particle dimensions within the netcdf file
+      call partoutput_netcdf(itime,xlon,'TI',j,ncid)
+      call partoutput_netcdf(itime,xlon,'PA',j,ncid)
+    endif
 
     ! Fill the fields in parallel
     if (numpart.gt.0) then
       do np=1,num_partopt
+        !write(*,*) partopt(np)%name, output(np,1)
         if (.not. partopt(np)%print) cycle
+        if (init_out.and.(partopt(np)%i_average.ne.0)) cycle ! no averages for initial particle output
+        !write(*,*) partopt(np)%name
         if (partopt(np)%name.eq.'MA') then
           do ns=1,nspec
-            call partoutput_netcdf(itime,masstemp(:,ns),'MA',ns,ncid)
+            if (init_out) then
+              call partinit_netcdf(itime,masstemp(:,ns),'MA',ns,ncid)
+            else
+              call partoutput_netcdf(itime,masstemp(:,ns),'MA',ns,ncid)
+            endif
           end do
         else if (partopt(np)%name.eq.'ma') then
           do ns=1,nspec
             call partoutput_netcdf(itime,masstemp_av(:,ns),'ma',ns,ncid)
           end do          
-        else 
-          call partoutput_netcdf(itime,output(np,:),partopt(np)%name,j,ncid)
+        else
+          if (init_out) then
+            call partinit_netcdf(itime,output(np,:),partopt(np)%name,j,ncid)
+          else
+            call partoutput_netcdf(itime,output(np,:),partopt(np)%name,j,ncid)
+          endif
         endif
       end do
     endif
     call close_partoutput_file(ncid)
-    mass_written=.true. ! needs to be reduced within openmp loop
-    topo_written=.true. ! same
+    if (.not. init_out) then
+      mass_written=.true. ! needs to be reduced within openmp loop
+      topo_written=.true. ! same
+    endif
 #endif
   else
     ! Put binary function here

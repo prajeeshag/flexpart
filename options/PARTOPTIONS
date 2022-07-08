@@ -36,5 +36,7 @@
   W=                     .false., !
   W_AVERAGE=             .false., !
   VSETTLING=             .false., !
-  VSETTLING_AVERAGE=     .false.,
+  VSETTLING_AVERAGE=     .false., !
+  WETDEPOSITION=         .false., !
+  DRYDEPOSITION=         .false.,
   /

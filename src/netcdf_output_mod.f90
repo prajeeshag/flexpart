@@ -85,6 +85,7 @@ module netcdf_output_mod
   integer             :: partID
   integer             :: itramemID,topoID,pvID,qvID,rhoID,prID,uID,vID,wID,vsetID
   integer             :: hmixID,trID,ttID,lonIDpart,latIDpart,levIDpart,massID(maxspec)
+  integer             :: wdID(maxspec),ddID(maxspec)
   ! For averaged output
   integer  :: lonavIDpart,latavIDpart,levavIDpart,pvavID,qvavID,pravID, &
     rhoavID,ttavID,topoavID,hmixavID,travID,uavID,vavID,wavID,vsetavID,massavID(maxspec)
@@ -1890,6 +1891,20 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
               (/ 1,totpart /),'kg',.true.,'mass'//anspec,'averaged mass for nspec'//anspec) 
           end do
         endif
+      case ('WD') ! Cumulative mass of wet deposition
+        do j=1,nspec
+          ! Masses
+          write(anspec, '(i3.3)') j
+          call write_to_file(ncid,'wetdepo'//anspec,nf90_float,(/ timeDimID,partDimID /),wdID(j), &
+            (/ 1,totpart /),'kg',.true.,'mass'//anspec,'wet deposition for nspec'//anspec) 
+        end do
+      case ('DD') ! Cumulative mass of dry deposition
+        do j=1,nspec
+          ! Masses
+          write(anspec, '(i3.3)') j
+          call write_to_file(ncid,'drydepo'//anspec,nf90_float,(/ timeDimID,partDimID /),ddID(j), &
+            (/ 1,totpart /),'kg',.true.,'mass'//anspec,'dry deposition for nspec'//anspec) 
+        end do
       case ('TO')  ! Topography, written to grid if domainfill
         if (mdomainfill.lt.1) then
           call write_to_file(ncid,'topo',nf90_float,(/ timeDimID,partDimID /),topoID,(/ 1,totpart /), &
@@ -2136,6 +2151,10 @@ subroutine partoutput_netcdf(itime,field,fieldname,imass,ncid)
       else
         call nf90_err(nf90_put_var(ncid,massavID(imass),field, (/ tpointer_part,1 /),(/ 1,numpart /)))
       endif
+    case('WD') ! Cumulative mass of wet deposition
+      call nf90_err(nf90_put_var(ncid,wdID(imass),field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+    case('DD') ! Cumulative mass of wet deposition
+      call nf90_err(nf90_put_var(ncid,ddID(imass),field, (/ tpointer_part,1 /),(/ 1,numpart /)))
   end select
 
   ! call nf90_err(nf90_close(ncid))

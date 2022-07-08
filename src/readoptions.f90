@@ -3156,7 +3156,9 @@ subroutine readpartoptions
     w=.false.,                    &
     w_average=.false.,            &
     vsettling=.false.,            &
-    vsettling_average=.false.
+    vsettling_average=.false.,    &
+    wetdeposition=.false.,        &
+    drydeposition=.false.
 
   ! namelist declaration
   namelist /partoptions/  &
@@ -3191,7 +3193,9 @@ subroutine readpartoptions
     w,                    &
     w_average,            &
     vsettling,            &
-    vsettling_average
+    vsettling_average,    &
+    wetdeposition,        &
+    drydeposition
 
   ! If age spectra claculation is switched on,
   ! open the AGECLASSSES file and read user options
@@ -3353,6 +3357,14 @@ subroutine readpartoptions
   partopt(32)%name='vs'
   partopt(32)%print=vsettling_average
   partopt(32)%average=.true.
+
+  partopt(33)%long_name='wetdeposition'
+  partopt(33)%name='WD'
+  partopt(33)%print=wetdeposition
+
+  partopt(34)%long_name='drydeposition'
+  partopt(34)%name='DD'
+  partopt(34)%print=drydeposition
   ! Numbers are assigned to the averaged fields for proper
   ! allocation and reading in particle_mod and output_mod
   !******************************************************

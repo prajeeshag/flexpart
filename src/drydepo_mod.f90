@@ -312,6 +312,10 @@ subroutine drydepo_massloss(ipart,ks,ldeltat,drydepopart)
     decfact=1.
   endif
   drydepopart=part(ipart)%mass(ks)*part(ipart)%prob(ks)*decfact
+  
+  part(ipart)%drydepo(ks)=part(ipart)%drydepo(ks)+ &
+    part(ipart)%mass(ks)*part(ipart)%prob(ks)*decfact
+
   part(ipart)%mass(ks)=part(ipart)%mass(ks)*(1.-part(ipart)%prob(ks))*decfact
   if (decay(ks).gt.0.) then   ! correct for decay (see wetdepo)
     drydepopart=drydepopart*exp(real(abs(ldeltat))*decay(ks))

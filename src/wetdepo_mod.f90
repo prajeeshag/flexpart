@@ -116,7 +116,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
       else ! if no scavenging
         wetdeposit(ks)=0.
       endif
- 
+      part(jpart)%wetdepo(ks)=part(jpart)%wetdepo(ks)+wetdeposit(ks)
       restmass = part(jpart)%mass(ks)-wetdeposit(ks)
       if (ioutputforeachrelease.eq.1) then
         kp=part(jpart)%npoint

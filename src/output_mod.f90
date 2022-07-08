@@ -164,6 +164,7 @@ subroutine output_particles(itime,initial_output)
   real :: tti(numpart),rhoi(numpart),pvi(numpart),qvi(numpart),pri(numpart)
   real :: topo(numpart),hmixi(numpart),tri(numpart),ztemp(numpart)
   real :: masstemp(numpart,nspec),masstemp_av(numpart,nspec)
+  real :: wetdepotemp(numpart,nspec),drydepotemp(numpart,nspec)
 
   real :: output(num_partopt, numpart)
 
@@ -197,6 +198,8 @@ subroutine output_particles(itime,initial_output)
       output(:,i) = -1
       masstemp(i,ns) = -1
       masstemp_av(i,ns) = -1
+      wetdepotemp(i,ns) = -1
+      drydepotemp(i,ns) = -1
       cycle
     endif
     !*****************************************************************************
@@ -248,6 +251,16 @@ subroutine output_particles(itime,initial_output)
         case ('ma') ! Mass averaged
           do ns=1,nspec
             masstemp_av(i,ns)=part(i)%val_av(i_av+(ns-1))/part(i)%ntime
+          end do
+          cycle
+        case ('WD') ! Wet deposition
+          do ns=1,nspec
+            wetdepotemp(i,ns)=part(i)%wetdepo(ns)
+          end do
+          cycle
+        case ('DD') ! dry deposition
+          do ns=1,nspec
+            drydepotemp(i,ns)=part(i)%drydepo(ns)
           end do
           cycle
         case ('lo')
@@ -302,6 +315,10 @@ subroutine output_particles(itime,initial_output)
         write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, masstemp(1,:)
       else if (partopt(np)%name.eq.'ma') then
         write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, masstemp_av(1,:)
+      else if (partopt(np)%name.eq.'WD') then
+        write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, wetdepotemp(1,:)
+      else if (partopt(np)%name.eq.'DD') then
+        write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, drydepotemp(1,:)
       else
         write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, output(np,1)
       endif
@@ -348,7 +365,15 @@ subroutine output_particles(itime,initial_output)
         else if (partopt(np)%name.eq.'ma') then
           do ns=1,nspec
             call partoutput_netcdf(itime,masstemp_av(:,ns),'ma',ns,ncid)
-          end do          
+          end do
+        else if ((.not. init_out).and.(partopt(np)%name.eq.'WD')) then
+          do ns=1,nspec
+            call partoutput_netcdf(itime,wetdepotemp(:,ns),'WD',ns,ncid)
+          end do
+        else if ((.not. init_out).and.(partopt(np)%name.eq.'DD')) then
+          do ns=1,nspec
+            call partoutput_netcdf(itime,wetdepotemp(:,ns),'DD',ns,ncid)
+          end do
         else
           if (init_out) then
             call partinit_netcdf(itime,output(np,:),partopt(np)%name,j,ncid)

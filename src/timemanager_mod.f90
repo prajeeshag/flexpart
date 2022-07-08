@@ -218,7 +218,7 @@ subroutine timemanager
       else 
         call boundcond_domainfill(itime,loutend)
       endif
-    else if (ipout.eq.2) then
+    else if (ipin.eq.2) then
       ! If reading from user defined initial conditions, check which particles are 
       ! to be activated
       if (numpart.le.0) stop 'Something is going wrong reading the part_ic.nc file!'

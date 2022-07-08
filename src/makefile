@@ -152,7 +152,7 @@ drydepo_mod.o: com_mod.o par_mod.o unc_mod.o interpol_mod.o point_mod.o windfiel
 	date_mod.o stability_correction.o
 FLEXPART.o: com_mod.o conv_mod.o par_mod.o point_mod.o drydepo_mod.o interpol_mod.o \
 	random_mod.o readoptions.o windfields_mod.o getfields_mod.o \
-	timemanager_mod.o plume_mod.o initialise_mod.o output_mod.o
+	timemanager_mod.o plume_mod.o initialise_mod.o output_mod.o netcdf_output_mod.o
 flux_mod.o: com_mod.o outg_mod.o par_mod.o coordinates_ecmwf.o particle_mod.o date_mod.o
 getfields_mod.o: com_mod.o par_mod.o drydepo_mod.o wetdepo_mod.o windfields_mod.o qvsat_mod.o
 settling_mod.o: com_mod.o par_mod.o windfields_mod.o

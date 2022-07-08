@@ -196,10 +196,10 @@ subroutine output_particles(itime,initial_output)
   do i=1,numpart
     if (.not. part(i)%alive) then
       output(:,i) = -1
-      masstemp(i,ns) = -1
-      masstemp_av(i,ns) = -1
-      wetdepotemp(i,ns) = -1
-      drydepotemp(i,ns) = -1
+      masstemp(i,:) = -1
+      masstemp_av(i,:) = -1
+      wetdepotemp(i,:) = -1
+      drydepotemp(i,:) = -1
       cycle
     endif
     !*****************************************************************************

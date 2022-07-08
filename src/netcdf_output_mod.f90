@@ -117,7 +117,8 @@ module netcdf_output_mod
   public :: writeheader_netcdf,concoutput_surf_nest_netcdf,concoutput_netcdf,&
        &concoutput_nest_netcdf,concoutput_surf_netcdf,writeheader_partoutput,partoutput_netcdf,&
        open_partoutput_file,close_partoutput_file,readpartpositions_netcdf,create_particles_initialoutput,&
-       write_particles_initialoutput,topo_written,mass_written,partinit_netcdf,open_partinit_file
+       write_particles_initialoutput,topo_written,mass_written,partinit_netcdf,open_partinit_file,&
+       readinitconditions_netcdf
 contains
 
 !****************************************************************
@@ -1707,9 +1708,13 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
   ncfname_part = fname_partoutput
 
   totpart=0
-  do j=1,numpoint
-    totpart = totpart+npart(j)
-  end do
+  if (ipin.gt.0) then
+    totpart=numpart
+  else
+    do j=1,numpoint
+      totpart = totpart+npart(j)
+    end do
+  endif
   !totpart = maxpart!max(numpart,totpart)
   !cache_size = 4 * 1 * (12+nspec)
 
@@ -2254,24 +2259,17 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   call nf90_err(nf90_close(ncidend))
 end subroutine readpartpositions_netcdf
 
-subroutine readinitconditions_netcdf(ibtime,ibdate)
+subroutine readinitconditions_netcdf()
   use random_mod
   use particle_mod
   use date_mod
 
   implicit none 
 
-  integer, intent(in) :: ibtime,ibdate
   integer             :: ncidend,tIDend,pIDend,tempIDend
-  integer             :: tlen,plen,tend,i
-  integer             :: idate_start,itime_start
-  character           :: adate*8,atime*6,timeunit*32,adate_start*8,atime_start*6
-  real(kind=dp)       :: julin,julcommand,julpartin
+  integer             :: plen,tend,i
 
   integer :: idummy = -8
-
-  write(adate,'(i8.8)') ibdate
-  write(atime,'(i6.6)') ibtime
   
   if (mquasilag.ne.0) then 
     write(*,*) 'Combination of ipin, netcdf partoutput, and mquasilag!=0 does not work yet'
@@ -2321,7 +2319,7 @@ subroutine readinitconditions_netcdf(ibtime,ibdate)
   do i=1,plen
     part(i)%nclass=min(int(ran1(idummy)*real(nclassunc))+1, &
          nclassunc)
-    part(i)%npoint=i
+    part(i)%npoint=1
     ! Deactive particles that have not been born yet
     ! Needs to be better, because it is going to give problems now when restarting
     if (part(i)%tstart.ne.0) part(i)%alive=.false.

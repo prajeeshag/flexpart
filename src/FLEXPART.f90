@@ -44,6 +44,7 @@ program flexpart
   use drydepo_mod
   use getfields_mod
   use interpol_mod, only: interpol_allocate
+  use netcdf_output_mod
 
   implicit none
 
@@ -226,7 +227,7 @@ program flexpart
     call readpartpositions
   else if (ipin.eq.2) then
   ! Reading initial conditions from netcdf file
-#ifdef NETCDF
+#ifdef USE_NCF
     call readinitconditions_netcdf
 #else
     stop 'Compile with netCDF if you want to use the ipin=2 option.'

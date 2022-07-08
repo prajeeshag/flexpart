@@ -63,7 +63,7 @@ subroutine initialise_output(itime,filesize)
 
     ! NetCDF only: Create file for storing initial particle positions.
 #ifdef USE_NCF
-    if (mdomainfill.eq.0) then
+    if ((mdomainfill.eq.0).and.(ipout.ge.1)) then
       if (ldirect.eq.1) then
         call create_particles_initialoutput(ibtime,ibdate,ibtime,ibdate)
       else

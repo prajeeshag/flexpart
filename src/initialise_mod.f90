@@ -430,7 +430,7 @@ subroutine releaseparticles(itime)
 
   ! NetCDF only: write initial positions of new particles
 #ifdef USE_NCF
-  if (iend-istart.gt.0) then 
+  if ((iend-istart.gt.0).and.(ipout.ge.1)) then 
     call write_particles_initialoutput(itime,istart,iend)
     call output_particles(itime,.true.)
   endif
@@ -863,7 +863,7 @@ subroutine init_domainfill
 
   integer :: j,kz,lix,ljy,ncolumn,numparttot
   real :: pp(nzmax),ylat,ylatp,ylatm,hzone
-  real :: cosfactm,cosfactp,deltacol,dz1,dz2,dz,pnew,fractus
+  real :: cosfactm,cosfactp,deltacol,dz1,dz2,dz,pnew,pnew_temp,fractus
   real,parameter :: pih=pi/180.
   real :: colmasstotal,zposition
 
@@ -1006,7 +1006,7 @@ subroutine init_domainfill
   !*****************************************************************************
 
       do kz=1,nz
-        pp(kz)=rho(lix,ljy,kz,1)*r_air*tt(lix,ljy,kz,1)
+        pp(kz)=prs(lix,ljy,kz,1)!rho(lix,ljy,kz,1)*r_air*tt(lix,ljy,kz,1)
       end do
 
 
@@ -1020,17 +1020,20 @@ subroutine init_domainfill
   ! poles), distribute the particles randomly
   !***********************************************************************
 
-
-        if (ncolumn.gt.20) then
+        if ((ncolumn.gt.20).and.(ncolumn-j.gt.20)) then
+          pnew_temp=pnew-ran1(idummy)*deltacol
+          pnew=pnew-deltacol
+        else if (ncolumn-j.le.20) then
+          pnew_temp=pnew-ran1(idummy)*deltacol
           pnew=pnew-deltacol
         else
-          pnew=pp(1)-ran1(idummy)*(pp(1)-pp(nz))
+          pnew_temp=pp(1)-ran1(idummy)*(pp(1)-pp(nz))
         endif
 
         do kz=1,nz-1
-          if ((pp(kz).ge.pnew).and.(pp(kz+1).lt.pnew)) then
-            dz1=pp(kz)-pnew
-            dz2=pnew-pp(kz+1)
+          if ((pp(kz).ge.pnew_temp).and.(pp(kz+1).lt.pnew_temp)) then
+            dz1=log(pp(kz))-log(pnew_temp)
+            dz2=log(pnew_temp)-log(pp(kz+1))
             dz=1./(dz1+dz2)
 
   ! Assign particle position
@@ -1047,7 +1050,7 @@ subroutine init_domainfill
               if (lix.eq.nxmin1) &
                 call set_xlon(numpart+jj,real(real(nxmin1)-ran1(idummy),kind=dp))
               call set_ylat(numpart+jj,real(real(ljy)-0.5+ran1(idummy),kind=dp))
-              call set_z(numpart+jj,(height(kz)*dz2+height(kz+1)*dz1)*dz)
+              call set_z(numpart+jj,height(kz)*exp(dz1*log(height(kz+1)/height(kz))*dz))
               if (real(part(numpart+jj)%z).gt.height(nz)-0.5) &
                 call set_z(numpart+jj,height(nz)-0.5)
 

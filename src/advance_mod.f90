@@ -390,7 +390,7 @@ subroutine advance_abovePBL(itime,itimec,dxsave,dysave,&
  
   select case (wind_coord_type)
     case ('ETA')
-      if ((.not.turboff).or.(lsettling)) then
+      if ((wp.ne.0.).or.(lsettling)) then
         call update_zeta_to_z(itime,ipart)
         call update_z(ipart,wp*dt*real(ldirect))
         if (part(ipart)%z.lt.0.) call set_z(ipart,min(h-eps2,-1.*part(ipart)%z))  ! if particle below ground -> reflection

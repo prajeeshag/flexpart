@@ -225,7 +225,7 @@ subroutine timemanager
       do i=1,numpart
         if (.not. part(i)%alive) then
           if ((part(i)%tstart.ge.itime).and.(part(i)%tstart.lt.itime+lsynctime)) then
-            part(i)%alive=.true.
+            call spawn_particle(itime,i)
           endif
         endif
       end do

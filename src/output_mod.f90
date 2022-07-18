@@ -146,7 +146,8 @@ subroutine output_particles(itime,initial_output)
   use particle_mod
 #ifdef USE_NCF
   use netcdf
-  use netcdf_output_mod, only: partoutput_netcdf,open_partoutput_file,close_partoutput_file
+  use netcdf_output_mod, only: partoutput_netcdf,open_partoutput_file, &
+                               close_partoutput_file,partinitpointer1
   use omp_lib, only: OMP_GET_THREAD_NUM
 #endif
 

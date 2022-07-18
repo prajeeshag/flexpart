@@ -118,7 +118,7 @@ module netcdf_output_mod
        &concoutput_nest_netcdf,concoutput_surf_netcdf,writeheader_partoutput,partoutput_netcdf,&
        open_partoutput_file,close_partoutput_file,readpartpositions_netcdf,create_particles_initialoutput,&
        write_particles_initialoutput,topo_written,mass_written,partinit_netcdf,open_partinit_file,&
-       readinitconditions_netcdf
+       readinitconditions_netcdf,partinitpointer1
 contains
 
 !****************************************************************
@@ -2285,7 +2285,7 @@ subroutine readinitconditions_netcdf()
 
   ! Now spawn the correct number of particles
   write(*,*) 'Npart:',plen
-  call spawn_particles(0,plen)
+  call allocate_particles( plen )
 
   ! And give them the correct positions
   ! Longitude
@@ -2320,9 +2320,8 @@ subroutine readinitconditions_netcdf()
     part(i)%nclass=min(int(ran1(idummy)*real(nclassunc))+1, &
          nclassunc)
     part(i)%npoint=1
-    ! Deactive particles that have not been born yet
-    ! Needs to be better, because it is going to give problems now when restarting
-    if (part(i)%tstart.ne.0) part(i)%alive=.false.
+    ! Activate particles that are alive from the start of the simulation
+    if (part(i)%tstart.eq.0) call spawn_particle(0,i)
   end do
   call get_total_part_num(numpart)
   numparticlecount=numpart

@@ -405,7 +405,7 @@ subroutine timemanager
           end if
         end do
         
-        if (xmassfract.lt.minmassfrac) then   ! terminate all particles carrying less mass
+        if (xmassfract.le.minmassfrac) then   ! terminate all particles carrying less mass
           call terminate_particle(j)
         endif
 

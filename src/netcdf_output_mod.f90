@@ -2174,9 +2174,10 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
 
   integer, intent(in) :: ibtime,ibdate
   integer             :: ncidend,tIDend,pIDend,tempIDend
-  integer             :: tlen,plen,tend,i
+  integer             :: tlen,plen,tend,i,j
   integer             :: idate_start,itime_start
   character           :: adate*8,atime*6,timeunit*32,adate_start*8,atime_start*6
+  character(len=3)    :: anspec
   real(kind=dp)       :: julin,julcommand,julpartin
 
   integer :: idummy = -8
@@ -2244,6 +2245,15 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='height',varid=tempIDend))
   call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%z, & 
     start=(/ tlen, 1 /),count=(/ 1, plen /)))
+  ! Mass
+  if (mdomainfill.eq.0) then
+    do j=1,nspec
+      write(anspec, '(i3.3)') j
+      call nf90_err(nf90_inq_varid(ncid=ncidend,name='mass'//anspec,varid=tempIDend))
+      call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%mass(j), & 
+        start=(/ tlen, 1 /),count=(/ 1, plen /)))
+    end do
+  endif
 
   do i=1,plen
     if (part(i)%z.lt.0) then 
@@ -2253,7 +2263,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
     part(i)%nclass=min(int(ran1(idummy)*real(nclassunc))+1, &
          nclassunc)    
     part(i)%idt=mintime
-    part(i)%npoint=i
+    part(i)%npoint=1
   end do
 
   call nf90_err(nf90_close(ncidend))

@@ -2522,7 +2522,7 @@ subroutine readreleases
   endif
   if (mdomainfill.eq.0) then   ! no domain filling
     if (ldirect.eq.1) then
-      if ((jul1.lt.bdate).or.(jul2.gt.edate)) then
+      if (((jul1.lt.bdate).or.(jul2.gt.edate)).and.(ipin.eq.0)) then
         write(*,*) 'FLEXPART MODEL ERROR'
         write(*,*) 'Release starts before simulation begins or ends'
         write(*,*) 'after simulation stops.'
@@ -2537,7 +2537,7 @@ subroutine readreleases
         ireleaseend(numpoint)=int((julm-bdate)*86400.)
       endif
     else if (ldirect.eq.-1) then
-      if ((jul1.lt.edate).or.(jul2.gt.bdate)) then
+      if (((jul1.lt.edate).or.(jul2.gt.bdate)).and.(ipin.eq.0)) then
         write(*,*) 'FLEXPART MODEL ERROR'
         write(*,*) 'Release starts before simulation begins or ends'
         write(*,*) 'after simulation stops.'

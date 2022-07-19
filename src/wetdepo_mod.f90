@@ -144,7 +144,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
   ! Add the wet deposition to accumulated amount on output grid and nested output grid
   !*****************************************************************************
 
-    if (ldirect.eq.1) then !OMP reduction necessary for wetgridunc
+    if ((ldirect.eq.1).and.(iout.ne.0)) then !OMP reduction necessary for wetgridunc
       call wetdepokernel(part(jpart)%nclass,wetdeposit,real(part(jpart)%xlon), &
            real(part(jpart)%ylat),nage,kp)
       if (nested_output.eq.1) call wetdepokernel_nest(part(jpart)%nclass, &

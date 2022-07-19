@@ -411,7 +411,7 @@ subroutine timemanager
 
 !        Sabine Eckhardt, June 2008
 !        don't create depofield for backward runs
-        if (DRYDEP.AND.(ldirect.eq.1)) then !OMP reduction necessary for drygridunc
+        if (DRYDEP.AND.(ldirect.eq.1).and.(iout.ne.0)) then !OMP reduction necessary for drygridunc
 
           if (ioutputforeachrelease.eq.1) then
               kp=part(j)%npoint

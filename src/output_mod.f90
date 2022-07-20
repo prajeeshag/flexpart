@@ -382,7 +382,7 @@ subroutine output_particles(itime,initial_output)
           end do
         else if ((.not. init_out).and.(partopt(np)%name.eq.'DD')) then
           do ns=1,nspec
-            call partoutput_netcdf(itime,wetdepotemp(:,ns),'DD',ns,ncid)
+            call partoutput_netcdf(itime,drydepotemp(:,ns),'DD',ns,ncid)
           end do
         else
           if (init_out) then

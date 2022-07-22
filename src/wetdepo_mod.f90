@@ -83,10 +83,10 @@ subroutine wetdepo(itime,ltsample,loutnext)
 
   ! Determine age class of the particle - nage is used for the kernel
   !******************************************************************
-     itage=abs(itime-part(jpart)%tstart)
-     do nage=1,nageclass
-       if (itage.lt.lage(nage)) exit
-     end do
+    itage=abs(itime-part(jpart)%tstart)
+    do nage=1,nageclass
+     if (itage.lt.lage(nage)) exit
+    end do
 
     do ks=1,nspec      ! loop over species
 

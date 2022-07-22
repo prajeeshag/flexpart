@@ -53,7 +53,7 @@ module com_mod
   ! Variables defining the general model run specifications
   !********************************************************
 
-  integer :: ibdate,ibtime,iedate,ietime
+  integer :: ibdate,ibtime,iedate,ietime,itime_init
   real(kind=dp) :: bdate,edate
 
 
@@ -61,6 +61,7 @@ module com_mod
   ! ibtime                  beginning time (HHMISS)
   ! iedate                  ending date (YYYYMMDD)
   ! ietime                  ending time (HHMISS)
+  ! itime_init              starting time in [s] in case of a restart
   ! bdate                   beginning date of simulation (julian date)
   ! edate                   ending date of simulation (julian date)
 
@@ -71,7 +72,7 @@ module com_mod
   ! ideltas                 length of trajectory loop from beginning to
   !                    ending date (s)
 
-  integer :: loutstep,loutaver,loutsample,method,lsynctime
+  integer :: loutstep,loutaver,loutsample,loutrestart,method,lsynctime
   real :: outstep
 
   ! loutstep [s]            gridded concentration output every loutstep seconds

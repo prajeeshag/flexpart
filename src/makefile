@@ -100,7 +100,8 @@ timemanager_mod.o 	qvsat_mod.o \
 plume_mod.o 		settling_mod.o \
 initialise_mod.o 	getfields_mod.o \
 date_mod.o 		output_mod.o \
-stability_correction.o  cbl_mod.o 
+stability_correction.o  cbl_mod.o \
+verttransform_mod.o
 
 OBJECTS_NCF = netcdf_output_mod.o
 
@@ -154,7 +155,8 @@ FLEXPART.o: com_mod.o conv_mod.o par_mod.o point_mod.o drydepo_mod.o interpol_mo
 	random_mod.o readoptions.o windfields_mod.o getfields_mod.o \
 	timemanager_mod.o plume_mod.o initialise_mod.o output_mod.o netcdf_output_mod.o
 flux_mod.o: com_mod.o outg_mod.o par_mod.o coordinates_ecmwf.o particle_mod.o date_mod.o
-getfields_mod.o: com_mod.o par_mod.o drydepo_mod.o wetdepo_mod.o windfields_mod.o qvsat_mod.o
+getfields_mod.o: com_mod.o par_mod.o drydepo_mod.o wetdepo_mod.o windfields_mod.o qvsat_mod.o \
+	verttransform_mod.o
 settling_mod.o: com_mod.o par_mod.o windfields_mod.o
 initial_cond_calc.o: com_mod.o outg_mod.o par_mod.o unc_mod.o particle_mod.o \
 	coordinates_ecmwf.o
@@ -182,6 +184,7 @@ timemanager_mod.o: com_mod.o flux_mod.o oh_mod.o outg_mod.o advance_mod.o\
 turbulence_mod.o: par_mod.o com_mod.o random_mod.o particle_mod.o cbl_mod.o windfields_mod.o
 txt_output_mod.o: com_mod.o par_mod.o point_mod.o outg_mod.o date_mod.o
 unc_mod.o: par_mod.o com_mod.o
+verttransform_mod.o: par_mod.o com_mod.o cmapf_mod.o qvsat_mod.o windfields_mod.o
 wetdepo_mod.o: com_mod.o par_mod.o point_mod.o particle_mod.o interpol_mod.o \
 	coordinates_ecmwf.o unc_mod.o windfields_mod.o
 windfields_mod.o: par_mod.o com_mod.o cmapf_mod.o point_mod.o class_gribfile_mod.o qvsat_mod.o \

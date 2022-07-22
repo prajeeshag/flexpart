@@ -426,7 +426,6 @@ subroutine readcommand
   !                      2 use self-defined initial conditions in netcdf       *
   ! ipout                0 no particle dump, 1 every output time, 3 only at end*
   ! ipoutfac             increase particle dump interval by factor (default 1) *
-  ! itsplit [s]          time constant for particle splitting                  *
   ! loutaver [s]         concentration output is an average over loutaver      *
   !                      seconds                                               *
   ! loutsample [s]       average is computed from samples taken every [s]      *
@@ -463,7 +462,7 @@ subroutine readcommand
   loutstep, &
   loutaver, &
   loutsample, &
-  itsplit, &
+  loutrestart, &
   lsynctime, &
   ctl, &
   ifine, &
@@ -499,7 +498,7 @@ subroutine readcommand
   loutstep=10800
   loutaver=10800
   loutsample=900
-  itsplit=999999999
+  loutrestart=999999999
   lsynctime=900
   ctl=-5.0
   ifine=4
@@ -509,7 +508,7 @@ subroutine readcommand
   lsubgrid=1
   lconvection=1
   lagespectra=0
-  ipin=1
+  ipin=0
   ioutputforeachrelease=1
   iflux=1
   mdomainfill=0
@@ -539,89 +538,9 @@ subroutine readcommand
 
   ! distinguish namelist from fixed text input
   if ((readerror.ne.0).or.(ldirect.eq.0)) then ! parse as text file format
- 
-    open(unitcommand,file=path(1)(1:length(1))//'COMMAND',status='old', err=999)
-
-    ! Check the format of the COMMAND file (either in free format,
-    ! or using formatted mask)
-    ! Use of formatted mask is assumed if line 10 contains the word 'DIRECTION'
-    !**************************************************************************
-
-    call skplin(9,unitcommand)
-    read (unitcommand,901) line
-  901   format (a)
-    if (index(line,'LDIRECT') .eq. 0) then
-      old = .false.
-      if (lroot) write(*,*) 'COMMAND in old short format, &
-           &please update to namelist format'
-    else
-      old = .true.
-      if (lroot) write(*,*) 'COMMAND in old long format, &
-           &please update to namelist format'
-    endif
-    rewind(unitcommand)
-
-
-    ! Read parameters
-    !****************
-
-    call skplin(7,unitcommand)
-    if (old) call skplin(1,unitcommand)
-    read(unitcommand,*) ldirect
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) ibdate,ibtime
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) iedate,ietime
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) loutstep
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) loutaver
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) loutsample
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) itsplit
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) lsynctime
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) ctl
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) ifine
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) iout
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) ipout
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) lsubgrid
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) lconvection
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) lagespectra
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) ipin
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) ioutputforeachrelease
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) iflux
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) mdomainfill
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) ind_source
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) ind_receptor
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) mquasilag
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) nested_output
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) linit_cond
-    if (old) call skplin(3,unitcommand)
-    read(unitcommand,*) surf_only
-    ! Removed for backwards compatibility.
-    if (old) call skplin(3,unitcommand)  !added by mc
-    read(unitcommand,*) cblflag          !added by mc
-
-    close(unitcommand)
-
+    if (lroot) write(*,*) 'COMMAND either having unrecognised entries, &
+      &or in old format, please update to namelist format'
+      stop
   endif ! input format
 
   ! write command file in namelist format to output directory if requested
@@ -896,8 +815,6 @@ subroutine readcommand
     endif
   endif
 
-
-
   ! Check whether a valid options for particle dump has been chosen
   !****************************************************************
 
@@ -995,13 +912,6 @@ subroutine readcommand
     write(*,*) ' #### FLEXPART MODEL ERROR! SAMPLING TIME OF  #### '
     write(*,*) ' #### CONCENTRATION FIELD MUST BE A MULTIPLE  #### '
     write(*,*) ' #### OF THE SYNCHRONISATION INTERVAL         #### '
-    stop
-  endif
-
-  if (itsplit.lt.loutaver) then
-    write(*,*) ' #### FLEXPART MODEL ERROR! SPLITTING TIME FOR#### '
-    write(*,*) ' #### PARTICLES IS TOO SHORT. PLEASE INCREASE #### '
-    write(*,*) ' #### SPLITTING TIME CONSTANT.                #### '
     stop
   endif
 
@@ -3384,6 +3294,19 @@ subroutine readpartoptions
     open(unitpartoptions,file=path(2)(1:length(2))//'PARTOPTIONS.namelist',err=10000)
     write(unitpartoptions,nml=partoptions)
     close(unitpartoptions)
+  endif
+
+
+  ! Restart files, when using in combination with averaged particle output, 
+  ! need to be synchronised to prevent false averages in the first step of
+  ! the new run
+  !************************************************************************
+  if ((ipout.ne.0).and.(n_average.gt.0).and.(loutrestart.ne.-1)) then
+    if (mod(loutrestart,ipoutfac*loutstep).ne.0) then
+      write(*,*) '### FLEXPART MODEL ERROR! FILE COMMAND:     ###'
+      write(*,*) '### LOUTRESTART NEEDS TO BE DIVISABLE BY    ###'
+      write(*,*) '### LOUTSTEP*IPOUTFAC.                      ###'
+    endif
   endif
 
   return

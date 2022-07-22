@@ -54,6 +54,7 @@ subroutine timemanager
   ! loutstart [s]      start of averaging for concentration calculations       *
   ! loutstep [s]       time interval for which concentrations shall be         *
   !                    calculated                                              *
+  ! loutrestart [s]    time interval for which restart files will be produced  *
   ! npoint             index, which starting point the trajectory has          *
   !                    starting positions of trajectories                      *
   ! nstop              serves as indicator for fate of particles               *
@@ -132,7 +133,7 @@ subroutine timemanager
   ! First output for time 0
   !************************
 
-  loutnext=loutstep/2
+  loutnext=itime_init+loutstep/2
   outnum=0.
   loutstart=loutnext-loutaver/2
   loutend=loutnext+loutaver/2
@@ -151,7 +152,7 @@ subroutine timemanager
   ! !*******************************
   ! call windfields_allocate
   
-  do itime=0,ideltas,lsynctime
+  do itime=itime_init,ideltas,lsynctime
 
   ! Computation of wet deposition, OH reaction and mass transfer
   ! between two species every lsynctime seconds
@@ -169,22 +170,15 @@ subroutine timemanager
   ! In addition, open new particle dump files if required and keep track
   ! of the size of these files.
   !*********************************************************************
-
-    call initialise_output(itime,filesize)
+    
     write(*,*) 'Time: ', itime, 'seconds.'
-    if (WETDEP .and. itime .ne. 0 .and. numpart .gt. 0) then
-      call wetdepo(itime,lsynctime,loutnext)
-    endif
 
-    if (OHREA .and. itime .ne. 0 .and. numpart .gt. 0) &
-      call ohreaction(itime,lsynctime,loutnext)
+  ! Writing restart file
+  !*********************
+    if ((itime.ne.itime_init).and.(mod(itime,loutrestart).eq.0)) call output_restart(itime)
 
-  ! compute convection for backward runs
-  !*************************************
-
-    if ((ldirect.eq.-1).and.(lconvection.eq.1).and.(itime.lt.0)) then    
-      call convmix(itime)
-    endif
+    if (itime.ne.0) write(*,*) part(1)%xlon,part(1)%ylat,part(1)%z,part(1)%zeta
+    call initialise_output(itime,filesize)
 
   ! Get necessary wind fields if not available
   !*******************************************
@@ -193,7 +187,7 @@ subroutine timemanager
 
   ! In case of ETA coordinates being read from file, convert the z positions
   !*************************************************************************
-    if ((ipin.gt.0).and.(itime.eq.0).and.(wind_coord_type.eq.'ETA')) then 
+    if ((ipin.gt.0).and.(itime.eq.itime_init).and.(wind_coord_type.eq.'ETA')) then 
       if (numpart.le.0) stop 'Something is going wrong reading the old particle file!'
 !$OMP PARALLEL PRIVATE(i)
 !$OMP DO
@@ -202,6 +196,20 @@ subroutine timemanager
       end do
 !$OMP END DO
 !$OMP END PARALLEL
+    endif
+
+    if (WETDEP .and. (itime.ne.0) .and. (numpart.gt.0)) then
+      call wetdepo(itime,lsynctime,loutnext)
+    endif
+
+    if (OHREA .and. (itime.ne.0) .and. (numpart.gt.0)) &
+      call ohreaction(itime,lsynctime,loutnext)
+
+  ! compute convection for backward runs
+  !*************************************
+
+    if ((ldirect.eq.-1).and.(lconvection.eq.1).and.(itime.lt.itime_init)) then    
+      call convmix(itime)
     endif
 
   ! Get hourly OH fields if not available 
@@ -213,7 +221,7 @@ subroutine timemanager
   ! Release particles
   !******************
     if (mdomainfill.ge.1) then
-      if (itime.eq.0) then   
+      if (itime.eq.itime_init) then   
         call init_domainfill
       else 
         call boundcond_domainfill(itime,loutend)
@@ -255,7 +263,6 @@ subroutine timemanager
 
         if ((iout.eq.4).or.(iout.eq.5)) call plumetraj(itime)
         if (iflux.eq.1) call fluxoutput(itime)
-
         if (ipout.ge.1) then
           if (mod(itime,ipoutfac*loutstep).eq.0) then
             call SYSTEM_CLOCK(count_clock, count_rate, count_max)
@@ -436,6 +443,7 @@ subroutine timemanager
       endif
 
     end do !loop over particles
+
 
   ! openmp change end
 

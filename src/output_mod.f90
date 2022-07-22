@@ -14,6 +14,7 @@ module output_mod
 
   implicit none
 
+  character(len=256) :: restart_filename1,restart_filename2,restart_filename3
 contains
 
 subroutine initialise_output(itime,filesize)
@@ -29,7 +30,7 @@ subroutine initialise_output(itime,filesize)
 #endif
 
   ! Writing header information to either binary or NetCDF format
-  if (itime.eq.0) then
+  if (itime.eq.itime_init) then
     if (iout.ne.0) then ! No gridded output
 #ifdef USE_NCF
       if (lnetcdfout.eq.1) then 
@@ -63,8 +64,18 @@ subroutine initialise_output(itime,filesize)
 
     ! NetCDF only: Create file for storing initial particle positions.
 #ifdef USE_NCF
+    if (itime_init.ne.0) then
+      jul=bdate+real(itime,kind=dp)/86400._dp
+      call caldate(jul,jjjjmmdd,ihmmss)      
+    endif
     if ((mdomainfill.eq.0).and.(ipout.ge.1)) then
-      if (ldirect.eq.1) then
+      if (itime_init.ne.0) then
+        if (ldirect.eq.1) then
+          call create_particles_initialoutput(ihmmss,jjjjmmdd,ibtime,ibdate)
+        else
+          call create_particles_initialoutput(ihmmss,jjjjmmdd,ietime,iedate)
+        endif
+      else if (ldirect.eq.1) then
         call create_particles_initialoutput(ibtime,ibdate,ibtime,ibdate)
       else
         call create_particles_initialoutput(ietime,iedate,ietime,iedate)
@@ -72,7 +83,13 @@ subroutine initialise_output(itime,filesize)
     endif
     ! Create header files for files that store the particle dump output
     if (ipout.ge.1) then
-      if (ldirect.eq.1) then
+      if (itime_init.ne.0) then
+        if (ldirect.eq.1) then
+          call writeheader_partoutput(ihmmss,jjjjmmdd,ibtime,ibdate)
+        else
+          call writeheader_partoutput(ihmmss,jjjjmmdd,ietime,iedate)
+        endif
+      else if (ldirect.eq.1) then
         call writeheader_partoutput(ibtime,ibdate,ibtime,ibdate)
       else 
         call writeheader_partoutput(ietime,iedate,ietime,iedate)
@@ -123,6 +140,56 @@ subroutine finalise_output(itime)
     endif
   endif
 end subroutine finalise_output
+
+subroutine output_restart(itime)
+  use particle_mod
+  use coordinates_ecmwf
+
+  implicit none
+
+  integer, intent(in) :: itime
+  integer :: i,j,jjjjmmdd,ihmmss,stat
+  real(kind=dp) :: jul
+  character :: adate*8,atime*6
+
+
+  jul=bdate+real(itime,kind=dp)/86400._dp
+  call caldate(jul,jjjjmmdd,ihmmss)
+  write(adate,'(i8.8)') jjjjmmdd
+  write(atime,'(i6.6)') ihmmss
+
+  restart_filename3 = restart_filename2
+  restart_filename2 = restart_filename1
+  restart_filename1 = path(2)(1:length(2))//'restart_'//adate//atime
+
+  write(*,*) 'Writing Restart file:', trim(restart_filename1)
+
+  open(unitrestart,file=restart_filename1,form='unformatted')
+
+  ! Write current time to file
+  !***************************
+
+  write(unitrestart) itime
+  write(unitrestart) numpart
+
+  do i=1,numpart
+    call update_zeta_to_z(itime,i)
+    call update_z_to_zeta(itime,i)
+    write(unitrestart) part(i)%xlon,part(i)%ylat,part(i)%z,part(i)%zeta, &
+      part(i)%npoint,part(i)%nclass,part(i)%idt,part(i)%tend, &
+      part(i)%tstart,part(i)%alive,part(i)%turbvel%u, &
+      part(i)%turbvel%v,part(i)%turbvel%w,part(i)%mesovel%u, &
+      part(i)%mesovel%v,part(i)%mesovel%w,(part(i)%mass(j),j=1,nspec), &
+      (part(i)%wetdepo(j),j=1,nspec),(part(i)%drydepo(j),j=1,nspec)
+    part(i)%meterupdate=.true.
+    part(i)%etaupdate=.true.
+  end do
+  close(unitrestart)
+
+  open(unit=1234, iostat=stat, file=restart_filename3, status='old')
+  if(stat == 0) close(1234, status='delete')
+
+end subroutine output_restart
 
 subroutine output_particles(itime,initial_output)
   !                        i
@@ -322,15 +389,15 @@ subroutine output_particles(itime,initial_output)
     do np=1,num_partopt
       if (.not. partopt(np)%print) cycle
       if (partopt(np)%name.eq.'MA') then
-        write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, masstemp(1,:)
+        write(*,*) partopt(np)%long_name, masstemp(1,:)
       else if (partopt(np)%name.eq.'ma') then
-        write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, masstemp_av(1,:)
+        write(*,*) partopt(np)%long_name, masstemp_av(1,:)
       else if (partopt(np)%name.eq.'WD') then
-        write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, wetdepotemp(1,:)
+        write(*,*) partopt(np)%long_name, wetdepotemp(1,:)
       else if (partopt(np)%name.eq.'DD') then
-        write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, drydepotemp(1,:)
+        write(*,*) partopt(np)%long_name, drydepotemp(1,:)
       else
-        write(*,*) partopt(np)%long_name, partopt(np)%i_average, np, output(np,1)
+        write(*,*) partopt(np)%long_name, output(np,1)
       endif
     end do
     write(*,*) part(1)%prob,part(1)%alive,count%alive,count%spawned,count%terminated

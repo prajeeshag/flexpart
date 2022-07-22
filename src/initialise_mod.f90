@@ -599,13 +599,83 @@ subroutine readpartpositions
   return
 
 998   write(*,*) ' #### FLEXPART MODEL ERROR!   THE FILE         #### '
-  write(*,*) ' #### '//path(2)(1:length(2))//'grid'//' #### '
+  write(*,*) ' #### '//path(2)(1:length(2))//'partposit'//' #### '
   write(*,*) ' #### CANNOT BE OPENED. IF A FILE WITH THIS    #### '
   write(*,*) ' #### NAME ALREADY EXISTS, DELETE IT AND START #### '
   write(*,*) ' #### THE PROGRAM AGAIN.                       #### '
   stop
 
 end subroutine readpartpositions
+
+subroutine readrestart
+
+  !*****************************************************************************
+  !                                                                            *
+  !   This routine opens the particle dump file and reads all the particle     *
+  !   positions from a previous run to initialize the current run.             *
+  !                                                                            *
+  !                                                                            *
+  !     Author: A. Stohl                                                       *
+  !                                                                            *
+  !     24 March 2000                                                          *
+  !                                                                            *
+  !*****************************************************************************
+  !                                                                            *
+  ! Variables:                                                                 *
+  !                                                                            *
+  !*****************************************************************************
+
+  use netcdf_output_mod
+
+  implicit none
+
+  integer :: i,j,ios
+  integer :: id1,id2,it1,it2
+  real(kind=dp) :: julin,julpartin
+  integer :: idummy = -8
+
+  numparticlecount=0
+
+
+  open(unitpartin,file=path(2)(1:length(2))//'restart.bin', &
+       form='unformatted',err=9989)
+
+  read(unitpartin,iostat=ios) itime_init
+  read(unitpartin) numpart
+  call spawn_particles(itime_init, numpart)
+  do i=1,numpart
+    read(unitpartin) part(i)%xlon,part(i)%ylat,part(i)%z,part(i)%zeta, &
+      part(i)%npoint,part(i)%nclass,part(i)%idt,part(i)%tend, &
+      part(i)%tstart,part(i)%alive,part(i)%turbvel%u, &
+      part(i)%turbvel%v,part(i)%turbvel%w,part(i)%mesovel%u, &
+      part(i)%mesovel%v,part(i)%mesovel%w,(part(i)%mass(j),j=1,nspec), &
+      (part(i)%wetdepo(j),j=1,nspec),(part(i)%drydepo(j),j=1,nspec)
+    if (.not. part(i)%alive) call terminate_particle(i)
+  end do
+  close(unitpartin)
+
+  julin=juldate(ibdate,ibtime)+real(itime_init,kind=dp)/86400._dp
+  if (abs(julin-bdate).le.1.e-5) then
+    write(*,*) ' #### FLEXPART ERROR: PLEASE KEEP IBDATE     #### '
+    write(*,*) ' #### AND IBTIME INTACT FROM THE INITIAL RUN!#### '
+    stop
+  endif
+  call caldate(julin,id1,it1)
+  call caldate(bdate,id2,it2)
+  write(*,*) ' #### Restarting Flexpart from restart.bin.    #### '
+  write(*,*) ' #### Original run started on                  #### '
+  write(*,*) 'bdate: ',bdate,id2,it2
+  write(*,*) ' #### Restarting run starts on                 #### '
+  write(*,*) 'julin: ',julin,id1,it1
+
+  return
+
+9989   write(*,*) ' #### FLEXPART MODEL ERROR!   THE FILE             #### '
+  write(*,*) ' #### '//path(2)(1:length(2))//'restart.bin'//'    #### '
+  write(*,*) ' #### CANNOT BE OPENED. IF A FILE WITH THIS        #### '
+  write(*,*) ' #### NAME DOES NOT EXISTS, RENAME THE APPROPRIATE #### '
+  write(*,*) ' #### RESTART FILE TO restart.bin.                 #### '
+end subroutine readrestart
 
 subroutine initialize_particle(itime,ipart)
   !                        i    i   o  o  o

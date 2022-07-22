@@ -5,6 +5,7 @@ module getfields_mod
   use par_mod
   use com_mod
   use windfields_mod
+  use verttransform_mod
 
   implicit none
 

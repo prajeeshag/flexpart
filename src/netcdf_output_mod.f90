@@ -1569,7 +1569,6 @@ subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
     end select
   end do
 
-
   ! moves the file from define to data mode
   call nf90_err(nf90_enddef(ncid))
 
@@ -1708,7 +1707,7 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
   ncfname_part = fname_partoutput
 
   totpart=0
-  if (ipin.gt.0) then
+  if (ipin.gt.1) then
     totpart=numpart
   else
     do j=1,numpoint
@@ -1901,14 +1900,14 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
           ! Masses
           write(anspec, '(i3.3)') j
           call write_to_file(ncid,'wetdepo'//anspec,nf90_float,(/ timeDimID,partDimID /),wdID(j), &
-            (/ 1,totpart /),'kg',.true.,'mass'//anspec,'wet deposition for nspec'//anspec) 
+            (/ 1,totpart /),'kg',.true.,'mass'//anspec,'cumulative wet deposition for nspec'//anspec) 
         end do
       case ('DD') ! Cumulative mass of dry deposition
         do j=1,nspec
           ! Masses
           write(anspec, '(i3.3)') j
           call write_to_file(ncid,'drydepo'//anspec,nf90_float,(/ timeDimID,partDimID /),ddID(j), &
-            (/ 1,totpart /),'kg',.true.,'mass'//anspec,'dry deposition for nspec'//anspec) 
+            (/ 1,totpart /),'kg',.true.,'mass'//anspec,'cumulative dry deposition for nspec'//anspec) 
         end do
       case ('TO')  ! Topography, written to grid if domainfill
         if (mdomainfill.lt.1) then
@@ -2026,7 +2025,7 @@ subroutine partoutput_netcdf(itime,field,fieldname,imass,ncid)
   implicit none
 
   integer, intent(in)            :: itime,imass
-  real, intent(in)               :: field(numpart)
+  real, intent(in)               :: field(:)
   character(2), intent(in)       :: fieldname  ! input field to interpolate over
   integer, allocatable           :: partindices(:)
   integer                        :: ncid,newpart,j

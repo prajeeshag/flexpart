@@ -121,7 +121,12 @@ program flexpart
   end if
 
   if (turboff) write(*,*) 'Turbulence switched off'
-  
+
+  ! For continuation of previous run or from user defined initial 
+  ! conditions, read in particle positions
+  !*************************************************************************
+  call initialise_warm_start
+
   ! Calculate particle trajectories
   !********************************
   call timemanager
@@ -153,7 +158,6 @@ subroutine read_options_and_initialise_flexpart
   use drydepo_mod
   use getfields_mod
   use interpol_mod, only: interpol_allocate
-  use netcdf_output_mod
   use outg_mod
   use binary_output_mod
 
@@ -263,22 +267,6 @@ subroutine read_options_and_initialise_flexpart
   !********************************************************************
   call assignland ! CHECK ETA
 
-  ! For continuation of previous run, read in particle positions
-  !*************************************************************
-  if (ipin.eq.1) then
-    call readpartpositions
-  else if (ipin.eq.2) then
-  ! Reading initial conditions from netcdf file
-#ifdef USE_NCF
-    call readinitconditions_netcdf
-#else
-    stop 'Compile with netCDF if you want to use the ipin=2 option.'
-#endif
-  else
-    numpart=0
-    numparticlecount=0
-  endif
-
   ! Calculate volume, surface area, etc., of all output grid cells
   ! Allocate fluxes and OHfield if necessary
   !***************************************************************
@@ -312,3 +300,33 @@ subroutine read_options_and_initialise_flexpart
   end do
 
 end subroutine read_options_and_initialise_flexpart
+
+
+subroutine initialise_warm_start
+  use com_mod
+  use initialise_mod
+  use netcdf_output_mod
+
+  implicit none
+
+  itime_init=0
+  if (ipin.eq.1) then ! Restarting from restart.bin file
+    call readrestart
+  else if (ipin.eq.2) then ! Restarting from netcdf partoutput file
+#ifdef USE_NCF
+    call readpartpositions
+#else
+    stop 'Compile with netCDF if you want to use the ipin=2 option.'
+#endif
+  else if (ipin.eq.3) then ! User defined particle properties
+  ! Reading initial conditions from netcdf file
+#ifdef USE_NCF
+    call readinitconditions_netcdf
+#else
+    stop 'Compile with netCDF if you want to use the ipin=3 option.'
+#endif
+  else
+    numpart=0
+    numparticlecount=0
+  endif
+end subroutine initialise_warm_start

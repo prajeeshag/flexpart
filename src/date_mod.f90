@@ -42,6 +42,10 @@ subroutine caldate(juliandate,yyyymmdd,hhmiss)
   integer,parameter :: igreg=2299161
 
   julday=int(juliandate)
+  if ((juliandate-julday)*86400._dp .ge. 86399.5_dp) then
+    juliandate = juliandate + juliandate-julday-86399.5_dp/86400._dp
+    julday=int(juliandate)
+  endif
   if(julday.ge.igreg)then
     jalpha=int(((julday-1867216)-0.25)/36524.25)
     ja=julday+1+jalpha-int(0.25*jalpha)

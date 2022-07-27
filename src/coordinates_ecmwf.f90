@@ -77,6 +77,8 @@ subroutine z_to_zeta(itime,xt,yt,zold,zteta)
     ztemp1,ztemp2,                & ! z positions of the two encompassing levels
     ttemp_old,ttemp1(2),ttemp_new,& ! storing virtual temperature
     psint1(2),psint                 ! pressure of encompassing levels
+  real ::                         &
+    prx,pr1,pr2     ! pressure of encompassing levels
 
   call determine_grid_coordinates(real(xt),real(yt))
   call find_grid_distances(real(xt),real(yt))
@@ -92,7 +94,7 @@ subroutine z_to_zeta(itime,xt,yt,zold,zteta)
     call temporal_interpolation(ttemp1(1),ttemp1(2),ztemp2)
 
     if (ztemp2.gt.real(zold)) then
-      frac = (real(zold)-ztemp1)/(ztemp2-ztemp1)
+      !frac = (real(zold)-ztemp1)/(ztemp2-ztemp1)
       exit
     else if (i.eq.nz-1) then
       frac = 1.
@@ -101,6 +103,16 @@ subroutine z_to_zeta(itime,xt,yt,zold,zteta)
     ttemp_old=ttemp_new
     ztemp1=ztemp2
   end do
+
+  if (i.lt.nz-1) then 
+    call bilinear_horizontal_interpolation(ps,psint1,1,1)
+    call temporal_interpolation(psint1(1),psint1(2),psint)  
+    pr1=akz(i-1) + bkz(i-1)*psint
+    pr2=akz(i) + bkz(i)*psint
+
+    prx=pr1/exp(log(pr2/pr1)/(ztemp2-ztemp1)*ztemp1) * exp(log(pr2/pr1)/(ztemp2-ztemp1)*real(zold))
+    frac=(prx-pr1)/(pr2 - pr1)
+  endif
 
   zteta=real(uvheight(i-1)*(1.-frac)+uvheight(i)*frac,kind=dp)
 end subroutine z_to_zeta
@@ -138,7 +150,7 @@ subroutine zeta_to_z(itime,xt,yt,zteta,ztout)
   real ::                         &
     ztemp1,ztemp2,                & ! z positions of the two encompassing levels
     ttemp_old,ttemp1(2),ttemp_new,& ! storing virtual temperature
-    psint1(2),psint                 ! pressure of encompassing levels
+    psint1(2),psint,prx,pr1,pr2     ! pressure of encompassing levels
  
 
   ! Convert eta z coordinate to meters
@@ -156,13 +168,24 @@ subroutine zeta_to_z(itime,xt,yt,zteta,ztout)
     endif
   end do
 
+  call bilinear_horizontal_interpolation(ps,psint1,1,1)
+  call temporal_interpolation(psint1(1),psint1(2),psint)  
+  pr1=akz(k-1) + bkz(k-1)*psint
+  pr2=akz(k) + bkz(k)*psint
+  prx=pr1*(1.-frac) + pr2*frac
+  
   call bilinear_horizontal_interpolation(etauvheight,ttemp1,k-1,nzmax)
   call temporal_interpolation(ttemp1(1),ttemp1(2),ztemp1)
 
   call bilinear_horizontal_interpolation(etauvheight,ttemp1,k,nzmax)
   call temporal_interpolation(ttemp1(1),ttemp1(2),ztemp2)
-
-  ztout = real(ztemp1,kind=dp)*(1.-frac)+real(ztemp2,kind=dp)*frac
+  
+  if ((pr2.eq.0).or.(pr1.eq.0)) then
+    ztout = real(ztemp1,kind=dp)*(1.-frac)+real(ztemp2,kind=dp)*frac
+    return
+  endif
+  
+  ztout = ztemp1 + (ztemp2-ztemp1)/log(pr2/pr1)*log(prx/pr1)
 end subroutine zeta_to_z
 
 end module coordinates_ecmwf

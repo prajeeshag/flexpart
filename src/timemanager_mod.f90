@@ -127,7 +127,7 @@ subroutine timemanager
     grfraction(3)             ! wet deposition related
   real(dep_prec) ::         &
     drydeposit(maxspec)       ! dry deposition related
-
+  real(kind=dp) :: zhier,zetahier
   integer :: npart_alive=0
 
   ! First output for time 0
@@ -179,7 +179,7 @@ subroutine timemanager
 
     if (itime.ne.0) write(*,*) part(1)%xlon,part(1)%ylat,part(1)%z,part(1)%zeta
     call initialise_output(itime,filesize)
-
+    
   ! Get necessary wind fields if not available
   !*******************************************
     call getfields(itime,nstop1)

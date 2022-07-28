@@ -1786,7 +1786,6 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
   fillval = -1.
   do np=1,num_partopt
     if (.not. partopt(np)%print) cycle
-    write(*,*) partopt(np)%name
     select case(partopt(np)%name)
       case ('LO') ! Longitude
         call write_to_file(ncid,'longitude',nf90_float,(/ timeDimID,partDimID /),lonIDpart,(/ 1,totpart /), &

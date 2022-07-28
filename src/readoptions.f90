@@ -3082,8 +3082,8 @@ subroutine readpartoptions
     pv_average,           &
     qv,                   &
     qv_average,           &
-    density,          &
-    density_average,  &
+    density,              &
+    density_average,      &
     temperature,          &
     temperature_average,  &
     pressure,             &

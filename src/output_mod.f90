@@ -99,9 +99,10 @@ subroutine initialise_output(itime,filesize)
   
   ! In case the particle output file is becoming larger than the maximum set
   ! in par_mod, create a new one while keeping track of the filesize.
+  ! Also if a new restart file is created.
   else if ((mod(itime,ipoutfac*loutstep).eq.0).and.(ipout.ge.1)) then
 #ifdef USE_NCF
-    if (filesize.ge.max_partoutput_filesize) then 
+    if ((filesize.ge.max_partoutput_filesize).or.(mod(itime,loutrestart).eq.0)) then 
       jul=bdate+real(itime,kind=dp)/86400._dp
       call caldate(jul,jjjjmmdd,ihmmss)
       if (ldirect.eq.1) then 
@@ -181,8 +182,6 @@ subroutine output_restart(itime)
       part(i)%turbvel%v,part(i)%turbvel%w,part(i)%mesovel%u, &
       part(i)%mesovel%v,part(i)%mesovel%w,(part(i)%mass(j),j=1,nspec), &
       (part(i)%wetdepo(j),j=1,nspec),(part(i)%drydepo(j),j=1,nspec)
-    part(i)%meterupdate=.true.
-    part(i)%etaupdate=.true.
   end do
   close(unitrestart)
 

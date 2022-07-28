@@ -1786,6 +1786,7 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
   fillval = -1.
   do np=1,num_partopt
     if (.not. partopt(np)%print) cycle
+    write(*,*) partopt(np)%name
     select case(partopt(np)%name)
       case ('LO') ! Longitude
         call write_to_file(ncid,'longitude',nf90_float,(/ timeDimID,partDimID /),lonIDpart,(/ 1,totpart /), &
@@ -1800,7 +1801,7 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
       case ('LA') ! Latitude
         call write_to_file(ncid,'latitude',nf90_float,(/ timeDimID,partDimID /),latIDpart,(/ 1,totpart /), &
           'degrees_north',.false.,'latitude','latitude in degree north')
-        call nf90_err(nf90_put_att(ncid, latavIDpart, 'axis', 'Lat'))
+        call nf90_err(nf90_put_att(ncid, latIDpart, 'axis', 'Lat'))
         call nf90_err(nf90_put_att(ncid, latIDpart, 'description', 'latitude of particles'))
       case ('la') ! Latitude averaged
         call write_to_file(ncid,'latitude_av',nf90_float,(/ timeDimID,partDimID /),latavIDpart,(/ 1,totpart /), &

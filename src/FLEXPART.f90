@@ -86,7 +86,7 @@ program flexpart
   !*******************************************************
   print*,'Welcome to FLEXPART ', trim(flexversion)
   print*,'FLEXPART is free software released under the GNU General Public License.'
- 
+  write(*,*) 'FLEXPART is running with ', trim(wind_coord_type), 'coordinates.'
   ! Reading the number of threads available and print them for user
   !****************************************************************
 #ifdef _OPENMP

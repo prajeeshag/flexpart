@@ -969,7 +969,7 @@ subroutine init_domainfill
   real :: pvpart,ddx,ddy,rddx,rddy,p1,p2,p3,p4,y1(2)
   integer :: idummy = -11
 
-  real :: frac,psint,zzlev,zzlev2,ttemp
+  real :: frac,psint,zzlev,zzlev2,ttemp,height_tmp
 
   logical :: deall
 
@@ -1111,28 +1111,28 @@ subroutine init_domainfill
       deltacol=(pp(1)-pp(nz))/real(ncolumn)
       pnew=pp(1)+deltacol/2.
       jj=0
-      do j=1,ncolumn
+      do j=1,ncolumn ! looping over the number of particles within the column
 
   ! For columns with many particles (i.e. around the equator), distribute
-  ! the particles equally, for columns with few particles (i.e. around the
-  ! poles), distribute the particles randomly
+  ! the particles equally (1 on a random position within the deltacol range), 
+  ! for columns with few particles (i.e. around the poles), 
+  ! distribute the particles randomly
   !***********************************************************************
 
         if ((ncolumn.gt.20).and.(ncolumn-j.gt.20)) then
           pnew_temp=pnew-ran1(idummy)*deltacol
           pnew=pnew-deltacol
-        else if (ncolumn-j.le.20) then
-          pnew_temp=pnew-ran1(idummy)*deltacol
-          pnew=pnew-deltacol
+        else if ((ncolumn.gt.20).and.(ncolumn-j.le.20)) then
+          ! When only few particles are left, distribute them randomly above pnew
+          pnew_temp=pnew-ran1(idummy)*(pnew-pp(nz))
         else
           pnew_temp=pp(1)-ran1(idummy)*(pp(1)-pp(nz))
         endif
 
         do kz=1,nz-1
           if ((pp(kz).ge.pnew_temp).and.(pp(kz+1).lt.pnew_temp)) then
-            dz1=log(pp(kz))-log(pnew_temp)
-            dz2=log(pnew_temp)-log(pp(kz+1))
-            dz=1./(dz1+dz2)
+            dz1=log(pnew_temp)-log(pp(kz))
+            dz=1./log(pp(kz+1)/pp(kz))
 
   ! Assign particle position
   !*************************
@@ -1148,7 +1148,10 @@ subroutine init_domainfill
               if (lix.eq.nxmin1) &
                 call set_xlon(numpart+jj,real(real(nxmin1)-ran1(idummy),kind=dp))
               call set_ylat(numpart+jj,real(real(ljy)-0.5+ran1(idummy),kind=dp))
-              call set_z(numpart+jj,height(kz)*exp(dz1*log(height(kz+1)/height(kz))*dz))
+              ! Logarithmic distribution of particles along pressure levels:
+              ! hx=h1+(h2-h1)/log(p2/p1)*log(px/p1)
+              height_tmp=height(kz)+(height(kz+1)-height(kz))*dz*dz1
+              call set_z(numpart+jj,height_tmp)
               if (real(part(numpart+jj)%z).gt.height(nz)-0.5) &
                 call set_z(numpart+jj,height(nz)-0.5)
 

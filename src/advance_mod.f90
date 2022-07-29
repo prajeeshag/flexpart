@@ -598,11 +598,6 @@ subroutine advance_PettersonCorrection(itime,ipart)
   ztseta=real(part(ipart)%zeta)
   if (lsettling) part(ipart)%settling=0.
 
-
-  ! Determine nested grid coordinates
-  !**********************************
-  call determine_grid_coordinates(xts,yts)
-
   ! Memorize the old wind
   !**********************
 
@@ -620,7 +615,6 @@ subroutine advance_PettersonCorrection(itime,ipart)
 
   ! Interpolate wind at new position and time
   !******************************************
-
   call interpol_wind_short(itime+part(ipart)%idt*ldirect,xts,yts,zts,ztseta)
 
   if (mdomainfill.eq.0) then

@@ -648,6 +648,8 @@ subroutine readrestart
       part(i)%turbvel%v,part(i)%turbvel%w,part(i)%mesovel%u, &
       part(i)%mesovel%v,part(i)%mesovel%w,(part(i)%mass(j),j=1,nspec), &
       (part(i)%wetdepo(j),j=1,nspec),(part(i)%drydepo(j),j=1,nspec)
+    part(i)%etaupdate=.true.
+    part(i)%meterupdate=.true.
     if (.not. part(i)%alive) call terminate_particle(i)
   end do
   close(unitpartin)

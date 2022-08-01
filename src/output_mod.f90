@@ -187,7 +187,6 @@ subroutine output_restart(itime)
 
   open(unit=1234, iostat=stat, file=restart_filename3, status='old')
   if(stat == 0) close(1234, status='delete')
-
 end subroutine output_restart
 
 subroutine output_heightlevels(height_tmp,nmixz_tmp)

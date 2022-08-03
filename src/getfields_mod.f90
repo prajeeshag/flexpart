@@ -857,7 +857,7 @@ subroutine calcpar(n)
 
   implicit none
 
-  integer :: n,ix,jy,i,kz,lz,kzmin,llev,loop_start
+  integer :: n,ix,jy,i,kz,lz,kzmin,llev,loop_start,ierr
   real :: ol,hmixplus
   real :: rh,subsceff,ylat
   real :: altmin,tvold,pold,zold,pint,tv,hmixdummy,akzdummy
@@ -955,13 +955,19 @@ subroutine calcpar(n)
         ! NCEP version hmix has been read in in readwind.f, is therefore not calculated here
       call richardson(ps(ix,jy,1,n),ustar(ix,jy,1,n),ttlev,qvlev, &
            ulev,vlev,nuvz,akz,bkz,sshf(ix,jy,1,n),tt2(ix,jy,1,n), &
-             td2(ix,jy,1,n),hmixdummy,wstar(ix,jy,1,n),hmixplus)
+             td2(ix,jy,1,n),hmixdummy,wstar(ix,jy,1,n),hmixplus,ierr)
       else
         call richardson(ps(ix,jy,1,n),ustar(ix,jy,1,n),ttlev,qvlev, &
              ulev,vlev,nuvz,akz,bkz,sshf(ix,jy,1,n),tt2(ix,jy,1,n), &
-             td2(ix,jy,1,n),hmix(ix,jy,1,n),wstar(ix,jy,1,n),hmixplus)
+             td2(ix,jy,1,n),hmix(ix,jy,1,n),wstar(ix,jy,1,n),hmixplus,ierr)
       end if
 
+      if (ierr.lt.0) then
+        write(*,9500) 'failure', ix, jy
+        stop
+      endif
+9500      format( 'calcpar - richardson ', a, ' - ix,jy=', 2i5 )
+      
       if(lsubgrid.eq.1) then
         subsceff=min(excessoro(ix,jy),hmixplus)
       else
@@ -1119,7 +1125,7 @@ subroutine calcpar_nests(n)
 
   implicit none
 
-  integer :: n,ix,jy,i,l,kz,lz,kzmin
+  integer :: n,ix,jy,i,l,kz,lz,kzmin,ierr
   real :: ol,hmixplus,dummyakzllev
   real :: rh,subsceff,ylat
   real :: altmin,tvold,pold,zold,pint,tv
@@ -1188,7 +1194,12 @@ subroutine calcpar_nests(n)
       call richardson(psn(ix,jy,1,n,l),ustarn(ix,jy,1,n,l),ttlev, &
            qvlev,ulev,vlev,nuvz,akz,bkz,sshfn(ix,jy,1,n,l), &
            tt2n(ix,jy,1,n,l),td2n(ix,jy,1,n,l),hmixn(ix,jy,1,n,l), &
-           wstarn(ix,jy,1,n,l),hmixplus)
+           wstarn(ix,jy,1,n,l),hmixplus,ierr)
+      if (ierr.lt.0) then
+        write(*,9500) 'failure', ix, jy, l
+        stop
+      endif
+9500      format( 'calcparn - richardson ', a, ' - ix,jy=', 2i5 )
 
       if(lsubgrid.eq.1) then
         subsceff=min(excessoron(ix,jy,l),hmixplus)
@@ -1360,7 +1371,7 @@ real function obukhov(ps,tsurf,tdsurf,tlev,ustar,hf,akm,bkm,plev)
 end function obukhov
 
 subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
-       akz,bkz,hf,tt2,td2,h,wst,hmixplus)
+       akz,bkz,hf,tt2,td2,h,wst,hmixplus,ierr)
   !                        i    i    i     i    i    i    i
   ! i   i  i   i   i  o  o     o
   !****************************************************************************
@@ -1415,15 +1426,43 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
 
   implicit none
 
-  integer :: i,k,nuvz,iter,llev,loop_start
-  real :: tv,tvold,zref,z,zold,pint,pold,theta,thetaref,ri
-  real :: hf,wst,tt2,td2
-  real :: psurf,ust,h,excess
-  real :: thetaold,zl,ul,vl,thetal,ril,hmixplus,wspeed,bvfsq,bvf
-  real :: rh,rhold,rhl,theta1,theta2,zl1,zl2,thetam
+  integer,intent(out) ::            &
+    ierr                              ! Returns error when no richardson number can be found
+  real, intent(out) ::              &
+    h,                              & ! mixing height [m]
+    wst,                            & ! convective velocity scale
+    hmixplus                          !
+  integer,intent(in)  ::            &
+    nuvz                              ! Upper vertical level
+  real,intent(in) ::                &
+    psurf,                          & ! surface pressure at point (xt,yt) [Pa] 
+    ust,                            & ! Scale velocity
+    hf,                             & ! Surface sensible heat flux
+    tt2,td2                           ! Temperature
+  real,intent(in),dimension(:) ::   &
+    ttlev,                          &
+    qvlev,                          &
+    ulev,                           &
+    vlev,                           &
+    akz,bkz
+  integer ::                        &
+    i,k,iter,llev,loop_start          ! Loop variables
+  real ::                           &
+    tv,tvold,                       & ! Virtual temperature
+    zref,z,zold,zl,zl1,zl2,         & ! Heights
+    pint,pold,                      & ! Pressures
+    theta,thetaold,thetaref,thetal, & ! Potential temperature
+    theta1,theta2,thetam,           &
+    ri,                             & ! Richardson number per level
+    ril,                            & ! Richardson number sub level
+    excess,                         & !
+    ul,vl,                          & ! Velocities sub level
+    wspeed,                         & ! Wind speed at z=hmix
+    bvfsq,                          & ! Brunt-Vaisala frequency
+    bvf,                            & ! square root of bvfsq
+    rh,rhold,rhl
   real,parameter    :: const=r_air/ga, ric=0.25, b=100., bs=8.5
   integer,parameter :: itmax=3
-  real,dimension(:) :: akz,bkz,ulev,vlev,ttlev,qvlev
 
   excess=0.0
 
@@ -1497,7 +1536,13 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
       thetaold=theta
       zold=z
     end do
-    k=min(k,nuvz) ! ESO: make sure k <= nuvz (ticket #139) !MD change to work without goto
+    ! Copied from FLEXPART-WRF
+    if (k.ge.nuvz) then
+      write(*,*) 'richardson not working -- k = nuvz'
+      ierr = -10
+      goto 7000
+    endif
+    !k=min(k,nuvz) ! ESO: make sure k <= nuvz (ticket #139) !MD change to work without goto
 
     ! Determine Richardson number between the critical levels
     !********************************************************
@@ -1554,6 +1599,26 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
     endif
   end do
 
+  ierr = 0
+  return
+
+! Fatal error -- print the inputs
+7000  continue
+  write(*,'(a         )') 'nuvz'
+  write(*,'(i5        )')  nuvz
+  write(*,'(a         )') 'psurf,ust,hf,tt2,td2,h,wst,hmixplus'
+  write(*,'(1p,4e18.10)')  psurf,ust,hf,tt2,td2,h,wst,hmixplus
+  write(*,'(a         )') 'ttlev'
+  write(*,'(1p,4e18.10)')  ttlev
+  write(*,'(a         )') 'qvlev'
+  write(*,'(1p,4e18.10)')  qvlev
+  write(*,'(a         )') 'ulev'
+  write(*,'(1p,4e18.10)')  ulev
+  write(*,'(a         )') 'vlev'
+  write(*,'(1p,4e18.10)')  vlev
+  write(*,'(a         )') 'pplev'
+  write(*,'(1p,4e18.10)')  pplev
+  return
 end subroutine richardson
 
 real function scalev(ps,t,td,stress)

@@ -1155,11 +1155,11 @@ subroutine interpol_vdep(field,ns,output)
   depoindicator(ns)=.false. ! Only doing this once per pbl_loop
 end subroutine interpol_vdep
 
-subroutine interpol_density(ipart,output)
+subroutine interpol_density(itime,ipart,output)
 
   implicit none
 
-  integer, intent(in) :: ipart  ! particle index
+  integer, intent(in) :: itime,ipart  ! time and particle index
   real, intent(inout) :: output ! output density (rhoi)
   integer :: ind
   real :: dz1,dz2
@@ -1167,6 +1167,7 @@ subroutine interpol_density(ipart,output)
 
   call determine_grid_coordinates(real(part(ipart)%xlon),real(part(ipart)%ylat))
   call find_grid_distances(real(part(ipart)%xlon),real(part(ipart)%ylat))
+  call find_time_variables(itime)
 
   ! Take density from 2nd wind field in memory (accurate enough, no time interpolation needed)
   !*****************************************************************************

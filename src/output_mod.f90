@@ -745,8 +745,8 @@ subroutine conccalc(itime,weight)
   !Af ind_samp is defined in readcommand.f
 
     if ( ind_samp .eq. -1 ) then
-      ! call update_zeta_to_z(itime,i)
-      call interpol_density(i,rhoi)
+      call update_zeta_to_z(itime,i)
+      call interpol_density(itime,i,rhoi)
     elseif (ind_samp.eq.0) then 
       rhoi = 1.
     endif

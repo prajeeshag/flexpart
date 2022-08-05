@@ -89,7 +89,7 @@ subroutine releaseparticles(itime)
   real :: dz1,dz2,dz,xlonav,timecorrect(maxspec),press,pressold
   real :: presspart,average_timecorrect
   integer :: itime,numrel,i,j,k,n,ipart,minpart,ii
-  integer :: kz,istart,iend
+  integer :: kz,istart,iend,totpart
   integer :: nweeks,ndayofweek,nhour,jjjjmmdd,ihmmss,mm
   real(kind=dp) :: julmonday,jul,jullocal,juldiff
   real,parameter :: eps2=1.e-6
@@ -123,7 +123,13 @@ subroutine releaseparticles(itime)
   if (itime.eq.0) then
     do i=1,numpoint 
       call allocate_particles(npart(i))
-    end do 
+    end do
+  else if (itime.eq.itime_init) then
+    totpart=0
+    do i=1,numpoint
+      totpart = totpart+npart(i)
+    end do
+    if (totpart.gt.count%allocated) call allocate_particles(totpart-count%allocated)
   end if 
 
   call get_total_part_num(istart)

@@ -132,7 +132,7 @@ subroutine timemanager
 
   ! First output for time 0
   !************************
-  if (itime_init.gt.0) then
+  if (itime_init.ne.0) then
     loutnext=loutnext_init
     outnum=outnum_init
   else
@@ -212,7 +212,7 @@ subroutine timemanager
   ! compute convection for backward runs
   !*************************************
 
-    if ((ldirect.eq.-1).and.(lconvection.eq.1).and.(itime.lt.itime_init)) then    
+    if ((ldirect.eq.-1).and.(lconvection.eq.1).and.(itime.lt.0)) then    
       call convmix(itime)
     endif
 
@@ -265,7 +265,7 @@ subroutine timemanager
     if ((ldirect*itime.ge.ldirect*loutstart).and.(ldirect*itime.le.ldirect*loutend)) then
       ! If it is not time yet to write outputs, skip
       !***********************************************
-      if ((itime.eq.loutend).and.(outnum.gt.0).and.(itime.ne.itime_init)) then
+      if ((itime.eq.loutend).and.(outnum.gt.0).and.(itime.ne.0)) then
 
         if ((iout.eq.4).or.(iout.eq.5)) call plumetraj(itime)
         if (iflux.eq.1) call fluxoutput(itime)

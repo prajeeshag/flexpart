@@ -38,7 +38,7 @@ module netcdf_output_mod
                        area,arean,volumen,orooutn
   use par_mod,   only: dep_prec, sp, dp, maxspec, maxreceptor, nclassunc,&
                        unitoutrecept,unitoutreceptppt,unittmp
-  use com_mod,   only: path,length,ldirect,ibdate,ibtime,iedate,ietime, &
+  use com_mod,   only: path,length,ldirect,ibdate,ibtime,iedate,ietime,itime_init, &
                        loutstep,loutaver,loutsample,outlon0,outlat0,&
                        numxgrid,numygrid,dxout,dyout,numzgrid, &
                        outlon0n,outlat0n,dxoutn,dyoutn,numxgridn,numygridn, &
@@ -1755,6 +1755,8 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
   real                :: fillval
   real, allocatable, dimension(:) :: coord
 
+  logical,save :: first_time=.true.
+
   open(unit=unittmp,file=trim(path(2)(1:length(2)))//'test_dir.txt',status='replace',&
        &err=110)
   close (unittmp, status='delete')
@@ -1771,7 +1773,12 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
   mass_written=.false.
   massav_written=.false.
 
-  fname_partoutput = path(2)(1:length(2))//trim(fprefix)//adate//atime//'.nc'
+  if (first_time) then
+    fname_partoutput = path(2)(1:length(2))//trim(fprefix)//adate//atime//'_init.nc'
+    first_time=.false.
+  else
+    fname_partoutput = path(2)(1:length(2))//trim(fprefix)//adate//atime//'.nc'
+  endif
   !ncfname_part(irelease) = fname_partoutput
   ncfname_part = fname_partoutput
 

@@ -401,14 +401,14 @@ subroutine timemanager
   !***************************************************
 
       if (iflux.eq.1) call calcfluxes(itime,nage,j,real(part(j)%xlon_prev), &
-        real(part(j)%ylat_prev),real(part(j)%z_prev),thread) !OMP reduction necessary for flux array
+        real(part(j)%ylat_prev),real(part(j)%z_prev),thread+1) !OMP reduction necessary for flux array
 
 
   ! Determine, when next time step is due
   ! If trajectory is terminated, mark it
   !**************************************
       if (part(j)%nstop) then
-        if (linit_cond.ge.1) call initial_cond_calc(itime,j) !OMP reduction necessary for init_cond
+        if (linit_cond.ge.1) call initial_cond_calc(itime,j,thread+1) !OMP reduction necessary for init_cond
         call terminate_particle(j)
       else
 
@@ -460,7 +460,7 @@ subroutine timemanager
   !***************************************************************
 
         if ((part(j)%alive).and.(abs(itime-part(j)%tstart).ge.lage(nageclass))) then
-          if (linit_cond.ge.1) call initial_cond_calc(itime+lsynctime,j)
+          if (linit_cond.ge.1) call initial_cond_calc(itime+lsynctime,j,thread+1)
           call terminate_particle(j)
         endif
       endif
@@ -473,10 +473,19 @@ subroutine timemanager
   ! OpenMP Reduction for dynamically allocated arrays. This is done manually since this
   ! is not yet supported in most OpenMP versions
   !************************************************************************************
-    do i=1,numthreads
-      flux=flux+flux_omp(:,:,:,:,:,:,:,i)
-    end do
-
+    if (iflux.eq.1) then
+      do i=1,numthreads
+        flux=flux+flux_omp(:,:,:,:,:,:,:,i)
+        flux_omp(:,:,:,:,:,:,:,i)=0.
+      end do
+    endif
+    if (linit_cond.ge.1) then
+      do i=1,numthreads
+        init_cond=init_cond+init_cond_omp(:,:,:,:,:,i)
+        init_cond_omp(:,:,:,:,:,i)=0.
+      end do
+    endif
+    
   ! Counter of "unstable" particle velocity during a time scale of
   ! maximumtl=20 minutes (defined in com_mod)
   !***************************************************************

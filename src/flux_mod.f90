@@ -514,7 +514,7 @@ subroutine fluxoutput(itime)
 
   close(unitflux)
 
-  write(*,*) 'Flux:', itime, flux(:,ix,jy,kz,k,kp,nage)
+  write(*,*) 'Flux:', itime, flux(:,1,1,1,1,1,1)
   ! Reinitialization of grid
   !*************************
 
@@ -526,6 +526,7 @@ subroutine fluxoutput(itime)
             do nage=1,nageclass
               do i=1,6
                 flux(i,ix,jy,kz,k,kp,nage)=0.
+                flux_omp(i,ix,jy,kz,k,kp,nage,:)=0.
               end do
             end do
           end do

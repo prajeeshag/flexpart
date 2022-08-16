@@ -363,7 +363,7 @@ subroutine convmix(itime)
 
           if (nage.le.nageclass) &
             call calcfluxes(itime,nage,ipart,real(part(ipart)%xlon), &
-               real(part(ipart)%ylat),ztold,thread)
+               real(part(ipart)%ylat),ztold,thread+1)
         endif
       enddo
 
@@ -375,9 +375,11 @@ subroutine convmix(itime)
   ! OpenMP Reduction for dynamically allocated arrays. This is done manually since this
   ! is not yet supported in most OpenMP versions
   !************************************************************************************
-  do ithread=1,numthreads
-    flux=flux+flux_omp(:,:,:,:,:,:,:,ithread)
-  end do
+  if (iflux.eq.1) then
+    do ithread=1,numthreads
+      flux=flux+flux_omp(:,:,:,:,:,:,:,ithread)
+    end do
+  endif
 
   deallocate(frst)
 
@@ -456,7 +458,15 @@ subroutine convmix(itime)
 
     end do
   end do
-  flux=flux_omp(:,:,:,:,:,:,:,1)
+
+  ! OpenMP Reduction for dynamically allocated arrays. This is done manually since this
+  ! is not yet supported in most OpenMP versions
+  !************************************************************************************
+  if (iflux.eq.1) then
+    do ithread=1,numthreads
+      flux=flux+flux_omp(:,:,:,:,:,:,:,ithread)
+    end do
+  endif
   !--------------------------------------------------------------------------
   ! write(*,*)'############################################'
   ! write(*,*)'TIME=',&

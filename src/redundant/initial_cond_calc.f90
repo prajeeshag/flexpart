@@ -13,7 +13,6 @@ subroutine initial_cond_calc(itime,i)
   !                                                                            *
   !*****************************************************************************
 
-  use unc_mod
   use outg_mod
   use par_mod
   use com_mod

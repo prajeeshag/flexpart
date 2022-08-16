@@ -33,8 +33,6 @@ module unc_mod
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:) :: wetgridunc0
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:) :: wetgriduncn0
 
-  real,allocatable, dimension (:,:,:,:,:) :: init_cond
-
 contains
 
 subroutine radioactive_decay()

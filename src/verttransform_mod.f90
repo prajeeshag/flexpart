@@ -283,52 +283,63 @@ subroutine verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,
   ! RLT added pressure
   real,intent(in),dimension(0:nxmax-1,0:nymax-1,nuvzmax) :: prsh
 
-  real,dimension(0:nxmax-1,0:nymax-1) ::  dpdeta
+  !real,dimension(0:nxmax-1,0:nymax-1) ::  dpdeta
 
   real,dimension(0:nymax-1) :: cosf
 
   integer,dimension(0:nxmax-1,0:nymax-1) :: idx
 
   integer :: ix,jy,kz,iz,kmin,ixp,jyp,ix1,jy1
-  real :: dz1,dz2,dz
+  real :: dz1,dz2,dz,dpdeta
   real :: xlon,ylat,xlonr,dzdx,dzdy
   real :: dzdx1,dzdx2,dzdy1,dzdy2
 
   ! Levels, where u,v,t and q are given
   !************************************
-  uu(:,:,1,n)=uuh(:,:,1)
-  vv(:,:,1,n)=vvh(:,:,1)
-  tt(:,:,1,n)=tth(:,:,1,n)
-  qv(:,:,1,n)=qvh(:,:,1,n)
-  !hg adding the cloud water 
-  if (readclouds) then
-    clwc(:,:,1,n)=clwch(:,:,1,n)
-    if (.not.sumclouds) ciwc(:,:,1,n)=ciwch(:,:,1,n)
-  end if
-  !hg 
-  pv(:,:,1,n)=pvh(:,:,1)
-  rho(:,:,1,n)=rhoh(:,:,1)
-  ! RLT add pressure
-  prs(:,:,1,n)=prsh(:,:,1)
+!$OMP PARALLEL PRIVATE(jy,ix,kz,dz1,dz2,dz,ix1,jy1,ixp,jyp,dzdx1,dzdx2,dzdx,dzdy1,dzdy2,dzdy, &
+!$OMP dpdeta)
 
-  uu(:,:,nz,n)=uuh(:,:,nuvz)
-  vv(:,:,nz,n)=vvh(:,:,nuvz)
-  tt(:,:,nz,n)=tth(:,:,nuvz,n)
-  qv(:,:,nz,n)=qvh(:,:,nuvz,n)
-  !hg adding the cloud water
-  if (readclouds) then
-    clwc(:,:,nz,n)=clwch(:,:,nuvz,n)
-    if (.not.sumclouds) ciwc(:,:,nz,n)=ciwch(:,:,nuvz,n)
-  end if
-  !hg
-  pv(:,:,nz,n)=pvh(:,:,nuvz)
-  rho(:,:,nz,n)=rhoh(:,:,nuvz)
-  ! RLT
-  prs(:,:,nz,n)=prsh(:,:,nuvz)
+!$OMP DO
+  do jy=0,nymin1
+    do ix=0,nxmin1
 
-  kmin=2
-  idx=kmin
+      uu(ix,jy,1,n)=uuh(ix,jy,1)
+      vv(ix,jy,1,n)=vvh(ix,jy,1)
+      tt(ix,jy,1,n)=tth(ix,jy,1,n)
+      qv(ix,jy,1,n)=qvh(ix,jy,1,n)
+      !hg adding the cloud water 
+      if (readclouds) then
+        clwc(ix,jy,1,n)=clwch(ix,jy,1,n)
+        if (.not.sumclouds) ciwc(ix,jy,1,n)=ciwch(ix,jy,1,n)
+      end if
+      !hg 
+      pv(ix,jy,1,n)=pvh(ix,jy,1)
+      rho(ix,jy,1,n)=rhoh(ix,jy,1)
+      ! RLT add pressure
+      prs(ix,jy,1,n)=prsh(ix,jy,1)
+
+      uu(ix,jy,nz,n)=uuh(ix,jy,nuvz)
+      vv(ix,jy,nz,n)=vvh(ix,jy,nuvz)
+      tt(ix,jy,nz,n)=tth(ix,jy,nuvz,n)
+      qv(ix,jy,nz,n)=qvh(ix,jy,nuvz,n)
+      !hg adding the cloud water
+      if (readclouds) then
+        clwc(ix,jy,nz,n)=clwch(ix,jy,nuvz,n)
+        if (.not.sumclouds) ciwc(ix,jy,nz,n)=ciwch(ix,jy,nuvz,n)
+      end if
+      !hg
+      pv(ix,jy,nz,n)=pvh(ix,jy,nuvz)
+      rho(ix,jy,nz,n)=rhoh(ix,jy,nuvz)
+      ! RLT
+      prs(ix,jy,nz,n)=prsh(ix,jy,nuvz)
+
+      idx(ix,jy)=2
+    end do
+  end do
+!$OMP END DO
+
   do iz=2,nz-1
+!$OMP DO SCHEDULE(dynamic)
     do jy=0,nymin1
       do ix=0,nxmin1
         if(height(iz).gt.etauvheight(ix,jy,nuvz,n)) then
@@ -355,10 +366,7 @@ subroutine verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,
             endif
           enddo innuvz
         endif
-      enddo
-    enddo
-    do jy=0,nymin1
-      do ix=0,nxmin1
+
         if(height(iz).le.etauvheight(ix,jy,nuvz,n)) then
           kz=idx(ix,jy)
           dz1=height(iz)-etauvheight(ix,jy,kz-1,n)
@@ -384,67 +392,80 @@ subroutine verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,
         endif
       enddo
     enddo
+!$OMP END DO
+!$OMP BARRIER
   enddo
-
-
   ! Levels, where w is given
   !*************************
 
-  ww(:,:,1,n)=wwh(:,:,1)*pinmconv(:,:,1)
-  ww(:,:,nz,n)=wwh(:,:,nwz)*pinmconv(:,:,nz)
-  kmin=2
-  idx=kmin
-  do iz=2,nz
+!$OMP DO
+  do jy=0,nymin1
+    do ix=0,nxmin1
+      idx(ix,jy)=2
+      ww(ix,jy,1,n)=wwh(ix,jy,1)*pinmconv(ix,jy,1)
+      ww(ix,jy,nz,n)=wwh(ix,jy,nwz)*pinmconv(ix,jy,nz)
+    end do
+  end do
+!$OMP END DO
+
+  do iz=2,nz-1
+!$OMP DO SCHEDULE(dynamic)
     do jy=0,nymin1
       do ix=0,nxmin1
-        inn:         do kz=idx(ix,jy),nwz
+
+        inn: do kz=idx(ix,jy),nwz
           if(idx(ix,jy) .le. kz .and. height(iz).gt.etawheight(ix,jy,kz-1,n).and. &
                height(iz).le.etawheight(ix,jy,kz,n)) then
             idx(ix,jy)=kz
             exit inn
           endif
         enddo inn
-      enddo
-    enddo
-    do jy=0,nymin1
-      do ix=0,nxmin1
+
         kz=idx(ix,jy)
         dz1=height(iz)-etawheight(ix,jy,kz-1,n)
         dz2=etawheight(ix,jy,kz,n)-height(iz)
         dz=dz1+dz2
         ww(ix,jy,iz,n)=(wwh(ix,jy,kz-1)*pinmconv(ix,jy,kz-1)*dz2 &
              +wwh(ix,jy,kz)*pinmconv(ix,jy,kz)*dz1)/dz
-      enddo
-    enddo
-  enddo
-
-  ! Compute density gradients at intermediate levels
-  !*************************************************
-
-  drhodz(:,:,1,n)=(rho(:,:,2,n)-rho(:,:,1,n))/ &
-       (height(2)-height(1))
-  do kz=2,nz-1
-    drhodz(:,:,kz,n)=(rho(:,:,kz+1,n)-rho(:,:,kz-1,n))/ &
-         (height(kz+1)-height(kz-1))
+        ! Compute density gradients at intermediate levels
+        !*************************************************
+        drhodz(ix,jy,kz,n)=(rho(ix,jy,kz+1,n)-rho(ix,jy,kz-1,n))/ &
+          (height(kz+1)-height(kz-1))
+      end do
+    end do
+!$OMP END DO
+!$OMP BARRIER
   end do
-  drhodz(:,:,nz,n)=drhodz(:,:,nz-1,n)
 
+!$OMP DO
+  do jy=0,nymin1
+    do ix=0,nxmin1
+      drhodz(ix,jy,nz,n)=drhodz(ix,jy,nz-1,n)
+      drhodz(ix,jy,1,n)=(rho(ix,jy,2,n)-rho(ix,jy,1,n))/(height(2)-height(1))
+    end do
+  end do
+!$OMP END DO NOWAIT
 
   !****************************************************************
   ! Compute slope of eta levels in windward direction and resulting
   ! vertical wind correction
   !****************************************************************
 
+!$OMP DO
   do jy=1,ny-2
     cosf(jy)=1./cos((real(jy)*dy+ylat0)*pi180)
-  enddo
+    do ix=1,nx-2
+      idx(ix,jy)=2
+    end do
+  end do
+!$OMP END DO
 
-  kmin=2
-  idx=kmin
   do iz=2,nz-1
+!$OMP DO SCHEDULE(dynamic)
     do jy=1,ny-2
       do ix=1,nx-2
-
+        ! For gridpoint (ix,jy) and height (iz), this loop finds the first eta levels that is
+        ! encompassing the height(iz) level and saves it in idx(ix,jy)
         inneta: do kz=idx(ix,jy),nz
           if (idx(ix,jy) .le. kz .and. (height(iz).gt.etauvheight(ix,jy,kz-1,n)).and. &
                (height(iz).le.etauvheight(ix,jy,kz,n))) then
@@ -452,11 +473,7 @@ subroutine verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,
             exit inneta
           endif
         enddo inneta
-      enddo
-    enddo
 
-    do jy=1,ny-2
-      do ix=1,nx-2
         kz=idx(ix,jy)
         dz1=height(iz)-etauvheight(ix,jy,kz-1,n)
         dz2=etauvheight(ix,jy,kz,n)-height(iz)
@@ -475,54 +492,65 @@ subroutine verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,
         dzdy=(dzdy1*dz2+dzdy2*dz1)/dz
 
         ww(ix,jy,iz,n)=ww(ix,jy,iz,n)+(dzdx*uu(ix,jy,iz,n)*dxconst*cosf(jy)+dzdy*vv(ix,jy,iz,n)*dyconst)
-
       end do
-
     end do
+!$OMP END DO
+!$OMP BARRIER
   end do
 
   ! Keep original fields if wind_coord_type==ETA
+
   if (wind_coord_type.eq.'ETA') then
-    uueta(:,:,:,n) = uuh(:,:,:)
-    vveta(:,:,:,n) = vvh(:,:,:)
-    tteta(:,:,:,n) = tth(:,:,:,n)
-    qveta(:,:,:,n) = qvh(:,:,:,n)
-    pveta(:,:,:,n) = pvh(:,:,:)
-    rhoeta(:,:,:,n) = rhoh(:,:,:)
-    prseta(:,:,:,n) = prsh(:,:,:)
-    drhodzeta(:,:,1,n)=(rhoeta(:,:,2,n)-rhoeta(:,:,1,n))/ &
-         (height(2)-height(1))
-    do kz=2,nz-1
-      drhodzeta(:,:,kz,n)=(rhoeta(:,:,kz+1,n)-rhoeta(:,:,kz-1,n))/ &
-           (height(kz+1)-height(kz-1)) ! Note that this is still in SI units and not in eta
+!$OMP DO
+
+    do kz=1,nz
+      do jy=0,nymin1
+        do ix=0,nxmin1
+          uueta(ix,jy,kz,n) = uuh(ix,jy,kz)
+          vveta(ix,jy,kz,n) = vvh(ix,jy,kz)
+          tteta(ix,jy,kz,n) = tth(ix,jy,kz,n)
+          qveta(ix,jy,kz,n) = qvh(ix,jy,kz,n)
+          pveta(ix,jy,kz,n) = pvh(ix,jy,kz)
+          rhoeta(ix,jy,kz,n) = rhoh(ix,jy,kz)
+          prseta(ix,jy,kz,n) = prsh(ix,jy,kz)
+          tvirtual(ix,jy,kz,n)=tteta(ix,jy,kz,n)* &  ! eq A11 from Mid-latitude atmospheric dynamics by Jonathan E. Martin
+            ((qveta(ix,jy,kz,n)+0.622)/(0.622*qveta(ix,jy,kz,n)+0.622))
+          if ((kz.gt.1).and.(kz.lt.nz)) drhodzeta(ix,jy,kz,n)=(rhoh(ix,jy,kz+1)-rhoh(ix,jy,kz-1))/ &
+               (height(kz+1)-height(kz-1)) ! Note that this is still in SI units and not in eta
+        end do
+      end do
     end do
-    drhodzeta(:,:,nz,n)=drhodzeta(:,:,nz-1,n)
-    tvirtual(:,:,:,n)=tteta(:,:,:,n)* &
-      ((qveta(:,:,:,n)+0.622)/(0.622*qveta(:,:,:,n)+0.622)) ! eq A11 from Mid-latitude atmospheric dynamics by Jonathan E. Martin
-    !tvirtual(:,:,:,n)=tteta(:,:,:,n)*(1.+0.608*qveta(:,:,:,n))
-    do jy=0,ny-1
-      do ix=0,nx-1
+!$OMP END DO NOWAIT
+
+!$OMP DO
+
+    do jy=0,nymin1
+      do ix=0,nxmin1
+        drhodzeta(ix,jy,1,n)=(rhoh(ix,jy,2)-rhoh(ix,jy,1))/(height(2)-height(1))
+        drhodzeta(ix,jy,nz,n)=drhodzeta(ix,jy,nz-1,n)
         tvirtual(ix,jy,1,n)=tt2(ix,jy,1,n)*(1.+0.378*ew(td2(ix,jy,1,n),ps(ix,jy,1,n))/ps(ix,jy,1,n))
-      end do 
+        ! Convert w from Pa/s to eta/s, following FLEXTRA
+        !************************************************
+        do kz=1,nuvz-1
+          if (kz.eq.1) then
+            dpdeta=(akm(kz+1)-akm(kz)+(bkm(kz+1)-bkm(kz))*ps(ix,jy,1,n))/ &
+              (wheight(kz+1)-wheight(kz))
+          else if (kz.eq.nuvz-1) then
+            dpdeta=(akm(kz)-akm(kz-1)+(bkm(kz)-bkm(kz-1))*ps(ix,jy,1,n))/ &
+              (wheight(kz)-wheight(kz-1))
+          else
+            dpdeta=(akm(kz+1)-akm(kz-1)+(bkm(kz+1)-bkm(kz-1))*ps(ix,jy,1,n))/ &
+              (wheight(kz+1)-wheight(kz-1))
+          endif
+          wweta(ix,jy,kz,n)=wwh(ix,jy,kz)/dpdeta
+        end do
+        wweta(ix,jy,nuvz,n)=wweta(ix,jy,nuvz-1,n) !What is the appropriate value for the top level???
+      end do
     end do
-
-
-    ! Convert w from Pa/s to eta/s, following FLEXTRA
-    !************************************************
-    do kz=1,nuvz-1
-      if (kz.eq.1) then
-        dpdeta=(akm(kz+1)-akm(kz)+(bkm(kz+1)-bkm(kz))*ps(:,:,1,n))/ &
-          (wheight(kz+1)-wheight(kz))
-      else if (kz.eq.nuvz-1) then
-        dpdeta=(akm(kz)-akm(kz-1)+(bkm(kz)-bkm(kz-1))*ps(:,:,1,n))/ &
-          (wheight(kz)-wheight(kz-1))
-      else
-        dpdeta=(akm(kz+1)-akm(kz-1)+(bkm(kz+1)-bkm(kz-1))*ps(:,:,1,n))/ &
-          (wheight(kz+1)-wheight(kz-1))
-      endif
-      wweta(:,:,kz,n)=wwh(:,:,kz)/dpdeta
-    end do
+!$OMP END DO NOWAIT
   endif
+!$OMP END PARALLEL
+
 end subroutine verttransform_ecmwf_transform_windfields
 
 subroutine verttransform_ecmwf_stereographic(n)

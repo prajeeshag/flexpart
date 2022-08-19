@@ -1126,9 +1126,7 @@ subroutine init_domainfill
   ! Initialise max column number
   numcolumn=0
 
-!$OMP PARALLEL PRIVATE(ljy,ylat,ylatp,ylatm,hzone,cosfactp,cosfactm,pp, &
-!$OMP lix,ncolumn,deltacol,pnew,jj,j,pnew_temp,kz,ixm,jym,ixp,jyp,height_tmp, &
-!$OMP ddx,ddy,rddx,rddy,p1,p2,p3,p4,indzm,indzp,i,dz1,dz2,dz,pvpart,indzh,ii,y1)
+!$OMP PARALLEL PRIVATE(ljy,ylat,ylatp,ylatm,hzone,cosfactp,cosfactm,pp,lix)
 !$OMP DO
   do ljy=ny_sn(1),ny_sn(2)      ! loop about latitudes
     ylat=ylat0+real(ljy)*dy
@@ -1166,8 +1164,8 @@ subroutine init_domainfill
     end do
   end do
 !$OMP END DO
-!$OMP BARRIER
-!$OMP SINGLE
+!$OMP END PARALLEL
+
   write(*,*) 'Atm. mass: ',colmasstotal
 
   if (ipin.eq.0) numpart=0
@@ -1310,8 +1308,7 @@ subroutine init_domainfill
     end do
   end do
 
-!$OMP END SINGLE
-!$OMP BARRIER
+!$OMP PARALLEL PRIVATE(j)
 
   alive_tmp=count%alive
   spawned_tmp=count%spawned
@@ -1750,7 +1747,6 @@ subroutine boundcond_domainfill(itime,loutend)
     end do ! western and eastern boundary
   end do ! south to north
 !$OMP END DO
-!$OMP BARRIER
   numparticlecount = numparticlecount_tmp
   !*****************************************
   ! Southern and northern boundary condition
@@ -1961,8 +1957,8 @@ subroutine boundcond_domainfill(itime,loutend)
       end do ! releases per column
     end do ! east west
   end do ! north south
+!$OMP END DO
 !$OMP END PARALLEL
-!$OMP BARRIER
   numparticlecount = numparticlecount_tmp
   ! If particles shall be dumped, then accumulated masses at the domain boundaries
   ! must be dumped, too, to be used for later runs

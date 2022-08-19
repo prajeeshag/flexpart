@@ -265,7 +265,7 @@ subroutine timemanager
   ! If middle of averaging period of output fields is reached, accumulated
   ! deposited mass radioactively decays
   !***********************************************************************
-    if (DEP.and.(itime.eq.loutnext).and.(ldirect.gt.0)) call radioactive_decay() !ONP, unc_mod.f90 (needs test)
+    if (DEP.and.(itime.eq.loutnext).and.(ldirect.gt.0)) call radioactive_decay() !OMP, unc_mod.f90 (needs test)
 
 
   ! Is the time within the computation interval, if not, skip

@@ -374,21 +374,27 @@ subroutine outgrid_init
               if (ldirect.gt.0) then
               wetgridunc(ix,jy,ks,kp,l,nage)=0.
               drygridunc(ix,jy,ks,kp,l,nage)=0.
+#ifdef _OPENMP
               wetgridunc_omp(ix,jy,ks,kp,l,nage,:)=0.
               drygridunc_omp(ix,jy,ks,kp,l,nage,:)=0.
+#endif
               endif
               do kz=1,numzgrid
                 if (iflux.eq.1) then
     ! Flux fields
                    do i=1,5
                      flux(i,ix,jy,kz,ks,kp,nage)=0.
+#ifdef _OPENMP
                      flux_omp(i,ix,jy,kz,ks,kp,nage,:)=0.
+#endif
                    end do
                 endif
     ! Initial condition field
                 if ((l.eq.1).and.(nage.eq.1).and.(linit_cond.gt.0)) then
                   init_cond(ix,jy,kz,ks,kp)=0.
+#ifdef _OPENMP
                   init_cond_omp(ix,jy,kz,ks,kp,:)=0.
+#endif
                 endif
     ! Concentration fields
                 gridunc(ix,jy,kz,ks,kp,l,nage)=0.
@@ -631,8 +637,10 @@ subroutine outgrid_init_nest
               if (ldirect.gt.0) then
                 wetgriduncn(ix,jy,ks,kp,l,nage)=0.
                 drygriduncn(ix,jy,ks,kp,l,nage)=0.
+#ifdef _OPENMP
                 wetgriduncn_omp(ix,jy,ks,kp,l,nage,:)=0.
                 drygriduncn_omp(ix,jy,ks,kp,l,nage,:)=0.
+#endif
               endif
   ! Concentration fields
               do kz=1,numzgrid

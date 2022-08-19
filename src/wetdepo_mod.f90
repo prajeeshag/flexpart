@@ -44,9 +44,10 @@ subroutine wetdepo(itime,ltsample,loutnext)
   ! Constants:                                                                 *
   !                                                                            *
   !*****************************************************************************
-
-  use unc_mod, only:wetgridunc,wetgridunc_omp,wetgriduncn,wetgriduncn_omp
+#ifdef _OPENMP
   use omp_lib
+#endif
+  use unc_mod
 
   implicit none
 
@@ -171,12 +172,12 @@ subroutine wetdepo(itime,ltsample,loutnext)
 #ifdef _OPENMP
     if ((ldirect.eq.1).and.(iout.ne.0)) then
       do ithread=1,numthreads
-        wetgridunc=wetgridunc+wetgridunc_omp(:,:,:,:,:,:,ithread)
+        wetgridunc(:,:,:,:,:,:)=wetgridunc(:,:,:,:,:,:)+wetgridunc_omp(:,:,:,:,:,:,ithread)
         wetgridunc_omp(:,:,:,:,:,:,ithread)=0.
       end do
       if (nested_output.eq.1) then
         do ithread=1,numthreads
-          wetgriduncn=wetgriduncn+wetgriduncn_omp(:,:,:,:,:,:,ithread)
+          wetgriduncn(:,:,:,:,:,:)=wetgriduncn(:,:,:,:,:,:)+wetgriduncn_omp(:,:,:,:,:,:,ithread)
           wetgriduncn_omp(:,:,:,:,:,:,ithread)=0.
         end do
       endif

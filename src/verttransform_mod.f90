@@ -429,8 +429,8 @@ subroutine verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,
              +wwh(ix,jy,kz)*pinmconv(ix,jy,kz)*dz1)/dz
         ! Compute density gradients at intermediate levels
         !*************************************************
-        drhodz(ix,jy,kz,n)=(rho(ix,jy,kz+1,n)-rho(ix,jy,kz-1,n))/ &
-          (height(kz+1)-height(kz-1))
+        drhodz(ix,jy,iz,n)=(rho(ix,jy,iz+1,n)-rho(ix,jy,iz-1,n))/ &
+          (height(iz+1)-height(iz-1))
       end do
     end do
 !$OMP END DO

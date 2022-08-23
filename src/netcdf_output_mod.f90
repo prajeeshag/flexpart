@@ -970,7 +970,7 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
            end do
         end do
      end do
-!$OMP END DO NOWAIT
+!$OMP END DO
   else
 !$OMP DO
      do kz=1,numzgrid

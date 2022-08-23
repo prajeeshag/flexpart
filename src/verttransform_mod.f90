@@ -547,7 +547,7 @@ subroutine verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,
         wweta(ix,jy,nuvz,n)=wweta(ix,jy,nuvz-1,n) !What is the appropriate value for the top level???
       end do
     end do
-!$OMP END DO NOWAIT
+!$OMP END DO
   endif
 !$OMP END PARALLEL
 

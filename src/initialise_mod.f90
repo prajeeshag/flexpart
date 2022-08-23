@@ -1148,6 +1148,7 @@ subroutine init_domainfill
     gridarea(ljy)=2.*pi*r_earth*hzone*dx/360.
   end do
 !$OMP END DO
+!$OMP BARRIER
 
   ! Initialise the sum over the total mass of the atmosphere
   colmasstotal=0.

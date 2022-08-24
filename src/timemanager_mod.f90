@@ -434,7 +434,7 @@ subroutine timemanager
 
 !        Sabine Eckhardt, June 2008
 !        don't create depofield for backward runs
-        if (DRYDEP.AND.(ldirect.eq.1).and.(iout.ne.0)) then !OMP reduction necessary for drygridunc
+        if (DRYDEP.AND.(ldirect.eq.1).and.(iout.ne.0)) then
 
           if (ioutputforeachrelease.eq.1) then
               kp=part(j)%npoint
@@ -547,13 +547,22 @@ subroutine timemanager
     deallocate(outheight,outheighthalf)
     deallocate(oroout, area, volume)
     deallocate(gridunc)
+#ifdef _OPENMP
+    deallocate(gridunc_omp)
+#endif
     if (ldirect.gt.0) then
       deallocate(drygridunc,wetgridunc)
+#ifdef _OPENMP
+      deallocate(drygridunc_omp,wetgridunc_omp)
+#endif
     endif
     if (nested_output.eq.1) then
       deallocate(orooutn, arean, volumen)
       if (ldirect.gt.0) then
         deallocate(griduncn,drygriduncn,wetgriduncn)
+#ifdef _OPENMP
+        deallocate(griduncn_omp,drygriduncn_omp,wetgriduncn_omp)
+#endif
       endif
     endif
   endif

@@ -75,7 +75,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
 
   ! OMP doesn't work yet, a reduction is necessary for the kernel function
 !$OMP PARALLEL PRIVATE(jpart,itage,nage,ks,kp,thread,wetscav,wetdeposit, &
-!$OMP restmass, grfraction) REDUCTION(+:blc_count,inc_count)
+!$OMP restmass, grfraction) num_threads(numthreads_grid) REDUCTION(+:blc_count,inc_count)
 
 #if (defined _OPENMP)
     thread = OMP_GET_THREAD_NUM() ! Starts with 0
@@ -169,12 +169,12 @@ subroutine wetdepo(itime,ltsample,loutnext)
 
 #ifdef _OPENMP
     if ((ldirect.eq.1).and.(iout.ne.0)) then
-      do ithread=1,numthreads
+      do ithread=1,numthreads_grid
         wetgridunc(:,:,:,:,:,:)=wetgridunc(:,:,:,:,:,:)+wetgridunc_omp(:,:,:,:,:,:,ithread)
         wetgridunc_omp(:,:,:,:,:,:,ithread)=0.
       end do
       if (nested_output.eq.1) then
-        do ithread=1,numthreads
+        do ithread=1,numthreads_grid
           wetgriduncn(:,:,:,:,:,:)=wetgriduncn(:,:,:,:,:,:)+wetgriduncn_omp(:,:,:,:,:,:,ithread)
           wetgriduncn_omp(:,:,:,:,:,:,ithread)=0.
         end do

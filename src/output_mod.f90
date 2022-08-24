@@ -737,7 +737,7 @@ subroutine conccalc(itime,weight)
   !  xscav_count=0
 
 !$OMP PARALLEL PRIVATE(i,itage,nage,rhoi,nrelpointer,kz,xl,yl,ks,wx,wy,w,thread,ddx,ddy, &
-!$OMP ix,jy,ixp,jyp)
+!$OMP ix,jy,ixp,jyp) num_threads(numthreads_grid)
 #if (defined _OPENMP)
     thread = OMP_GET_THREAD_NUM()+1 ! Starts with 1
 #else
@@ -1232,12 +1232,12 @@ subroutine conccalc(itime,weight)
 
   ! Reduction of gridunc and griduncn
 #ifdef _OPENMP
-  do ithread=1,numthreads
+  do ithread=1,numthreads_grid
     gridunc(:,:,:,:,:,:,:)=gridunc(:,:,:,:,:,:,:)+gridunc_omp(:,:,:,:,:,:,:,ithread)
     gridunc_omp(:,:,:,:,:,:,:,ithread)=0.
   end do
   if (nested_output.eq.1) then 
-    do ithread=1,numthreads
+    do ithread=1,numthreads_grid
       griduncn(:,:,:,:,:,:,:)=griduncn(:,:,:,:,:,:,:)+griduncn_omp(:,:,:,:,:,:,:,ithread)
       griduncn_omp(:,:,:,:,:,:,:,ithread)=0.
     end do

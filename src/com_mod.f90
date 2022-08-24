@@ -507,7 +507,7 @@ module com_mod
   logical, parameter :: interpolhmix=.false. ! true if the hmix shall be interpolated
   logical, parameter :: turboff=.false.       ! true if the turbulence shall be switched off
 
-  integer :: numthreads  ! number of available threads in parallel sections
+  integer :: numthreads,numthreads_grid  ! number of available threads in parallel sections
   !integer :: nclassunc2, nrecclunc, ngriclunc
   
   !*********************************************************

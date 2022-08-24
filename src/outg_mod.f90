@@ -237,8 +237,9 @@ subroutine outgrid_init
   if (stat.ne.0) write(*,*)'ERROR: could not allocate gridunc'
 #ifdef _OPENMP
   allocate(gridunc_omp(0:numxgrid-1,0:numygrid-1,numzgrid,maxspec, &
-       maxpointspec_act,nclassunc,maxageclass,numthreads),stat=stat)
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate gridunc_omp'
+       maxpointspec_act,nclassunc,maxageclass,numthreads_grid),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate gridunc_omp', &
+    numxgrid*numygrid*numzgrid*maxspec*nclassunc*maxageclass*numthreads_grid
 #endif
   if (ldirect.gt.0) then
     allocate(wetgridunc(0:numxgrid-1,0:numygrid-1,maxspec, &
@@ -456,7 +457,7 @@ subroutine outgrid_init_nest
   if (stat.ne.0) write(*,*)'ERROR:could not allocate nested gridunc'
 #ifdef _OPENMP
   allocate(griduncn_omp(0:numxgridn-1,0:numygridn-1,numzgrid,maxspec, &
-       maxpointspec_act,nclassunc,maxageclass,numthreads),stat=stat)
+       maxpointspec_act,nclassunc,maxageclass,numthreads_grid),stat=stat)
   if (stat.ne.0) write(*,*)'ERROR:could not allocate nested gridunc_omp'
 #endif
 

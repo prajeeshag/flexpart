@@ -290,7 +290,7 @@ module par_mod
 
   ! Set maximum number of threads for doing grid computations. Recommended to set this to max 16
   !**********************************************************************************************
-  integer,parameter :: mas_numthreads_grid=16
+  integer,parameter :: max_numthreads_grid=16
   ! Set the coordinate system. At the moment only ECMWF is possible. This bit needs
   ! to be a parameter that can be set at compile time. Throughout the code there
   ! will be select cases statements or ifdefs

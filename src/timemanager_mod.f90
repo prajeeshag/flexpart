@@ -534,7 +534,7 @@ subroutine timemanager
     end do
   ! Output to keep track of the numerical instabilities in CBL simulation and if
   ! they are compromising the final result (or not)
-    if (cblflag.eq.1) print *,j,itime,'nan_synctime',nan_count,'nan_tl',total_nan_intl  
+    if (cblflag.eq.1) print *,j,itime,'nan_synctime',sum_nan_count(i_nan),'nan_tl',total_nan_intl  
 
     if (itime.eq.itime_init) then
       call SYSTEM_CLOCK(count_clock, count_rate, count_max)

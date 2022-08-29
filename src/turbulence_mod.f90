@@ -33,13 +33,14 @@ subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd,thread)
     zts                             ! local 'real' copy of the particle position
   real ::                         &
     delz,                         & ! change in vertical position due to turbulence
-    ru,rv,rw,                     & ! used for computing turbulence
+    ru,rv,rw,wp,icbt_r,           & ! used for computing turbulence
     dtf,rhoaux,dtftlw,ath,bth,    & ! CBL related
     ptot_lhh,Q_lhh,phi_lhh,       & ! CBL related
     old_wp_buf,dcas,dcas1,        & ! CBL related
     del_test                        ! CBL related
   integer ::                      &
     flagrein,                     & ! flag used in CBL scheme
+    icbt,                         &
     i                               ! ĺoop variable
 
   ! tlw,dsigwdz and dsigw2dz are defined in hanna
@@ -79,9 +80,10 @@ subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd,thread)
 
   ! Loop over ifine short time steps for vertical component
   !********************************************************
-
+    wp=part(ipart)%turbvel%w
+    icbt=part(ipart)%icbt
     do i=1,ifine
-
+      icbt_r=real(icbt)
   ! Determine the drift velocity and density correction velocity
   !*************************************************************
       
@@ -94,55 +96,55 @@ subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd,thread)
             if (-h/ol.gt.5) then  !modified by mc
               flagrein=0
               nrand=nrand+1
-              old_wp_buf=part(ipart)%turbvel%w
-              call cbl(part(ipart)%turbvel%w,zts,ust,wst,h,rhoa,rhograd,&
+              old_wp_buf=wp
+              call cbl(wp,zts,ust,wst,h,rhoa,rhograd,&
                 sigw,dsigwdz,tlw,ptot_lhh,Q_lhh,phi_lhh,ath,bth,ol,flagrein) !inside the routine for inverse time
-              part(ipart)%turbvel%w=(part(ipart)%turbvel%w+ath*dtf+&
-                bth*rannumb(nrand)*sqrt(dtf))*real(part(ipart)%icbt) 
-              delz=part(ipart)%turbvel%w*dtf
+              wp=(wp+ath*dtf+&
+                bth*rannumb(nrand)*sqrt(dtf))*icbt_r
+              delz=wp*dtf
               if (flagrein.eq.1) then
                 call re_initialize_particle(zts,ust,wst,h,sigw,old_wp_buf,nrand,ol)
-                part(ipart)%turbvel%w=old_wp_buf
-                delz=part(ipart)%turbvel%w*dtf
-                nan_count(thread)=nan_count(thread)+1
+                wp=old_wp_buf
+                delz=wp*dtf
+                nan_count(thread+1)=nan_count(thread+1)+1
               end if             
             else 
               nrand=nrand+1
-              old_wp_buf=part(ipart)%turbvel%w
-              ath=-part(ipart)%turbvel%w/tlw+sigw*dsigwdz+&
-                part(ipart)%turbvel%w*part(ipart)%turbvel%w/sigw*dsigwdz+sigw*sigw/rhoa*rhograd  !1-note for inverse time should be -wp/tlw*ldirect+... calculated for wp=-wp
+              old_wp_buf=wp
+              ath=-wp/tlw+sigw*dsigwdz+&
+                wp*wp/sigw*dsigwdz+sigw*sigw/rhoa*rhograd  !1-note for inverse time should be -wp/tlw*ldirect+... calculated for wp=-wp
                                                                                   !2-but since ldirect =-1 for inverse time and this must be calculated for (-wp) and
                                                                                   !3-the gaussian pdf is symmetric (i.e. pdf(w)=pdf(-w) ldirect can be discarded
               bth=sigw*rannumb(nrand)*sqrt(2.*dtftlw)
-              part(ipart)%turbvel%w=(part(ipart)%turbvel%w+ath*dtf+bth)*real(part(ipart)%icbt)  
-              delz=part(ipart)%turbvel%w*dtf
-              del_test=(1.-part(ipart)%turbvel%w)/part(ipart)%turbvel%w !catch infinity value
-              if (isnan(part(ipart)%turbvel%w).or.isnan(del_test)) then 
+              wp=(wp+ath*dtf+bth)*icbt_r  
+              delz=wp*dtf
+              del_test=(1.-wp)/wp !catch infinity value
+              if (isnan(wp).or.isnan(del_test)) then 
                 nrand=nrand+1                      
-                part(ipart)%turbvel%w=sigw*rannumb(nrand)
-                delz=part(ipart)%turbvel%w*dtf
-                nan_count(thread)=nan_count(thread)+1
+                wp=sigw*rannumb(nrand)
+                delz=wp*dtf
+                nan_count(thread+1)=nan_count(thread+1)+1
               end if
             end if
   !******************** END CBL option *******************************            
   !*******************************************************************            
           else
-               part(ipart)%turbvel%w=((1.-dtftlw)*part(ipart)%turbvel%w+rannumb(nrand+i)*sqrt(2.*dtftlw) &
-               +dtf*(dsigwdz+rhoaux*sigw))*real(part(ipart)%icbt) 
-               delz=part(ipart)%turbvel%w*sigw*dtf
+               wp=((1.-dtftlw)*wp+rannumb(nrand+i)*sqrt(2.*dtftlw) &
+               +dtf*(dsigwdz+rhoaux*sigw))*icbt_r
+               delz=wp*sigw*dtf
           end if
         else
           rw=exp(-dtftlw)
-          part(ipart)%turbvel%w=(rw*part(ipart)%turbvel%w+rannumb(nrand+i)*sqrt(1.-rw**2) &
-               +tlw*(1.-rw)*(dsigwdz+rhoaux*sigw))*real(part(ipart)%icbt)
-          delz=part(ipart)%turbvel%w*sigw*dtf
+          wp=(rw*wp+rannumb(nrand+i)*sqrt(1.-rw**2) &
+               +tlw*(1.-rw)*(dsigwdz+rhoaux*sigw))*icbt_r
+          delz=wp*sigw*dtf
         endif
         
       else
         rw=exp(-dtftlw)
-        part(ipart)%turbvel%w=(rw*part(ipart)%turbvel%w+rannumb(nrand+i)*sqrt(1.-rw**2)*sigw &
-             +tlw*(1.-rw)*(dsigw2dz+rhoaux*sigw**2))*real(part(ipart)%icbt)
-        delz=part(ipart)%turbvel%w*dtf
+        wp=(rw*wp+rannumb(nrand+i)*sqrt(1.-rw**2)*sigw &
+             +tlw*(1.-rw)*(dsigw2dz+rhoaux*sigw**2))*icbt_r
+        delz=wp*dtf
       endif
 
   !****************************************************
@@ -156,13 +158,13 @@ subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd,thread)
   !************************************************************************
 
       if (delz.lt.-zts) then         ! reflection at ground
-        part(ipart)%icbt=-1
+        icbt=-1
         call set_z(ipart,-zts-delz)
       else if (delz.gt.(h-zts)) then ! reflection at h
-        part(ipart)%icbt=-1
+        icbt=-1
         call set_z(ipart,-zts-delz+2.*h)
       else                         ! no reflection
-        part(ipart)%icbt=1
+        icbt=1
         call set_z(ipart,zts+delz)
       endif
 
@@ -172,6 +174,8 @@ subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd,thread)
       endif
       zts=real(part(ipart)%z)
     end do
+    part(ipart)%turbvel%w=wp
+    part(ipart)%icbt=icbt
     if (cblflag.ne.1) nrand=nrand+i
 end subroutine turbulence_boundarylayer
 

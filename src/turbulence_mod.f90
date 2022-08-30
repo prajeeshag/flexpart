@@ -102,7 +102,7 @@ subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd,thread)
               wp=(wp+ath*dtf+&
                 bth*rannumb(nrand)*sqrt(dtf))*icbt_r
               delz=wp*dtf
-              if (flagrein.eq.1) then
+              if ((flagrein.eq.1).or.(wp.ne.wp).or.((wp-1.).eq.wp)) then
                 call re_initialize_particle(zts,ust,wst,h,sigw,old_wp_buf,nrand,ol)
                 wp=old_wp_buf
                 delz=wp*dtf
@@ -118,8 +118,7 @@ subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd,thread)
               bth=sigw*rannumb(nrand)*sqrt(2.*dtftlw)
               wp=(wp+ath*dtf+bth)*icbt_r  
               delz=wp*dtf
-              del_test=(1.-wp)/wp !catch infinity value
-              if (isnan(wp).or.isnan(del_test)) then 
+              if ((wp.ne.wp).or.((wp-1.).eq.wp)) then ! Catch infinity or NaN
                 nrand=nrand+1                      
                 wp=sigw*rannumb(nrand)
                 delz=wp*dtf

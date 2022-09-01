@@ -456,13 +456,13 @@ subroutine advance_PBL(itime,itimec,&
     ztseta=real(part(ipart)%zeta)
 
     zeta=real(part(ipart)%z)/h
-    if (loop.eq.1) then
+    if (loop.eq.1) then ! Temporal interpolation only done for the first iteration
       if (ngrid.le.0) then
         xts=real(part(ipart)%xlon)
         yts=real(part(ipart)%ylat)
         call interpol_all(itime,xts,yts,zts,ztseta)
       else
-        call interpol_all_nests(itime,xtn,ytn,zts,ztseta)
+        call interpol_all(itime,xtn,ytn,zts,ztseta)
       endif
 
     else
@@ -483,7 +483,7 @@ subroutine advance_PBL(itime,itimec,&
   ! Vertical distance to the level below and above current position
   ! both in terms of (u,v) and (w) fields
   !****************************************************************
-    call interpol_mixinglayer(zts,ztseta,rhoa,rhograd)
+    call interpol_mixinglayer(zts,ztseta,rhoa,rhograd) ! Vertical interpolation
 
   ! Compute the turbulent disturbances
   ! Determine the sigmas and the timescales 

@@ -298,6 +298,10 @@ module par_mod
   character(len=256),parameter :: wind_coord_type='ETA'
   !character(len=256),parameter :: wind_coord_type='METER'
 
+  ! This flag sets all vertical interpolation to logarithmic instead of linear
+  !***************************************************************************
+  logical,parameter :: logarithmic_interpolation=.false.
+
   ! Threshold equivalent diameter for interaction with surface sublayer 
   ! resistance (below 10 meters) in micrometer. Above this diameter there
   ! is no interaction

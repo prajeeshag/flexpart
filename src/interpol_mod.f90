@@ -444,7 +444,7 @@ subroutine bilinear_spatial_interpolation(field,output,zlevel,dz1,dz2,ztot)
   do m=1,2
     do n=1,2
       indzh=zlevel+n-1
-      call horizontal_interpolation_4d(field,output1(n),zlevel,memind(m),ztot)
+      call horizontal_interpolation_4d(field,output1(n),indzh,memind(m),ztot)
     end do
     !**********************************
     ! 2.) Linear vertical interpolation on logarithmic scale

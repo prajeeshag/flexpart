@@ -1926,7 +1926,7 @@ subroutine verttransform_nests(n,uuhn,vvhn,wwhn,pvhn)
         clwcn(0:nxm1,0:nym1,1:nz-1,n,l)=clwchn(0:nxm1,0:nym1,1:nz-1,n,l)
         clwcn(0:nxm1,0:nym1,nz,n,l)=clwchn(0:nxm1,0:nym1,nuvz,n,l)
         if (.not.sumclouds_nest(l)) then
-          ciwcn(0:nxm1,0:nym1,1:nz-1,n,l)=(ciwchn(0:nxm1,0:nym1,1:nz-1,n,l)
+          ciwcn(0:nxm1,0:nym1,1:nz-1,n,l)=ciwchn(0:nxm1,0:nym1,1:nz-1,n,l)
           ciwcn(0:nxm1,0:nym1,nz,n,l)=ciwchn(0:nxm1,0:nym1,nuvz,n,l)
         endif
       endif

@@ -207,7 +207,7 @@ subroutine convmix(itime)
   ! igrid shall be -1
   ! Also, initialize index vector ipoint
   !************************************************************************
-!$OMP PARALLEL private(ipart, j, x, y, ngrid, xtn, ytn, ix, jy)
+!$OMP PARALLEL PRIVATE(ipart, j, x, y, ngrid, xtn, ytn, ix, jy)
 !$OMP DO
   do ipart=1,numpart
     igrid(ipart)=-1
@@ -298,7 +298,7 @@ subroutine convmix(itime)
   frst(cnt) = numpart+1
 
 !$OMP PARALLEL PRIVATE(kk,jy,ix,tmarray,j,kz,ktop,lconv,kpart,ipart,&
-!$OMP ztold,nage,ipconv,thread)
+!$OMP ztold,nage,ipconv,itage,thread)
 
 #if (defined _OPENMP)
     thread = OMP_GET_THREAD_NUM()
@@ -387,7 +387,6 @@ subroutine convmix(itime)
   !*****************************************************************************
 
   ! sort particles according to horizontal position and calculate index vector IPOINT
-
   do inest=1,numbnests
     do ipart=1,numpart
       ipoint(ipart)=ipart
@@ -397,8 +396,10 @@ subroutine convmix(itime)
 
   ! Now visit all grid columns where particles are present
   ! by going through the sorted particles
-
+!$OMP PARALLEL PRIVATE (igrold,kpart,ipart,igr,jy,ix,kz,lconv, &
+!$OMP ktop,ztold,nage,ipconv,itage,thread)
     igrold = -1
+!$OMP DO
     do kpart=1,numpart
       igr = igrid(kpart)
       if (igr .eq. -1) cycle
@@ -455,8 +456,9 @@ subroutine convmix(itime)
       endif !(lconv .eqv. .true.)
 
     end do
+!$OMP END DO
+!$OMP END PARALLEL
   end do
-
   ! OpenMP Reduction for dynamically allocated arrays. This is done manually since this
   ! is not yet supported in most OpenMP versions
   !************************************************************************************

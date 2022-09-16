@@ -400,6 +400,10 @@ subroutine timemanager
 !$OMP END DO
 !$OMP END PARALLEL
 
+#ifdef _OPENMP
+  call omp_set_num_threads(numthreads_grid)
+#endif
+
 !$OMP PARALLEL PRIVATE(prob_rec,ks,kp,thread,j,xmassfract,drydeposit) 
 
 !num_threads(numthreads_grid)
@@ -491,7 +495,9 @@ subroutine timemanager
 
 !$OMP END DO
 !$OMP END PARALLEL
-
+#ifdef _OPENMP
+  call omp_set_num_threads(numthreads)
+#endif
   ! OpenMP Reduction for dynamically allocated arrays. This is done manually since this
   ! is not yet supported in most OpenMP versions
   !************************************************************************************

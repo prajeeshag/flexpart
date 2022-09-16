@@ -68,7 +68,7 @@ subroutine initialise_output(itime,filesize)
       jul=bdate+real(itime,kind=dp)/86400._dp
       call caldate(jul,jjjjmmdd,ihmmss)      
     endif
-    if ((mdomainfill.eq.0).and.(ipout.ge.1)) then
+    if ((mdomainfill.eq.0).and.(ipout.ge.1).and.(ipin.le.1)) then
       if (itime_init.ne.0) then
         if (ldirect.eq.1) then
           call create_particles_initialoutput(ihmmss,jjjjmmdd,ibtime,ibdate)
@@ -741,9 +741,11 @@ subroutine conccalc(itime,weight)
   ! releasepoints
   !***************************************************************************
   !  xscav_count=0
-
+#ifdef _OPENMP
+  call omp_set_num_threads(numthreads_grid)
+#endif
 !$OMP PARALLEL PRIVATE(i,itage,nage,rhoi,nrelpointer,kz,xl,yl,ks,wx,wy,w,thread,ddx,ddy, &
-!$OMP ix,jy,ixp,jyp) num_threads(numthreads_grid)
+!$OMP ix,jy,ixp,jyp)
 #if (defined _OPENMP)
     thread = OMP_GET_THREAD_NUM()+1 ! Starts with 1
 #else
@@ -1235,7 +1237,9 @@ subroutine conccalc(itime,weight)
   end do
 !$OMP END DO
 !$OMP END PARALLEL
-
+#ifdef _OPENMP
+  call omp_set_num_threads(numthreads)
+#endif
   ! Reduction of gridunc and griduncn
 #ifdef _OPENMP
   do ithread=1,numthreads_grid

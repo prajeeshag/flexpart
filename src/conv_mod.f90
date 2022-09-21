@@ -669,7 +669,7 @@ subroutine redist(itime,ipart,ktop,ipconv)
 
   real,parameter :: const=r_air/ga
   integer :: ipart, ktop,ipconv,itime
-  integer :: k, kz, levnew, levold
+  integer :: k, kz, levnew, levold,ithread
 
   real :: totlevmass, wsubpart
   real :: temp_levold,temp_levold1
@@ -677,13 +677,12 @@ subroutine redist(itime,ipart,ktop,ipconv)
   real :: pint, pold, rn, tv, tvold, dlevfrac
   real :: ztold,ffraction
   real :: tv1, tv2, dlogp, dz, dz1, dz2
-  save :: iseed
-  integer :: iseed = -88
-
-!$OMP THREADPRIVATE(iseed)
-!$  if (iseed.eq.-88) then
-!$    iseed = iseed - OMP_GET_THREAD_NUM()
-!$  endif
+  
+#ifdef _OPENMP
+  ithread = OMP_GET_THREAD_NUM()
+#else
+  ithread=0
+#endif
 
   ! ipart   ... number of particle to be treated
 
@@ -794,7 +793,7 @@ subroutine redist(itime,ipart,ktop,ipconv)
     !  Choose a random number and find corresponding level of destination
     !  Random numbers to be evenly distributed in [0,1]
 
-    rn = ran3(iseed)
+    rn = ran3(iseed2(ithread),ithread)
 
     ! initialize levnew
 

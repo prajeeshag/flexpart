@@ -8,73 +8,101 @@ module random_mod
   implicit none
 
   integer, parameter :: ran1_ntab=32
-  integer :: ran1_iv(ran1_NTAB)=0, ran1_iy=0
+  integer, allocatable :: ran1_iv(:,:), ran1_iy(:)
 
-!$OMP THREADPRIVATE(ran1_iv,ran1_iy)
+  integer, allocatable :: gasdev_iset(:)
+  real, allocatable :: gasdev_gset(:)
 
-  integer :: gasdev_iset=0
-  real :: gasdev_gset=0
+  integer, allocatable :: ran3_iff(:)
+  integer, allocatable :: ran3_inext(:),ran3_inextp(:)
+  integer, allocatable :: ma(:,:)
 
-!$OMP THREADPRIVATE(gasdev_iset,gasdev_gset)
-
-  integer :: ran3_iff=0
-  integer :: ran3_inext,ran3_inextp
-  integer :: ma(55)
-
-!$OMP THREADPRIVATE(ran3_iff,ran3_inext,ran3_inextp, ma)
+  integer, allocatable :: iseed1(:), iseed2(:)
 
 contains
   
-  function ran1(idum)
+  subroutine allocate_random(num_threads)
 
     implicit none
 
-    integer :: idum
+    integer :: num_threads, i
+
+    allocate(ran1_iv(ran1_ntab,0:num_threads-1),ran1_iy(0:num_threads-1))
+    allocate(gasdev_iset(0:num_threads-1),gasdev_gset(0:num_threads-1))
+    allocate(ran3_iff(0:num_threads-1),ran3_inext(0:num_threads-1),ran3_inextp(0:num_threads-1))
+    allocate(ma(55,0:num_threads-1))
+    allocate(iseed1(0:num_threads-1),iseed2(0:num_threads-1))
+
+    do i=0,num_threads-1
+      iseed1(i) = -7-i
+      iseed2(i) = -88-i
+    end do
+    ran3_iff(:)=0
+    ran1_iv(:,:)=0
+    ran1_iy(:)=0
+    gasdev_iset(:)=0
+    gasdev_gset(:)=0
+  end subroutine allocate_random
+
+  subroutine deallocate_random()
+
+    deallocate(ran1_iv,ran1_iy)
+    deallocate(gasdev_iset,gasdev_gset)
+    deallocate(ran3_iff,ran3_inext,ran3_inextp)
+    deallocate(ma)
+    deallocate(iseed1,iseed2)
+  end subroutine deallocate_random
+
+  function ran1(idum,ithread)
+
+    implicit none
+
+    integer :: idum,ithread
     real    :: ran1
     integer,parameter :: ia=16807, im=2147483647, iq=127773, ir=2836
     integer,parameter :: ndiv=1+(im-1)/ran1_ntab
     real,parameter    :: am=1./im, eps=1.2e-7, rnmx=1.-eps
     integer :: j, k
 
-    if (idum.le.0.or.ran1_iy.eq.0) then
+    if (idum.le.0.or.ran1_iy(ithread).eq.0) then
       idum=max(-idum,1)
       do j=ran1_ntab+8,1,-1
         k=idum/iq
         idum=ia*(idum-k*iq)-ir*k
         if (idum.lt.0) idum=idum+im
-        if (j.le.ran1_ntab) ran1_iv(j)=idum
+        if (j.le.ran1_ntab) ran1_iv(j,ithread)=idum
       enddo
-      ran1_iy=ran1_iv(1)
+      ran1_iy(ithread)=ran1_iv(1,ithread)
     endif
     k=idum/iq
     idum=ia*(idum-k*iq)-ir*k
     if (idum.lt.0) idum=idum+im
-    j=1+ran1_iy/ndiv
-    ran1_iy=ran1_iv(j)
-    ran1_iv(j)=idum
-    ran1=min(am*ran1_iy,rnmx)
+    j=1+ran1_iy(ithread)/ndiv
+    ran1_iy(ithread)=ran1_iv(j,ithread)
+    ran1_iv(j,ithread)=idum
+    ran1=min(am*ran1_iy(ithread),rnmx)
   end function ran1
 
 
-  function gasdev(idum)
+  function gasdev(idum,ithread)
 
     implicit none
 
-    integer :: idum
+    integer :: idum,ithread
     real    :: gasdev, fac, r, v1, v2
 
-    if (gasdev_iset.eq.0) then
-1     v1=2.*ran3(idum)-1.
-      v2=2.*ran3(idum)-1.
+    if (gasdev_iset(ithread).eq.0) then
+1     v1=2.*ran3(idum,ithread)-1.
+      v2=2.*ran3(idum,ithread)-1.
       r=v1**2+v2**2
       if(r.ge.1.0 .or. r.eq.0.0) go to 1
       fac=sqrt(-2.*log(r)/r)
-      gasdev_gset=v1*fac
+      gasdev_gset(ithread)=v1*fac
       gasdev=v2*fac
-      gasdev_iset=1
+      gasdev_iset(ithread)=1
     else
-      gasdev=gasdev_gset
-      gasdev_iset=0
+      gasdev=gasdev_gset(ithread)
+      gasdev_iset(ithread)=0
     endif
   end function gasdev
 
@@ -86,8 +114,8 @@ contains
     integer :: idum
     real :: random1, random2, fac, v1, v2, r
 
-1   v1=2.*ran3(idum)-1.
-    v2=2.*ran3(idum)-1.
+1   v1=2.*ran3(idum,0)-1.
+    v2=2.*ran3(idum,0)-1.
     r=v1**2+v2**2
     if(r.ge.1.0 .or. r.eq.0.0) go to 1
     fac=sqrt(-2.*log(r)/r)
@@ -102,11 +130,11 @@ contains
   end subroutine gasdev1
 
 
-  function ran3(idum)
+  function ran3(idum,ithread)
 
     implicit none
 
-    integer :: idum
+    integer :: idum,ithread
     real :: ran3
 
     integer,parameter :: mbig=1000000000, mseed=161803398, mz=0
@@ -114,36 +142,36 @@ contains
     integer :: i,ii,inext,inextp,k
     integer :: mj,mk
 
-    if(idum.lt.0.or.ran3_iff.eq.0)then
-      ran3_iff=1
+    if(idum.lt.0.or.ran3_iff(ithread).eq.0)then
+      ran3_iff(ithread)=1
       mj=mseed-iabs(idum)
       mj=mod(mj,mbig)
-      ma(55)=mj
+      ma(55,ithread)=mj
       mk=1
       do i=1,54
         ii=mod(21*i,55)
-        ma(ii)=mk
+        ma(ii,ithread)=mk
         mk=mj-mk
         if(mk.lt.mz)mk=mk+mbig
-        mj=ma(ii)
+        mj=ma(ii,ithread)
       end do
       do k=1,4
         do i=1,55
-          ma(i)=ma(i)-ma(1+mod(i+30,55))
-          if(ma(i).lt.mz)ma(i)=ma(i)+mbig
+          ma(i,ithread)=ma(i,ithread)-ma(1+mod(i+30,55),ithread)
+          if(ma(i,ithread).lt.mz) ma(i,ithread)=ma(i,ithread)+mbig
         end do
       end do
       ran3_inext=0
       ran3_inextp=31
       idum=1
     endif
-    ran3_inext=ran3_inext+1
-    if(ran3_inext.eq.56)ran3_inext=1
-    ran3_inextp=ran3_inextp+1
-    if(ran3_inextp.eq.56)ran3_inextp=1
-    mj=ma(ran3_inext)-ma(ran3_inextp)
+    ran3_inext(ithread)=ran3_inext(ithread)+1
+    if(ran3_inext(ithread).eq.56) ran3_inext(ithread)=1
+    ran3_inextp(ithread)=ran3_inextp(ithread)+1
+    if(ran3_inextp(ithread).eq.56) ran3_inextp(ithread)=1
+    mj=ma(ran3_inext(ithread),ithread)-ma(ran3_inextp(ithread),ithread)
     if(mj.lt.mz)mj=mj+mbig
-    ma(ran3_inext)=mj
+    ma(ran3_inext(ithread),ithread)=mj
     ran3=mj*fac
   end function ran3
 !  (C) Copr. 1986-92 Numerical Recipes Software US.

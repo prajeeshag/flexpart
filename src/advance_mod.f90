@@ -6,7 +6,7 @@ module advance_mod
   use com_mod
   use interpol_mod
   use cmapf_mod
-  use random_mod, only: ran3
+  use random_mod, only: ran3,iseed1
   use coordinates_ecmwf
   use particle_mod
   use turbulence_mod
@@ -110,8 +110,7 @@ subroutine advance(itime,ipart,thread)
     nrand,                        & ! random number used for turbulence
     memindnext,                   & ! seems useless
     ngr,                          & ! temporary new grid index of moved particle
-    nsp,                          & ! loop variables for number of species
-    idummy = -7                     ! used in random number routines
+    nsp                             ! loop variables for number of species
   real ::                         &
     ux,vy,                        & ! random turbulent velocities above PBL
     tropop,                       & ! height of troposphere
@@ -119,14 +118,6 @@ subroutine advance(itime,ipart,thread)
     dawsave,dcwsave                 ! accumulated displacement in wind directions
   logical ::                      &
     abovePBL                        ! flag that will be set to 'true' if computation needs to be completed above PBL
-  !type(particle) :: part
-  ! openmp change
-  save idummy
-!$OMP THREADPRIVATE(idummy)  
-!$    if (idummy.eq.-7) then
-!$      idummy = idummy - thread
-!$    endif
-  ! openmp change end 
 
   eps=nxmax/3.e5
 
@@ -150,7 +141,7 @@ subroutine advance(itime,ipart,thread)
 
   itimec=itime
 
-  nrand=int(ran3(idummy)*real(maxrand-1))+1
+  nrand=int(ran3(iseed1(thread),thread)*real(maxrand-1))+1
 
   ! Determine whether lat/long grid or polarstereographic projection
   ! is to be used

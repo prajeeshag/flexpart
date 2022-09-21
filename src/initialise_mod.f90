@@ -211,14 +211,14 @@ subroutine releaseparticles(itime)
 
   ! Determine horizontal particle position
   !***************************************
-        call set_xlon(ipart,real(xpoint1(i)+ran1(idummy)*xaux,kind=dp))
+        call set_xlon(ipart,real(xpoint1(i)+ran1(idummy,0)*xaux,kind=dp))
         if (xglobal) then
           if (part(ipart)%xlon.gt.real(nxmin1,kind=dp)) &
             call set_xlon(ipart,-real(nxmin1,kind=dp))
           if (part(ipart)%xlon.lt.0.) &
             call set_xlon(ipart,real(nxmin1,kind=dp))
         endif
-        call set_ylat(ipart,real(ypoint1(i)+ran1(idummy)*yaux,kind=dp))
+        call set_ylat(ipart,real(ypoint1(i)+ran1(idummy,0)*yaux,kind=dp))
 
   ! Assign mass to particle: Total mass divided by total number of particles.
   ! Time variation has partly been taken into account already by a species-average
@@ -240,7 +240,7 @@ subroutine releaseparticles(itime)
   ! Assign certain properties to particle
   !**************************************
         end do
-        part(ipart)%nclass=min(int(ran1(idummy)*real(nclassunc))+1, &
+        part(ipart)%nclass=min(int(ran1(idummy,0)*real(nclassunc))+1, &
              nclassunc)
         numparticlecount=numparticlecount+1
         if (mquasilag.eq.0) then
@@ -252,7 +252,7 @@ subroutine releaseparticles(itime)
 
   ! Determine vertical particle position
   !*************************************
-        call set_z(ipart,zpoint1(i)+ran1(idummy)*zaux)
+        call set_z(ipart,zpoint1(i)+ran1(idummy,0)*zaux)
   ! Interpolation of topography and density
   !****************************************
 
@@ -599,7 +599,7 @@ subroutine readpartpositions
   do i=1,numpart
     julpartin=juldate(ibdatein,ibtimein)+ &
          real(part(i)%tstart,kind=dp)/86400._dp
-    part(i)%nclass=min(int(ran1(idummy)*real(nclassunc))+1, &
+    part(i)%nclass=min(int(ran1(idummy,0)*real(nclassunc))+1, &
          nclassunc)
     part(i)%idt=mintime
     part(i)%tstart=nint((julpartin-bdate)*86400.)
@@ -837,19 +837,16 @@ subroutine initialize_particle(itime,ipart)
   real :: ttemp,dummy1,dummy2
   real :: xt,yt,zt,zteta
   integer :: thread
-  save idummy
 
-  integer :: idummy = -7
-
-!$OMP THREADPRIVATE(idummy)
-!$    if (idummy.eq.-7) then
-!$      thread = OMP_GET_THREAD_NUM()
-!$      idummy = idummy - thread
-!$    endif 
+#ifdef _OPENMP
+  thread = OMP_GET_THREAD_NUM()
+#else 
+  thread = 0
+#endif
 
   part(ipart)%icbt=1           ! initialize particle to no "reflection"
 
-  nrand=int(ran3(idummy)*real(maxrand-1))+1
+  nrand=int(ran3(iseed1(thread),thread)*real(maxrand-1))+1
 
   xt = real(part(ipart)%xlon)
   yt = real(part(ipart)%ylat)
@@ -918,7 +915,7 @@ subroutine initialize_particle(itime,ipart)
       if(-h/ol.gt.5) then
   !if (ol.lt.0.) then
   !if (ol.gt.0.) then !by mc : only for test correct is lt.0
-        call initialize_cbl_vel(idummy,zt,ust,wst,h,sigw,part(ipart)%turbvel%w,ol)
+        call initialize_cbl_vel(iseed1(thread),zt,ust,wst,h,sigw,part(ipart)%turbvel%w,ol,thread)
       else
         part(ipart)%turbvel%w=part(ipart)%turbvel%w*sigw
       end if
@@ -1207,13 +1204,13 @@ subroutine init_domainfill
   !***********************************************************************
 
         if ((ncolumn.gt.20).and.(ncolumn-j.gt.20)) then
-          pnew_temp=pnew-ran1(idummy)*deltacol
+          pnew_temp=pnew-ran1(idummy,0)*deltacol
           pnew=pnew-deltacol
         else if ((ncolumn.gt.20).and.(ncolumn-j.le.20)) then
           ! When only few particles are left, distribute them randomly above pnew
-          pnew_temp=pnew-ran1(idummy)*(pnew-pp(nz))
+          pnew_temp=pnew-ran1(idummy,0)*(pnew-pp(nz))
         else
-          pnew_temp=pp(1)-ran1(idummy)*(pp(1)-pp(nz))
+          pnew_temp=pp(1)-ran1(idummy,0)*(pp(1)-pp(nz))
         endif
 
         do kz=1,nz-1
@@ -1232,11 +1229,11 @@ subroutine init_domainfill
               !THIS WILL CAUSE PROBLEMS WITH OMP! because of dynamical allocation
               call spawn_particle(0,numpart+jj)
               if (allocated_tmp.lt.numpart+jj) allocated_tmp=numpart+jj
-              call set_xlon(numpart+jj,real(real(lix)-0.5+ran1(idummy),kind=dp))
-              if (lix.eq.0) call set_xlon(numpart+jj,real(ran1(idummy),kind=dp))
+              call set_xlon(numpart+jj,real(real(lix)-0.5+ran1(idummy,0),kind=dp))
+              if (lix.eq.0) call set_xlon(numpart+jj,real(ran1(idummy,0),kind=dp))
               if (lix.eq.nxmin1) &
-                call set_xlon(numpart+jj,real(real(nxmin1)-ran1(idummy),kind=dp))
-              call set_ylat(numpart+jj,real(real(ljy)-0.5+ran1(idummy),kind=dp))
+                call set_xlon(numpart+jj,real(real(nxmin1)-ran1(idummy,0),kind=dp))
+              call set_ylat(numpart+jj,real(real(ljy)-0.5+ran1(idummy,0),kind=dp))
               ! Logarithmic distribution of particles along pressure levels:
               ! hx=h1+(h2-h1)/log(p2/p1)*log(px/p1)
               height_tmp=height(kz)+(height(kz+1)-height(kz))*dz*dz1
@@ -1293,7 +1290,7 @@ subroutine init_domainfill
 
   ! Assign certain properties to the particle
   !******************************************
-                part(numpart+jj)%nclass=min(int(ran1(idummy)* &
+                part(numpart+jj)%nclass=min(int(ran1(idummy,0)* &
                      real(nclassunc))+1,nclassunc)
                 numparticlecount=numparticlecount+1
                 part(numpart+jj)%npoint=numparticlecount
@@ -1489,12 +1486,14 @@ subroutine boundcond_domainfill(itime,loutend)
   !*****************************************************************************
 
   use point_mod
-
+#ifdef _OPENMP
+  use omp_lib
+#endif
   implicit none
 
   real :: dz,dz1,dz2,dt1,dt2,dtt,ylat,xm,cosfact,accmasst
   integer :: itime,in,indz,indzp,i,loutend,numparticlecount_tmp
-  integer :: j,k,ix,jy,m,indzh,indexh,minpart,ipart,mmass
+  integer :: j,k,ix,jy,m,indzh,indexh,minpart,ipart,mmass,ithread
   integer :: numactiveparticles
 
   real :: windl(2),rhol(2)
@@ -1548,6 +1547,13 @@ subroutine boundcond_domainfill(itime,loutend)
 !$OMP windhl,rhohl,windx,rhox,fluxofmass,mmass,ixm,jym,ixp,jyp,ddx,ddy,rddx, &
 !$OMP rddy,p1,p2,p3,p4,indzm,mm,indzh,pvpart,ylat,ix,cosfact,ipart) &
 !$OMP REDUCTION(+:numactiveparticles,numparticlecount_tmp,accmasst)
+
+#ifdef _OPENMP
+  ithread = OMP_GET_THREAD_NUM()
+#else
+  ithread = 0
+#endif
+
 !$OMP DO
   do jy=ny_sn(1),ny_sn(2)
 
@@ -1668,11 +1674,11 @@ subroutine boundcond_domainfill(itime,loutend)
 
           call set_xlon(ipart,real(nx_we(k),kind=dp))
           if (jy.eq.ny_sn(1)) then
-            call set_ylat(ipart,real(real(jy)+0.5*ran1(idummy),kind=dp))
+            call set_ylat(ipart,real(real(jy)+0.5*ran1(idummy,ithread),kind=dp))
           else if (jy.eq.ny_sn(2)) then
-            call set_ylat(ipart,real(real(jy)-0.5*ran1(idummy),kind=dp))
+            call set_ylat(ipart,real(real(jy)-0.5*ran1(idummy,ithread),kind=dp))
           else
-            call set_ylat(ipart,real(real(jy)+(ran1(idummy)-.5),kind=dp))
+            call set_ylat(ipart,real(real(jy)+(ran1(idummy,ithread)-.5),kind=dp))
           endif
           if (j.eq.1) then
             call set_z(ipart,zcolumn_we(k,jy,1)+(zcolumn_we(k,jy,2)- &
@@ -1681,7 +1687,7 @@ subroutine boundcond_domainfill(itime,loutend)
             call set_z(ipart,(2.*zcolumn_we(k,jy,j)+ &
                  zcolumn_we(k,jy,j-1)+height(nz))/4.)
           else
-            call set_z(ipart,zcolumn_we(k,jy,j-1)+ran1(idummy)* &
+            call set_z(ipart,zcolumn_we(k,jy,j-1)+ran1(idummy,ithread)* &
                  (zcolumn_we(k,jy,j+1)-zcolumn_we(k,jy,j-1)))
           endif
 
@@ -1734,7 +1740,7 @@ subroutine boundcond_domainfill(itime,loutend)
 
           if (((part(ipart)%z.gt.3000.).and. &
                (pvpart.gt.pvcrit)).or.(mdomainfill.eq.1)) then
-            part(ipart)%nclass=min(int(ran1(idummy)* &
+            part(ipart)%nclass=min(int(ran1(idummy,ithread)* &
                  real(nclassunc))+1,nclassunc)
             numactiveparticles=numactiveparticles+1
             numparticlecount_tmp=numparticlecount_tmp+1
@@ -1881,11 +1887,11 @@ subroutine boundcond_domainfill(itime,loutend)
   !**************************
           call set_ylat(ipart,real(ny_sn(k),kind=dp))
           if (ix.eq.nx_we(1)) then
-            call set_xlon(ipart,real(real(ix)+0.5*ran1(idummy),kind=dp))
+            call set_xlon(ipart,real(real(ix)+0.5*ran1(idummy,ithread),kind=dp))
           else if (ix.eq.nx_we(2)) then
-            call set_xlon(ipart,real(real(ix)-0.5*ran1(idummy),kind=dp))
+            call set_xlon(ipart,real(real(ix)-0.5*ran1(idummy,ithread),kind=dp))
           else
-            call set_xlon(ipart,real(real(ix)+(ran1(idummy)-.5),kind=dp))
+            call set_xlon(ipart,real(real(ix)+(ran1(idummy,ithread)-.5),kind=dp))
           endif
           if (j.eq.1) then
             call set_z(ipart,zcolumn_sn(k,ix,1)+(zcolumn_sn(k,ix,2)- &
@@ -1894,7 +1900,7 @@ subroutine boundcond_domainfill(itime,loutend)
             call set_z(ipart,(2.*zcolumn_sn(k,ix,j)+ &
                  zcolumn_sn(k,ix,j-1)+height(nz))/4.)
           else
-            call set_z(ipart,zcolumn_sn(k,ix,j-1)+ran1(idummy)* &
+            call set_z(ipart,zcolumn_sn(k,ix,j-1)+ran1(idummy,ithread)* &
                  (zcolumn_sn(k,ix,j+1)-zcolumn_sn(k,ix,j-1)))
           endif
 
@@ -1946,7 +1952,7 @@ subroutine boundcond_domainfill(itime,loutend)
 
           if (((part(ipart)%z.gt.3000.).and. &
                (pvpart.gt.pvcrit)).or.(mdomainfill.eq.1)) then
-            part(ipart)%nclass=min(int(ran1(idummy)* &
+            part(ipart)%nclass=min(int(ran1(idummy,ithread)* &
                  real(nclassunc))+1,nclassunc)
             numactiveparticles=numactiveparticles+1
             numparticlecount_tmp=numparticlecount_tmp+1

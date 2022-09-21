@@ -2359,7 +2359,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
       call terminate_particle(i)
       write(*,*) 'Particle ',i,'is not alive in the restart file.'
     endif
-    part(i)%nclass=min(int(ran1(idummy)*real(nclassunc))+1, &
+    part(i)%nclass=min(int(ran1(idummy,0)*real(nclassunc))+1, &
          nclassunc)    
     part(i)%idt=mintime
     part(i)%npoint=1
@@ -2426,7 +2426,7 @@ subroutine readinitconditions_netcdf()
 
   part(:)%idt=part(:)%tstart
   do i=1,plen
-    part(i)%nclass=min(int(ran1(idummy)*real(nclassunc))+1, &
+    part(i)%nclass=min(int(ran1(idummy,0)*real(nclassunc))+1, &
          nclassunc)
     part(i)%npoint=1
     ! Activate particles that are alive from the start of the simulation

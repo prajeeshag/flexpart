@@ -330,7 +330,7 @@ subroutine timemanager
 #if (defined _OPENMP)
     thread = OMP_GET_THREAD_NUM() ! Starts with 0
 #else
-    thread = 1
+    thread = 0
 #endif
 
 !$OMP DO 
@@ -411,7 +411,7 @@ subroutine timemanager
 #if (defined _OPENMP)
     thread = OMP_GET_THREAD_NUM() ! Starts with 0
 #else
-    thread = 1
+    thread = 0
 #endif
 
 !$OMP DO 
@@ -565,6 +565,7 @@ subroutine timemanager
   call convection_deallocate
   call getfields_deallocate
   call interpol_deallocate
+  call deallocate_random
   if (numbnests.ge.1) call windfields_nest_deallocate
 
   if (iflux.eq.1) then

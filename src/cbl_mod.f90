@@ -322,7 +322,7 @@ subroutine re_initialize_particle(zp,ust,wst,h,sigmaw,wp,nrand,ol)
   return
 end subroutine re_initialize_particle
 
-subroutine initialize_cbl_vel(idum,zp,ust,wst,h,sigmaw,wp, ol)
+subroutine initialize_cbl_vel(idum,zp,ust,wst,h,sigmaw,wp,ol,ithread)
   !                              i/o   i  i   i  i     i  o   i  
 
   use par_mod, only:pi
@@ -339,7 +339,7 @@ subroutine initialize_cbl_vel(idum,zp,ust,wst,h,sigmaw,wp, ol)
   ! see Cassiani et al. BLM 2014 doi  for explanations and references
   !===============================================================================
 
-
+  integer,intent(in) :: ithread
   real :: usurad2,usurad2p,C0,costluar4,eps 
   parameter  (usurad2=0.7071067812,usurad2p=0.3989422804,C0=2,costluar4=0.66667,eps=0.000001)
 
@@ -395,13 +395,13 @@ subroutine initialize_cbl_vel(idum,zp,ust,wst,h,sigmaw,wp, ol)
   wa=(fluarw*sigmawa)
   wb=(fluarw*sigmawb)
 
-  dcas=ran3(idum) 
+  dcas=ran3(idum,ithread) 
 
   if (dcas.le.aluarw) then
-    dcas1=gasdev(idum)
+    dcas1=gasdev(idum,ithread)
     wp=timedir*(dcas1*sigmawa+wa)
   else
-    dcas1=gasdev(idum)
+    dcas1=gasdev(idum,ithread)
     wp=timedir*(dcas1*sigmawb-wb)
   end if
 

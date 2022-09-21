@@ -1,7 +1,6 @@
 module turbulence_mod
   use par_mod
   use com_mod
-  use random_mod, only: ran3
   use particle_mod
 
   implicit none

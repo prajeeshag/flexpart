@@ -31,15 +31,11 @@ program flexpart
   use omp_lib, only: OMP_GET_MAX_THREADS
   use par_mod
   use com_mod
-  use random_mod, only: gasdev1
   use timemanager_mod
   use output_mod
 
   implicit none
 
-  integer ::              &
-    i,                    & ! loop variable for random numbers
-    idummy=-320             ! dummy value used by the random routine
   real :: s_timemanager
   character(len=256) ::   &
     inline_options          ! pathfile, flexversion, arg2
@@ -48,13 +44,6 @@ program flexpart
   !*****************************************************************************
   CALL SYSTEM_CLOCK(count_clock, count_rate, count_max)
   s_total = (count_clock - count_clock0)/real(count_rate)
-
-  ! Generate a large number of random numbers
-  !******************************************
-  do i=1,maxrand-1,2
-    call gasdev1(idummy,rannumb(i),rannumb(i+1))
-  end do
-  call gasdev1(idummy,rannumb(maxrand),rannumb(maxrand-1))
 
 
   ! FLEXPART version string
@@ -159,6 +148,7 @@ end program flexpart
 subroutine read_options_and_initialise_flexpart
 
   use point_mod
+  use random_mod
   use par_mod
   use com_mod
   use conv_mod
@@ -178,6 +168,18 @@ subroutine read_options_and_initialise_flexpart
   integer ::              &
     i,                    & ! loop variable for number of points
     inest                   ! loop variable for nested gridcells
+  integer ::              &
+    j,                    & ! loop variable for random numbers
+    idummy=-320             ! dummy value used by the random routine
+
+  call allocate_random(numthreads)
+
+  ! Generate a large number of random numbers
+  !******************************************
+  do j=1,maxrand-1,2
+    call gasdev1(idummy,rannumb(j),rannumb(j+1))
+  end do
+  call gasdev1(idummy,rannumb(maxrand),rannumb(maxrand-1))
 
   ! Read pathnames from file in working director that specify I/O directories
   !**************************************************************************

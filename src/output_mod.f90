@@ -486,7 +486,8 @@ subroutine output_particles(itime,initial_output)
         write(*,*) partopt(np)%long_name, output(np,1)
       endif
     end do
-    write(*,*) part(1)%prob,part(1)%alive,count%alive,count%spawned,count%terminated
+    write(*,*) part(1)%prob,part(1)%alive
+    write(*,*) 'Alive: ', count%alive, 'Total spawned: ', count%spawned, 'Terminated: ', count%terminated
   endif
 
   ! Determine current calendar date, needed for the file name

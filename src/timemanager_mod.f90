@@ -128,7 +128,7 @@ subroutine timemanager
   real(dep_prec) ::         &
     drydeposit(maxspec)       ! dry deposition related
   real(kind=dp) :: zhier,zetahier
-  integer :: npart_alive=0
+  integer :: npart_alive=0,alive_tmp,terminated_tmp
 
   ! First output for time 0
   !************************
@@ -404,7 +404,11 @@ subroutine timemanager
   call omp_set_num_threads(numthreads_grid)
 #endif
 
-!$OMP PARALLEL PRIVATE(prob_rec,ks,kp,thread,j,xmassfract,drydeposit) 
+alive_tmp=count%alive
+terminated_tmp=count%terminated
+
+!$OMP PARALLEL PRIVATE(prob_rec,ks,kp,thread,j,xmassfract,drydeposit) &
+!$OMP REDUCTION(+:alive_tmp,terminated_tmp) 
 
 !num_threads(numthreads_grid)
 
@@ -436,6 +440,8 @@ subroutine timemanager
       if (part(j)%nstop) then
         if (linit_cond.ge.1) call initial_cond_calc(itime,j,thread+1)
         call terminate_particle(j,itime)
+        alive_tmp=alive_tmp-1
+        terminated_tmp=terminated_tmp+1
       else
 
   ! Dry deposition and radioactive decay for each species
@@ -463,6 +469,8 @@ subroutine timemanager
         
         if (xmassfract.le.minmassfrac) then   ! terminate all particles carrying less mass
           call terminate_particle(j,itime)
+          alive_tmp=alive_tmp-1
+          terminated_tmp=terminated_tmp+1
         endif
 
 !        Sabine Eckhardt, June 2008
@@ -488,6 +496,8 @@ subroutine timemanager
         if ((part(j)%alive).and.(abs(itime-part(j)%tstart).ge.lage(nageclass))) then
           if (linit_cond.ge.1) call initial_cond_calc(itime+lsynctime,j,thread+1)
           call terminate_particle(j,itime)
+          alive_tmp=alive_tmp-1
+          terminated_tmp=terminated_tmp+1
         endif
       endif
 
@@ -495,6 +505,10 @@ subroutine timemanager
 
 !$OMP END DO
 !$OMP END PARALLEL
+
+  count%alive=alive_tmp
+  count%terminated=terminated_tmp
+
 #ifdef _OPENMP
   call omp_set_num_threads(numthreads)
 #endif

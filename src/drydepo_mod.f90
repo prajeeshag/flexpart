@@ -301,7 +301,7 @@ subroutine drydepo_massloss(ipart,ks,ldeltat,drydepopart)
     ipart,               & ! particle index
     ks,                  & ! species index
     ldeltat                ! radioactive decay time
-  real,intent(out) ::  &
+  real(dep_prec),intent(out) ::  &
     drydepopart            ! drydeposit for particle ipart
   real               ::  &
     decfact                ! radioactive decay factor

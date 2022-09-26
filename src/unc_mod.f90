@@ -13,15 +13,15 @@ module unc_mod
 
   implicit none
 
-  real,allocatable, dimension (:,:,:,:,:,:,:) :: gridunc
+  real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:) :: gridunc
 #ifdef USE_MPIINPLACE
 #else
   ! If MPI_IN_PLACE option is not used in mpi_mod.f90::mpif_tm_reduce_grid(),
   ! then an aux array is needed for parallel grid reduction
-  real(kind=dp),allocatable, dimension (:,:,:,:,:,:,:) :: gridunc0
-  real(kind=dp),allocatable, dimension (:,:,:,:,:,:,:) :: griduncn0
+  real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:) :: gridunc0
+  real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:) :: griduncn0
 #endif
-  real(kind=dp),allocatable, dimension (:,:,:,:,:,:,:) :: griduncn
+  real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:) :: griduncn
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:) :: drygridunc
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:) :: drygriduncn
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:) :: wetgridunc

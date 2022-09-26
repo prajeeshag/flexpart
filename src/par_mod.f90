@@ -30,7 +30,7 @@ module par_mod
   ! dp). sp is default, dp can be used for increased precision.
   !****************************************************************
 
-  integer,parameter :: dep_prec=sp
+  integer,parameter :: dep_prec=dp
 
   !****************************************************************
   ! Set to F to disable use of kernel for concentrations/deposition

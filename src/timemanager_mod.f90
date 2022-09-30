@@ -201,7 +201,7 @@ subroutine timemanager
 
   ! In case of ETA coordinates being read from file, convert the z positions
   !*************************************************************************
-    if ((ipin.gt.0).and.(itime.eq.itime_init).and.(wind_coord_type.eq.'ETA')) then 
+    if (((ipin.eq.1).or.(ipin.eq.4)).and.(itime.eq.itime_init).and.(wind_coord_type.eq.'ETA')) then 
       if (numpart.le.0) stop 'Something is going wrong reading the old particle file!'
 !$OMP PARALLEL PRIVATE(i)
 !$OMP DO
@@ -243,7 +243,7 @@ subroutine timemanager
     else if ((ipin.eq.3).or.(ipin.eq.4)) then
       ! If reading from user defined initial conditions, check which particles are 
       ! to be activated
-      if (numpart.le.0) stop 'Something is going wrong reading the part_ic.nc file!'
+      if (count%allocated.le.0) stop 'Something is going wrong reading the part_ic.nc file!'
 !$OMP PARALLEL PRIVATE(i)
 !$OMP DO
       do i=1,count%allocated

@@ -197,7 +197,8 @@ subroutine output_restart(itime,loutnext,outnum)
       part(i)%tstart,part(i)%alive,part(i)%turbvel%u, &
       part(i)%turbvel%v,part(i)%turbvel%w,part(i)%mesovel%u, &
       part(i)%mesovel%v,part(i)%mesovel%w,(part(i)%mass(j),j=1,nspec), &
-      (part(i)%wetdepo(j),j=1,nspec),(part(i)%drydepo(j),j=1,nspec)
+      (part(i)%mass_init(j),j=1,nspec),(part(i)%wetdepo(j),j=1,nspec), &
+      (part(i)%drydepo(j),j=1,nspec)
   end do
   if (iout.gt.0) then
     write(unitrestart) tpointer

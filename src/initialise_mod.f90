@@ -663,7 +663,8 @@ subroutine readrestart
       part(i)%tstart,part(i)%alive,part(i)%turbvel%u, &
       part(i)%turbvel%v,part(i)%turbvel%w,part(i)%mesovel%u, &
       part(i)%mesovel%v,part(i)%mesovel%w,(part(i)%mass(j),j=1,nspec), &
-      (part(i)%wetdepo(j),j=1,nspec),(part(i)%drydepo(j),j=1,nspec)
+      (part(i)%mass_init(j),j=1,nspec),(part(i)%wetdepo(j),j=1,nspec), &
+      (part(i)%drydepo(j),j=1,nspec)
     part(i)%etaupdate=.true.
     part(i)%meterupdate=.true.
     if (.not. part(i)%alive) then

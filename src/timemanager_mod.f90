@@ -128,7 +128,7 @@ subroutine timemanager
   real(dep_prec) ::         &
     drydeposit(maxspec)       ! dry deposition related
   real(kind=dp) :: zhier,zetahier
-  integer :: npart_alive=0,alive_tmp,terminated_tmp
+  integer :: npart_alive=0,alive_tmp,spawned_tmp,terminated_tmp
 
   ! First output for time 0
   !************************
@@ -250,7 +250,10 @@ subroutine timemanager
       ! If reading from user defined initial conditions, check which particles are 
       ! to be activated
       if (count%allocated.le.0) stop 'Something is going wrong reading the part_ic.nc file!'
-!$OMP PARALLEL PRIVATE(i)
+
+      alive_tmp=count%alive
+      spawned_tmp=count%spawned
+!$OMP PARALLEL PRIVATE(i) REDUCTION(+:alive_tmp,spawned_tmp)
 !$OMP DO
       do i=1,count%allocated
         if (.not. part(i)%alive) then
@@ -258,15 +261,21 @@ subroutine timemanager
             if ((part(i)%tstart.le.itime).and.(part(i)%tstart.gt.itime+lsynctime)) then
               call spawn_particle(itime,i)
               call update_z_to_zeta(itime,i)
+              alive_tmp=alive_tmp+1
+              spawned_tmp=spawned_tmp+1
             endif
           else if ((part(i)%tstart.ge.itime).and.(part(i)%tstart.lt.itime+lsynctime)) then
             call spawn_particle(itime,i)
             call update_z_to_zeta(itime,i)
+            alive_tmp=alive_tmp+1
+            spawned_tmp=spawned_tmp+1
           endif
         endif
       end do
 !$OMP END DO
 !$OMP END PARALLEL
+      count%alive=alive_tmp
+      count%spawned=spawned_tmp
       call get_total_part_num(numpart)
     else
       call releaseparticles(itime)
@@ -417,8 +426,8 @@ subroutine timemanager
   call omp_set_num_threads(numthreads_grid)
 #endif
 
-alive_tmp=count%alive
-terminated_tmp=count%terminated
+  alive_tmp=count%alive
+  terminated_tmp=count%terminated
 
 !$OMP PARALLEL PRIVATE(prob_rec,nage,inage,itage,ks,kp,thread,j,xmassfract,drydeposit) &
 !$OMP REDUCTION(+:alive_tmp,terminated_tmp) 

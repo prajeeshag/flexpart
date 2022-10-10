@@ -295,7 +295,9 @@ subroutine read_options_and_initialise_flexpart
     call readOHfield ! CHECK ETA
   endif
 
-  call openreceptors ! CHECK ETA
+#ifndef USE_NCF
+  call openreceptors
+#endif
   if ((iout.eq.4).or.(iout.eq.5)) call openouttraj ! CHECK ETA
 
 

@@ -24,6 +24,10 @@
   !    'dep_prec' in par_mod
   !  - Hardcoded options 'write_vol' and 'write_area' for grid cell
   !    volume and area
+  !
+  ! LB: 2021                                                                   *
+  !  - Particle dump and initial particle positions in NetCDF                  *
+  !  - Receptor files in NetCDF format                                         *
   !*****************************************************************************
 
 
@@ -49,7 +53,7 @@ module netcdf_output_mod
                        ccn_aero,in_aero, mintime, & ! wetc_in,wetd_in, &
                        reldiff,henry,f0,density,dquer,dsigma,dryvel,&
                        weightmolar,ohcconst,ohdconst,vsetaver,&
-                       numparticlecount, &
+                       numparticlecount,receptorname, &
                        memind,xreceptor,yreceptor,numreceptor,creceptor,iout, &
                        itsplit, lsynctime, ctl, ifine, lagespectra, ipin, &
                        ioutputforeachrelease, iflux, mdomainfill, mquasilag, & 
@@ -75,7 +79,7 @@ module netcdf_output_mod
 
   ! netcdf dimension and variable IDs for main and nested output grid
   integer, dimension(maxspec) :: specID,specIDppt, wdspecID,ddspecID
-  integer, dimension(maxspec) :: specIDn,specIDnppt, wdspecIDn,ddspecIDn
+  integer, dimension(maxspec) :: specIDn,specIDnppt, wdspecIDn,ddspecIDn,recconcID,recpptvID
   integer                     :: timeID, timeIDn, timeIDpart
   integer, dimension(6)       :: dimids, dimidsn
   integer, dimension(5)       :: depdimids, depdimidsn
@@ -266,9 +270,9 @@ subroutine writeheader_netcdf(lnest)
   logical, intent(in) :: lnest
 
   integer :: ncid, sID, wdsID, ddsID
-  integer :: timeDimID, latDimID, lonDimID, levDimID
+  integer :: timeDimID, latDimID, lonDimID, levDimID, receptorDimID
   integer :: nspecDimID, npointDimID, nageclassDimID, ncharDimID, pointspecDimID
-  integer :: tID, lonID, latID, levID, poleID, lageID, oroID
+  integer :: tID, lonID, latID, levID, poleID, lageID, oroID, ncharrecDimID
   integer :: volID, areaID
   integer :: rellng1ID, rellng2ID, rellat1ID, rellat2ID, relzz1ID, relzz2ID
   integer :: relcomID, relkindzID, relstartID, relendID, relpartID, relxmassID
@@ -369,6 +373,8 @@ subroutine writeheader_netcdf(lnest)
   call nf90_err(nf90_def_dim(ncid, 'nageclass', nageclass, nageclassDimID))
   ! dimension for release point characters
   call nf90_err(nf90_def_dim(ncid, 'nchar', 45, ncharDimID))
+  ! dimension for receptor point characters
+  call nf90_err(nf90_def_dim(ncid, 'ncharrec', 16, ncharrecDimID))
   ! number of actual release points
   call nf90_err(nf90_def_dim(ncid, 'numpoint', numpoint, npointDimID))
 
@@ -491,6 +497,14 @@ subroutine writeheader_netcdf(lnest)
     call nf90_err(nf90_put_att(ncid, oroID, 'units', 'm'))
   end if
 
+  ! Receptors
+  if (numreceptor.ge.1) then
+    call nf90_err(nf90_def_dim(ncid, 'receptor', nf90_unlimited, receptorDimID)) 
+    call nf90_err(nf90_def_var(ncid, 'receptor', nf90_char, (/ ncharrecDimID,receptorDimID /), sID))
+    call nf90_err(nf90_put_var(ncid, sID, receptorname, (/ 1,1 /), (/ 16,numreceptor /)))
+    call nf90_err(nf90_put_att(ncid, sID, 'long_name', 'receptor name'))
+  endif
+
   ! concentration output, wet and dry deposition variables (one per species)
   call output_units(units)
 
@@ -514,90 +528,102 @@ subroutine writeheader_netcdf(lnest)
   dep_chunksizes = (/ nnx, nny, 1, 1, 1 /)
 
   do i = 1,nspec
-     write(anspec,'(i3.3)') i
+    write(anspec,'(i3.3)') i
 
-     ! concentration output
-     if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
-        call nf90_err(nf90_def_var(ncid,'spec'//anspec//'_mr', nf90_float, dIDs, sID , &
-             deflate_level = deflate_level,  &
-             chunksizes = chunksizes ))
-        call nf90_err(nf90_put_att(ncid, sID, 'units', units))
-        call nf90_err(nf90_put_att(ncid, sID, 'long_name', species(i)))
-        call nf90_err(nf90_put_att(ncid, sID, 'decay', decay(i)))
-        call nf90_err(nf90_put_att(ncid, sID, 'weightmolar', weightmolar(i)))
-  !        call nf90_err(nf90_put_att(ncid, sID, 'ohreact', ohreact(i)))
-        call nf90_err(nf90_put_att(ncid, sID, 'ohcconst', ohcconst(i)))
-        call nf90_err(nf90_put_att(ncid, sID, 'ohdconst', ohdconst(i)))
-        call nf90_err(nf90_put_att(ncid, sID, 'vsetaver', vsetaver(i)))
+    ! concentration output
+    if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
+      call nf90_err(nf90_def_var(ncid,'spec'//anspec//'_mr', nf90_float, dIDs, sID , &
+           deflate_level = deflate_level,  &
+           chunksizes = chunksizes ))
+      call nf90_err(nf90_put_att(ncid, sID, 'units', units))
+      call nf90_err(nf90_put_att(ncid, sID, 'long_name', species(i)))
+      call nf90_err(nf90_put_att(ncid, sID, 'decay', decay(i)))
+      call nf90_err(nf90_put_att(ncid, sID, 'weightmolar', weightmolar(i)))
+    !        call nf90_err(nf90_put_att(ncid, sID, 'ohreact', ohreact(i)))
+      call nf90_err(nf90_put_att(ncid, sID, 'ohcconst', ohcconst(i)))
+      call nf90_err(nf90_put_att(ncid, sID, 'ohdconst', ohdconst(i)))
+      call nf90_err(nf90_put_att(ncid, sID, 'vsetaver', vsetaver(i)))
 
-        if (lnest) then
-           specIDn(i) = sID
-        else
-           specID(i) = sID
-        endif
-     endif
+      if (lnest) then
+         specIDn(i) = sID
+      else
+         specID(i) = sID
+      endif
+    endif
 
-     ! mixing ratio output
-     if ((iout.eq.2).or.(iout.eq.3)) then
-        call nf90_err(nf90_def_var(ncid,'spec'//anspec//'_pptv', nf90_float, dIDs, sID , &
-             deflate_level = deflate_level,  &
-             chunksizes = chunksizes ))
-        call nf90_err(nf90_put_att(ncid, sID, 'units', 'pptv'))
-        call nf90_err(nf90_put_att(ncid, sID, 'long_name', species(i)))
-        call nf90_err(nf90_put_att(ncid, sID, 'decay', decay(i)))
-        call nf90_err(nf90_put_att(ncid, sID, 'weightmolar', weightmolar(i)))
-  !        call nf90_err(nf90_put_att(ncid, sID, 'ohreact', ohreact(i)))
-        call nf90_err(nf90_put_att(ncid, sID, 'ohcconst', ohcconst(i)))
-        call nf90_err(nf90_put_att(ncid, sID, 'ohdconst', ohdconst(i)))
-        call nf90_err(nf90_put_att(ncid, sID, 'vsetaver', vsetaver(i)))
+    ! mixing ratio output
+    if ((iout.eq.2).or.(iout.eq.3)) then
+      call nf90_err(nf90_def_var(ncid,'spec'//anspec//'_pptv', nf90_float, dIDs, sID , &
+           deflate_level = deflate_level,  &
+           chunksizes = chunksizes ))
+      call nf90_err(nf90_put_att(ncid, sID, 'units', 'pptv'))
+      call nf90_err(nf90_put_att(ncid, sID, 'long_name', species(i)))
+      call nf90_err(nf90_put_att(ncid, sID, 'decay', decay(i)))
+      call nf90_err(nf90_put_att(ncid, sID, 'weightmolar', weightmolar(i)))
+    !        call nf90_err(nf90_put_att(ncid, sID, 'ohreact', ohreact(i)))
+      call nf90_err(nf90_put_att(ncid, sID, 'ohcconst', ohcconst(i)))
+      call nf90_err(nf90_put_att(ncid, sID, 'ohdconst', ohdconst(i)))
+      call nf90_err(nf90_put_att(ncid, sID, 'vsetaver', vsetaver(i)))
 
-        if (lnest) then
-           specIDnppt(i) = sID
-        else
-           specIDppt(i) = sID
-        endif
-     endif
+      if (lnest) then
+         specIDnppt(i) = sID
+      else
+         specIDppt(i) = sID
+      endif
+    endif
 
-     ! wet and dry deposition fields for forward runs
-     if ((ldirect.eq.1).and.(wetdep)) then
-        call nf90_err(nf90_def_var(ncid,'WD_spec'//anspec, nf90_float, depdIDs, &
-             wdsID, deflate_level = deflate_level, &
-             chunksizes = dep_chunksizes))
-        call nf90_err(nf90_put_att(ncid, wdsID, 'units', '1e-12 kg m-2'))
-        call nf90_err(nf90_put_att(ncid, wdsID, 'weta_gas', weta_gas(i)))
-        call nf90_err(nf90_put_att(ncid, wdsID, 'wetb_gas', wetb_gas(i)))
-        call nf90_err(nf90_put_att(ncid, wdsID, 'ccn_aero', ccn_aero(i)))
-        call nf90_err(nf90_put_att(ncid, wdsID, 'in_aero', in_aero(i)))
-        ! call nf90_err(nf90_put_att(ncid, wdsID, 'wetc_in', wetc_in(i)))
-        ! call nf90_err(nf90_put_att(ncid, wdsID, 'wetd_in', wetd_in(i)))
-        call nf90_err(nf90_put_att(ncid, wdsID, 'dquer', dquer(i)))
-        call nf90_err(nf90_put_att(ncid, wdsID, 'henry', henry(i)))
-        if (lnest) then
-           wdspecIDn(i) = wdsID
-        else
-           wdspecID(i) = wdsID
-        endif
-     endif
-     if ((ldirect.eq.1).and.(drydep)) then
-        call nf90_err(nf90_def_var(ncid,'DD_spec'//anspec, nf90_float, depdIDs, &
-             ddsID, deflate_level = deflate_level, &
-             chunksizes = dep_chunksizes))
-        call nf90_err(nf90_put_att(ncid, ddsID, 'units', '1e-12 kg m-2'))
-        call nf90_err(nf90_put_att(ncid, ddsID, 'dryvel', dryvel(i)))
-        call nf90_err(nf90_put_att(ncid, ddsID, 'reldiff', reldiff(i)))
-        call nf90_err(nf90_put_att(ncid, ddsID, 'henry', henry(i)))
-        call nf90_err(nf90_put_att(ncid, ddsID, 'f0', f0(i)))
-        call nf90_err(nf90_put_att(ncid, ddsID, 'dquer', dquer(i)))
-        call nf90_err(nf90_put_att(ncid, ddsID, 'density', density(i)))
-        call nf90_err(nf90_put_att(ncid, ddsID, 'dsigma', dsigma(i)))
-        if (lnest) then
-           ddspecIDn(i) = ddsID
-        else
-           ddspecID(i) = ddsID
-        endif
-     endif
+    ! wet and dry deposition fields for forward runs
+    if ((ldirect.eq.1).and.(wetdep)) then
+      call nf90_err(nf90_def_var(ncid,'WD_spec'//anspec, nf90_float, depdIDs, &
+           wdsID, deflate_level = deflate_level, &
+           chunksizes = dep_chunksizes))
+      call nf90_err(nf90_put_att(ncid, wdsID, 'units', '1e-12 kg m-2'))
+      call nf90_err(nf90_put_att(ncid, wdsID, 'weta_gas', weta_gas(i)))
+      call nf90_err(nf90_put_att(ncid, wdsID, 'wetb_gas', wetb_gas(i)))
+      call nf90_err(nf90_put_att(ncid, wdsID, 'ccn_aero', ccn_aero(i)))
+      call nf90_err(nf90_put_att(ncid, wdsID, 'in_aero', in_aero(i)))
+      ! call nf90_err(nf90_put_att(ncid, wdsID, 'wetc_in', wetc_in(i)))
+      ! call nf90_err(nf90_put_att(ncid, wdsID, 'wetd_in', wetd_in(i)))
+      call nf90_err(nf90_put_att(ncid, wdsID, 'dquer', dquer(i)))
+      call nf90_err(nf90_put_att(ncid, wdsID, 'henry', henry(i)))
+      if (lnest) then
+         wdspecIDn(i) = wdsID
+      else
+         wdspecID(i) = wdsID
+      endif
+    endif
+    if ((ldirect.eq.1).and.(drydep)) then
+      call nf90_err(nf90_def_var(ncid,'DD_spec'//anspec, nf90_float, depdIDs, &
+           ddsID, deflate_level = deflate_level, &
+           chunksizes = dep_chunksizes))
+      call nf90_err(nf90_put_att(ncid, ddsID, 'units', '1e-12 kg m-2'))
+      call nf90_err(nf90_put_att(ncid, ddsID, 'dryvel', dryvel(i)))
+      call nf90_err(nf90_put_att(ncid, ddsID, 'reldiff', reldiff(i)))
+      call nf90_err(nf90_put_att(ncid, ddsID, 'henry', henry(i)))
+      call nf90_err(nf90_put_att(ncid, ddsID, 'f0', f0(i)))
+      call nf90_err(nf90_put_att(ncid, ddsID, 'dquer', dquer(i)))
+      call nf90_err(nf90_put_att(ncid, ddsID, 'density', density(i)))
+      call nf90_err(nf90_put_att(ncid, ddsID, 'dsigma', dsigma(i)))
+      if (lnest) then
+         ddspecIDn(i) = ddsID
+      else
+         ddspecID(i) = ddsID
+      endif
+    endif
+    ! RECEPTORS
+    if (numreceptor.ge.1) then
+      if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
+        call write_to_file(ncid,'receptor_conc'//anspec, nf90_float, (/ timeDimID,receptorDimID /), &
+            sID, (/ 1, numreceptor /), 'ng m-3', .true., 'receptor_conc', 'receptor_concentration')
+        recconcID(i)=sID
+      endif
+      if ((iout.eq.2).or.(iout.eq.3)) then
+        call write_to_file(ncid,'receptor_pptv'//anspec, nf90_float, (/ timeDimID,receptorDimID /), &
+            sID, (/ 1, numreceptor /), 'pptv', .true., 'receptor_pptv', 'receptor_mixingratio')
+        recpptvID(i)=sID
+      endif
+    endif
   end do
-
 
   ! global (metadata) attributes
   !*******************************
@@ -839,7 +865,7 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
   real, intent(in)    :: outnum
   real(dep_prec),intent(out):: wetgridtotalunc,drygridtotalunc
   real, intent(out)   :: gridtotalunc
-  real                :: densityoutrecept(maxreceptor)
+  real                :: densityoutrecept(maxreceptor),recout(maxreceptor)
   integer             :: ncid,kp,ks,kz,ix,jy,iix,jjy,kzz,kzzm1,ngrid
   integer             :: nage,i,l,jj
   real                :: tot_mu(maxspec,maxpointspec_act)
@@ -974,23 +1000,23 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
   ! Output is different for forward and backward simulations
   if (ldirect.eq.1) then
 !$OMP DO
-     do kz=1,numzgrid
-        do jy=0,numygrid-1
-           do ix=0,numxgrid-1
-              factor3d(ix,jy,kz)=1.e12/volume(ix,jy,kz)/outnum
-           end do
-        end do
-     end do
+    do kz=1,numzgrid
+      do jy=0,numygrid-1
+         do ix=0,numxgrid-1
+            factor3d(ix,jy,kz)=1.e12/volume(ix,jy,kz)/outnum
+         end do
+      end do
+    end do
 !$OMP END DO
   else
 !$OMP DO
-     do kz=1,numzgrid
-        do jy=0,numygrid-1
-           do ix=0,numxgrid-1
-              factor3d(ix,jy,kz)=real(abs(loutaver))/outnum
-           end do
-        end do
-     end do
+    do kz=1,numzgrid
+      do jy=0,numygrid-1
+         do ix=0,numxgrid-1
+            factor3d(ix,jy,kz)=real(abs(loutaver))/outnum
+         end do
+      end do
+    end do
 !$OMP END DO
   endif
 
@@ -1148,10 +1174,6 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
 
   end do
 !$OMP END PARALLEL
-  ! Close netCDF file
-  !**************************
-  call nf90_err(nf90_close(ncid))
-
 
   if (gridtotal.gt.0.) gridtotalunc=gridsigmatotal/gridtotal
   if (wetgridtotal.gt.0.) wetgridtotalunc=wetgridsigmatotal/ &
@@ -1161,23 +1183,27 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
 
   ! Dump of receptor concentrations
 
-  if (numreceptor.gt.0 .and. (iout.eq.2 .or. iout.eq.3)  ) then
-    write(unitoutreceptppt) itime
-    do ks=1,nspec
-      write(unitoutreceptppt) (1.e12*creceptor(i,ks)/outnum* &
-           weightair/weightmolar(ks)/densityoutrecept(i),i=1,numreceptor)
-    end do
+  if (numreceptor.ge.1) then 
+    if (iout.eq.2 .or. iout.eq.3) then
+      do ks=1,nspec
+        recout(:)=1.e12*creceptor(:,ks)/outnum*weightair/weightmolar(ks)/densityoutrecept(:)
+        call nf90_err(nf90_put_var(ncid,recpptvID(ks),recout(1:numreceptor),(/ tpointer,1 /),(/ 1,numreceptor /)))
+      end do
+    endif
+
+    ! Dump of receptor concentrations
+
+    if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
+      do ks=1,nspec
+        recout(:)=1.e12*creceptor(:,ks)/outnum
+        call nf90_err(nf90_put_var(ncid,recconcID(ks),recout(1:numreceptor),(/ tpointer,1 /),(/ 1,numreceptor /)))
+      end do
+    endif
   endif
 
-  ! Dump of receptor concentrations
-
-  if (numreceptor.gt.0) then
-    write(unitoutrecept) itime
-    do ks=1,nspec
-      write(unitoutrecept) (1.e12*creceptor(i,ks)/outnum,i=1,numreceptor)
-    end do
-  endif
-
+  ! Close netCDF file
+  !**************************
+  call nf90_err(nf90_close(ncid))
 
   ! Reinitialization of grid
   !*************************

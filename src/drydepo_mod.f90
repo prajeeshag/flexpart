@@ -1,3 +1,13 @@
+!*****************************************************************************
+!                                                                            *
+! L. Bakels 2021: This module contains dry deposition related subroutines    *
+!                                                                            *
+! To do: dry deposition mass loss substraction of individual particles       *
+!        should be moved from to timemanager_mod.f90 to here                 *
+!                                                                            *
+!                                                                            *
+!*****************************************************************************
+
 module drydepo_mod
   use unc_mod
   use par_mod

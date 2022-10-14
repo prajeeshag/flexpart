@@ -245,10 +245,10 @@ subroutine writemetadata(ncid,lnest)
 end subroutine writemetadata
 
 
-!****************************************************************
-! netcdf error message handling
-!****************************************************************
 subroutine nf90_err(status)
+  !****************************************************************
+  ! netcdf error message handling
+  !****************************************************************
   implicit none
   integer, intent (in) :: status
    if(status /= nf90_noerr) then
@@ -257,14 +257,13 @@ subroutine nf90_err(status)
     end if
 end subroutine nf90_err
 
-
-!****************************************************************
-! Create netcdf file and write header/metadata information
-! lnest = .false. : Create main output file
-! lnest = .true.  : Create nested output file
-!****************************************************************
 subroutine writeheader_netcdf(lnest)
 
+  !****************************************************************
+  ! Create netcdf file and write header/metadata information
+  ! lnest = .false. : Create main output file
+  ! lnest = .true.  : Create nested output file
+  !****************************************************************
   implicit none
 
   logical, intent(in) :: lnest
@@ -846,6 +845,10 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
   !                                                                            *
   !     April 2013, Dominik Brunner, Empa                                      *
   !                    Adapted for netcdf output                               *
+  !                                                                            *
+  !     2022, Lucie Bakels:                                                    *
+  !           - OpenMP parallelisation                                         *
+  !           - Receptor output to NetCDF instead of binary format             *
   !                                                                            *
   !*****************************************************************************
   !                                                                            *
@@ -1569,6 +1572,17 @@ end subroutine concoutput_surf_nest_netcdf
 
 subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
 
+  !*****************************************************************************
+  !                                                                            *
+  !   This subroutine creates an initial particle positions and properties     *
+  !   NetCDF file: partinit_xxx.nc                                             *
+  !   The release time, release number and positions, together with all fields *
+  !   specified in the PARTOPTIONS option file will saved.                     *
+  !                                                                            *
+  !   Author: L. Bakels 2022                                                   *
+  !                                                                            *
+  !*****************************************************************************
+
   implicit none
 
   integer, intent(in) :: itime,idate,itime_start,idate_start
@@ -1695,6 +1709,17 @@ subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
 end subroutine create_particles_initialoutput
 
 subroutine write_particles_initialoutput(itime,istart,iend)
+
+  !*****************************************************************************
+  !                                                                            *
+  !   This subroutine saves initial particle positions, release time and       *
+  !   releasenumber to a NetCDF file created in create_particles_initialoutput *
+  !   evertime a new particle is spawned.                                      *
+  !                                                                            *
+  !   Author: L. Bakels 2022                                                   *
+  !                                                                            *
+  !*****************************************************************************
+
   use particle_mod
 
   implicit none
@@ -1736,6 +1761,17 @@ subroutine write_particles_initialoutput(itime,istart,iend)
 end subroutine write_particles_initialoutput
 
 subroutine partinit_netcdf(itime,field,fieldname,imass,ncid)
+
+  !*****************************************************************************
+  !                                                                            *
+  !   This subroutine saves properties chosen by the user in PARTOPTIONS       *
+  !   to a NetCDF file created in create_particles_initialoutput.              *
+  !   This happens whenever a new particle is spawned.                         *
+  !                                                                            *
+  !   Author: L. Bakels 2022                                                   *
+  !                                                                            *
+  !*****************************************************************************
+
   implicit none
 
   integer, intent(in)            :: itime,imass
@@ -1786,10 +1822,20 @@ subroutine partinit_netcdf(itime,field,fieldname,imass,ncid)
     case default
       return
   end select
-
 end subroutine partinit_netcdf
 
 subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease)
+
+  !*****************************************************************************
+  !                                                                            *
+  !   This subroutine creates a file (partoutput_xxx.nc), where every time     *
+  !   interval particle properties specified in the PARTOPTIONS option file    *
+  !   are saved to. Running options are saved as header informtion to this     *
+  !   file as well.                                                            *
+  !                                                                            *
+  !   Author: L. Bakels 2021                                                   *
+  !                                                                            *
+  !*****************************************************************************
 
   implicit none
 
@@ -2094,6 +2140,14 @@ end subroutine writeheader_partoutput
 subroutine write_to_file(ncid,short_name,xtype,dimids,varid,chunksizes,units,l_positive, &
   standard_name,long_name)
 
+  !*****************************************************************************
+  !                                                                            *
+  !   Generalised writing data to netcdf file                                  *
+  !                                                                            *
+  !   Author: L. Bakels 2022                                                   *
+  !                                                                            *
+  !*****************************************************************************
+
   implicit none
 
   integer, intent(in) :: ncid, xtype
@@ -2114,7 +2168,6 @@ subroutine write_to_file(ncid,short_name,xtype,dimids,varid,chunksizes,units,l_p
   if(l_positive) call nf90_err(nf90_put_att(ncid, varid, 'positive', 'up'))
   call nf90_err(nf90_put_att(ncid, varid, 'standard_name', standard_name))
   call nf90_err(nf90_put_att(ncid, varid, 'long_name', long_name))
-
 end subroutine write_to_file
 
 subroutine open_partoutput_file(ncid)!,irelease)
@@ -2148,6 +2201,16 @@ end subroutine open_partinit_file
 
 subroutine partoutput_netcdf(itime,field,fieldname,imass,ncid)
   
+
+  !*****************************************************************************
+  !                                                                            *
+  !   Writing a field from PARTOPTIONS to partoutput_xxx.nc created in         *
+  !   writeheader_partoutput                                                   *
+  !                                                                            *  
+  !   Author: L. Bakels 2021                                                   *
+  !                                                                            *
+  !*****************************************************************************
+
   implicit none
 
   integer, intent(in)            :: itime,imass
@@ -2291,6 +2354,17 @@ subroutine partoutput_netcdf(itime,field,fieldname,imass,ncid)
 end subroutine partoutput_netcdf
 
 subroutine readpartpositions_netcdf(ibtime,ibdate)
+
+  !*****************************************************************************
+  !                                                                            *
+  !   IPIN=2: restarting from a partoutput_xxx.nc file written by a previous   *
+  !           run, depending on what PARTOPTIONS the user has chosen, this     *
+  !           option might not be possible to use                              *
+  !                                                                            *
+  !   Author: L. Bakels 2022                                                   *
+  !                                                                            *
+  !*****************************************************************************
+
   use random_mod
   use particle_mod
   use date_mod
@@ -2395,6 +2469,18 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
 end subroutine readpartpositions_netcdf
 
 subroutine readinitconditions_netcdf()
+
+  !*****************************************************************************
+  !                                                                            *
+  !   IPIN=3: starting a run from a user defined initial particle conditions,  *
+  !           more on how to create such a file can be found in the manual     *
+  !   IPIN=4: restarting a run, while also reading in the initial particle     *
+  !           conditions                                                       *
+  !                                                                            *
+  !   Author: L. Bakels 2022                                                   *
+  !                                                                            *
+  !*****************************************************************************
+
   use random_mod
   use particle_mod
   use date_mod

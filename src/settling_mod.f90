@@ -26,6 +26,9 @@ subroutine get_settling(itime,xt,yt,zt,nsp,settling)
   !  Naeslund E., and Thaning, L. (1991): On the settling velocity in a        *
   !  nonstationary atmosphere, Aerosol Science and Technology 14, 247-256.     *
   !                                                                            *
+  !  Changes                                                                   *
+  !     Daria Tatsii 2022: implementation of shape factor according to         *
+  !                        Bagheri & Bonadonna 2016                            *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *

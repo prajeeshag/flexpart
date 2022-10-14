@@ -1,5 +1,12 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
+
+  !*****************************************************************************
+  !                                                                            *
+  ! L. Bakels 2022, This module contains routines that are relevant for the    *
+  !                 plume trajectory computations                              *
+  !                                                                            *
+  !*****************************************************************************
 module plume_mod
   
   implicit none

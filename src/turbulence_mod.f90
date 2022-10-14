@@ -1,3 +1,9 @@
+  !*****************************************************************************
+  !                                                                            *
+  ! 2021 L. Bakels: This module contains all turbulence related subroutines    *
+  !                                                                            *
+  !*****************************************************************************
+
 module turbulence_mod
   use par_mod
   use com_mod

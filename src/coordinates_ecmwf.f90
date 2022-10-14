@@ -1,4 +1,13 @@
+! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
+! SPDX-License-Identifier: GPL-3.0-or-later
 
+!*****************************************************************************
+!                                                                            *
+!  This module handles conversions between ECMWF eta coordinates and         *
+!  internal meter coordinates                                                *
+!                                                                            *
+!     Author: L. Bakels                                                      *
+!*****************************************************************************
 
 module coordinates_ecmwf
 
@@ -43,16 +52,15 @@ subroutine update_z_to_zeta(itime, ipart)
 end subroutine update_z_to_zeta
 
 subroutine z_to_zeta(itime,xt,yt,zold,zteta)
-  !                        i    i   o  o  o
-  !        o       o       o    i  i  i   o
   !*****************************************************************************
-  ! Converting z from eta coordinates to meters                                *
-  !                                                                            *
+  ! Converting z from meter coordinates to eta using logarithmic vertical      *
+  ! interpolation                                                              *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *
   ! itime [s]          current temporal position                               *
-  ! xteta,yteta,zteta                   spatial position of trajectory         *
+  ! xt,yt,zold,zold    spatial positions of trajectory (meters)                *
+  ! zteta              vertical position in eta coordinates (output)           *
   !                                                                            *
   ! etauvheight defined in windfields: half model heights for ETA coordinates  *
   ! Constants:                                                                 *
@@ -137,17 +145,15 @@ subroutine z_to_zeta(itime,xt,yt,zold,zteta)
 end subroutine z_to_zeta
 
 subroutine zeta_to_z(itime,xt,yt,zteta,ztout)
-  !                        i    i   o  o  o
-  !        o       o       o    i  i  i   o
   !*****************************************************************************
-  ! Converting z from eta coordinates to meters                                *
-  !                                                                            *
+  ! Converting z from eta coordinates to meters using logarithmic              *
+  ! vertical interpolation                                                     *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *
   ! itime [s]          current temporal position                               *
-  ! xt,yt,zteta                   spatial position of trajectory               *
-  !                                                                            *
+  ! xt,yt,zteta        spatial position of trajectory                          *
+  ! ztout              vertical postion in meter (output)                      *
   !                                                                            *
   !                                                                            *
   !*****************************************************************************
@@ -219,16 +225,15 @@ subroutine zeta_to_z(itime,xt,yt,zteta,ztout)
 end subroutine zeta_to_z
 
 subroutine z_to_zeta_lin(itime,xt,yt,zold,zteta)
-  !                        i    i   o  o  o
-  !        o       o       o    i  i  i   o
   !*****************************************************************************
-  ! Converting z from eta coordinates to meters                                *
+  ! Converting z from meter coordinates to eta using linear interpolation      *
   !                                                                            *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *
   ! itime [s]          current temporal position                               *
-  ! xteta,yteta,zteta                   spatial position of trajectory         *
+  ! xt,yt,zold,zold    spatial positions of trajectory (meters)                *
+  ! zteta              vertical position in eta coordinates (output)           *
   !                                                                            *
   ! etauvheight defined in windfields: half model heights for ETA coordinates  *
   ! Constants:                                                                 *
@@ -296,17 +301,16 @@ subroutine z_to_zeta_lin(itime,xt,yt,zold,zteta)
 end subroutine z_to_zeta_lin
 
 subroutine zeta_to_z_lin(itime,xt,yt,zteta,ztout)
-  !                        i    i   o  o  o
-  !        o       o       o    i  i  i   o
+
   !*****************************************************************************
-  ! Converting z from eta coordinates to meters                                *
+  ! Converting z from eta coordinates to meters using linear interpolation     *
   !                                                                            *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *
   ! itime [s]          current temporal position                               *
-  ! xt,yt,zteta                   spatial position of trajectory               *
-  !                                                                            *
+  ! xt,yt,zteta        spatial position of trajectory                          *
+  ! ztout              vertical postion in meter (output)                      *
   !                                                                            *
   !                                                                            *
   !*****************************************************************************

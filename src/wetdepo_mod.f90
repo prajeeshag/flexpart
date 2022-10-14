@@ -1,3 +1,9 @@
+  !*****************************************************************************
+  !                                                                            *
+  ! L. Bakels 2021: This module contains dry deposition related subroutines    *
+  !                                                                            *
+  !*****************************************************************************
+
 module wetdepo_mod
   use point_mod
   use par_mod
@@ -27,6 +33,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
   ! use centred precipitation data for integration                             *
   ! Code may not be correct for decay of deposition!                           *
   !                                                                            *
+  ! 2021 Andreas Plach: ???                                                    *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *

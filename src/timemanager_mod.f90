@@ -1,5 +1,12 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
+
+  !*****************************************************************************
+  !                                                                            *
+  !   L. Bakels 2022: This module contains the timemanager                     *
+  !                                                                            *
+  !*****************************************************************************
+
 module timemanager_mod
 
 implicit none
@@ -38,6 +45,9 @@ subroutine timemanager
   !   variables uap,ucp,uzp,us,vs,ws,cbt now in module com_mod                 *
   !  Unified ECMWF and GFS builds                                              *
   !   Marian Harustak, 12.5.2017                                               *
+  !  Changes L Bakels 2022: - OpenMP parallelisation                           *
+  !                         - converting input to ETA coordinates              *
+  !                         - spawning particles from part_ic.nc               *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *

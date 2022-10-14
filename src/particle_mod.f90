@@ -1,3 +1,15 @@
+
+  !*****************************************************************************
+  !                                                                            *
+  ! Module that organises particle information in derived types                *
+  ! Particles are terminated and spawned using routines from this module so    *
+  ! that global particle counts (spawned, allocated, terminated) are kept      *
+  ! up to date                                                                 *
+  !                                                                            *
+  ! Author: L. Bakels 2022                                                     *
+  !                                                                            *
+  !*****************************************************************************
+
 module particle_mod
   use com_mod, only: maxspec,DRYBKDEP,WETBKDEP,iout,n_average
   use par_mod, only: dp

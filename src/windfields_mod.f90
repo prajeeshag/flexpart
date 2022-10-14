@@ -1,6 +1,15 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
 
+  !*****************************************************************************
+  !                                                                            *
+  ! This module stores all meteorological input data and contains routines     *
+  ! reading and allocating this data                                           *
+  !                                                                            *
+  !   L. Bakels 2021                                                           *
+  !                                                                            *
+  !*****************************************************************************
+
 module windfields_mod
   use par_mod
   use com_mod
@@ -1940,6 +1949,7 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
   !   Marian Harustak, 12.5.2017                                        
   !     - Renamed from readwind to readwind_ecmwf                     
   !
+  !  L. Bakels, 2021: OpenMP parallelisation (following CTM version)
   !**********************************************************************
   !                                                                     *
   ! DESCRIPTION:                                                        *

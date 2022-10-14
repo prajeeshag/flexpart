@@ -1,5 +1,13 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
+
+!*****************************************************************************
+!                                                                            *
+!   L. Bakels 2022: This module contains the computation of particle         *
+!                   trajectories                                             *
+!                                                                            *
+!*****************************************************************************
+
 module advance_mod
   use point_mod
   use par_mod
@@ -63,6 +71,10 @@ subroutine advance(itime,ipart,thread)
   !                                                                            *
   !  May 2002: Petterssen scheme introduced                                    *
   !                                                                            *
+  !  2021, L. Bakels:                                                          *
+  !         - Separated PBL and above PBL computations in different            *
+  !           subroutines                                                      *
+  !         - Moved all turbulence computations to turbulence_mod.f90          *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *

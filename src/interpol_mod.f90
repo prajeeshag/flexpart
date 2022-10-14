@@ -1,3 +1,11 @@
+  !*****************************************************************************
+  !                                                                            *
+  ! L. Bakels 2022: This module contains all interpolation subroutines         *
+  !                 Code has been organised into subroutines                   *
+  !                 Vertical logarithmic interpolation is optional (par_mod)   *
+  !                                                                            *
+  !*****************************************************************************
+
 module interpol_mod
   use par_mod
   use com_mod
@@ -246,6 +254,14 @@ subroutine find_z_level_eta_uv(zteta)
 end subroutine find_z_level_eta_uv
 
 subroutine find_vertical_variables(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
+  !*****************************************************************************
+  !                                                                            *
+  ! This subroutine computes the vertical interpolation variables              *
+  ! logarithmically, unless logarithmic_interpolation=.false. in the par_mod   *
+  !                                                                            *
+  ! Author: L. Bakels                                                          *
+  !*****************************************************************************
+
   implicit none
   real, intent(in)    :: vertlevels(:)     ! vertical levels in coordinate system
   real, intent(in)    :: zpos              ! verticle particle position

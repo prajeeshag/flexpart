@@ -1,5 +1,18 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
+
+  !*****************************************************************************
+  !                                                                            *
+  ! L. Bakels 2022: - This module contains all subroutines handling the        *
+  !                   internal storage and processing of the meteorological    *
+  !                   data, including computation of PV and boundary           *
+  !                   layer parameters                                         *
+  !                 - The reading of the meteo data happens in windfields_mod  *
+  !                 - The vertical coordinate transformation is done in        *
+  !                   verttransform_mod                                        *
+  !                                                                            *
+  !*****************************************************************************
+
 module getfields_mod
   
   use par_mod
@@ -1548,7 +1561,7 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
       thetaold=theta
       zold=z
     end do
-    ! Copied from FLEXPART-WRF
+    ! Check opied from FLEXPART-WRF, 2022 LB
     if (k.ge.nuvz) then
       write(*,*) 'richardson not working -- k = nuvz'
       ierr = -10

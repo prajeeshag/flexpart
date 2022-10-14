@@ -1,6 +1,13 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
 
+  !*****************************************************************************
+  !                                                                            *
+  !   L. Bakels 2021: This module contains subroutines related to the          *
+  !                   initialisation of the particles                          *
+  !                                                                            *
+  !*****************************************************************************
+
 module initialise_mod
 	
 	use com_mod
@@ -471,6 +478,9 @@ subroutine readpartpositions
   !                                                                            *
   !     24 March 2000                                                          *
   !                                                                            *
+  !  Changes                                                                   *
+  !     2022, L. Bakels: NetCDF option for reading particle information        *
+  !                                                                            *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *
@@ -621,18 +631,13 @@ subroutine readrestart
   !*****************************************************************************
   !                                                                            *
   !   This routine opens the particle dump file and reads all the particle     *
-  !   positions from a previous run to initialize the current run.             *
+  !   positions and gridded information from a previous run to initialize      *
+  !   the current run.                                                         *
   !                                                                            *
-  !                                                                            *
-  !     Author: A. Stohl                                                       *
-  !                                                                            *
-  !     24 March 2000                                                          *
+  !     Author: L. Bakels 2022                                                 *
   !                                                                            *
   !*****************************************************************************
-  !                                                                            *
-  ! Variables:                                                                 *
-  !                                                                            *
-  !*****************************************************************************
+
   use netcdf_output_mod
   use unc_mod
 
@@ -1014,6 +1019,9 @@ subroutine init_domainfill
   !     Author: A. Stohl                                                       *
   !                                                                            *
   !     15 October 2002                                                        *
+  !                                                                            *
+  !  Changes                                                                   *
+  !     2022, L. Bakels: OpenMP parallelisation                                *
   !                                                                            *
   !*****************************************************************************
   !                                                                            *
@@ -1474,6 +1482,9 @@ subroutine boundcond_domainfill(itime,loutend)
   !     Author: A. Stohl                                                       *
   !                                                                            *
   !     16 October 2002                                                        *
+  !                                                                            *
+  !  Changes                                                                   *
+  !     2022, L. Bakels: OpenMP parallelisation                                *
   !                                                                            *
   !*****************************************************************************
   !                                                                            *

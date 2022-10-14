@@ -17,10 +17,15 @@ program flexpart
   ! Changes:                                                                   *
   !   Unified ECMWF and GFS builds                                             *
   !   Marian Harustak, 12.5.2017                                               *
+  !     (moved to read_options_and_initialise_flexpart by LB)                  *
   !     - Added detection of metdata format using gributils routines           *
   !     - Distinguished calls to ecmwf/gfs gridcheck versions based on         *
   !       detected metdata format                                              *
   !     - Passed metdata format down to timemanager                            *
+  !   L. Bakels 2022                                                           *
+  !     - OpenMP parallelisation                                               *
+  !     - Added input options                                                  *
+  !     - Restructuring into subroutines (below)                               *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *
@@ -146,6 +151,16 @@ end program flexpart
 
 
 subroutine read_options_and_initialise_flexpart
+
+  !*****************************************************************************
+  !                                                                            *
+  !   Moved from main flexpart program:                                        *
+  !   Reading all option files, initialisation of random numbers, and          *
+  !   allocating memory for windfields, grids, etc.                            *
+  !                                                                            *
+  !   L. Bakels 2022                                                           *
+  !                                                                            *
+  !*****************************************************************************
 
   use point_mod
   use random_mod
@@ -316,6 +331,26 @@ end subroutine read_options_and_initialise_flexpart
 
 
 subroutine initialise_warm_start
+
+  !*****************************************************************************
+  !                                                                            *
+  !   This subroutine handles the different forms of starting FLEXPART         *
+  !   depending on IPIN (set in COMMAND)                                       *
+  !                                                                            *
+  !   IPIN=0: this routine is not called and particles are read from the       *
+  !           RELEASE option file                                              *
+  !   IPIN=1: restarting from a restart.bin file, written by a previous run    *
+  !   IPIN=2: restarting from a partoutput_xxx.nc file written by a previous   *
+  !           run, depending on what PARTOPTIONS the user has chosen, this     *
+  !           option might not be possible to use                              *
+  !   IPIN=3: starting a run from a user defined initial particle conditions,  *
+  !           more on how to create such a file can be found in the manual     *
+  !   IPIN=4: restarting a run, while also reading in the initial particle     *
+  !           conditions                                                       *
+  !                                                                            *
+  !   Author: L. Bakels 2022                                                   *
+  !                                                                            *
+  !*****************************************************************************
 
   use point_mod
   use com_mod

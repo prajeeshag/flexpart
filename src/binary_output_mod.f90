@@ -1,6 +1,21 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
+
+  !*****************************************************************************
+  !                                                                            *
+  ! This module contains routines that output gridded data to binary files.    *
+  !                                                                            *
+  ! Not all routines that should have a netcdf equivalent, have one yet:       *
+  ! writeheader_binary_nest_surf,writeheader_binary_surf,concoutput_surf,      *
+  ! concoutput_surf_nest,initial_cond_output,initial_cond_output_inversion,    *
+  ! concoutput_inversion_nest                                                  *
+  !                                                                            *
+  !   L. Bakels 2022                                                           *
+  !                                                                            *
+  !*****************************************************************************
+  
 module binary_output_mod
+
   use point_mod
   use outg_mod
   use par_mod

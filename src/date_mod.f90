@@ -1,5 +1,13 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
+
+!*****************************************************************************
+!                                                                            *
+!   L. Bakels 2022: this module contains all subroutines related to          *
+!                   calculations between dates: caldate and juldate          *
+!                                                                            *
+!*****************************************************************************
+
 module date_mod
   use par_mod, only: dp
   

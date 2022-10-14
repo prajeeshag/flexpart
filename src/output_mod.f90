@@ -1,6 +1,12 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
 
+!*****************************************************************************
+!                                                                            *
+!   L. Bakels 2022: This module contains most output related subroutines     *
+!                                                                            *
+!*****************************************************************************
+
 module output_mod
   
   use com_mod
@@ -18,6 +24,7 @@ module output_mod
 contains
 
 subroutine initialise_output(itime,filesize)
+
   implicit none
   
   integer, intent(in) :: itime
@@ -279,12 +286,14 @@ subroutine output_particles(itime,initial_output)
   !*****************************************************************************
   !                                                                            *
   !     Dump all particle positions                                            *
-  !     Binary output is no longer supported. If required, function can be     *
-  !     added below at "Put binary function here"                              *
   !     Author: A. Stohl                                                       *
   !                                                                            *
   !     12 March 1999                                                          *
   !                                                                            *
+  !     Changes L. Bakels, 2021                                                *
+  !     Output is chosen by the fields set in PARTOPTIONS                      *
+  !     Binary output is no longer supported. If required, function can be     *
+  !     added below at "Put binary function here"                              *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *
@@ -611,8 +620,8 @@ subroutine output_concentrations(itime,loutstart,loutend,loutnext,outnum)
     if (iout.ne.0) call conccalc(itime,weight)
   endif
 
-  ! If no grid is to be written to file, return
-  !********************************************
+  ! If no grid is to be written to file, return (LB)
+  !*************************************************
   if (iout.eq.0) then 
     if (itime.ne.loutend) return
     loutnext=loutnext+loutstep
@@ -706,6 +715,7 @@ subroutine conccalc(itime,weight)
   !                                                                            *
   !     2 July 2002: re-order if-statements in order to optimize CPU time      *
   !                                                                            *
+  !     2021, LB: OpenMP parallelisation                                       *
   !                                                                            *
   !*****************************************************************************
   !                                                                            *
@@ -1317,6 +1327,9 @@ subroutine partpos_average(itime,j)
   !**********************************************************************
   ! This subroutine averages particle quantities, to be used for particle
   ! dump (in partoutput.f90). Averaging is done over output interval.
+  ! Author: A. Stohl
+  ! Changes L Bakels:
+  !    - Computing fields defined in PARTOPTIONS
   !**********************************************************************
 
   use par_mod

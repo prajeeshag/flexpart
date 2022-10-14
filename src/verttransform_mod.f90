@@ -1,6 +1,13 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
 
+  !*****************************************************************************
+  !                                                                            *
+  ! This module contains all subroutines computing the vertical coordinate     *
+  ! transformation of the meteorological input data (L. Bakels 2021)           *
+  !                                                                            *
+  !*****************************************************************************
+
 module verttransform_mod
   use par_mod
   use com_mod
@@ -43,8 +50,14 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
   ! Unified ECMWF and GFS builds
   ! Marian Harustak, 12.5.2017 
   !     - Renamed from verttransform to verttransform_ecmwf
-  !*****************************************************************************
+  !
   ! Date: 2017-05-30 modification of a bug in ew. Don Morton (CTBTO project)   *
+  !                                                                            *
+  ! Lucie Bakels, 2022                                                         *
+  !    - Separated the code into subroutines                                   *
+  !    - In case of wind_coord_type='ETA': keep ECMWF vertical winds in eta    *
+  !      coordinates                                                           *
+  !    - OpenMP parallelisation                                                *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *

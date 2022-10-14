@@ -40,6 +40,9 @@ subroutine calcfluxes(itime,nage,jpart,xold,yold,zold,thread)
   !                                                                            *
   !     04 April 2000                                                          *
   !                                                                            *
+  !     Changes                                                                *
+  !        2021 L. Bakels: OpenMP parallelisation                              *
+  !                                                                            *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *

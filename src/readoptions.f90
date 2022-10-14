@@ -1,6 +1,13 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
 
+!*****************************************************************************
+!                                                                            *
+!   L. Bakels 2022: This module contains all subroutines for                 *
+!                   reading option files                                     *
+!                                                                            *
+!*****************************************************************************
+
 module readoptions
   use par_mod
   use com_mod

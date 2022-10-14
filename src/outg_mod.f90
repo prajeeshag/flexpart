@@ -2,7 +2,13 @@
 ! SPDX-License-Identifier: GPL-3.0-or-later
 
 module outg_mod
-
+  !*****************************************************************************
+  !  Module storing and initialising grids                                     *
+  !                                                                            *
+  !  Changes                                                                   *
+  !     2022 L. Bakels: moved outgrid_init, outgrid_init_nest and              *
+  !                     initial_cond_calc to this module                       *
+  !*****************************************************************************
   use par_mod, only: dep_prec, sp
 
   implicit none
@@ -57,6 +63,8 @@ subroutine outgrid_init
   !                                                                            *
   !     7 August 2002                                                          *
   !                                                                            *
+  !  Changes                                                                   *
+  !     2022 L. Bakels: OpenMP parallelisation                                 *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *
@@ -430,6 +438,8 @@ subroutine outgrid_init_nest
   !                                                                            *
   !    30 August 2004                                                          *
   !                                                                            *
+  !  Changes                                                                   *
+  !     2022 L. Bakels: OpenMP parallelisation                                 *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *
@@ -681,6 +691,8 @@ subroutine initial_cond_calc(itime,i,thread)
   !                                                                            *
   !     15 January 2010                                                        *
   !                                                                            *
+  !  Changes                                                                   *
+  !     2022 L. Bakels: OpenMP parallelisation                                 *
   !*****************************************************************************
 
   use par_mod

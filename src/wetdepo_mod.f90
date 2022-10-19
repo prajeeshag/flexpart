@@ -33,7 +33,8 @@ subroutine wetdepo(itime,ltsample,loutnext)
   ! use centred precipitation data for integration                             *
   ! Code may not be correct for decay of deposition!                           *
   !                                                                            *
-  ! 2021 Andreas Plach: ???                                                    *
+  ! 2021 Andreas Plach: - moved backward wet depo. calc. here from timemanager *
+  !                     - bugfix in-cloud scavenging                           *
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *
@@ -465,7 +466,9 @@ subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc
       if (ngrid.gt.0.and.readclouds_this_nest) then
         cl=ctwcn(ix,jy,n,ngrid)*(grfraction(1)/cc)
       else if (ngrid.eq.0.and.readclouds) then
-        cl=ctwc(ix,jy,n)*(grfraction(1)/cc)
+         ! cl=ctwc(ix,jy,n)*(grfraction(1)/cc)
+         ! A.Plach 2021 cl should not become too small
+         cl=max(1E6*2E-7*prec(1)**0.36, ctwc(ix,jy,n)*(grfraction(1)/cc))
       else                                  !parameterize cloudwater m2/m3
   !ZHG updated parameterization of cloud water to better reproduce the values coming from ECMWF
   ! sec test

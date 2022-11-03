@@ -113,12 +113,12 @@ subroutine plumetraj(itime)
 
       ! eso: Temporary fix for particle exactly at north pole
       if (jyp >= nymax) then
-        write(*,*) 'WARNING: plume_mod.f90 jyp >= nymax. xt,yt:',part(i)%xlon),int(part(i)%ylat)
+        write(*,*) 'WARNING: plume_mod.f90 jyp >= nymax. xt,yt:',part(i)%xlon,part(i)%ylat
         jyp=jyp-1
       end if
 
       if (ixp >= nxmax) then
-        write(*,*) 'WARNING: plume_mod.f90 ixp >= nxmax. xt,yt:',part(i)%xlon),int(part(i)%ylat)
+        write(*,*) 'WARNING: plume_mod.f90 ixp >= nxmax. xt,yt:',part(i)%xlon,part(i)%ylat
         ixp=ixp-nxmax
       end if
 

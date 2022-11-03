@@ -743,7 +743,7 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
 
   implicit none
 
-  real(kind=dp) :: xt,yt,zt
+  real :: xt,yt,zt
   integer :: itime,i,j,k,memindnext
   integer :: ks,m!nix,njy,
   real :: prob(maxspec),vdepo(maxspec),vdeptemp(2)
@@ -792,7 +792,7 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
 
   ! Determine nested grid coordinates
   !**********************************
-  call determine_grid_coordinates(real(xt),real(yt))
+  call determine_grid_coordinates(xt,yt)
 
   ! Determine probability of deposition
   !************************************

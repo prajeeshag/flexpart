@@ -854,7 +854,7 @@ subroutine drydepo_probability(prob,dt,zts,vdepo)
   ! correction by Petra Seibert, 10 April 2001
   !   this formulation means that prob(n) = 1 - f(0)*...*f(n)
   !   where f(n) is the exponential term
-        prob=1.+(prob-1.)*exp(-vdepo(ns)*abs(dt)/(2.*href))
+        prob(ns)=1.+(prob(ns)-1.)*exp(-vdepo(ns)*abs(dt)/(2.*href))
         !if (pp.eq.535) write(*,*) 'advance1', ks,dtt,p1,vdep(ix,jy,ks,1)
       endif
     end do

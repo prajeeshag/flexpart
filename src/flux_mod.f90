@@ -9,6 +9,7 @@ module flux_mod
   use outg_mod
   use par_mod
   use com_mod
+  use windfields_mod
 
   implicit none
 

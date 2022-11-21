@@ -888,7 +888,7 @@ subroutine initialize_particle(itime,ipart)
 
   if (zeta.le.1.) then
 
-    call interpol_PBL(itime,xt,yt,zt)
+    call interpol_PBL(itime,xt,yt,zt,zteta)
 
   ! Vertical interpolation of u,v,w,rho and drhodz
   !***********************************************

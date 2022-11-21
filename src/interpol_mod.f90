@@ -520,7 +520,7 @@ end subroutine standard_deviation
 
 ! Interpolation functions
 !************************
-subroutine interpol_PBL(itime,xt,yt,zt)
+subroutine interpol_PBL(itime,xt,yt,zt,zteta)
   !                          i   i  i  i
   !*****************************************************************************
   !                                                                            *
@@ -553,10 +553,11 @@ subroutine interpol_PBL(itime,xt,yt,zt)
   implicit none
 
   integer, intent(in) :: itime
-  real, intent(in)    :: xt,yt,zt
+  real, intent(in)    :: xt,yt,zt,zteta
   integer             :: m,n,indexh
-  integer             :: iw(2),iuv(2),iweta(2)
-  real                :: uh1(2),vh1(2),wh1(2),rho1(2),rhograd1(2)
+  integer             :: iw(2),iweta(2)
+  real                :: uh1(2),vh1(2),wh1(2),wetah1(2),rho1(2),rhograd1(2)
+  real                :: dz1weta,dz2weta
   real,parameter      :: eps=1.0e-30
 
   ! Auxiliary variables needed for interpolation
@@ -615,6 +616,13 @@ subroutine interpol_PBL(itime,xt,yt,zt)
 
   iw(:)=(/ indz, indzp /)
 
+  ! w(eta) velocities are necessary for the Petterssen correction
+  !**************************************************************
+  if (wind_coord_type.eq.'ETA') then
+    call find_z_level_eta(zteta)
+    iweta(:)=(/ indzeta, indzpeta /)
+  endif
+
   !**************************************
   ! 1.) Bilinear horizontal interpolation
   ! 2.) Temporal interpolation (linear)
@@ -626,6 +634,8 @@ subroutine interpol_PBL(itime,xt,yt,zt)
     do n=1,2
       do m=1,2
         call horizontal_interpolation(ww,wh1(m),iw(n),memind(m),nzmax)
+        if (wind_coord_type.eq.'ETA') &
+          call horizontal_interpolation(wweta,wetah1(m),iweta(n),memind(m),nzmax)
         call horizontal_interpolation(rho,rho1(m),iw(n),memind(m),nzmax)
         call horizontal_interpolation(drhodz,rhograd1(m),iw(n),memind(m),nzmax)
         if (ngrid.lt.0) then
@@ -637,6 +647,8 @@ subroutine interpol_PBL(itime,xt,yt,zt)
         endif
       end do
       call temporal_interpolation(wh1(1),wh1(2),wprof(iw(n)))
+      if (wind_coord_type.eq.'ETA') &
+        call temporal_interpolation(wetah1(1),wetah1(2),wprofeta(iweta(n)))
       call temporal_interpolation(uh1(1),uh1(2),uprof(iw(n)))
       call temporal_interpolation(vh1(1),vh1(2),vprof(iw(n)))
       call temporal_interpolation(rho1(1),rho1(2),rhoprof(iw(n)))
@@ -646,12 +658,16 @@ subroutine interpol_PBL(itime,xt,yt,zt)
     do n=1,2
       do m=1,2
         call horizontal_interpolation_nests(wwn,wh1(m),iw(n),memind(m),nzmax)
+        if (wind_coord_type.eq.'ETA') &
+          call horizontal_interpolation_nests(wwetan,wetah1(m),iweta(n),memind(m),nzmax)
         call horizontal_interpolation_nests(uun,uh1(m),iw(n),memind(m),nzmax)
         call horizontal_interpolation_nests(vvn,vh1(m),iw(n),memind(m),nzmax)
         call horizontal_interpolation_nests(rhon,rho1(m),iw(n),memind(m),nzmax)
         call horizontal_interpolation_nests(drhodzn,rhograd1(m),iw(n),memind(m),nzmax)
       end do
       call temporal_interpolation(wh1(1),wh1(2),wprof(iw(n)))
+      if (wind_coord_type.eq.'ETA') &
+        call temporal_interpolation(wetah1(1),wetah1(2),wprofeta(iweta(n)))
       call temporal_interpolation(uh1(1),uh1(2),uprof(iw(n)))
       call temporal_interpolation(vh1(1),vh1(2),vprof(iw(n)))
       call temporal_interpolation(rho1(1),rho1(2),rhoprof(iw(n)))
@@ -659,6 +675,12 @@ subroutine interpol_PBL(itime,xt,yt,zt)
 
       indzindicator(iw(n))=.false.
     end do
+  endif
+
+  ! Only necessary for the Petterssen correction
+  if (wind_coord_type.eq.'ETA') then
+    call find_vertical_variables(wheight,zteta,indzeta,dz1weta,dz2weta,lbounds_w,.true.)
+    call vertical_interpolation(wprofeta(indzeta),wprofeta(indzpeta),dz1weta,dz2weta,weta)
   endif
 end subroutine interpol_PBL
 
@@ -689,7 +711,7 @@ subroutine interpol_PBL_misslev()
   implicit none
 
   integer             :: n,iw(2)
-  real                :: uh1(2),vh1(2),wetah1(2),wh1(2),rho1(2),rhograd1(2)
+  real                :: uh1(2),vh1(2),wh1(2),rho1(2),rhograd1(2)
   integer             :: m
 
 
@@ -741,7 +763,7 @@ subroutine interpol_PBL_short(zt,rhoa,rhograd)
   implicit none 
   real, intent(in)    :: zt
   real, intent(inout) :: rhoa,rhograd
-  real                :: dz1,dz2  
+  real                :: dz1,dz2
 
   call find_vertical_variables(height,zt,indz,dz1,dz2,lbounds,.false.)
 
@@ -1055,7 +1077,6 @@ subroutine interpol_wind_eta(zt,zteta,iw,iuv,iweta)
 
   ! Vertical distance to the level below and above current position
   !****************************************************************
-  call find_vertical_variables(height,zt,indz,dz1w,dz2w,lbounds,.false.)
   call find_vertical_variables(uvheight,zteta,induv,dz1uv,dz2uv,lbounds_uv,.false.)
   call find_vertical_variables(wheight,zteta,indzeta,dz1weta,dz2weta,lbounds_w,.true.)
 
@@ -1064,7 +1085,6 @@ subroutine interpol_wind_eta(zt,zteta,iw,iuv,iweta)
   if (ngrid.le.0) then ! No nest
     do m=1,2
       do n=1,2
-        call horizontal_interpolation(ww,wh1(n),iw(n),memind(m),nzmax)
         call horizontal_interpolation(wweta,wetah1(n),iweta(n),memind(m),nzmax)
         if (ngrid.lt.0) then
           call horizontal_interpolation(uupoleta,uh1(n),iuv(n),memind(m),nzmax)
@@ -1074,7 +1094,6 @@ subroutine interpol_wind_eta(zt,zteta,iw,iuv,iweta)
           call horizontal_interpolation(vveta,vh1(n),iuv(n),memind(m),nzmax)
         endif
       end do
-      call vertical_interpolation(wh1(1),wh1(2),dz1w,dz2w,wh(m))
       call vertical_interpolation(uh1(1),uh1(2),dz1uv,dz2uv,uh(m))
       call vertical_interpolation(vh1(1),vh1(2),dz1uv,dz2uv,vh(m))
       call vertical_interpolation(wetah1(1),wetah1(2),dz1weta,dz2weta,wetah(m))
@@ -1082,18 +1101,15 @@ subroutine interpol_wind_eta(zt,zteta,iw,iuv,iweta)
   else ! Nest
     do m=1,2
       do n=1,2
-        call horizontal_interpolation_nests(wwn,wh1(n),iw(n),memind(m),nzmax)
         call horizontal_interpolation_nests(wwetan,wetah1(n),iweta(n),memind(m),nzmax)
         call horizontal_interpolation_nests(uuetan,uh1(n),iuv(n),memind(m),nzmax)
         call horizontal_interpolation_nests(vvetan,vh1(n),iuv(n),memind(m),nzmax)
       end do
-      call vertical_interpolation(wh1(1),wh1(2),dz1w,dz2w,wh(m))
       call vertical_interpolation(uh1(1),uh1(2),dz1uv,dz2uv,uh(m))
       call vertical_interpolation(vh1(1),vh1(2),dz1uv,dz2uv,vh(m))
       call vertical_interpolation(wetah1(1),wetah1(2),dz1weta,dz2weta,wetah(m))
     end do    
   endif
-  call temporal_interpolation(wh(1),wh(2),w)
   call temporal_interpolation(uh(1),uh(2),u)
   call temporal_interpolation(vh(1),vh(2),v)
   call temporal_interpolation(wetah(1),wetah(2),weta)

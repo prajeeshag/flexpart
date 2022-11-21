@@ -224,6 +224,45 @@ subroutine zeta_to_z(itime,xt,yt,zteta,ztout)
   ztout = ztemp1 + (ztemp2-ztemp1)/log(pr2/pr1)*log(prx/pr1)
 end subroutine zeta_to_z
 
+subroutine w_to_weta(itime,dt,xt,yt,z_old,zeta_old,w_in,weta_out)
+  !*****************************************************************************
+  ! Converting z from meter coordinates to eta using logarithmic vertical      *
+  ! interpolation                                                              *
+  !*****************************************************************************
+  !                                                                            *
+  ! Variables:                                                                 *
+  ! itime [s]          current temporal position                               *
+  ! xt,yt,zold,zold    spatial positions of trajectory (meters)                *
+  ! zteta              vertical position in eta coordinates (output)           *
+  !                                                                            *
+  ! etauvheight defined in windfields: half model heights for ETA coordinates  *
+  ! Constants:                                                                 *
+  !                                                                            *
+  !*****************************************************************************
+  use interpol_mod
+
+  implicit none
+  integer, intent(in)          ::  &
+    itime                            ! time index
+  integer                      ::  &
+    i,m,k,n                          ! loop indices
+  real, intent(in)             ::  &
+    dt                               ! time step
+  real(kind=dp), intent(in)    ::  &
+    xt,yt,z_old,zeta_old              ! particle position
+  real, intent(in)             ::  &
+    w_in                             ! w in meters/s
+  real, intent(inout)          ::  &
+    weta_out                         ! converted output w in meters to eta
+  real(kind=dp)                ::  &
+    znew
+
+  call z_to_zeta(itime,xt,yt,z_old+real(w_in*dt,kind=dp),znew)
+
+  weta_out=real(znew-zeta_old)/dt
+
+end subroutine w_to_weta
+
 subroutine z_to_zeta_lin(itime,xt,yt,zold,zteta)
   !*****************************************************************************
   ! Converting z from meter coordinates to eta using linear interpolation      *

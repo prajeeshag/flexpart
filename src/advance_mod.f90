@@ -268,6 +268,7 @@ subroutine advance(itime,ipart,thread)
   endif
 
   call advance_updateXY(dxsave,dysave,ipart)
+  if (part(ipart)%nstop.eqv..true.) return
 
   ! If particle above highest model level, set it back into the domain
   !*******************************************************************
@@ -765,14 +766,14 @@ subroutine advance_updateXY(xchange,ychange,ipart)
 
   ! HSO/AL: Prevent particles from disappearing at the pole
   !******************************************************************
-  if ( part(ipart)%ylat.lt.0. ) then
+  if (sglobal .and. part(ipart)%ylat.lt.0. ) then
     call set_xlon(ipart,mod(part(ipart)%xlon+real(nxmin1/2.,kind=dp),real(nxmin1,kind=dp)))
     call set_ylat(ipart,-part(ipart)%ylat)
     ! In extremely rare cases, the ylat exceeds the bounds, so we set it back into the domain here
     if ( part(ipart)%ylat.gt.real(nymin1,kind=dp) ) then
       call set_ylat(ipart,real(nymin1,kind=dp)-mod(part(ipart)%ylat,real(nymin1,kind=dp)))
     endif
-  else if ( part(ipart)%ylat.gt.real(nymin1,kind=dp) ) then
+  else if (nglobal .and. part(ipart)%ylat.gt.real(nymin1,kind=dp) ) then
     call set_xlon(ipart,mod(part(ipart)%xlon+real(nxmin1/2.,kind=dp),real(nxmin1,kind=dp)))
     call set_ylat(ipart,2.*real(nymin1,kind=dp)-part(ipart)%ylat)
   endif

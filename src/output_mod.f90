@@ -1355,6 +1355,8 @@ subroutine partpos_average(itime,j)
 
   if (.not. part(j)%alive) return
 
+  if (part(j)%nstop) return ! If particle is to be killed, averages cannot be computed
+
  ! Some variables needed for temporal interpolation
   !*************************************************
   call find_time_variables(itime)

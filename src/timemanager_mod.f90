@@ -417,7 +417,7 @@ subroutine timemanager
         enddo
       endif
 
-  ! Integrate Lagevin equation for lsynctime seconds
+  ! Integrate Langevin equation for lsynctime seconds
   !*************************************************
 
       call advance(itime,j,thread)

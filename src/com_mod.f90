@@ -198,8 +198,8 @@ module com_mod
   real :: rgs(maxspec,5,numclass),rlu(maxspec,5,numclass)
   real :: rm(maxspec),dryvel(maxspec),kao(maxspec)
   real :: ohcconst(maxspec),ohdconst(maxspec),ohnconst(maxspec)
-  ! Daria Tatsii: species properties regarding shape
-  real :: la(maxspec),ia(maxspec),sa(maxspec)
+  ! Daria Tatsii: species shape properties
+  real :: Fn(maxspec),Fs(maxspec) ! Newton and Stokes' regime
   integer :: shape(maxspec),orient(maxspec)
 
   real :: area_hour(maxspec,24),point_hour(maxspec,24)
@@ -354,30 +354,6 @@ module com_mod
   !  else maxpointspec is 1 -> moved to unc_mod
   !  the OUTGRID is moved to the module outg_mod
   !******************************************************************************
-
-  !real gridunc(0:maxxgrid-1,0:maxygrid-1,maxzgrid,maxspec,
-  !    +             maxpointspec_act,nclassunc,maxageclass)
-  !real griduncn(0:maxxgridn-1,0:maxygridn-1,maxzgrid,maxspec,
-  !    +              maxpointspec_act,nclassunc,maxageclass)
-  !real wetgridunc(0:maxxgrid-1,0:maxygrid-1,maxspec,
-  !    +                maxpointspec_act,nclassunc,maxageclass)
-  !real wetgriduncn(0:maxxgridn-1,0:maxygridn-1,maxspec,
-  !    +ct                 maxpointspec,nclassunc,maxageclass)
-  !real drygridunc(0:maxxgrid-1,0:maxygrid-1,maxspec,maxpointspec,
-  !    +                nclassunc,maxageclass)
-  !real drygriduncn(0:maxxgridn-1,0:maxygridn-1,maxspec,
-  !    +                 maxpointspec,nclassunc,maxageclass)
-
-  !real oroout(0:maxxgrid-1,0:maxygrid-1)
-  !real orooutn(0:maxxgridn-1,0:maxygridn-1)
-  !     real area(0:maxxgrid-1,0:maxygrid-1)
-  !real arean(0:maxxgridn-1,0:maxygridn-1)
-  !real volume(0:maxxgrid-1,0:maxygrid-1,maxzgrid)
-  !real volumen(0:maxxgridn-1,0:maxygridn-1,maxzgrid)
-
-  !real areaeast(0:maxxgrid-1,0:maxygrid-1,maxzgrid)
-  !real areanorth(0:maxxgrid-1,0:maxygrid-1,maxzgrid)
-
 
   ! gridunc,griduncn        uncertainty of outputted concentrations
   ! wetgridunc,wetgriduncn  uncertainty of accumulated wet deposited mass on output grid

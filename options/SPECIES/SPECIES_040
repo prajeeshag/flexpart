@@ -19,9 +19,10 @@
  POHCCONST=-0.9E-9,           ! OH Reaction rate - C [cm^3/molecule/sec]
  POHDCONST=-9.9,              ! OH Reaction rate - D [K]
  POHNCONST=2.0,               ! OH Reaction rate - C [cm^3/molecule/sec]
- PSHAPE=1,                    ! 0 for sphere, 1 for other shapes
- PLA=940,                     ! Longest axis in micrometer (Bagheri & Bonadonna 2016)
- PIA=9.4,                     ! Intermediate axis
- PSA=9.4,                     ! Smallest axis
- PORIENT=0,                   ! 0 for horizontal, 1 for random orientation of particles
+ PSHAPE=1,                    ! 0 for sphere, 1 any shape (defined by axes PLA,PIA,PSA), 2-cylinder, 3-cube, 4-tetrahedron, 5-octahedron, 6-ellipsoid
+ PASPECTRATIO=20.0            ! Aspect ratio of cylinders: works for PSHAPE=2 only
+ PLA=940,                     ! Longest axis in micrometer (Bagheri & Bonadonna 2016): only for PSHAPE=1
+ PIA=9.4,                     ! Intermediate axis in micrometer: only for PSHAPE=1
+ PSA=9.4,                     ! Smallest axis in micrometer: only for PSHAPE=1
+ PORIENT=0,                   ! 0 for horizontal, 1 for random orientation of particles, 2 for an average between random and horizontal
  /

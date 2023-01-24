@@ -1290,8 +1290,8 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
   real :: schmi(maxspec,maxndia)
   real :: stokes,vdepj,rdp,alpha
   real :: & ! Variables related to shape
-    dfdr, f, e, Fn, Fs, alpha2, beta2, ks, kn, c_d, &
-    settling, settling_old, reynolds
+    dfdr, alpha1, alpha2, beta1, beta2, ks, kn, c_d, &
+    settling, settling_old, reynolds, ks1, ks2, kn1, kn2
 
   real,parameter :: eps=1.e-5
   integer :: ic,j,nc,i
@@ -1301,9 +1301,7 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
     if (density(ic).gt.0.) then
       do j=1,ndia(ic)         ! loop over all diameter intervals
         if (ustar.gt.eps) then          
-          if ((shape(ic).eq.0).or.(dquer(ic).le.d_thresheqv)) then
-
-
+          if (shape(ic).eq.0) then
 
             ! Stokes number for each diameter interval
             !*****************************************
@@ -1320,36 +1318,48 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
               rdp=1./((schmi(ic,j)+10.**alpha)*ustar)
             endif
             vdepj=vset(ic,j)+1./(ra+rdp+ra*rdp*vset(ic,j))
-          else ! shape factor accounted for and large enough particle
-               ! Daria Tatsii: Bagheri & Bonadonna 2016
+          else ! Daria Tatsii: Drag coefficient scheme by Bagheri & Bonadonna 2016
+               ! Settling velocities of other shapes
             dfdr=density(ic)/rhoa
-            ! When using the shape option, dquer is the sphere equivalent diameter
-            f=sa(ic)/ia(ic)
-            e=ia(ic)/la(ic)
-            Fn=f*f*e*((dquer(ic))**3)/(sa(ic)*ia(ic)*la(ic)) ! Newton's regime
-            Fs=f*e**(1.3)*(dquer(ic)**3/(sa(ic)*ia(ic)*la(ic))) ! Stokes' regime
 
             reynolds=dquer(ic)/1.e6*vset(ic,j)/nyl
             settling_old=-1.0*vset(ic,j)
 
-            if (orient(ic).eq.1) then
-              alpha2=0.45+10.0/(exp(2.5*log10(dfdr))+30.0)
-              beta2=1.-37.0/(exp(3.0*log10(dfdr))+100.0)
-              ks=(Fs**(1./3.) + Fs**(-1./3))/2.
-            else
+            ! Orientation of particles
+            !*************************
+            if (orient(ic).eq.1) then 
+              ! Random orientation
+              alpha1=0.45+10.0/(exp(2.5*log10(dfdr))+30.0)
+              beta1=1.-37.0/(exp(3.0*log10(dfdr))+100.0)
+              ks=(Fs(ic)**(1./3.) + Fs(ic)**(-1./3))/2.
+              kn=10.**(alpha1*(-log10(Fn(ic)))**beta1)
+            else if (orient(ic).eq.2) then
+              ! Horizontal orientation
               alpha2=0.77 ! B&B: eq. 32
               beta2=0.63
-              ks=0.5*((Fs**0.05)+(Fs**(-0.36)))  ! B&B Figure 12 k_(s,max)
+              ks=0.5*((Fs(ic)**0.05)+(Fs(ic)**(-0.36)))  ! B&B Figure 12 k_(s,max)
+              kn=10.**(alpha2*(-log10(Fn(ic)))**beta2)
+            else
+              ! The average of random and horizontal orientation
+              alpha1=0.45+10.0/(exp(2.5*log10(dfdr))+30.0)
+              beta1=1.-37.0/(exp(3.0*log10(dfdr))+100.0)
+              alpha2=0.77 ! B&B: eq. 32
+              beta2=0.63
+              ks1=(Fs(ic)**(1./3.) + Fs(ic)**(-1./3))/2.
+              kn1=10.**(alpha1*(-log10(Fn(ic)))**beta1)
+              ks2=0.5*((Fs(ic)**0.05)+(Fs(ic)**(-0.36)))  ! B&B Figure 12 k_(s,max)
+              kn2=10.**(alpha2*(-log10(Fn(ic)))**beta2)
+              ks=(ks1+ks2)/2.
+              kn=(kn1+kn2)/2.
             endif
-
-            kn=10.**(alpha2*(-log10(Fn))**beta2)
 
             do i=1,20
               c_d=(24.*ks/reynolds)*(1.+0.125*((reynolds*kn/ks)**(2./3.)))+ &
                 (0.46*kn/(1.+5330./(reynolds*kn/ks)))
 
+              ! Settling velocity of a particle is defined by the Newton's impact law:
               settling=-1.* &
-                      sqrt(4.*ga*dquer(ic)/1.e6*(density(ic)-rhoa)/ &
+                      sqrt(4.*ga*dquer(ic)/1.e6*density(ic)*cunningham(ic)/ &
                       (3.*c_d*rhoa))
 
               if (abs((settling-settling_old)/settling).lt.0.01) exit
@@ -1376,15 +1386,8 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
           
       end do
     endif
-
-
   end do
 
-  !if (debug_mode) then
-  !  print*, 'partdep:122:'
-  !  write(*,*) (vdep(ic), ic=1,nc)
-    !stop
-  !endif
 end subroutine partdep
 
 subroutine getrb(nc,ustar,nyl,diffh2o,reldiff,rb)

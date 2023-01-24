@@ -2501,7 +2501,9 @@ subroutine readspecies(id_spec,pos_spec)
   integer :: pndia
   integer :: readerror
   integer :: pshape,porient
-  real ::pla,pia,psa
+  ! Daria Tatsii: species shape properties
+  real ::pla,pia,psa,f,e,paspectratio
+  real :: la(maxspec),ia(maxspec),sa(maxspec) ! Axes
 
   ! declare namelist
   namelist /species_params/ &
@@ -2510,7 +2512,7 @@ subroutine readspecies(id_spec,pos_spec)
        preldiff, phenry, pf0, pdensity, pdquer, &
        pdsigma, pndia, pdryvel, pweightmolar, pohcconst, pohdconst, pohnconst, &
        parea_dow, parea_hour, ppoint_dow, ppoint_hour, &
-       pshape, pla, pia, psa, porient
+       pshape, paspectratio, pla, pia, psa, porient
 
   pspecies="" ! read failure indicator value
   pdecay=-999.9
@@ -2537,9 +2539,10 @@ subroutine readspecies(id_spec,pos_spec)
   ppoint_dow=-999.9
   ppoint_hour=-999.9
   pshape=0 ! 0 for sphere, 1 for other shapes
-  pla=0. ! longest axis in micrometer
-  pia=0. ! Intermediate axis
-  psa=0. ! Smallest axis
+  paspectratio=-1.
+  pla=-1. ! longest axis in micrometer
+  pia=-1. ! Intermediate axis
+  psa=-1. ! Smallest axis
   porient=0 ! 0 for horizontal, 1 for random
 
 
@@ -2689,10 +2692,86 @@ subroutine readspecies(id_spec,pos_spec)
     ohdconst(pos_spec)=pohdconst
     ohnconst(pos_spec)=pohnconst
     shape(pos_spec)=pshape
-    la(pos_spec)=pla
-    ia(pos_spec)=pia
-    sa(pos_spec)=psa
     orient(pos_spec)=porient
+
+
+    ! Daria Tatsii 2023: compute particle shape dimensions
+    if (shape(pos_spec).ge.1) then ! Compute shape according to given axes
+      select case (shape(pos_spec))
+        case (1)
+          write(*,*) "Particle shape USER-DEFINED for particle", id_spec
+          if ((psa.le.0.0).or.(pia.le.0.0).or.(pla.le.0.0)) then
+            write(*,*) "#### ERROR: Shape=1 (user-defined) is chosen, but no valid axes are provided."
+            write(*,*) "#### SPECIES file requires SA, IA, and LA parameter greater than zero."
+            stop
+          endif
+          write(*,*) "SA,IA,LA:",psa,pia,pla
+        case (2) ! Cylinders (fibers) !
+          if (paspectratio.le.0.0) then
+            write(*,*) "#### ERROR: Shape=2 cylinder is chosen, but no valid apect ratio is provided."
+            write(*,*) "#### SPECIES file requires ASPECTRATIO parameter greater than zero."
+            stop
+          endif
+          psa=(((dquer(pos_spec)**3.0)*2.0)/ &
+                  (3.0*paspectratio))**(1.0/3.0)
+          pia=psa
+          pla=psa*paspectratio
+          write(*,*) "Particle shape CYLINDER for particle", id_spec
+          write(*,*) "SA,IA,LA:",psa,pia,pla
+        case (3) ! Cubes !
+          write(*,*) "Particle shape CUBE for particle", id_spec
+          psa=((dquer(pos_spec)**3)*pi/6.0)**(1.0/3.0)
+          pia=(2.0**0.5)*psa
+          pla=(3.0**0.5)*psa
+          if ((psa.le.0.0).or.(pia.le.0.0).or.(pla.le.0.0)) then
+            write(*,*) "#### ERROR: Shape=1 (user-defined) is chosen, but no valid axes are provided."
+            write(*,*) "#### SPECIES file requires SA, IA, and LA parameter greater than zero."
+            stop
+          endif
+          write(*,*) "SA,IA,LA:",psa,pia,pla
+        case (4) ! Tetrahedrons !
+          write(*,*) "Particle shape TETRAHEDRON for particle", id_spec
+          pla=((dquer(pos_spec)**3)*pi*2**(0.5))**(1.0/3.0)
+          pia=pla*((3.0/4.0)**(0.5))
+          psa=pla*((2.0/3.0)**(0.5))
+          if ((psa.le.0.0).or.(pia.le.0.0).or.(pla.le.0.0)) then
+            write(*,*) "#### ERROR: Shape=1 (user-defined) is chosen, but no valid axes are provided."
+            write(*,*) "#### SPECIES file requires SA, IA, and LA parameter greater than zero."
+            stop
+          endif
+          write(*,*) "SA,IA,LA:",psa,pia,pla
+        case (5) ! Octahedrons !
+          write(*,*) "Particle shape OCTAHEDRON for particle", id_spec
+          psa=dquer(pos_spec)*(pi/(2.0*2.0**(0.5)))**3
+          pia=psa
+          pla=psa*(2.0**(0.5))
+          if ((psa.le.0.0).or.(pia.le.0.0).or.(pla.le.0.0)) then
+            write(*,*) "#### ERROR: Shape=1 (user-defined) is chosen, but no valid axes are provided."
+            write(*,*) "#### SPECIES file requires SA, IA, and LA parameter greater than zero."
+            stop
+          endif
+          write(*,*) "SA,IA,LA:",psa,pia,pla
+        case (6) ! Ellipsoids !
+          write(*,*) "Particle shape ELLIPSOID for particle", id_spec
+          psa=dquer(pos_spec)/(2.0**(1.0/3.0)) 
+          pia=psa
+          pla=2*pia
+          if ((psa.le.0.0).or.(pia.le.0.0).or.(pla.le.0.0)) then
+            write(*,*) "#### ERROR: Shape=1 (user-defined) is chosen, but no valid axes are provided."
+            write(*,*) "#### SPECIES file requires SA, IA, and LA parameter greater than zero."
+            stop
+          endif
+          write(*,*) "SA,IA,LA:",psa,pia,pla
+      end select
+
+      ! When using the shape option, dquer is the sphere equivalent diameter
+      f=psa/pia
+      e=pia/pla
+      Fn(pos_spec)=f*f*e*((dquer(pos_spec))**3)/(psa*pia*pla) ! Newton's regime
+      Fs(pos_spec)=f*e**(1.3)*(dquer(pos_spec)**3/(psa*pia*pla)) ! Stokes' regime  
+    else ! Spheres
+      write(*,*) "Particle shape SPHERE for particle", id_spec
+    endif
 
     do j=1,24     ! 24 hours, starting with 0-1 local time
       area_hour(pos_spec,j)=parea_hour(j)
@@ -2713,9 +2792,9 @@ subroutine readspecies(id_spec,pos_spec)
   ! ZHG 2016.04.07 Start of changes
     write(*,*) ' '
     if (dquer(pos_spec) .gt.0)  write(*,'(a,i3,a,a,a)')       ' SPECIES: ', &
-         &id_spec,'  ', species(pos_spec),'  (AEROSOL) '
+         id_spec,'  ', species(pos_spec),'  (AEROSOL) '
     if (dquer(pos_spec) .le.0)  write(*,'(a,i3,a,a,a)')       ' SPECIES: ', &
-         &id_spec,'  ', species(pos_spec),'  (GAS) '
+         id_spec,'  ', species(pos_spec),'  (GAS) '
 
   ! Particles
   !**********

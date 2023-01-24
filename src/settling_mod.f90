@@ -71,7 +71,7 @@ subroutine get_settling(itime,xt,yt,zt,nsp,settling)
   integer :: i,n,nix,njy,indzh
 
   ! Variables needed for drag coefficient calculation
-  real :: dfdr,f,e,Fn,Fs,kn,ks,alpha2,beta2
+  real :: dfdr,f,e,kn,ks,alpha2,beta2
 
   !*****************************************************************************
   ! 1. Interpolate temperature and density: nearest neighbor interpolation sufficient
@@ -150,23 +150,18 @@ subroutine get_settling(itime,xt,yt,zt,nsp,settling)
 
   else ! Daria Tatsii: Bagheri & Bonadonna 2016
     dfdr=density(nsp)/airdens
-    ! When using the shape option, dquer is the sphere equivalent diameter
-    f=sa(nsp)/ia(nsp)
-    e=ia(nsp)/la(nsp)
-    Fn=f*f*e*((dquer(nsp))**3)/(sa(nsp)*ia(nsp)*la(nsp)) ! Newton's regime
-    Fs=f*e**(1.3)*(dquer(nsp)**3/(sa(nsp)*ia(nsp)*la(nsp))) ! Stokes' regime
 
     if (orient(nsp).eq.1) then
       alpha2=0.45+10.0/exp(2.5*log10(dfdr)+30.0)
       beta2=1.0-37.0/exp(3.0*log10(dfdr)+100.0)
-      ks=(Fs**(1./3.) + Fs**(-1./3))/2.
+      ks=(Fs(nsp)**(1./3.) + Fs(nsp)**(-1./3))/2.
     else
       alpha2=0.77 ! B&B: eq. 32
       beta2=0.63
-      ks=0.5*((Fs**0.05)+(Fs**(-0.36)))           ! horizontal orientation ???
+      ks=0.5*((Fs(nsp)**0.05)+(Fs(nsp)**(-0.36)))           ! horizontal orientation ???
     endif
 
-    kn=10.**(alpha2*(-log10(Fn))**beta2)
+    kn=10.**(alpha2*(-log10(Fn(nsp)))**beta2)
 
     do i=1,20
       c_d=(24.*ks/reynolds)*(1.+0.125*((reynolds*kn/ks)**(2./3.)))+ &

@@ -422,6 +422,7 @@ subroutine timemanager
 
       call advance(itime,j,thread)
 
+      if (part(j)%nstop.eqv..true.) cycle
       if (n_average.gt.0) call partpos_average(itime,j)
 
   ! Calculate the gross fluxes across layer interfaces

@@ -780,7 +780,9 @@ subroutine advance_updateXY(xchange,ychange,ipart)
 
   ! Check position: If trajectory outside model domain, terminate it
   !*****************************************************************
-  if (gdomainfill) return ! Not necessary to check when using global domain
+  ! Not necessary to check when using global domain, but some problems in the meteo data could cause particles
+  ! to go crazy.
+  ! if (gdomainfill) return 
   if ((part(ipart)%xlon.lt.0.).or.(part(ipart)%xlon.ge.real(nxmin1,kind=dp)).or.(part(ipart)%ylat.lt.0.).or. &
        (part(ipart)%ylat.gt.real(nymin1,kind=dp))) then
     part(ipart)%nstop=.true.

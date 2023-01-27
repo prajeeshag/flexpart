@@ -11,7 +11,10 @@ In addition to the regular input files listed above, a simulation can also be st
 These files define the simulation settings. At the start of a simulation, a copy of each file will be written to the output directory defined in the **pathnames file**.
 All option files should be presented as namelists (i.e. &OPTIONFILE).
 ### COMMAND
-Sets the behaviour of the run (time range, backward or forward, output frequency, etc.). A table of all options is listed below
+Sets the behaviour of the run (time range, backward or forward, output frequency, etc.). A table of all options is listed below.
+- Time variables: Flexpart can be run in forward or backward mode. In forward mode, particles are being traced forward in time, while in backward more, the origin of particles are being traced, going backward in time. This can be set by the LDIRECT variable. The start and end of the simulation are set by IBDATE:IBTIME and IEDATE:IETIME. IEDATE:IETIME is always at a later time than IBDATE:IBTIME, also for backwards simulations. Output variables can be written at specified times: LOUTSTEP, and restart files will be written at every LOUTRESTART interval.
+- Numerical variables: LSYNCTIME and LOUTSAMPLE set the integration interval, smaller generally giving better results, although below a certain number, not much will be gained. With the CTL and IFINE setting, you can make integration steps even smaller for the turbulence computations.
+
 | Variable name | Description | Value **default** |
 | ----------- | ----------- | ----------- |
 | LDIRECT | Simulation direction in time | **1 (forward)** or -1 (backward) |
@@ -31,7 +34,7 @@ Sets the behaviour of the run (time range, backward or forward, output frequency
 | LSUBGRID | Increase in ABL heights due to subgrid-scale orographic variations | **0 (off)**, 1 (on) |
 | LCONVECTION | Switch for convection parameterization | 0 (off), **1 (on)** |
 | LAGESPECTRA | Switch for calculation of age spectra (needs file AGECLASSES option file) | 0 (off), **1 (on)** |
-| IPIN | Particle information input | **0 (using RELEASES option file)**, 1 (using restart.bin file), 2 (using previous partoutput file), 3 (self made initial conditions), 4 (restart.bin and self made initial conditions) |
+| IPIN | Particle information input. Starting from RELEASES option file, form restart.bin, or user-defined particle input data (see Silvia Bucci's stuff) | **0 (using RELEASES option file)**, 1 (using restart.bin file), 2 (using previous partoutput file), 3 (self made initial conditions), 4 (restart.bin and self made initial conditions) |
 | IOUTPUTFOREACHRELEASE | Switch for separate output fields for each location in the RELEASE file | 0 (no), **1 (yes)** |
 | IFLUX | Output of mass fluxes through output grid box boundaries (northward, southward, eastward, westward, upward and downward) | 0 (off), **1 (on)** |
 | MDOMAINFILL | Switch for domain-filling calculations: particles are initialized to reproduce air density or stratospheric ozone density; for limited-area simulations, particles are generated at the domain boundaries | **0 (no)**, 1 (like air density), 2 (stratospheric ozone tracer) |
@@ -39,7 +42,7 @@ Sets the behaviour of the run (time range, backward or forward, output frequency
 | IND_RECEPTOR | Unit to be used at the receptor; see Seibert and Frank (2004); Eckhardt et al. (2017) | 0 (no receptor), **1 (mass)**, 2 (mass mixing ratio), 3 (backward only: wet deposition),  4 (backward only: dry depostion) |
 | MQUASILAG | Quasi-Lagrangian mode to track individual numbered particles | **0 (off)**, 1 (on) |
 | NESTED_OUTPUT | Switch to produce output also for a nested domain | **0 (no)**, 1 (yes) |
-| LINIT_COND | Switch to produce output sensitivity to initial conditions given in concentration or mixing ratio units (in backwards mode only) | **0 (no receptor)**, 1 (mass), 2 (mass mixing ratio) |
+| LINIT_COND | Switch to produce output sensitivity to initial conditions given in concentration or mixing ratio units (in backwards mode only) | **0 (no)**, 1 (mass), 2 (mass mixing ratio) |
 | SURF_ONLY | Output of SRR for fluxes only for the lowest model layer, most useful for backward runs when LINIT_COND set to 1 or 2 | **0 (no)**, 1 (yes) |
 | CBLFLAG | Skewed rather than Gaussian turbulence in the convective ABL; when turned on, very short time steps should be used (see CTL and IFINE) | **0 (no)**, 1 (yes) |
 ### RELEASES
@@ -54,7 +57,7 @@ Sets the behaviour of the run (time range, backward or forward, output frequency
 
 ## AVAILABLE file
 
-## Restarting a simulation
+# Restarting a simulation
 In case your simulation crashes or if you simply want to extend your simulation period, it is possible to run using the restart option (COMMAND option file: IPIN=1). You will need to decide if you will need this option before starting your initial simulation: LOUTRESTART in the COMMAND option file needs to be set to an appropriate time interval. For example, you can choose to set LOUTRESTART = 172800 s to get a new restart file ever 2 days. The restart files are written in binary and their name specifies the time within your simulation period they are written.
 
 To run from one of these files, simply rename the desired restart_XXX.bin file to restart.bin, set IPIN=1 and you can restart your run from there.

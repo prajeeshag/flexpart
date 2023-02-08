@@ -2488,9 +2488,11 @@ subroutine readinitconditions_netcdf()
 
   implicit none 
 
-  integer             :: ncidend,tIDend,pIDend,tempIDend
-  integer             :: plen,tend,i
+  integer             :: ncidend,tIDend,pIDend,tempIDend,stat
+  integer             :: plen,tend,i,j,release_max,nsp
   real                :: totmass
+  integer,allocatable, dimension (:) :: specnum_rel,numpoint_max
+  real,allocatable,dimension(:,:) :: mass_temp
 
   integer :: idummy = -8
   
@@ -2502,6 +2504,19 @@ subroutine readinitconditions_netcdf()
   ! Open part_ic.nc file
   call nf90_err(nf90_open(trim(path(2)(1:length(2))//'part_ic.nc'), mode=NF90_NOWRITE,ncid=ncidend))
 
+  ! allocate with maxspec for first input loop
+  allocate(specnum_rel(maxspec),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate specnum_rel'
+
+
+  ! How many species are contained in each particle?
+  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='nspecies',varid=tempIDend))
+  call nf90_err(nf90_get_att(ncid=ncidend,varid=tempIDend,name='nspecies',values=nspec))
+
+  ! Which species?
+  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='species',varid=tempIDend))
+  call nf90_err(nf90_get_att(ncid=ncidend,varid=tempIDend,name='species',values=specnum_rel(1:nspec)))
+
   ! Get the particle dimension
   call nf90_err(nf90_inq_dimid(ncid=ncidend,name='particle',dimid=pIDend))
   call nf90_err(nf90_inquire_dimension(ncid=ncidend,dimid=pIDend,len=plen))
@@ -2509,6 +2524,8 @@ subroutine readinitconditions_netcdf()
   ! Now spawn the correct number of particles
   write(*,*) 'Npart:',plen
   call allocate_particles( plen )
+  ! allocate temporary mass array
+  allocate(mass_temp(plen,nspec))
 
   ! And give them the correct positions
   ! Longitude
@@ -2531,28 +2548,75 @@ subroutine readinitconditions_netcdf()
     start=(/ 1 /),count=(/ plen /)))
   ! Mass
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='mass',varid=tempIDend))
-  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%mass(1), & 
+  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=mass_temp, & 
+    start=(/ 1,1 /),count=(/ plen,nspec /)))
+  do nsp=1,nspec
+    part(:)%mass(nsp)=mass_temp(1:plen,nsp)
+  end do
+  deallocate(mass_temp)
+  ! Release
+  call nf90_err(nf90_inq_varid(ncid=ncidend,name='release',varid=tempIDend))
+  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%npoint, & 
     start=(/ 1 /),count=(/ plen /)))
   ! ! Species
   ! call nf90_err(nf90_inq_varid(ncid=ncidend,name='species',varid=tempIDend))
   ! call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%species, & 
   !   start=(/ 1 /),count=(/ plen /)))
 
-  totmass=0.
+  ! Count number of releases
+  numpoint=1
+  allocate(numpoint_max(plen),stat=stat)
+  numpoint_max=0
+  release_max=0
+
+  l1: do i=1,plen
+    l2: do j=1,numpoint
+      if (part(i)%npoint.eq.numpoint_max(numpoint)) then
+        cycle l1
+      endif
+    end do l2
+    numpoint = numpoint+1
+    numpoint_max(numpoint)=part(i)%npoint
+    if (part(i)%npoint.gt.release_max) release_max=part(i)%npoint
+  end do l1
+
+  if (release_max.gt.numpoint) then
+    write(*,*) "WARNING: release numbers in part_ic.nc are not consecutive:", &
+      release_max, "is larger than the total number of releases:", numpoint, &
+      " Releases will be renumbered."
+
+    do j=1,numpoint
+      do i=1,plen
+        if (part(i)%npoint.eq.numpoint_max(j)) then
+          part(i)%npoint=numpoint_max(j)
+        endif
+      end do
+    end do
+  endif
+  deallocate(numpoint_max)
+
+  xmass=0
+  do i=1,plen
+    do nsp=1,nspec
+      do j=1,numpoint
+        xmass(j,nsp) = xmass(j,nsp)+part(i)%mass(nsp)
+      end do 
+    end do
+  end do
+
+  totmass=sum(xmass)
   part(:)%idt=part(:)%tstart
   do i=1,plen
     part(i)%nclass=min(int(ran1(idummy,0)*real(nclassunc))+1, &
          nclassunc)
-    part(i)%npoint=1
     part(i)%mass_init=part(i)%mass
-    totmass=totmass+part(i)%mass(1)
     ! Activate particles that are alive from the start of the simulation
     if (part(i)%tstart.eq.0) then
       call spawn_particle(0,i)
     endif
   end do
   xmass(1,1)=totmass
-    write(*,FMT='(A,ES14.7)') ' Total mass to be released:', sum(xmass(1:numpoint,1:nspec))
+  write(*,FMT='(A,ES14.7)') ' Total mass to be released:', sum(xmass(1:numpoint,1:nspec))
   call get_total_part_num(numpart)
   numparticlecount=numpart
   npart(1)=numpart

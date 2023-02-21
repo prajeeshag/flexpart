@@ -2514,16 +2514,16 @@ subroutine readinitconditions_netcdf()
 
 
   ! How many species are contained in each particle?
-  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='nspecies',varid=tempIDend))
-  call nf90_err(nf90_get_att(ncid=ncidend,varid=tempIDend,name='nspecies',values=nspec))
+  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='nspecies',varid=nf90_global))
+  call nf90_err(nf90_get_att(ncid=ncidend,varid=nf90_global,name='nspecies',values=nspec))
 
   ! Which species?
-  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='species',varid=tempIDend))
-  call nf90_err(nf90_get_att(ncid=ncidend,varid=tempIDend,name='species',values=specnum_rel(1:nspec)))
+  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='species',varid=nf90_global))
+  call nf90_err(nf90_get_att(ncid=ncidend,varid=nf90_global,name='species',values=specnum_rel(1:nspec)))
 
   ! Above sea-level or ground?
-  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='kindz',varid=tempIDend))
-  call nf90_err(nf90_get_att(ncid=ncidend,varid=tempIDend,name='kindz',values=zkind))
+  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='kindz',varid=nf90_global))
+  call nf90_err(nf90_get_att(ncid=ncidend,varid=nf90_global,name='kindz',values=zkind))
   kindz=zkind
 
   ! Get the particle dimension

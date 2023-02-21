@@ -121,11 +121,6 @@ program flexpart
 
   if (turboff) write(*,*) 'Turbulence switched off'
 
-  ! For continuation of previous run or from user defined initial 
-  ! conditions, read in particle positions
-  !*************************************************************************
-  call initialise_warm_start
-
   ! Calculate particle trajectories
   !********************************
   CALL SYSTEM_CLOCK(count_clock, count_rate, count_max)
@@ -274,9 +269,11 @@ subroutine read_options_and_initialise_flexpart
   !***************************
   call readlanduse ! CHECK ETA
 
-  ! Read the coordinates of the release locations
-  !**********************************************
-  if (ipin.le.2) call readreleases ! CHECK ETA
+  ! For continuation of previous run or from user defined initial 
+  ! conditions, read in particle positions
+  !*************************************************************************
+  call flexpart_initialise_particles
+
   ! Convert the release point coordinates from geografical to grid coordinates
   !***************************************************************************
   call coordtrafo(nxmin1,nymin1) ! CHECK ETA
@@ -306,7 +303,7 @@ subroutine read_options_and_initialise_flexpart
 
   ! Read the OH field
   !******************
-  if (OHREA.eqv..TRUE.) then
+  if (OHREA) then
     call readOHfield ! CHECK ETA
   endif
 
@@ -330,7 +327,7 @@ subroutine read_options_and_initialise_flexpart
 end subroutine read_options_and_initialise_flexpart
 
 
-subroutine initialise_warm_start
+subroutine flexpart_initialise_particles
 
   !*****************************************************************************
   !                                                                            *
@@ -356,10 +353,15 @@ subroutine initialise_warm_start
   use com_mod
   use initialise_mod
   use netcdf_output_mod
+  use readoptions
 
   implicit none
 
   integer :: i
+
+  ! Read the coordinates of the release locations
+  !**********************************************
+  if (ipin.le.2) call readreleases ! CHECK ETA
 
   itime_init=0
   if ((ipin.eq.1).or.(ipin.eq.4)) then ! Restarting from restart.bin file
@@ -388,4 +390,4 @@ subroutine initialise_warm_start
     numparticlecount=0
   endif
 
-end subroutine initialise_warm_start
+end subroutine flexpart_initialise_particles

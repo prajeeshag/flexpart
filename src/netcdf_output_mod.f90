@@ -2512,19 +2512,13 @@ subroutine readinitconditions_netcdf()
   allocate(specnum_rel(maxspec),stat=stat)
   if (stat.ne.0) write(*,*)'ERROR: could not allocate specnum_rel'
 
-
   ! How many species are contained in each particle?
-  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='nspecies',varid=nf90_global))
-  call nf90_err(nf90_get_att(ncid=ncidend,varid=nf90_global,name='nspecies',values=nspec))
+  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='nspecies',varid=NF90_GLOBAL))
+  call nf90_err(nf90_get_att(ncid=ncidend,varid=NF90_GLOBAL,name='nspecies',values=nspec))
 
   ! Which species?
-  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='species',varid=nf90_global))
-  call nf90_err(nf90_get_att(ncid=ncidend,varid=nf90_global,name='species',values=specnum_rel(1:nspec)))
-
-  ! Above sea-level or ground?
-  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='kindz',varid=nf90_global))
-  call nf90_err(nf90_get_att(ncid=ncidend,varid=nf90_global,name='kindz',values=zkind))
-  kindz=zkind
+  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='species',varid=NF90_GLOBAL))
+  call nf90_err(nf90_get_att(ncid=ncidend,varid=NF90_GLOBAL,name='species',values=specnum_rel(1:nspec)))
 
   ! Get the particle dimension
   call nf90_err(nf90_inq_dimid(ncid=ncidend,name='particle',dimid=pIDend))
@@ -2589,6 +2583,14 @@ subroutine readinitconditions_netcdf()
     if (part(i)%npoint.gt.release_max) release_max=part(i)%npoint
   end do l1
 
+  allocate(kindz(numpoint),stat=stat)
+  kindz=-1
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate kindz'
+  ! Above sea-level or ground?
+  call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='kindz',varid=NF90_GLOBAL))
+  call nf90_err(nf90_get_att(ncid=ncidend,varid=NF90_GLOBAL,name='kindz',values=zkind))
+  kindz=zkind
+  
   if (ioutputforeachrelease.eq.1) then
     maxpointspec_act=numpoint
   else
@@ -2610,6 +2612,7 @@ subroutine readinitconditions_netcdf()
   endif
   deallocate(numpoint_max)
 
+  allocate(xmass(numpoint,nspec), npart(numpoint),ireleasestart(numpoint),ireleaseend(numpoint))
   xmass=0
   npart=0
   ireleasestart=-1
@@ -2747,7 +2750,10 @@ subroutine readinitconditions_netcdf()
     deallocate(vsh,fracth,schmih)
   end do ! end loop over species
 
-  if (WETDEP.or.DRYDEP) DEP=.true.
+  if (WETDEP.or.DRYDEP) then 
+   DEP=.true.
+  endif
+
 
   deallocate(specnum_rel)
 end subroutine readinitconditions_netcdf

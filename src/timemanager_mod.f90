@@ -628,7 +628,10 @@ subroutine timemanager
       deallocate(OH_field,OH_hourly,lonOH,latOH,altOH)
   endif
 
-  deallocate(xpoint1,xpoint2,ypoint1,ypoint2,zpoint1,zpoint2,xmass)
+  if ((ipin.ne.3).and.(ipin.ne.4)) then 
+    deallocate(xpoint1,xpoint2,ypoint1,ypoint2,zpoint1,zpoint2)
+  endif
+  deallocate(xmass)
   deallocate(ireleasestart,ireleaseend,npart,kindz)
   deallocate(xmasssave)
   deallocate(nan_count)

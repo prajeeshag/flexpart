@@ -629,11 +629,10 @@ subroutine timemanager
   endif
 
   if ((ipin.ne.3).and.(ipin.ne.4)) then 
-    deallocate(xpoint1,xpoint2,ypoint1,ypoint2,zpoint1,zpoint2)
+    deallocate(xpoint1,xpoint2,ypoint1,ypoint2,zpoint1,zpoint2,xmasssave)
   endif
   deallocate(xmass)
   deallocate(ireleasestart,ireleaseend,npart,kindz)
-  deallocate(xmasssave)
   deallocate(nan_count)
   if (ipout.ne.0) deallocate( partopt )
   if (iout.ne.0) then

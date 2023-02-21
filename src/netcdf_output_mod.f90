@@ -2655,20 +2655,20 @@ subroutine readinitconditions_netcdf()
   DRYDEP=.false.
   WETDEP=.false.
   OHREA=.false.
-  do i=1,maxspec
-    DRYDEPSPEC(i)=.false.
-    WETDEPSPEC(i)=.false.
+  do nsp=1,maxspec
+    DRYDEPSPEC(nsp)=.false.
+    WETDEPSPEC(nsp)=.false.
   end do
 
   do nsp=1,nspec
     call readspecies(specnum_rel(nsp),nsp)
     ! Allocate temporary memory necessary for the different diameter bins
     !********************************************************************
-    allocate(vsh(ndia(i)),fracth(ndia(i)),schmih(ndia(i)))
+    allocate(vsh(ndia(nsp)),fracth(ndia(nsp)),schmih(ndia(nsp)))
 
     ! Molecular weight
     !*****************
-    if (((iout.eq.2).or.(iout.eq.3)).and.(weightmolar(i).lt.0.)) then
+    if (((iout.eq.2).or.(iout.eq.3)).and.(weightmolar(nsp).lt.0.)) then
       write(*,*) 'For mixing ratio output, valid molar weight'
       write(*,*) 'must be specified for all simulated species.'
       write(*,*) 'Check table SPECIES or choose concentration'
@@ -2678,44 +2678,44 @@ subroutine readinitconditions_netcdf()
 
     ! Radioactive decay
     !******************
-    decay(i)=0.693147/decay(i) !conversion half life to decay constant
+    decay(nsp)=0.693147/decay(nsp) !conversion half life to decay constant
 
   ! Dry deposition of gases
   !************************
 
-    if (reldiff(i).gt.0.) rm(i)=1./(henry(i)/3000.+100.*f0(i))    ! mesophyll resistance
+    if (reldiff(nsp).gt.0.) rm(nsp)=1./(henry(nsp)/3000.+100.*f0(nsp))    ! mesophyll resistance
 
   ! Dry deposition of particles
   !****************************
 
-    vsetaver(i)=0.
-    cunningham(i)=0.
-    dquer(i)=dquer(i)*1000000.         ! Conversion m to um
-    if (density(i).gt.0.) then         ! Additional parameters
-      call part0(dquer(i),dsigma(i),density(i),ndia(i),fracth,schmih,cun,vsh)
-      do j=1,ndia(i)
-        fract(i,j)=fracth(j)
-        schmi(i,j)=schmih(j)
-        vset(i,j)=vsh(j)
-        cunningham(i)=cunningham(i)+cun*fract(i,j)
-        vsetaver(i)=vsetaver(i)-vset(i,j)*fract(i,j)
+    vsetaver(nsp)=0.
+    cunningham(nsp)=0.
+    dquer(nsp)=dquer(nsp)*1000000.         ! Conversion m to um
+    if (density(nsp).gt.0.) then         ! Additional parameters
+      call part0(dquer(nsp),dsigma(nsp),density(nsp),ndia(nsp),fracth,schmih,cun,vsh)
+      do j=1,ndia(nsp)
+        fract(nsp,j)=fracth(j)
+        schmi(nsp,j)=schmih(j)
+        vset(nsp,j)=vsh(j)
+        cunningham(nsp)=cunningham(nsp)+cun*fract(nsp,j)
+        vsetaver(nsp)=vsetaver(nsp)-vset(nsp,j)*fract(nsp,j)
       end do
-      if (lroot) write(*,*) 'Average settling velocity: ',i,vsetaver(i)
+      if (lroot) write(*,*) 'Average settling velocity: ',i,vsetaver(nsp)
     endif
 
     ! Dry deposition for constant deposition velocity
     !************************************************
 
-    dryvel(i)=dryvel(i)*0.01         ! conversion to m/s
+    dryvel(nsp)=dryvel(nsp)*0.01         ! conversion to m/s
 
     ! Check if wet deposition or OH reaction shall be calculated
     !***********************************************************
 
     ! ESO 04.2016 check for below-cloud scavenging (gas or aerosol)
-    if ((dquer(i).le.0..and.(weta_gas(i).gt.0. .or. wetb_gas(i).gt.0.)) .or. &
-         &(dquer(i).gt.0. .and. (crain_aero(i) .gt. 0. .or. csnow_aero(i).gt.0.)))  then
+    if ((dquer(nsp).le.0..and.(weta_gas(nsp).gt.0. .or. wetb_gas(nsp).gt.0.)) .or. &
+         &(dquer(nsp).gt.0. .and. (crain_aero(nsp) .gt. 0. .or. csnow_aero(nsp).gt.0.)))  then
       WETDEP=.true.
-      WETDEPSPEC(i)=.true.
+      WETDEPSPEC(nsp)=.true.
       if (lroot) then
         write (*,*) '  Below-cloud scavenging: ON'
       end if
@@ -2724,9 +2724,9 @@ subroutine readinitconditions_netcdf()
     endif
 
     ! NIK 31.01.2013 + 10.12.2013 + 15.02.2015
-    if (dquer(i).gt.0..and.(ccn_aero(i).gt.0. .or. in_aero(i).gt.0.))  then
+    if (dquer(nsp).gt.0..and.(ccn_aero(nsp).gt.0. .or. in_aero(nsp).gt.0.))  then
       WETDEP=.true.
-      WETDEPSPEC(i)=.true.
+      WETDEPSPEC(nsp)=.true.
       if (lroot) then
         write (*,*) '  In-cloud scavenging: ON'
       end if
@@ -2734,14 +2734,14 @@ subroutine readinitconditions_netcdf()
       if (lroot) write (*,*) '  In-cloud scavenging: OFF' 
     endif
 
-    if (ohcconst(i).gt.0.) then
+    if (ohcconst(nsp).gt.0.) then
       OHREA=.true.
-      if (lroot) write (*,*) '  OHreaction switched on: ',ohcconst(i),i
+      if (lroot) write (*,*) '  OHreaction switched on: ',ohcconst(nsp),nsp
     endif
 
-    if ((reldiff(i).gt.0.).or.(density(i).gt.0.).or.(dryvel(i).gt.0.)) then
+    if ((reldiff(nsp).gt.0.).or.(density(nsp).gt.0.).or.(dryvel(nsp).gt.0.)) then
       DRYDEP=.true.
-      DRYDEPSPEC(i)=.true.
+      DRYDEPSPEC(nsp)=.true.
     endif
 
     deallocate(vsh,fracth,schmih)

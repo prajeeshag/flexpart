@@ -109,26 +109,28 @@ subroutine writeheader_txt
   write(unitheader_txt,*) '# information on release points'
   write(unitheader_txt,*) '# numpoint'
   write(unitheader_txt,*) numpoint
-  write(unitheader_txt,*) '# for numpoint:'
-  do i=1,numpoint
-    write(unitheader_txt,*) ireleasestart(i),ireleaseend(i),kindz(i)
-    xp1=xpoint1(i)*dx+xlon0
-    yp1=ypoint1(i)*dy+ylat0
-    xp2=xpoint2(i)*dx+xlon0
-    yp2=ypoint2(i)*dy+ylat0
-    write(unitheader_txt,*) xp1,yp1,xp2,yp2,zpoint1(i),zpoint2(i)
-    write(unitheader_txt,*) npart(i),1
-    if (numpoint.le.1000) then
-      write(unitheader_txt,*) compoint(i)
-    else
-      write(unitheader_txt,*) compoint(1001)
-    endif
-    do j=1,nspec
-      write(unitheader_txt,*) xmass(i,j)
-      write(unitheader_txt,*) xmass(i,j)
-      write(unitheader_txt,*) xmass(i,j)
+  if ((ipin.ne.3).and.(ipin.ne.4)) then
+    write(unitheader_txt,*) '# for numpoint:'
+    do i=1,numpoint
+      write(unitheader_txt,*) ireleasestart(i),ireleaseend(i),kindz(i)
+      xp1=xpoint1(i)*dx+xlon0
+      yp1=ypoint1(i)*dy+ylat0
+      xp2=xpoint2(i)*dx+xlon0
+      yp2=ypoint2(i)*dy+ylat0
+      write(unitheader_txt,*) xp1,yp1,xp2,yp2,zpoint1(i),zpoint2(i)
+      write(unitheader_txt,*) npart(i),1
+      if (numpoint.le.1000) then
+        write(unitheader_txt,*) compoint(i)
+      else
+        write(unitheader_txt,*) compoint(1001)
+      endif
+      do j=1,nspec
+        write(unitheader_txt,*) xmass(i,j)
+        write(unitheader_txt,*) xmass(i,j)
+        write(unitheader_txt,*) xmass(i,j)
+      end do
     end do
-  end do
+  endif
 
   ! Write information on model switches
   !*****************************************

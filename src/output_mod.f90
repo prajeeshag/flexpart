@@ -566,10 +566,9 @@ subroutine output_particles(itime,initial_output)
       mass_written=.true. ! needs to be reduced within openmp loop
       topo_written=.true. ! same
     endif
-#endif
-  else
+#else
     ! Put binary function here
-  endif
+#endif
 end subroutine output_particles
 
 subroutine output_concentrations(itime,loutstart,loutend,loutnext,outnum)

@@ -691,6 +691,20 @@ subroutine readcommand
     endif
   endif
 
+#ifndef USE_NCF
+  if ((loutrestart.ne.999999999).or.(ipin.ne.0)) then
+    write(*,*) ' WARNING: restart option set with intervals'
+    write(*,*) ' LOUTRESTART', loutrestart
+    write(*,*) ' not possible when using binary gridded output'
+    write(*,*) ' ==> RESTART FUNCTION SWITCHED OFF!'
+  endif
+  if (ipin.ne.0) then 
+    write(*,*) ' ERROR: restart option not possible using binary'
+    write(*,*) ' output.'
+    write(*,*) ' Please only use IPIN>0 when compiling and running using'
+    write(*,*) ' netcdf output. '
+  endif
+#endif
 
   ! Determine kind of dispersion method
   !************************************

@@ -208,7 +208,9 @@ subroutine output_restart(itime,loutnext,outnum)
       (part(i)%drydepo(j),j=1,nspec)
   end do
   if (iout.gt.0) then
+#ifdef USE_NCF
     write(unitrestart) tpointer
+#endif
     do ks=1,nspec
       do kp=1,maxpointspec_act
         do nage=1,nageclass

@@ -341,6 +341,7 @@ subroutine output_particles(itime,initial_output)
   stop
 #endif
 
+#ifdef USE_NCF
   if (present(initial_output)) then
     init_out=initial_output
   else
@@ -509,7 +510,6 @@ subroutine output_particles(itime,initial_output)
   write(atime,'(i6.6)') ihmmss
   j=1
   if (lnetcdfout.eq.1) then
-#ifdef USE_NCF
   ! open output file
     if (init_out) then
       call open_partinit_file(ncid)

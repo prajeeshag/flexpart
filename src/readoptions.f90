@@ -496,7 +496,8 @@ subroutine readcommand
   linversionout, &
   ohfields_path, &
   d_trop, &
-  d_strat
+  d_strat, &
+  nxshift
 
   ! Presetting namelist command
   ldirect=0
@@ -531,6 +532,7 @@ subroutine readcommand
   cblflag=0 ! if using old-style COMMAND file, set to 1 here to use mc cbl routine
   linversionout=0
   ohfields_path="../../flexin/"
+  nxshift=-9999
 
   !Af set release-switch
   WETBKDEP=.false.

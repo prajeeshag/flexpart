@@ -225,13 +225,15 @@ subroutine read_options_and_initialise_flexpart
 
   if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
     print *,'ECMWF metdata detected'
+    if (nxshift.eq.-9999) nxshift=359
   elseif (metdata_format.eq.GRIBFILE_CENTRE_NCEP) then
     print *,'NCEP metdata detected'
+    if (nxshift.eq.-9999) nxshift=0
   else
     print *,'Unknown metdata format'
     stop
   endif
-
+  write(*,*) 'NXSHIFT is set to', nxshift
 
   ! Read the model grid specifications,
   ! both for the mother domain and eventual nests

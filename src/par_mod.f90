@@ -136,11 +136,10 @@ module par_mod
 !   integer,parameter :: nxmax=361,nymax=181,nuvzmax=138,nwzmax=138,nzmax=138,nxshift=359 ! 1.0 degree 138 level
   integer,parameter :: nxmax=721,nymax=361,nuvzmax=138,nwzmax=138,nzmax=138!,nxshift=359  ! 0.5 degree 138 level
 !  integer,parameter :: nxmax=181,nymax=91,nuvzmax=92,nwzmax=92,nzmax=92,nxshift=0  ! CERA 2.0 degree 92 level
-  integer,parameter :: nxshift=359 
 
 ! GFS
 !   integer,parameter :: nxmax=361,nymax=181,nuvzmax=138,nwzmax=138,nzmax=138
-!   integer :: nxshift=0 ! shift not fixed for the executable 
+!   integer,parameter :: nxshift=0 ! shift not fixed for the executable 
   !*********************************
   ! Parmaters for GRIB file decoding
   !*********************************
@@ -162,10 +161,6 @@ module par_mod
   !                    direction (for fields on eta levels)
   ! nzmax              maximum dimension of wind fields in z direction
   !                    for the transformed Cartesian coordinates
-  ! nxshift            for global grids (in x), the grid can be shifted by
-  !                    nxshift grid points, in order to accomodate nested
-  !                    grids, and output grids overlapping the domain "boundary"
-  !                    nxshift must not be negative; "normal" setting would be 0
 
   
   integer,parameter :: nconvlevmax = nuvzmax-1

@@ -699,9 +699,6 @@ subroutine gridcheck_ecmwf
   !
   call grib_close_file(ifile)
 
-  ! nconvlevmax=nuvzmax-1
-  ! na=nconvlevmax+1
-  write(*,*) nxmax,nymax,nwzmax,nuvzmax,nzmax!,nconvlevmax,na
   ! call windfields_allocate
 
   !error message if no fields found with correct first longitude in it
@@ -2058,7 +2055,7 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
 !$OMP SHARED (nfield, igrib, gribFunction, nxfield, ny, nlev_ec, dx, xlon0, ylat0, &
 !$OMP   n, tth, uuh, vvh, iumax, qvh, ps, wwh, iwmax, sd, msl, tcc, u10, v10, tt2, &
 !$OMP   td2, lsprec, convprec, sshf, hflswitch, ssr, ewss, nsss, strswitch, oro,   &
-!$OMP   excessoro, lsm, nymin1,ciwch,clwch,readclouds,sumclouds) & 
+!$OMP   excessoro, lsm, nymin1,ciwch,clwch,readclouds,sumclouds, nxshift) & 
 !$OMP PRIVATE(ii, gribVer, iret, isec1, discipl, parCat, parNum, parId,typSurf, valSurf, &
 !$OMP   zsec4, isec2, gribErrorMsg, xauxin, yauxin, xaux, yaux, xaux0,  &
 !$OMP   yaux0, k, arsize, stat, conversion_factor)  &

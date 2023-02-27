@@ -88,7 +88,7 @@ module com_mod
 
   real :: ctl,fine
   integer :: ifine,iout,ipout,ipin,iflux,mdomainfill,ipoutfac
-  integer :: mquasilag,nested_output,ind_source,ind_receptor
+  integer :: mquasilag,nested_output,ind_source,ind_receptor,nxshift
   integer :: ind_rel,ind_samp,ioutputforeachrelease,linit_cond,surf_only
   logical :: turbswitch
   integer :: cblflag !added by mc for cbl
@@ -121,6 +121,10 @@ module com_mod
   !      0=no (full vertical resolution), 1=yes (surface only)
   ! nested_output: 0 no, 1 yes
   ! turbswitch              determines how the Markov chain is formulated
+  ! nxshift            for global grids (in x), the grid can be shifted by
+  !                    nxshift grid points, in order to accomodate nested
+  !                    grids, and output grids overlapping the domain "boundary"
+  !                    nxshift must not be negative; "normal" setting would be 0
 
   ! ind_rel and ind_samp  are used within the code to change between mass and mass-mix (see readcommand.f)
   ! cblflag !: 1 activate cbl skewed pdf routines with bi-gaussina pdf whan OL<0 added by mc

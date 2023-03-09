@@ -1810,7 +1810,7 @@ subroutine verttransform_ecmwf_nests_transform_windfields(l,n, &
         wwn(ix,jy,iz,n,l)=(wwhn(ix,jy,kz-1,l)*pinmconv(ix,jy,kz-1)*dz2 &
              +wwhn(ix,jy,kz,l)*pinmconv(ix,jy,kz)*dz1)/dz
         drhodzn(ix,jy,iz,n,l)=(rhon(ix,jy,iz+1,n,l)-rhon(ix,jy,iz-1,n,l))/ &
-             (height(kz+1)-height(kz-1))
+             (height(iz+1)-height(iz-1))
       enddo
     enddo
 !$OMP END DO

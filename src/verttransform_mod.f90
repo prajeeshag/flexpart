@@ -1790,7 +1790,7 @@ subroutine verttransform_ecmwf_nests_transform_windfields(l,n, &
   end do
 !$OMP END DO
 
-  do iz=2,nz
+  do iz=2,nz-1
 !$OMP DO SCHEDULE(dynamic)
     do jy=0,nym1
       do ix=0,nxm1

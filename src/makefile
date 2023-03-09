@@ -66,8 +66,6 @@ else
 	NCOPT = -DUSE_NCF -lnetcdff
 endif
 
-# path to gributils used to detect meteodata format
-VPATH = gributils/
 
 ## OPTIMIZATION LEVEL
 O_LEV = 2 # [0,1,2,3,g,s,fast]

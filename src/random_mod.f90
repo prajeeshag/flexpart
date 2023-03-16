@@ -37,11 +37,11 @@ contains
       iseed1(i) = -7-i
       iseed2(i) = -88-i
     end do
-    ran3_iff(:)=0
-    ran1_iv(:,:)=0
-    ran1_iy(:)=0
-    gasdev_iset(:)=0
-    gasdev_gset(:)=0
+    ran3_iff(0:num_threads-1)=0
+    ran1_iv(:,0:num_threads-1)=0
+    ran1_iy(0:num_threads-1)=0
+    gasdev_iset(0:num_threads-1)=0
+    gasdev_gset(0:num_threads-1)=0
   end subroutine allocate_random
 
   subroutine deallocate_random()
@@ -142,7 +142,7 @@ contains
     integer :: i,ii,inext,inextp,k
     integer :: mj,mk
 
-    if(idum.lt.0.or.ran3_iff(ithread).eq.0)then
+    if(idum.lt.0 .or. ran3_iff(ithread).eq.0)then
       ran3_iff(ithread)=1
       mj=mseed-iabs(idum)
       mj=mod(mj,mbig)
@@ -161,8 +161,8 @@ contains
           if(ma(i,ithread).lt.mz) ma(i,ithread)=ma(i,ithread)+mbig
         end do
       end do
-      ran3_inext=0
-      ran3_inextp=31
+      ran3_inext(ithread)=0
+      ran3_inextp(ithread)=31
       idum=1
     endif
     ran3_inext(ithread)=ran3_inext(ithread)+1

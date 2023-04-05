@@ -55,7 +55,7 @@ subroutine calcfluxes(itime,nage,jpart,xold,yold,zold,thread)
   !*****************************************************************************
   
   use particle_mod
-  use coordinates_ecmwf
+  use coordinates_ecmwf_mod
 
   implicit none
   integer, intent(in) :: thread ! for OMP, number of thread

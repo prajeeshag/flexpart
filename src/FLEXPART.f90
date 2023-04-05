@@ -163,7 +163,7 @@ subroutine read_options_and_initialise_flexpart
   use com_mod
   use conv_mod
   use class_gribfile
-  use readoptions
+  use readoptions_mod
   use windfields_mod
   use plume_mod
   use initialise_mod
@@ -361,7 +361,7 @@ subroutine flexpart_initialise_particles
   use com_mod
   use initialise_mod
   use netcdf_output_mod
-  use readoptions
+  use readoptions_mod
 
   implicit none
 

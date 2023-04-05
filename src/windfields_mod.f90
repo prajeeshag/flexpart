@@ -17,9 +17,9 @@ module windfields_mod
 
   implicit none
 
-  !******************************************************************************
-  ! Variables associated with the ECMWF meteorological input data ("wind fields")
-  !******************************************************************************
+ !******************************************************************************
+ ! Variables associated with the ECMWF meteorological input data ("wind fields")
+ !******************************************************************************
 
   integer ::            &
     numbwf,             & ! actual number of wind fields
@@ -1855,9 +1855,8 @@ subroutine pbl_profile(ps,td2m,zml1,t2m,tml1,u10m,uml1,stress,hf)
   ! maxiter maximum number of iterations                              *
   !********************************************************************
 
-  use par_mod
   use qvsat_mod
-  use stability_correction
+  use turbulence_mod, only: psim, psih
 
   implicit none
 

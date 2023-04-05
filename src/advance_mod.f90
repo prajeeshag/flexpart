@@ -15,7 +15,7 @@ module advance_mod
   use interpol_mod
   use cmapf_mod
   use random_mod, only: ran3,iseed1
-  use coordinates_ecmwf
+  use coordinates_ecmwf_mod
   use particle_mod
   use turbulence_mod
   use settling_mod

@@ -16,7 +16,7 @@ module initialise_mod
   use particle_mod
   use windfields_mod
   use random_mod
-  use coordinates_ecmwf
+  use coordinates_ecmwf_mod
 
   implicit none
 

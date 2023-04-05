@@ -7,6 +7,7 @@ module cbl_mod
     private :: cuberoot
 
     public :: cbl,re_initialize_particle,initialize_cbl_vel
+    
 contains
 
 subroutine cbl(wp,zp,ust,wst,h,rhoa,rhograd,sigmaw,dsigmawdz,tlw,ptot,Q,phi,ath,bth,ol,flagrein)
@@ -16,11 +17,14 @@ subroutine cbl(wp,zp,ust,wst,h,rhoa,rhograd,sigmaw,dsigmawdz,tlw,ptot,Q,phi,ath,
     use com_mod, only:ldirect
     
     implicit none
-!=======================================================================================================================================================
-!=============== CBL skewed vertical profiles and formulation of LHH 1996 with profile of w3 from LHB 2000                                      ========
-!=============== LHH formulation has been modified to account for variable density profiles and backward in time or forward in time simulations ========
-!=============== see Cassiani et al. BLM 2014 doi  for explanations and references                                                              ========
-!=======================================================================================================================================================
+
+!*******************************************************************************
+! CBL skewed vertical profiles and formulation of LHH 1996 with profile of w^3
+! from LHB 2000 
+! LHH formulation has been modified to account for variable density profiles 
+! and backward in time or forward in time simulations 
+! see Cassiani et al. BLM 2014 doi  for explanations and references  
+!*******************************************************************************
 
     real :: usurad2,usurad2p,C0,costluar4,eps 
     parameter  (usurad2=0.7071067812,usurad2p=0.3989422804,C0=3,costluar4=0.66667,eps=0.000001)
@@ -79,15 +83,15 @@ subroutine cbl(wp,zp,ust,wst,h,rhoa,rhograd,sigmaw,dsigmawdz,tlw,ptot,Q,phi,ath,
              
     
     timedir=ldirect !ldirect contains direction of time forward (1) or backward(-1)
-    !========================= assegnazione z ===========================================================
+    ! assegnazione z 
     z=(zp/h)
     
-    !================== stability transition function see Cassiani et al(2015) BLM ======================
+    ! stability transition function see Cassiani et al(2015) BLM
     transition=1.
     !if (ol.lt.-50) transition=((sin(((ol+100.)/100.)*pi))-1.)/2.
     if (-h/ol.lt.15) transition=((sin((((-h/ol)+10.)/10.)*pi)))/2.+0.5
 
-    !========================= momento secondo ==========================================================
+    ! momento secondo 
     
     w2=(sigmaw*sigmaw)
     dw2=(2.*sigmaw*dsigmawdz)
@@ -106,8 +110,8 @@ subroutine cbl(wp,zp,ust,wst,h,rhoa,rhograd,sigmaw,dsigmawdz,tlw,ptot,Q,phi,ath,
                                 
     w3=((1.2*z*((1.-z)**(3./2.)))+eps)*(wst**3)*transition
     dw3=(1.2*(((1.-z)**(3./2.))+z*1.5*((1.-z)**(1./2.))*(-1.)))*(wst**3)*(1./h)*transition
-    
-    !===========================================================================0
+
+!===========================================================================0
    
     skew=w3/(w2**1.5)
     skew2=skew*skew
@@ -233,13 +237,19 @@ end function cuberoot
 
 subroutine re_initialize_particle(zp,ust,wst,h,sigmaw,wp,nrand,ol)
 !                                      i   i  i   i  i    io  io    i 
-!=============== CBL skewed vertical profiles and formulation of LHH 1996 with profile of w3 from lHB 2000                                       ======
-!=============== LHH formulation has been modified to account for variable density profiles and backward in time or forward in time simulations  ======            
-!=============== this routine re-initialize particle velocity if a numerical instability in the cbl scheme generated a NaN value                ======
-!=============== the particle velocity is extracted from the updraft and downdraft distribution as required                                      ======
-!=============== the re-initialization si not perfect see e.g. Cassiani et al(2015) BLM                                                          ====== 
-!======================================================================================================================================================   
-!======================================================================================================================================================   
+
+!******************************************************************************
+! CBL skewed vertical profiles and formulation of LHH 1996 with profile of w^3
+! from lHB 2000 
+! LHH formulation has been modified to account for variable density profiles 
+! and backward in time or forward in time simulations
+! This routine re-initialize particle velocity if a numerical instability 
+! in the cbl scheme generated a NaN value 
+! The particle velocity is extracted from the updraft and downdraft 
+! distribution as required  
+! The re-initialization si not perfect 
+! See e.g. Cassiani et al(2015) BLM           
+!******************************************************************************
   use par_mod, only:pi
   use com_mod, only:ldirect,rannumb
 
@@ -330,7 +340,6 @@ subroutine initialize_cbl_vel(idum,zp,ust,wst,h,sigmaw,wp,ol,ithread)
   use random_mod, only: gasdev, ran3
 
   implicit none
-
   !===============================================================================
   ! CBL skewed vertical profiles and formulation of LHH 1996 with profile of w3
   ! from LHB 2000

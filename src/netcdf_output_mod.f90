@@ -2484,8 +2484,8 @@ subroutine readinitconditions_netcdf()
   use random_mod
   use particle_mod
   use date_mod
-  use coordinates_ecmwf
-  use readoptions
+  use coordinates_ecmwf_mod
+  use readoptions_mod
   use drydepo_mod
 
   implicit none 

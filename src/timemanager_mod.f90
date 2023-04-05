@@ -88,7 +88,7 @@ subroutine timemanager
   use oh_mod
   use par_mod
   use com_mod
-  use coordinates_ecmwf
+  use coordinates_ecmwf_mod
   use particle_mod
   use conv_mod
   use windfields_mod

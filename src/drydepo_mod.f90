@@ -9,33 +9,39 @@
 !*****************************************************************************
 
 module drydepo_mod
-  use unc_mod
   use par_mod
   use com_mod
+  use unc_mod
   use windfields_mod
+  use erf_mod
   
   implicit none
 
-  real,allocatable,dimension(:,:,:) ::   &
-    xlanduse                               ! area fractions in percent [0-1]
-  real,allocatable,dimension(:,:,:,:) :: &
-    xlandusen                              ! nested area fractions in percent [0-1]
-  real,allocatable,dimension(:,:,:,:) :: &
-    vdep                                   ! deposition velocities [m/s]
+  real,allocatable,dimension(:,:,:) :: xlanduse 
+   ! area fractions in percent [0-1]
+  real,allocatable,dimension(:,:,:,:) :: xlandusen
+   ! nested area fractions in percent [0-1]
+  real,allocatable,dimension(:,:,:,:) :: vdep ! deposition velocity [m/s]
+
 contains
 
 subroutine drydepo_allocate
+
   implicit none
-  if (.not.DRYDEP) return
+
+  if (.not. drydep) return
   write(*,*) 'allocate drydepo fields'
   allocate(xlanduse(0:nxmax-1,0:nymax-1,numclass),      &
-    xlandusen(0:nxmaxn-1,0:nymaxn-1,numclass,maxnests), &
-    vdep(0:nxmax-1,0:nymax-1,maxspec,numwfmem))
+           xlandusen(0:nxmaxn-1,0:nymaxn-1,numclass,maxnests), &
+           vdep(0:nxmax-1,0:nymax-1,maxspec,numwfmem))
+           
 end subroutine drydepo_allocate
 
 subroutine drydepo_deallocate
-  if (.not.DRYDEP) return
+
+  if (.not. drydep) return
   deallocate(xlanduse,xlandusen,vdep)
+
 end subroutine drydepo_deallocate
 
 subroutine assignland
@@ -68,10 +74,6 @@ subroutine assignland
   !                                                                            *
   !*****************************************************************************
 
-  use par_mod
-  use com_mod
-  use windfields_mod
-
   implicit none
 
   integer :: ix,jy,k,l,li,nrefine,iix,jjy
@@ -86,23 +88,23 @@ subroutine assignland
   
   do ix=1,lumaxx
     do jy=1,lumaxy
-          do k=1,numclass
-            xlandusep(ix,jy,k)=0.
-          end do
-          sumperc=0.
-          do li=1,3
-            sumperc=sumperc+landinvent(ix,jy,li+3)
-          end do
-          do li=1,3
-            k=landinvent(ix,jy,li)
-          if (sumperc.gt.0) then
-            p=landinvent(ix,jy,li+3)/sumperc
-          else
-            p=0
-          endif
-  ! p has values between 0 and 1
-            xlandusep(ix,jy,k)=p
-          end do
+       do k=1,numclass
+         xlandusep(ix,jy,k)=0.
+       end do
+       sumperc=0.
+       do li=1,3
+         sumperc=sumperc+landinvent(ix,jy,li+3)
+       end do
+       do li=1,3
+         k=landinvent(ix,jy,li)
+       if (sumperc.gt.0) then
+         p=landinvent(ix,jy,li+3)/sumperc
+       else
+         p=0
+       endif
+! p has values between 0 and 1
+         xlandusep(ix,jy,k)=p
+       end do
     end do
   end do
 
@@ -290,8 +292,7 @@ real function raerod (l,ust,z0)
   !                                                                            *
   !*****************************************************************************
 
-  use par_mod
-  use stability_correction
+  use turbulence_mod, only: psih
 
   implicit none
 
@@ -303,7 +304,6 @@ end function raerod
 
 subroutine drydepo_massloss(ipart,ks,ldeltat,drydepopart)
   use particle_mod
-  use com_mod
 
   implicit none
 
@@ -313,8 +313,7 @@ subroutine drydepo_massloss(ipart,ks,ldeltat,drydepopart)
     ldeltat                ! radioactive decay time
   real(dep_prec),intent(out) ::  &
     drydepopart            ! drydeposit for particle ipart
-  real               ::  &
-    decfact                ! radioactive decay factor
+  real decfact             ! radioactive decay factor
 
   if (decay(ks).gt.0.) then             ! radioactive decay
     decfact=exp(-real(abs(lsynctime))*decay(ks))
@@ -327,9 +326,11 @@ subroutine drydepo_massloss(ipart,ks,ldeltat,drydepopart)
     part(ipart)%mass(ks)*part(ipart)%prob(ks)*decfact
 
   part(ipart)%mass(ks)=part(ipart)%mass(ks)*(1.-part(ipart)%prob(ks))*decfact
+
   if (decay(ks).gt.0.) then   ! correct for decay (see wetdepo)
     drydepopart=drydepopart*exp(real(abs(ldeltat))*decay(ks))
   endif
+
 end subroutine drydepo_massloss
 
 subroutine drydepokernel(nunc,deposit,x,y,nage,kp,thread)
@@ -356,11 +357,6 @@ subroutine drydepokernel(nunc,deposit,x,y,nage,kp,thread)
   ! eso 10/2016: Added option to disregard kernel 
   ! 
   !*****************************************************************************
-
-
-  use unc_mod
-  use par_mod
-  use com_mod
 
   implicit none
 
@@ -1473,9 +1469,6 @@ subroutine getrc(nc,i,j,t,gr,rh,rr,rc)
   ! t [C]           temperature                                                *
   !                                                                            *
   !*****************************************************************************
-
-  use par_mod
-  use com_mod
 
   implicit none
 

@@ -676,7 +676,7 @@ subroutine redist(itime,ipart,ktop,ipconv)
   use random_mod
   use omp_lib
   use interpol_mod
-  use coordinates_ecmwf
+  use coordinates_ecmwf_mod
   use particle_mod
   use qvsat_mod
 

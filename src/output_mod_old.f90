@@ -522,7 +522,7 @@ subroutine conccalc(itime,weight)
   use com_mod
   use omp_lib, only: OMP_GET_THREAD_NUM
   use interpol_mod, only: interpol_density,ix,jy,ixp,jyp,ddx,ddy
-  use coordinates_ecmwf
+  use coordinates_ecmwf_mod
   use particle_mod
 
   implicit none

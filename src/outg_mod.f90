@@ -698,7 +698,7 @@ subroutine initial_cond_calc(itime,i,thread)
   use par_mod
   use com_mod
   use interpol_mod, only: interpol_density,ix,jy,ixp,jyp
-  use coordinates_ecmwf
+  use coordinates_ecmwf_mod
   use particle_mod
   use windfields_mod
 

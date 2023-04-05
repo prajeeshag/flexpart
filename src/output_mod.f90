@@ -159,7 +159,7 @@ end subroutine finalise_output
 
 subroutine output_restart(itime,loutnext,outnum)
   use particle_mod
-  use coordinates_ecmwf
+  use coordinates_ecmwf_mod
   use netcdf_output_mod
   use unc_mod
 
@@ -303,7 +303,7 @@ subroutine output_particles(itime,initial_output)
   !*****************************************************************************
 
   use interpol_mod
-  use coordinates_ecmwf
+  use coordinates_ecmwf_mod
   use particle_mod
 #ifdef USE_NCF
   use netcdf
@@ -753,7 +753,7 @@ subroutine conccalc(itime,weight)
   use com_mod
   use omp_lib, only: OMP_GET_THREAD_NUM
   use interpol_mod, only: interpol_density
-  use coordinates_ecmwf
+  use coordinates_ecmwf_mod
   use particle_mod
 
   implicit none
@@ -1358,7 +1358,7 @@ subroutine partpos_average(itime,j)
   use par_mod
   use com_mod
   use interpol_mod
-  use coordinates_ecmwf
+  use coordinates_ecmwf_mod
 
   implicit none
 

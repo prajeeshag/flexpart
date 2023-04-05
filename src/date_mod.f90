@@ -29,7 +29,7 @@ subroutine caldate(juliandate,yyyymmdd,hhmiss)
   !     hhmiss         Hour, Minute, Second                                    *
   !     ja,jb,jc,jd,je help variables                                          *
   !     jalpha         help variable                                           *
-  !     juliandate        Julian Date                                             *
+  !     juliandate        Julian Date                                          *
   !     julday         help variable                                           *
   !     mi             Minute                                                  *
   !     mm             Month                                                   *

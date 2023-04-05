@@ -1,6 +1,11 @@
 ! SPDX-FileCopyrightText: FLEXPART 1998-2019, see flexpart_license.txt
 ! SPDX-License-Identifier: GPL-3.0-or-later
 
+module erf_mod
+
+contains
+
+
 ! To be used, if the non-standard Fortran function erf does not exist on
 ! your machine
 !
@@ -192,3 +197,5 @@ function erfcc(x)
        t*(1.48851587+t*(-.82215223+t*.17087277)))))))))
   if (x.lt.0.) erfcc=2.-erfcc
 end function erfcc
+
+end module erf

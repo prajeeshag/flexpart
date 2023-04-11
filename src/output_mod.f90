@@ -765,7 +765,7 @@ subroutine conccalc(itime,weight)
   integer :: ix,jy,ixp,jyp
   real :: ddx,ddy
   real(kind=dp) :: mm3
-  real :: hx,hy,hz,h,xd,yd,zd,xkern,r2,c(maxspec)
+  real :: hx,hy,hz,hxyz,xd,yd,zd,xkern,r2,c(maxspec)
   real :: rhoi
   real :: xl,yl,wx,wy,w
   real,parameter :: factor=.596831, hxmax=6.0, hymax=4.0, hzmax=150.
@@ -1328,13 +1328,13 @@ subroutine conccalc(itime,weight)
            real(itage)*7.5e-6,hymax)                     ! 80 km/day
       yd=(part(i)%ylat-yreceptor(n))/hy
       if (yd*yd.gt.1.) cycle       ! save computing time, leave loop
-      h=hx*hy*hz
+      hxyz=hx*hy*hz
 
       r2=xd*xd+yd*yd+zd*zd
       if (r2.lt.1.) then
         xkern=factor*(1.-r2)
         do ks=1,nspec
-          c(ks)=c(ks)+part(i)%mass(ks)*xkern/h
+          c(ks)=c(ks)+part(i)%mass(ks)*xkern/hxyz
         end do
       endif
     end do

@@ -865,7 +865,7 @@ subroutine calcpar(n)
   !*****************************************************************************
 
   use class_gribfile
-  use drydepo_mod
+  use drydepo_mod, global_ol => ol
   use qvsat_mod
 
   implicit none
@@ -941,11 +941,12 @@ subroutine calcpar(n)
 
         ! calculate inverse Obukhov length scale with tth(llev)
         ol=obukhov(ps(ix,jy,1,n),tt2(ix,jy,1,n),td2(ix,jy,1,n), &
-             tth(ix,jy,llev,n),ustar(ix,jy,1,n),sshf(ix,jy,1,n),akm,bkm,akz(llev))
+          tth(ix,jy,llev,n),ustar(ix,jy,1,n),sshf(ix,jy,1,n), &
+          akm,bkm,akz(llev))
       else
         llev=0
         ol=obukhov(ps(ix,jy,1,n),tt2(ix,jy,1,n),td2(ix,jy,1,n), &
-            tth(ix,jy,2,n),ustar(ix,jy,1,n),sshf(ix,jy,1,n),akm,bkm,akzdummy)
+          tth(ix,jy,2,n),ustar(ix,jy,1,n),sshf(ix,jy,1,n),akm,bkm,akzdummy)
       end if
 
       if (ol.ne.0.) then
@@ -1134,7 +1135,7 @@ subroutine calcpar_nests(n)
   !                                                                            *
   !*****************************************************************************
 
-  use drydepo_mod
+  use drydepo_mod, global_ol => ol
   use qvsat_mod
 
   implicit none

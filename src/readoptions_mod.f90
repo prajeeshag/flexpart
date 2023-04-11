@@ -1808,7 +1808,7 @@ subroutine readreceptors
   ! Open the RECEPTORS file and read output grid specifications
   !************************************************************
 
-  open (unitreceptor,file=trim(path(1))//'RECEPTORS',form='formatted',
+  open (unitreceptor,file=trim(path(1))//'RECEPTORS',form='formatted', &
     status='old',err=999)
 
   ! try namelist input
@@ -3275,7 +3275,7 @@ subroutine readpartoptions
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(2)(1:length(2))
   stop
-end subroutine readpartoptions_mod
+end subroutine readpartoptions
 
 subroutine skplin(nlines,iunit)
   !                    i      i
@@ -3306,4 +3306,4 @@ subroutine skplin(nlines,iunit)
 
 end subroutine skplin
 
-end module readoptions
+end module readoptions_mod

@@ -198,4 +198,4 @@ function erfcc(x)
   if (x.lt.0.) erfcc=2.-erfcc
 end function erfcc
 
-end module erf
+end module erf_mod

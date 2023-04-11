@@ -183,8 +183,10 @@ subroutine ohreaction(itime,ltsample,loutnext)
   implicit none
 
   integer :: jpart,itime,ltsample,loutnext,ldeltat,j,k,ix,jy!,ijx,jjy
-  integer :: ngrid,interp_time,m,n,h,indz,i!,ia,il
-  integer :: jjjjmmdd,hhmmss,OHx,OHy,OHz
+!PS  integer :: ngrid,interp_time,m,n,ih,indz,i!,ia,il
+  integer :: ngrid,interp_time,n,indz,i!,ia,il
+!PS  integer :: jjjjmmdd,hhmmss,
+  integer OHx,OHy,OHz
   real, dimension(nzOH) :: altOHtop
   real :: xlon,ylat 
   real :: xtn,ytn
@@ -202,10 +204,10 @@ subroutine ohreaction(itime,ltsample,loutnext)
     ldeltat=itime-loutnext
   endif
 
-  jul=bdate+real(itime,kind=dp)/86400.
-  call caldate(jul,jjjjmmdd,hhmmss)
-  m=(jjjjmmdd-(jjjjmmdd/10000)*10000)/100
-  h=hhmmss/10000
+!PS  jul=bdate+real(itime,kind=dp)/86400.
+!PS  call caldate(jul,jjjjmmdd,hhmmss)
+!PS  m=(jjjjmmdd-(jjjjmmdd/10000)*10000)/100
+!PS  h=hhmmss/10000
 
   ! Loop over particles
   !*****************************************

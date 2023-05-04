@@ -220,7 +220,7 @@ subroutine ohreaction(itime,ltsample,loutnext)
 
     ! Determine which nesting level to be used
     ngrid=0
-    do j=numbnests,1,-1
+    do j=numbnests,1,-1 ! Why is there a +/- eps everywhere else for ngrid but not here?
       if ((part(jpart)%xlon.gt.xln(j)).and.(part(jpart)%xlon.lt.xrn(j)).and. &
            (part(jpart)%ylat.gt.yln(j)).and.(part(jpart)%ylat.lt.yrn(j))) then
         ngrid=j

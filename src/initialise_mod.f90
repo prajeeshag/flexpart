@@ -101,8 +101,8 @@ subroutine releaseparticles(itime)
   real(kind=dp) :: julmonday,jul,jullocal,juldiff
   real,parameter :: eps2=1.e-6
 
-  integer :: ngrid,ix,jy,ixp,jyp,indz,indzp,xtn,ytn
-  real :: ddx,ddy,rddx,rddy,p1,p2,p3,p4
+  integer :: ngrid,ix,jy,ixp,jyp,indz,indzp
+  real :: ddx,ddy,rddx,rddy,p1,p2,p3,p4,xtn,ytn
 
   integer :: idummy = -7
   !save idummy,xmasssave
@@ -266,13 +266,13 @@ subroutine releaseparticles(itime)
 
   ! Determine the nest we are in
   !*****************************
-
+        ! Temporary fix for nested layer edges: replaced eps with dxn and dyn (LB)
         ngrid=0
         do k=numbnests,1,-1
-          if ((part(ipart)%xlon.gt.xln(k)+eps).and. &
-               (part(ipart)%xlon.lt.xrn(k)-eps).and. &
-               (part(ipart)%xlon.gt.yln(k)+eps).and. &
-               (part(ipart)%xlon.lt.yrn(k)-eps)) then
+          if ((real(part(ipart)%xlon).gt.xln(k)+dxn(k)).and. &
+               (real(part(ipart)%xlon).lt.xrn(k)-dxn(k)).and. &
+               (real(part(ipart)%xlon).gt.yln(k)+dyn(k)).and. &
+               (real(part(ipart)%xlon).lt.yrn(k)-dyn(k))) then
             ngrid=k
             exit
           endif
@@ -282,10 +282,12 @@ subroutine releaseparticles(itime)
   !*****************************************************************************
 
         if (ngrid.gt.0) then
-          xtn=(part(ipart)%xlon-xln(ngrid))*xresoln(ngrid)
-          ytn=(part(ipart)%ylat-yln(ngrid))*yresoln(ngrid)
-          ix=int(xtn)
-          jy=int(ytn)
+          xtn=(real(part(ipart)%xlon)-xln(ngrid))*xresoln(ngrid)
+          ytn=(real(part(ipart)%ylat)-yln(ngrid))*yresoln(ngrid)
+          ! ix=int(xtn)
+          ! jy=int(ytn)
+          ix=max(min(nint(xtn),nxn(ngrid)-1),0)
+          jy=max(min(nint(ytn),nyn(ngrid)-1),0)
           ddy=ytn-real(jy)
           ddx=xtn-real(ix)
         else

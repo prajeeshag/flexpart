@@ -173,9 +173,10 @@ subroutine outgrid_init
   !*****************************
 
           ngrid=0
+          ! Temporary fix for nested layer edges: replaced eps with dxn and dyn (LB)
           do j=numbnests,1,-1
-            if ((xl.gt.xln(j)+eps).and.(xl.lt.xrn(j)-eps).and. &
-                 (yl.gt.yln(j)+eps).and.(yl.lt.yrn(j)-eps)) then
+            if ((xl.gt.xln(j)+dxn(j)).and.(xl.lt.xrn(j)-dxn(j)).and. &
+                 (yl.gt.yln(j)+dyn(j)).and.(yl.lt.yrn(j)-dyn(j))) then
               ngrid=j
               exit
             endif
@@ -187,10 +188,13 @@ subroutine outgrid_init
           if (ngrid.gt.0) then
             xtn=(xl-xln(ngrid))*xresoln(ngrid)
             ytn=(yl-yln(ngrid))*yresoln(ngrid)
-            ix=int(xtn)
-            jy=int(ytn)
+            ix=max(min(nint(xtn),nxn(ngrid)-1),0)
+            jy=max(min(nint(ytn),nyn(ngrid)-1),0)
+            ! ix=int(xtn)
+            ! jy=int(ytn)
             ddy=ytn-real(jy)
             ddx=xtn-real(ix)
+
           else
             ix=int(xl)
             jy=int(yl)
@@ -597,8 +601,9 @@ subroutine outgrid_init_nest
 
           ngrid=0
           do j=numbnests,1,-1
-            if ((xl.gt.xln(j)+eps).and.(xl.lt.xrn(j)-eps).and. &
-                 (yl.gt.yln(j)+eps).and.(yl.lt.yrn(j)-eps)) then
+            ! Temporary fix for nested layer edges: replaced eps with dxn and dyn (LB)
+            if ((xl.gt.xln(j)+dxn(j)).and.(xl.lt.xrn(j)-dxn(j)).and. &
+                 (yl.gt.yln(j)+dyn(j)).and.(yl.lt.yrn(j)-dyn(j))) then
               ngrid=j
               exit
             endif

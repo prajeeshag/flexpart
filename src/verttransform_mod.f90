@@ -1728,12 +1728,13 @@ subroutine verttransform_ecmwf_nests_transform_windfields(l,n, &
 
   do iz=2,nz-1
 !$OMP DO SCHEDULE(dynamic)
-    do jy=0,nyn(l)-1
-      do ix=0,nxn(l)-1
+    do jy=0,nym1
+      do ix=0,nxm1
         if(height(iz).gt.etauvheightn(ix,jy,nuvz,n,l)) then
           uun(ix,jy,iz,n,l)=uun(ix,jy,nz,n,l)
           vvn(ix,jy,iz,n,l)=vvn(ix,jy,nz,n,l)
           ttn(ix,jy,iz,n,l)=ttn(ix,jy,nz,n,l)
+          pvn(ix,jy,iz,n,l)=pvn(ix,jy,nz,n,l)
           if (wind_coord_type.ne.'ETA') then 
             qvn(ix,jy,iz,n,l)=qvn(ix,jy,nz,n,l)
             !hg adding the cloud water
@@ -1742,7 +1743,6 @@ subroutine verttransform_ecmwf_nests_transform_windfields(l,n, &
               if (.not.sumclouds_nest(l)) ciwcn(ix,jy,iz,n,l)=ciwcn(ix,jy,nz,n,l)
             endif
           endif
-          pvn(ix,jy,iz,n,l)=pvn(ix,jy,nz,n,l)
           rhon(ix,jy,iz,n,l)=rhon(ix,jy,nz,n,l)
           prsn(ix,jy,iz,n,l)=prsn(ix,jy,nz,n,l)
         else
@@ -1764,6 +1764,7 @@ subroutine verttransform_ecmwf_nests_transform_windfields(l,n, &
           vvn(ix,jy,iz,n,l)=(vvhn(ix,jy,kz-1,l)*dz2+vvhn(ix,jy,kz,l)*dz1)/dz
           ttn(ix,jy,iz,n,l)=(tthn(ix,jy,kz-1,n,l)*dz2 &
                +tthn(ix,jy,kz,n,l)*dz1)/dz
+          pvn(ix,jy,iz,n,l)=(pvhn(ix,jy,kz-1,l)*dz2+pvhn(ix,jy,kz,l)*dz1)/dz
           if (wind_coord_type.ne.'ETA') then 
             qvn(ix,jy,iz,n,l)=(qvhn(ix,jy,kz-1,n,l)*dz2 &
                  +qvhn(ix,jy,kz,n,l)*dz1)/dz
@@ -1774,7 +1775,6 @@ subroutine verttransform_ecmwf_nests_transform_windfields(l,n, &
                    &ciwcn(ix,jy,iz,n,l)=(ciwchn(ix,jy,kz-1,n,l)*dz2+ciwchn(ix,jy,kz,n,l)*dz1)/dz
             end if
           endif
-          pvn(ix,jy,iz,n,l)=(pvhn(ix,jy,kz-1,l)*dz2+pvhn(ix,jy,kz,l)*dz1)/dz
           rhon(ix,jy,iz,n,l)=(rhohn(ix,jy,kz-1)*dz2+rhohn(ix,jy,kz)*dz1)/dz
           prsn(ix,jy,iz,n,l)=(prshn(ix,jy,kz-1)*dz2+prshn(ix,jy,kz)*dz1)/dz
         endif
@@ -1829,9 +1829,9 @@ subroutine verttransform_ecmwf_nests_transform_windfields(l,n, &
 !$OMP DO
   do jy=0,nym1
     do ix=0,nxm1
+      drhodzn(ix,jy,nz,n,l)=drhodzn(ix,jy,nz-1,n,l)
       drhodzn(ix,jy,1,n,l)=(rhon(ix,jy,2,n,l)-rhon(ix,jy,1,n,l))/ &
            (height(2)-height(1))
-      drhodzn(ix,jy,nz,n,l)=drhodzn(ix,jy,nz-1,n,l)
     end do
   end do
 !$OMP END DO NOWAIT
@@ -1880,8 +1880,8 @@ subroutine verttransform_ecmwf_nests_transform_windfields(l,n, &
         dzdy2=(etauvheightn(ix,jyp,kz,n,l)-etauvheightn(ix,jy1,kz,n,l))/2.
         dzdy=(dzdy1*dz2+dzdy2*dz1)/dz
 
-        wwn(ix,jy,iz,n,l)=wwn(ix,jy,iz,n,l)+(dzdx*uun(ix,jy,iz,n,l)*dxconst*xresoln(l)*cosf(jy)+&
-             &dzdy*vvn(ix,jy,iz,n,l)*dyconst*yresoln(l))
+        wwn(ix,jy,iz,n,l)=wwn(ix,jy,iz,n,l)+(dzdx*uun(ix,jy,iz,n,l)*dxconst*xresoln(l)*cosf(jy)+ &
+             dzdy*vvn(ix,jy,iz,n,l)*dyconst*yresoln(l))
 
       end do
     end do

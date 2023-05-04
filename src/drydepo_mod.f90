@@ -759,22 +759,7 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
   ! is to be used
   ! Furthermore, determine which nesting level to be used
   !*****************************************************************
-
-  if (nglobal.and.(yt.gt.switchnorthg)) then
-    ngrid=-1
-  else if (sglobal.and.(yt.lt.switchsouthg)) then
-    ngrid=-2
-  else
-    ngrid=0
-    do j=numbnests,1,-1
-      if ((xt.gt.xln(j)+eps).and.(xt.lt.xrn(j)-eps).and. &
-           (yt.gt.yln(j)+eps).and.(yt.lt.yrn(j)-eps)) then
-        ngrid=j
-        exit
-      endif
-    end do
-  endif
-
+  call find_ngrid(xt,yt)
 
   !***************************
   ! Interpolate necessary data

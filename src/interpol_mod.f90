@@ -98,20 +98,16 @@ subroutine determine_grid_coordinates(xt,yt)
   if (ngrid.gt.0) then
     xtn=(xt-xln(ngrid))*xresoln(ngrid)
     ytn=(yt-yln(ngrid))*yresoln(ngrid)
-    ix=int(xtn)
-    jy=int(ytn)
-    nix=nint(xtn)
-    njy=nint(ytn)
-    if (ix+1 .ge. nxmaxn-1) then
-      ixp=ix
-    else
-      ixp=ix+1
-    endif
-    if (jy+1 .ge. nymaxn-1) then
-      jyp=jy
-    else
-      jyp=jy+1
-    endif
+    ! ix=int(xtn)
+    ! jy=int(ytn)
+    ! nix=nint(xtn)
+    ! njy=nint(ytn)
+    nix=max(min(nint(xtn),nxn(ngrid)-1),0)
+    njy=max(min(nint(ytn),nyn(ngrid)-1),0)
+    ix=nix
+    jy=njy
+    ixp=ix+1
+    jyp=jy+1
     return
   else
     ix=int(xt)
@@ -408,9 +404,10 @@ subroutine find_ngrid_dp(xt,yt)
     ngrid=-2
   else
     ngrid=0
+    ! Temporary fix for nested layer edges: replaced eps with dxn and dyn (LB)
     do j=numbnests,1,-1
-      if ((real(xt).gt.xln(j)+eps).and.(real(xt).lt.xrn(j)-eps).and. &
-           (real(yt).gt.yln(j)+eps).and.(real(yt).lt.yrn(j)-eps)) then
+      if ((real(xt).gt.xln(j)+dxn(j)).and.(real(xt).lt.xrn(j)-dxn(j)).and. &
+           (real(yt).gt.yln(j)+dyn(j)).and.(real(yt).lt.yrn(j)-dyn(j))) then
         ngrid=j
         exit
       endif
@@ -435,9 +432,10 @@ subroutine find_ngrid_float(xt,yt)
     ngrid=-2
   else
     ngrid=0
+    ! Temporary fix for nested layer edges: replaced eps with dxn and dyn (LB)
     do j=numbnests,1,-1
-      if ((xt.gt.xln(j)+eps).and.(xt.lt.xrn(j)-eps).and. &
-           (yt.gt.yln(j)+eps).and.(yt.lt.yrn(j)-eps)) then
+      if ((xt.gt.xln(j)+dxn(j)).and.(xt.lt.xrn(j)-dxn(j)).and. &
+           (yt.gt.yln(j)+dyn(j)).and.(yt.lt.yrn(j)-dyn(j))) then
         ngrid=j
         exit
       endif
@@ -657,9 +655,9 @@ subroutine interpol_PBL(itime,xt,yt,zt,zteta)
   ! Multilinear interpolation in time and space
   !********************************************
 
-  ! Where in the grid? Stereographic (ngrid<0) or nested (ngrid>0)
-  !***************************************************************
-  call find_ngrid(xt,yt)
+  ! ngrid and grid coordinates have already been definded, and are included
+  ! in the input (for nested: xtn,ytn; for not nested: xts,yts)
+  !************************************************************************
 
   ! Determine the lower left corner and its distance to the current position
   !*************************************************************************

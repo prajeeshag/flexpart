@@ -160,21 +160,8 @@ subroutine advance(itime,ipart,thread)
   ! is to be used
   ! Furthermore, determine which nesting level to be used
   !*****************************************************************
-  ! call find_ngrid(part(ipart)%xlon,part(ipart)%ylat)
-  if (nglobal.and.(part(ipart)%ylat.gt.switchnorthg)) then
-    ngrid=-1
-  else if (sglobal.and.(part(ipart)%ylat.lt.switchsouthg)) then
-    ngrid=-2
-  else
-    ngrid=0
-    do j=numbnests,1,-1
-      if ((part(ipart)%xlon.gt.xln(j)+eps).and.(part(ipart)%xlon.lt.xrn(j)-eps).and. &
-           (part(ipart)%ylat.gt.yln(j)+eps).and.(part(ipart)%ylat.lt.yrn(j)-eps)) then
-        ngrid=j
-        exit
-      endif
-    end do
-  endif
+  call find_ngrid(part(ipart)%xlon,part(ipart)%ylat)
+
   !***************************
   ! Interpolate necessary data
   !***************************
@@ -308,9 +295,10 @@ subroutine advance(itime,ipart,thread)
     ngr=-2
   else
     ngr=0
+    ! Temporary fix for nested layer edges: replaced eps with dxn and dyn (LB)
     do j=numbnests,1,-1
-      if ((real(part(ipart)%xlon).gt.xln(j)+eps).and.(real(part(ipart)%xlon).lt.xrn(j)-eps).and. &
-           (real(part(ipart)%ylat).gt.yln(j)+eps).and.(real(part(ipart)%ylat).lt.yrn(j)-eps)) then
+      if ((real(part(ipart)%xlon).gt.xln(j)+dxn(j)).and.(real(part(ipart)%xlon).lt.xrn(j)-dxn(j)).and. &
+           (real(part(ipart)%ylat).gt.yln(j)+dyn(j)).and.(real(part(ipart)%ylat).lt.yrn(j)-dyn(j))) then
         ngr=j
         exit
       endif

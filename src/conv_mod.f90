@@ -21,7 +21,7 @@ module conv_mod
   use com_mod, only: lconvection
   use windfields_mod, only: metdata_format,akz,bkz,akm,bkm,nuvz, &
     uvheight,ps,tt2,td2,tth,qvh,pplev,tt,qv,nx,ny,tt2n,td2n,psn,tthn,qvhn, &
-    yln,yrn,xln,xrn,yresoln,xresoln,nxn,nyn
+    yln,yrn,xln,xrn,yresoln,xresoln,nxn,nyn,dxn,dyn
   implicit none
 
   !integer,parameter :: nconvlevmax = nuvzmax-1, &
@@ -233,8 +233,9 @@ subroutine convmix(itime)
     ngrid=0
     if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
       do j=numbnests,1,-1
-        if ( x.gt.xln(j)+eps .and. x.lt.xrn(j)-eps .and. &
-             y.gt.yln(j)+eps .and. y.lt.yrn(j)-eps ) then
+        ! Temporary fix for nested layer edges: replaced eps with dxn and dyn (LB)
+        if ( x.gt.xln(j)+dxn(j) .and. x.lt.xrn(j)-dxn(j) .and. &
+             y.gt.yln(j)+dyn(j) .and. y.lt.yrn(j)-dyn(j) ) then
           ngrid=j
           exit
         endif

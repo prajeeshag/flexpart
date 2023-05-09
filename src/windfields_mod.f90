@@ -1165,6 +1165,9 @@ subroutine gridcheck_gfs
     !*************
 
     if((isec1(6).eq.007).and.(isec1(7).eq.001)) then
+    ! IP 8/5/23 allocate fields missing for GFS reading 
+    call fixedfields_allocate
+    ! IP 8/5/23
       do jy=0,ny-1
         do ix=0,nxfield-1
           help=zsec4(nxfield*(ny-jy-1)+ix+1)

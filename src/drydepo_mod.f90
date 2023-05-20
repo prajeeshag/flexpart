@@ -25,7 +25,7 @@ module drydepo_mod
 
 contains
 
-subroutine drydepo_allocate
+subroutine alloc_drydepo
 
   implicit none
 
@@ -35,14 +35,14 @@ subroutine drydepo_allocate
            xlandusen(0:nxmaxn-1,0:nymaxn-1,numclass,maxnests), &
            vdep(0:nxmax-1,0:nymax-1,maxspec,numwfmem))
            
-end subroutine drydepo_allocate
+end subroutine alloc_drydepo
 
-subroutine drydepo_deallocate
+subroutine dealloc_drydepo
 
   if (.not. drydep) return
   deallocate(xlanduse,xlandusen,vdep)
 
-end subroutine drydepo_deallocate
+end subroutine dealloc_drydepo
 
 subroutine assignland
 
@@ -773,7 +773,7 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
 
   ! Determine nested grid coordinates
   !**********************************
-  call determine_grid_coordinates(xt,yt)
+  call find_grid_indices(xt,yt)
 
   ! Determine probability of deposition
   !************************************
@@ -784,11 +784,11 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
         if (depoindicator(ks)) then
           if (ngrid.le.0) then
             do m=1,2
-              call horizontal_interpolation(vdep,vdeptemp(m),ks,memind(m),maxspec)
+              call hor_interpol(vdep,vdeptemp(m),ks,memind(m),maxspec)
             end do
           else
             do m=1,2
-              call horizontal_interpolation_nests(vdepn,vdeptemp(m),ks,memind(m),maxspec)
+              call hor_interpol_nest(vdepn,vdeptemp(m),ks,memind(m),maxspec)
             end do
           endif
           call temporal_interpolation(vdeptemp(1),vdeptemp(2),vdepo(ks))
@@ -823,11 +823,11 @@ subroutine drydepo_probability(prob,dt,zts,vdepo)
         if (depoindicator(ns)) then
           if (ngrid.le.0) then
             do m=1,2
-              call horizontal_interpolation(vdep,vdeptemp(m),ns,memind(m),maxspec)
+              call hor_interpol(vdep,vdeptemp(m),ns,memind(m),maxspec)
             end do
           else
             do m=1,2
-              call horizontal_interpolation_nests(vdepn,vdeptemp(m),ns,memind(m),maxspec)
+              call hor_interpol_nest(vdepn,vdeptemp(m),ns,memind(m),maxspec)
             end do
           endif
           call temporal_interpolation(vdeptemp(1),vdeptemp(2),vdepo(ns))

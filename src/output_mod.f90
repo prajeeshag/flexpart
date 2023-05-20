@@ -22,7 +22,7 @@ module output_mod
 
 contains
 
-subroutine initialise_output(itime,filesize)
+subroutine init_output(itime,filesize)
 
   implicit none
   
@@ -124,7 +124,7 @@ subroutine initialise_output(itime,filesize)
     end do
 #endif
   endif
-end subroutine initialise_output
+end subroutine init_output
 
 subroutine finalise_output(itime)
   ! Complete the calculation of initial conditions for particles not yet terminated
@@ -150,7 +150,7 @@ subroutine finalise_output(itime)
 
   if (linit_cond.ge.1) then
     if(linversionout.eq.1) then
-      call initial_cond_output_inversion(itime)   ! dump initial cond. field
+      call initcond_output_inv(itime)   ! dump initial cond. field
     else
       call initial_cond_output(itime)   ! dump initial cond. fielf
     endif
@@ -226,7 +226,7 @@ subroutine output_particles(itime,initial_output)
 !$OMP PARALLEL PRIVATE(i,j,m,tmp,ns,i_av,cartxyz_comp,cartxyz,np)
   ! Some variables needed for temporal interpolation
   !*************************************************
-  call find_time_variables(itime)
+  call find_time_vars(itime)
 
 !$OMP DO
   do i=1,numpart
@@ -245,7 +245,7 @@ subroutine output_particles(itime,initial_output)
     ! Where in the grid? Stereographic (ngrid<0) or nested (ngrid>0)
     !***************************************************************
     call find_ngrid(real(part(i)%xlon),real(part(i)%ylat))
-    call determine_grid_coordinates(real(part(i)%xlon),real(part(i)%ylat))
+    call find_grid_indices(real(part(i)%xlon),real(part(i)%ylat))
     call find_grid_distances(real(part(i)%xlon),real(part(i)%ylat))
     ! First set dz1out from interpol_mod to -1 so it only is calculated once per particle
     !************************************************************************************
@@ -272,19 +272,19 @@ subroutine output_particles(itime,initial_output)
           cycle
         case ('TO') ! Topography
           if (ngrid.le.0) then
-            call horizontal_interpolation(oro,output(np,i))
+            call hor_interpol(oro,output(np,i))
           else
-            call horizontal_interpolation_nests(oron,output(np,i))
+            call hor_interpol_nest(oron,output(np,i))
           endif 
           cycle
         case ('TR') ! Tropopause
           if (ngrid.le.0) then
             do m=1,2
-              call horizontal_interpolation(tropopause,tmp(m),1,memind(m),1)
+              call hor_interpol(tropopause,tmp(m),1,memind(m),1)
             end do
           else
             do m=1,2
-              call horizontal_interpolation_nests(tropopausen,tmp(m),1,memind(m),1)
+              call hor_interpol_nest(tropopausen,tmp(m),1,memind(m),1)
             end do
           endif
           call temporal_interpolation(tmp(1),tmp(2),output(np,i))
@@ -292,11 +292,11 @@ subroutine output_particles(itime,initial_output)
         case ('HM') ! PBL height
           if (ngrid.le.0) then
             do m=1,2
-              call horizontal_interpolation(hmix,tmp(m),1,memind(m),1)
+              call hor_interpol(hmix,tmp(m),1,memind(m),1)
             end do
           else
             do m=1,2
-              call horizontal_interpolation_nests(hmixn,tmp(m),1,memind(m),1)
+              call hor_interpol_nest(hmixn,tmp(m),1,memind(m),1)
             end do
           endif
           call temporal_interpolation(tmp(1),tmp(2),output(np,i))
@@ -353,7 +353,7 @@ subroutine output_particles(itime,initial_output)
             cartxyz(2)*cartxyz(2)))/pi180
         case default
           if (.not. partopt(np)%average) then
-            call interpol_partoutput_value(partopt(np)%name,output(np,i),i)
+            call interpol_partoutput_val(partopt(np)%name,output(np,i),i)
           else
             output(np,i) = part(i)%val_av(i_av)/part(i)%ntime
           endif
@@ -469,7 +469,7 @@ subroutine output_particles(itime,initial_output)
 #endif
 end subroutine output_particles
 
-subroutine output_concentrations(itime,loutstart,loutend,loutnext,outnum)
+subroutine output_conc(itime,loutstart,loutend,loutnext,outnum)
   use unc_mod
   use outg_mod
   use par_mod
@@ -593,7 +593,7 @@ subroutine output_concentrations(itime,loutstart,loutend,loutnext,outnum)
     outnum=outnum+weight
     call conccalc(itime,weight)
   endif
-end subroutine output_concentrations
+end subroutine output_conc
 
 subroutine conccalc(itime,weight)
   !                      i     i
@@ -1219,7 +1219,7 @@ subroutine conccalc(itime,weight)
   end do
 end subroutine conccalc
 
-subroutine partpos_average(itime,j)
+subroutine partpos_avg(itime,j)
 
   !**********************************************************************
   ! This subroutine averages particle quantities, to be used for particle
@@ -1256,7 +1256,7 @@ subroutine partpos_average(itime,j)
 
  ! Some variables needed for temporal interpolation
   !*************************************************
-  call find_time_variables(itime)
+  call find_time_vars(itime)
 
   xlon=xlon0+real(part(j)%xlon)*dx
   ylat=ylat0+real(part(j)%ylat)*dy
@@ -1267,7 +1267,7 @@ subroutine partpos_average(itime,j)
   ! Where in the grid? Stereographic (ngrid<0) or nested (ngrid>0)
   !***************************************************************
   call find_ngrid(real(part(j)%xlon),real(part(j)%ylat))
-  call determine_grid_coordinates(real(part(j)%xlon),real(part(j)%ylat))
+  call find_grid_indices(real(part(j)%xlon),real(part(j)%ylat))
   call find_grid_distances(real(part(j)%xlon),real(part(j)%ylat))
 
   ! First set dz1out from interpol_mod to -1 so it only is calculated once per particle
@@ -1281,19 +1281,19 @@ subroutine partpos_average(itime,j)
     select case (partopt(np)%name)
       case ('to')
         if (ngrid.le.0) then
-          call horizontal_interpolation(oro,output)
+          call hor_interpol(oro,output)
         else
-          call horizontal_interpolation_nests(oron,output)
+          call hor_interpol_nest(oron,output)
         endif
         part(j)%val_av(i_av)=part(j)%val_av(i_av)+output
       case ('tr')
         if (ngrid.le.0) then
           do m=1,2
-            call horizontal_interpolation(tropopause,tr(m),1,memind(m),1)
+            call hor_interpol(tropopause,tr(m),1,memind(m),1)
           end do
         else
           do m=1,2
-            call horizontal_interpolation_nests(tropopausen,tr(m),1,memind(m),1)
+            call hor_interpol_nest(tropopausen,tr(m),1,memind(m),1)
           end do
         endif
         call temporal_interpolation(tr(1),tr(2),output)
@@ -1301,11 +1301,11 @@ subroutine partpos_average(itime,j)
       case ('hm')
         if (ngrid.le.0) then
           do m=1,2
-            call horizontal_interpolation(hmix,hm(m),1,memind(m),1)
+            call hor_interpol(hmix,hm(m),1,memind(m),1)
           end do
         else
           do m=1,2
-            call horizontal_interpolation_nests(hmixn,hm(m),1,memind(m),1)
+            call hor_interpol_nest(hmixn,hm(m),1,memind(m),1)
           end do
         endif
         call temporal_interpolation(hm(1),hm(2),output)
@@ -1354,7 +1354,7 @@ subroutine partpos_average(itime,j)
       case ('vs')
         part(j)%val_av(i_av)=part(j)%val_av(i_av)+part(j)%settling
       case default
-        call interpol_partoutput_value(partopt(np)%name,output,j)
+        call interpol_partoutput_val(partopt(np)%name,output,j)
         part(j)%val_av(i_av)=part(j)%val_av(i_av)+output
     end select
   end do
@@ -1364,6 +1364,6 @@ subroutine partpos_average(itime,j)
   cart_comp=.false.
 
   return
-end subroutine partpos_average
+end subroutine partpos_avg
 
 end module output_mod

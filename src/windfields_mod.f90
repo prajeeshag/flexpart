@@ -3796,7 +3796,7 @@ subroutine fixedfields_allocate
   allocate(pv(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
 end subroutine fixedfields_allocate
 
-subroutine windfields_allocate
+subroutine alloc_windfields
   implicit none
 
   ! Eta coordinates
@@ -3874,9 +3874,9 @@ subroutine windfields_allocate
   allocate(height(nzmax),wheight(nzmax),uvheight(nzmax))
   allocate(akm(nwzmax),bkm(nwzmax),akz(nuvzmax),bkz(nuvzmax), &
     aknew(nzmax),bknew(nzmax))
-end subroutine windfields_allocate
+end subroutine alloc_windfields
 
-subroutine windfields_nest_allocate
+subroutine alloc_windfields_nests
   !*******************************************************************************    
   ! Dynamic allocation of arrays
   !
@@ -3968,9 +3968,9 @@ subroutine windfields_nest_allocate
   ciwcn(:,:,:,:,:)=0.
   clwchn(:,:,:,:,:)=0.
   ciwchn(:,:,:,:,:)=0.
-end subroutine windfields_nest_allocate
+end subroutine alloc_windfields_nests
 
-subroutine windfields_nest_deallocate
+subroutine dealloc_windfields_nests
   
   deallocate(wfnamen,wfspecn)
 
@@ -3988,9 +3988,9 @@ subroutine windfields_nest_deallocate
     sshfn,ssrn,surfstrn,ustarn,wstarn,hmixn,tropopausen,olin,vdepn)
 
   deallocate(xresoln,yresoln,xln,yln,xrn,yrn)
-end subroutine windfields_nest_deallocate
+end subroutine dealloc_windfields_nests
 
-subroutine windfields_deallocate
+subroutine dealloc_windfields
   implicit none
 
   deallocate(oro,excessoro,lsm)
@@ -4006,6 +4006,6 @@ subroutine windfields_deallocate
     ustar,wstar,hmix,tropopause,oli)
 
   deallocate(height,wheight,uvheight,akm,bkm,akz,bkz,aknew,bknew)
-end subroutine windfields_deallocate
+end subroutine dealloc_windfields
 
 end module windfields_mod

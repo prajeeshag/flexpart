@@ -97,7 +97,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
   do jpart=1,numpart
 
     ! Check if memory has been deallocated
-    if (.not. is_particle_allocated(jpart)) cycle
+    if (.not. particle_allocated(jpart)) cycle
 
     ! Check if particle is still allive
     if (.not. part(jpart)%alive) cycle
@@ -307,18 +307,18 @@ subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc
     if (yts.ge.real(ny-1)) yts=real(ny-1)-0.00001
   endif
 
-  call determine_grid_coordinates(xts,yts)
+  call find_grid_indices(xts,yts)
   call find_grid_distances(xts,yts)
 
   if (ngrid.le.0) then
     ! No temporal interpolation to stay consistent with clouds
-    call horizontal_interpolation(lsprec,lsp,1,n,1) ! large scale total precipitation
-    call horizontal_interpolation(convprec,convp,1,n,1) ! convective precipitation
-    call horizontal_interpolation(tcc,cc,1,n,1) ! total cloud cover
+    call hor_interpol(lsprec,lsp,1,n,1) ! large scale total precipitation
+    call hor_interpol(convprec,convp,1,n,1) ! convective precipitation
+    call hor_interpol(tcc,cc,1,n,1) ! total cloud cover
   else
-    call horizontal_interpolation_nests(lsprecn,lsp,1,n,1) ! large scale total precipitation
-    call horizontal_interpolation_nests(convprecn,convp,1,n,1) ! convective precipitation
-    call horizontal_interpolation_nests(tccn,cc,1,n,1) ! total cloud cover
+    call hor_interpol_nest(lsprecn,lsp,1,n,1) ! large scale total precipitation
+    call hor_interpol_nest(convprecn,convp,1,n,1) ! convective precipitation
+    call hor_interpol_nest(tccn,cc,1,n,1) ! total cloud cover
   endif
 
   !  If total precipitation is less than 0.01 mm/h - no scavenging occurs

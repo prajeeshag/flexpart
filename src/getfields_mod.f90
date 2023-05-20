@@ -48,7 +48,7 @@ module getfields_mod
   public :: getfields
 contains
 
-subroutine getfields_allocate
+subroutine alloc_getfields
   implicit none
   allocate(uuh(0:nxmax-1,0:nymax-1,nuvzmax),      &
     vvh(0:nxmax-1,0:nymax-1,nuvzmax),             &
@@ -62,14 +62,14 @@ subroutine getfields_allocate
 
   allocate(ppml(0:nxmax-1,0:nymax-1,nuvzmax),ppmk(0:nxmax-1,0:nymax-1,nuvzmax))
   allocate(ttlev(nuvzmax),qvlev(nuvzmax),ulev(nuvzmax),vlev(nuvzmax),zlev(nuvzmax))
-end subroutine getfields_allocate
+end subroutine alloc_getfields
 
-subroutine getfields_deallocate
+subroutine dealloc_getfields
   implicit none
   deallocate(uuh,vvh,pvh,wwh,uuhn,vvhn,pvhn,wwhn,pwater)
   deallocate(ppml,ppmk)
   deallocate(ttlev,qvlev,ulev,vlev,zlev)
-end subroutine getfields_deallocate
+end subroutine dealloc_getfields
 
 subroutine getfields(itime,nstop)
   !                       i     o

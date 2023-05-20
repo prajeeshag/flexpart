@@ -45,17 +45,17 @@ module initialise_mod
 
 contains
 
-subroutine domainfill_allocate
+subroutine alloc_domainfill
   implicit none
   allocate(numcolumn_we(2,0:nymax-1),numcolumn_sn(2,0:nxmax-1))
   allocate(zcolumn_we(2,0:nymax-1,maxcolumn),zcolumn_sn(2,0:nxmax-1,maxcolumn), &
     acc_mass_we(2,0:nymax-1,maxcolumn),acc_mass_sn(2,0:nxmax-1,maxcolumn))              
-end subroutine domainfill_allocate
+end subroutine alloc_domainfill
 
-subroutine domainfill_deallocate
+subroutine dealloc_domainfill
   if (mdomainfill.lt.1) return
   deallocate(numcolumn_we,numcolumn_sn,zcolumn_sn,zcolumn_we,acc_mass_sn,acc_mass_we)
-end subroutine domainfill_deallocate
+end subroutine dealloc_domainfill
 
 subroutine releaseparticles(itime)
   !                              o
@@ -135,16 +135,16 @@ subroutine releaseparticles(itime)
     do i=1,numpoint
       totpart = totpart+npart(i)
     end do
-    call allocate_particles(totpart)
+    call alloc_particles(totpart)
   else if (itime.eq.itime_init) then !From restart point only allocate particles that are yet to be born
     totpart=0
     do i=1,numpoint
       totpart = totpart+npart(i)
     end do
-    if (totpart.gt.count%allocated) call allocate_particles(totpart-count%allocated)
+    if (totpart.gt.count%allocated) call alloc_particles(totpart-count%allocated)
   end if 
 
-  call get_total_part_num(istart)
+  call get_totalpart_num(istart)
   minpart=1
   do i=1,numpoint
     if ((itime.ge.ireleasestart(i)).and. &! are we within release interval?
@@ -211,8 +211,8 @@ subroutine releaseparticles(itime)
       yaux=ypoint2(i)-ypoint1(i)
       zaux=zpoint2(i)-zpoint1(i)
 
-      do j=1,numrel                       ! loop over particles to be released this time
-        call get_new_part_index(ipart)
+      do j=1,numrel             ! loop over particles to be released this time
+        call get_newpart_index(ipart)
         call spawn_particle(itime, ipart)
 
   ! Particle coordinates are determined by using a random position within the release volume
@@ -442,18 +442,18 @@ subroutine releaseparticles(itime)
           end do
         endif
 
-        call get_total_part_num(numpart)
+        call get_totalpart_num(numpart)
 
       end do  ! numrel 
     endif ! releasepoint
   end do ! numpoint
 
-  call get_total_part_num(iend)
+  call get_totalpart_num(iend)
 
   ! NetCDF only: write initial positions of new particles
 #ifdef USE_NCF
   if ((iend-istart.gt.0).and.(ipout.ge.1)) then 
-    call write_particles_initialoutput(itime,istart,iend)
+    call wrt_part_initialpos(itime,istart,iend)
     call output_particles(itime,.true.)
   endif
 #endif
@@ -512,7 +512,7 @@ subroutine readpartpositions
   if (lnetcdfout.eq.1) then
 #ifdef USE_NCF
     call readpartpositions_netcdf(ibtime,ibdate)
-    call get_total_part_num(numpart)
+    call get_totalpart_num(numpart)
     numparticlecount=numpart
     return
 #endif
@@ -632,7 +632,7 @@ subroutine readpartpositions
 
 end subroutine readpartpositions
 
-subroutine initialize_particle(itime,ipart)
+subroutine init_particle(itime,ipart)
   !                        i    i   o  o  o
   !        o       o       o    i  i  i   o
   !*****************************************************************************
@@ -716,7 +716,7 @@ subroutine initialize_particle(itime,ipart)
   call find_ngrid(xt,yt)
   ! Compute maximum mixing height around particle position
   !*******************************************************
-  call determine_grid_coordinates(xt,yt)
+  call find_grid_indices(xt,yt)
   
   h=max(hmix(ix ,jy,1,memind(1)), &
        hmix(ixp,jy ,1,memind(1)), &
@@ -737,7 +737,7 @@ subroutine initialize_particle(itime,ipart)
 
   if (zeta.le.1.) then
 
-    call interpol_PBL(itime,xt,yt,zt,zteta)
+    call interpol_pbl(itime,xt,yt,zt,zteta)
 
   ! Vertical interpolation of u,v,w,rho and drhodz
   !***********************************************
@@ -745,7 +745,7 @@ subroutine initialize_particle(itime,ipart)
   ! Vertical distance to the level below and above current position
   ! both in terms of (u,v) and (w) fields
   !****************************************************************
-    call interpol_PBL_short(zt,dummy1,dummy2)
+    call interpol_pbl_short(zt,dummy1,dummy2)
 
   ! Compute the turbulent disturbances
 
@@ -772,7 +772,8 @@ subroutine initialize_particle(itime,ipart)
       if(-h/ol.gt.5) then
   !if (ol.lt.0.) then
   !if (ol.gt.0.) then !by mc : only for test correct is lt.0
-        call initialize_cbl_vel(iseed1(thread),zt,ust,wst,h,sigw,part(ipart)%turbvel%w,ol,thread)
+        call init_cbl_vel( &
+          iseed1(thread),zt,ust,wst,h,sigw,part(ipart)%turbvel%w,ol,thread)
       else
         part(ipart)%turbvel%w=part(ipart)%turbvel%w*sigw
       end if
@@ -841,7 +842,7 @@ subroutine initialize_particle(itime,ipart)
   ! of the surrounding points, autocorrelation time constant is
   ! 1/2 of time interval between wind fields
   !****************************************************************
-  if (mesoscale_turbulence) then
+  if (lmesoscale_turb) then
     call interpol_mesoscale(itime,xt,yt,zt,zteta)
     if (nrand+2.gt.maxrand) nrand=1
     part(ipart)%mesovel%u=rannumb(nrand)*usig
@@ -855,7 +856,7 @@ subroutine initialize_particle(itime,ipart)
         part(ipart)%mesovel%w=rannumb(nrand+2)*wsig
     end select  
   endif
-end subroutine initialize_particle
+end subroutine init_particle
 
 subroutine init_domainfill
   !
@@ -913,7 +914,7 @@ subroutine init_domainfill
   ! shall be initialized
   ! Use 2 fields for west/east and south/north boundary
   !**************************************************************************
-  call domainfill_allocate
+  call alloc_domainfill
 
   nx_we(1)=max(int(xpoint1(1)),0)
   nx_we(2)=min((int(xpoint2(1))+1),nxmin1)
@@ -980,7 +981,7 @@ subroutine init_domainfill
 
   ! Allocate memory for storing the particles
   !******************************************
-  call allocate_particles(npart(1))
+  call alloc_particles(npart(1))
 
   ! Initialise total particle number
   numparttot=0
@@ -1303,7 +1304,7 @@ subroutine init_domainfill
     endif
   end do
 
-  if (deall) call deallocate_particle(numpart) !Deallocates everything above numpart (F2008)
+  if (deall) call dealloc_particle(numpart) !Deallocates everything above numpart (F2008)
 
 
   ! If particles shall be read in to continue an existing run,
@@ -1530,7 +1531,7 @@ subroutine boundcond_domainfill(itime,loutend)
         endif
 
         do m=1,mmass
-          call get_new_part_index(ipart)
+          call get_newpart_index(ipart)
           call spawn_particle(itime, ipart)
 
   ! Assign particle positions
@@ -1745,7 +1746,7 @@ subroutine boundcond_domainfill(itime,loutend)
         endif
 
         do m=1,mmass
-          call get_new_part_index(ipart)
+          call get_newpart_index(ipart)
           call spawn_particle(itime, ipart)
   
   ! Assign particle positions

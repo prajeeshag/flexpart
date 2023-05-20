@@ -6,9 +6,9 @@
   ! This module contains routines that output gridded data to binary files.    *
   !                                                                            *
   ! Not all routines that should have a netcdf equivalent, have one yet:       *
-  ! writeheader_binary_nest_surf,writeheader_binary_surf,concoutput_surf,      *
-  ! concoutput_surf_nest,initial_cond_output,initial_cond_output_inversion,    *
-  ! concoutput_inversion_nest                                                  *
+  ! writeheader_bin_sfc_nest,writeheader_bin_sfc,concoutput_sfc,               *
+  ! concoutput_sfc_nest,initcond_output,initcond_output_inv,                   *
+  ! concoutput_inv_nest                                                        *
   !                                                                            *
   !   L. Bakels 2022                                                           *
   !                                                                            *
@@ -4379,7 +4379,7 @@ subroutine initial_cond_output(itime)
   end do
 end subroutine initial_cond_output
 
-subroutine initial_cond_output_inversion(itime)
+subroutine initcond_output_inv(itime)
   !                                 i
   !*****************************************************************************
   !                                                                            *
@@ -4533,6 +4533,7 @@ subroutine initial_cond_output_inversion(itime)
   if (listart) then
     listart=.false.
   endif
-end subroutine initial_cond_output_inversion
+
+end subroutine initcond_output_inv
 
 end module binary_output_mod

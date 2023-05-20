@@ -499,7 +499,8 @@ module com_mod
 
 
 contains
-  subroutine com_mod_allocate_part(nmpart)
+
+  subroutine mpi_alloc_part(nmpart)
   !*******************************************************************************    
   ! Dynamic allocation of arrays
   !
@@ -521,6 +522,6 @@ contains
       allocate(part_av_uu(nmpart),part_av_vv(nmpart),part_av_energy(nmpart))
     end if
 
-  end subroutine com_mod_allocate_part
+  end subroutine mpi_alloc_part
 
 end module com_mod

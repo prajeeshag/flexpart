@@ -21,7 +21,7 @@ module random_mod
 
 contains
   
-  subroutine allocate_random(num_threads)
+  subroutine alloc_random(num_threads)
 
     implicit none
 
@@ -42,16 +42,16 @@ contains
     ran1_iy(0:num_threads-1)=0
     gasdev_iset(0:num_threads-1)=0
     gasdev_gset(0:num_threads-1)=0
-  end subroutine allocate_random
+  end subroutine alloc_random
 
-  subroutine deallocate_random()
+  subroutine dealloc_random()
 
     deallocate(ran1_iv,ran1_iy)
     deallocate(gasdev_iset,gasdev_gset)
     deallocate(ran3_iff,ran3_inext,ran3_inextp)
     deallocate(ma)
     deallocate(iseed1,iseed2)
-  end subroutine deallocate_random
+  end subroutine dealloc_random
 
   function ran1(idum,ithread)
 

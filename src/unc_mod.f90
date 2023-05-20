@@ -42,7 +42,7 @@ module unc_mod
 
 contains
 
-subroutine radioactive_decay()
+subroutine deposit_decay()
   ! Accumulated deposited mass radioactively decays
   use com_mod
 
@@ -94,6 +94,6 @@ subroutine radioactive_decay()
   end do
 !$OMP END DO
 !$OMP END PARALLEL
-end subroutine radioactive_decay
+end subroutine deposit_decay
 
 end module unc_mod

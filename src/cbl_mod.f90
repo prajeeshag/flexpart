@@ -6,7 +6,7 @@ module cbl_mod
 
     private :: cuberoot
 
-    public :: cbl,re_initialize_particle,initialize_cbl_vel
+    public :: cbl,reinit_particle,init_cbl_vel
     
 contains
 
@@ -235,7 +235,7 @@ function cuberoot(x) result(y)
     y=sign((abs(x))**third,x)
 end function cuberoot
 
-subroutine re_initialize_particle(zp,ust,wst,h,sigmaw,wp,nrand,ol)
+subroutine reinit_particle(zp,ust,wst,h,sigmaw,wp,nrand,ol)
 !                                      i   i  i   i  i    io  io    i 
 
 !******************************************************************************
@@ -330,9 +330,9 @@ subroutine re_initialize_particle(zp,ust,wst,h,sigmaw,wp,nrand,ol)
   end if
 
   return
-end subroutine re_initialize_particle
+end subroutine reinit_particle
 
-subroutine initialize_cbl_vel(idum,zp,ust,wst,h,sigmaw,wp,ol,ithread)
+subroutine init_cbl_vel(idum,zp,ust,wst,h,sigmaw,wp,ol,ithread)
   !                              i/o   i  i   i  i     i  o   i  
 
   use par_mod, only:pi
@@ -414,6 +414,6 @@ subroutine initialize_cbl_vel(idum,zp,ust,wst,h,sigmaw,wp,ol,ithread)
   end if
 
   return
-end subroutine initialize_cbl_vel
+end subroutine init_cbl_vel
 
 end module cbl_mod

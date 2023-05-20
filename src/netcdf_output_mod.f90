@@ -118,10 +118,10 @@ module netcdf_output_mod
   private
 
   public :: writeheader_netcdf,concoutput_surf_nest_netcdf,concoutput_netcdf,&
-       &concoutput_nest_netcdf,concoutput_surf_netcdf,writeheader_partoutput,partoutput_netcdf,&
-       open_partoutput_file,close_partoutput_file,readpartpositions_netcdf,create_particles_initialoutput,&
-       write_particles_initialoutput,topo_written,mass_written,partinit_netcdf,open_partinit_file,&
-       readinitconditions_netcdf,partinitpointer1,tpointer
+       concoutput_nest_netcdf,concoutput_surf_netcdf,writeheader_partoutput,partoutput_netcdf,&
+       open_partoutput_file,close_partoutput_file,create_particles_initialoutput,&
+       topo_written,mass_written,wrt_part_initialpos,partinit_netcdf,open_partinit_file, &
+       readpartpositions_netcdf,readinitconditions_netcdf,partinitpointer1,tpointer
 contains
 
 !****************************************************************
@@ -341,7 +341,7 @@ subroutine writeheader_netcdf(lnest)
 
   ! If starting from a restart file, new data will be added to the existing grid file
   if ((ipin.eq.1).or.(ipin.eq.4)) then
-    call read_gridIDs(lnest)
+    call read_grid_id(lnest)
     return
   endif
 
@@ -747,7 +747,7 @@ subroutine writeheader_netcdf(lnest)
   return
 end subroutine writeheader_netcdf
 
-subroutine read_gridIDs(lnest)
+subroutine read_grid_id(lnest)
   
   implicit none
   logical, intent(in) :: lnest
@@ -805,7 +805,7 @@ subroutine read_gridIDs(lnest)
 
   call nf90_err(nf90_close(ncid))
 
-end subroutine read_gridIDs
+end subroutine read_grid_id
 
 subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
      
@@ -1708,7 +1708,7 @@ subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
   call nf90_err(nf90_close(ncid))
 end subroutine create_particles_initialoutput
 
-subroutine write_particles_initialoutput(itime,istart,iend)
+subroutine wrt_part_initialpos(itime,istart,iend)
 
   !*****************************************************************************
   !                                                                            *
@@ -1758,7 +1758,7 @@ subroutine write_particles_initialoutput(itime,istart,iend)
   call nf90_err(nf90_close(ncid))
 
   partinitpointer = partinitpointer+newpart
-end subroutine write_particles_initialoutput
+end subroutine wrt_part_initialpos
 
 subroutine partinit_netcdf(itime,field,fieldname,imass,ncid)
 
@@ -2466,6 +2466,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   end do
 
   call nf90_err(nf90_close(ncidend))
+
 end subroutine readpartpositions_netcdf
 
 subroutine readinitconditions_netcdf()
@@ -2526,7 +2527,7 @@ subroutine readinitconditions_netcdf()
 
   ! Now spawn the correct number of particles
   write(*,*) 'Npart:',plen
-  call allocate_particles( plen )
+  call alloc_particles( plen )
   ! allocate temporary mass array
   allocate(mass_temp(plen,nspec))
 
@@ -2652,7 +2653,7 @@ subroutine readinitconditions_netcdf()
     endif
   end do
   write(*,FMT='(A,ES14.7)') ' Total mass to be released:', sum(xmass(1:numpoint,1:nspec))
-  call get_total_part_num(numpart)
+  call get_totalpart_num(numpart)
   numparticlecount=numpart
   call nf90_err(nf90_close(ncidend))
 

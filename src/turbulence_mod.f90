@@ -21,7 +21,7 @@ module turbulence_mod
 
 contains
 
-subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd,thread)
+subroutine turbulence_pbl(ipart,nrand,dt,zts,rhoa,rhograd,thread)
   
   use cbl_mod
   
@@ -110,7 +110,7 @@ subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd,thread)
                 bth*rannumb(nrand)*sqrt(dtf))*icbt_r
               delz=wp*dtf
               if ((flagrein.eq.1).or.(wp.ne.wp).or.((wp-1.).eq.wp)) then
-                call re_initialize_particle(zts,ust,wst,h,sigw,old_wp_buf,nrand,ol)
+                call reinit_particle(zts,ust,wst,h,sigw,old_wp_buf,nrand,ol)
                 wp=old_wp_buf
                 delz=wp*dtf
                 nan_count(thread+1)=nan_count(thread+1)+1
@@ -183,7 +183,7 @@ subroutine turbulence_boundarylayer(ipart,nrand,dt,zts,rhoa,rhograd,thread)
     part(ipart)%turbvel%w=wp
     part(ipart)%icbt=icbt
     if (cblflag.ne.1) nrand=nrand+i
-end subroutine turbulence_boundarylayer
+end subroutine turbulence_pbl
 
 subroutine turbulence_stratosphere(dt,nrand,ux,vy,wp,tropop,zts)
 

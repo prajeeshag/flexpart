@@ -74,7 +74,7 @@ module conv_mod
 
 contains
 
-subroutine convection_allocate
+subroutine alloc_convect
   implicit none
   if (.not.lconvection.eq.1) return
   ! ! nconvlevmax=nuvzmax-1
@@ -95,9 +95,10 @@ subroutine convection_allocate
   !   QP(NA),EP(NA),TH(NA),WT(NA),EVAP(NA),CLW(NA),          &
   !   SIGP(NA),TP(NA),CPN(NA),                               &
   !   LV(NA),LVCP(NA),H(NA),HP(NA),GZ(NA),HM(NA))
-end subroutine convection_allocate
 
-subroutine convection_deallocate
+end subroutine alloc_convect
+
+subroutine dealloc_convect
   implicit none
   if (.not.lconvection.eq.1) return
   ! deallocate(pconv,phconv,dpr,pconv_hpa,phconv_hpa,ft,fq,sub, &
@@ -106,13 +107,12 @@ subroutine convection_deallocate
   ! deallocate(fup,fdown,ment,M,MP,QENT,ELIJ,SIJ,TVP,TV, &
   !   WATER,QP,EP,TH,WT,EVAP,CLW,SIGP,TP,CPN,LV,LVCP, &
   !   H,HP,GZ,HM)
-end subroutine convection_deallocate
+end subroutine dealloc_convect
 
-subroutine set_upperlevel_convect()
-  ! Determine the uppermost level for which the convection scheme shall be applied
-  ! by assuming that there is no convection above 50 hPa (for standard SLP)
-  !*****************************************************************************  
-  implicit none
+subroutine set_conv_top()
+! Determine the uppermost level for which the convection scheme shall be applied
+! by assuming that there is no convection above 50 hPa (for standard SLP)
+!*****************************************************************************  
 
   integer :: i
   real :: pint
@@ -124,10 +124,11 @@ subroutine set_upperlevel_convect()
   nconvlev=i
   if (nconvlev.gt.nconvlevmax-1) then
     nconvlev=nconvlevmax-1
-    write(*,*) 'Attention, convection only calculated up to ', &
+    write(*,*) 'INFORMATION: Convection only calculated up to ', &
          akz(nconvlev)+bkz(nconvlev)*1013.25,' hPa'
   endif  
-end subroutine set_upperlevel_convect
+
+end subroutine set_conv_top
 
 subroutine convmix(itime)
   !                     i
@@ -199,10 +200,10 @@ subroutine convmix(itime)
 
   ! if no particles are present return after initialization
   !********************************************************
-  call get_alive_part_num(alivepart)
+  call get_alivepart_num(alivepart)
   if (alivepart.le.0 ) return
 
-  call get_total_part_num(totpart)
+  call get_totalpart_num(totpart)
   allocate( igrid(totpart) )
   allocate( ipoint(totpart) )
   allocate( igridn(totpart,maxnests) )

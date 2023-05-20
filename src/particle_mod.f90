@@ -108,57 +108,57 @@ module particle_mod
   public ::                       &
     particle,                     &
     part,                         &
-    allocate_particles,           &
-    deallocate_particle_range,    &
-    deallocate_particle,          &
-    deallocate_all_particles,     &
+    alloc_particles,              &
+    dealloc_particle_range,       &
+    dealloc_particle,             &
+    dealloc_all_particles,        &
     terminate_particle,           &
-    spawn_particles,              &
     spawn_particle,               &
-    get_total_part_num,           &
-    get_alive_part_num,           &
-    get_new_part_index,           &
-    is_particle_allocated,        &
+    spawn_particles,              &
+    get_totalpart_num,            &
+    get_alivepart_num,            &
+    get_newpart_index,            &
+    particle_allocated,           &
     update_xlon,                  &
     update_ylat,                  &
     update_z,                     &
     count
 
   interface update_xlon
-    procedure update_xlon_dp, update_xlon_float, update_xlon_int
+    procedure update_xlon_dp, update_xlon_sp, update_xlon_int
   end interface update_xlon
 
   interface set_xlon
-    procedure set_xlon_dp, set_xlon_float, set_xlon_int
+    procedure set_xlon_dp, set_xlon_sp, set_xlon_int
   end interface set_xlon
 
   interface update_ylat
-    procedure update_ylat_dp, update_ylat_float, update_ylat_int
+    procedure update_ylat_dp, update_ylat_sp, update_ylat_int
   end interface update_ylat
 
   interface set_ylat
-    procedure set_ylat_dp, set_ylat_float, set_ylat_int
+    procedure set_ylat_dp, set_ylat_sp, set_ylat_int
   end interface set_ylat
 
   interface update_z
-    procedure update_z_dp,update_z_float
+    procedure update_z_dp,update_z_sp
   end interface update_z
 
   interface set_z
-    procedure set_z_dp,set_z_float
+    procedure set_z_dp,set_z_sp
   end interface set_z
 
   interface update_zeta
-    procedure update_zeta_dp,update_zeta_float
+    procedure update_zeta_dp,update_zeta_sp
   end interface update_zeta
 
   interface set_zeta
-    procedure set_zeta_dp,set_zeta_float
+    procedure set_zeta_dp,set_zeta_sp
   end interface set_zeta
    
 contains
 
-  logical function is_particle_allocated(ipart)
+  logical function particle_allocated(ipart)
     !******************************************
     ! Checks if the memory of the particle is *
     ! still allocated                         *
@@ -171,13 +171,13 @@ contains
     !logical :: is_particle_allocated
     
     if (ipart.gt.count%allocated) then
-      is_particle_allocated = .false.
+      particle_allocated = .false.
     else
-      is_particle_allocated = count%inmem(ipart)
+      particle_allocated = count%inmem(ipart)
     endif
-  end function is_particle_allocated
+  end function particle_allocated
 
-  subroutine get_new_part_index(ipart)
+  subroutine get_newpart_index(ipart)
     !**************************************************
     ! Returns the first free spot to put a new particle
     !**************************************************
@@ -187,9 +187,9 @@ contains
       ipart                     ! First free index
 
     ipart = count%spawned + 1
-  end subroutine get_new_part_index
+  end subroutine get_newpart_index
 
-  subroutine get_total_part_num(npart)
+  subroutine get_totalpart_num(npart)
     !********************************************
     ! Returns total number of particles spawned *
     !********************************************
@@ -199,9 +199,9 @@ contains
       npart                     ! Number of particles
 
     npart = count%spawned
-  end subroutine get_total_part_num
+  end subroutine get_totalpart_num
 
-  subroutine get_alive_part_num(npart)
+  subroutine get_alivepart_num(npart)
     !**********************************************
     ! Returns number of particles currently alive *
     !**********************************************
@@ -211,7 +211,7 @@ contains
       npart                     ! Number of particles
 
     npart = count%alive
-  end subroutine get_alive_part_num
+  end subroutine get_alivepart_num
 
   subroutine spawn_particles(itime, nmpart)
     !******************************************************
@@ -229,7 +229,7 @@ contains
     ! Check if new memory needs to be allocated 
     !*******************************************
     if (nmpart+count%spawned.gt.count%allocated) then
-      call allocate_particles( (nmpart+count%spawned) - count%allocated )
+      call alloc_particles( (nmpart+count%spawned) - count%allocated )
     endif
     ! Update the number of particles that are currently alive
     !********************************************************
@@ -260,8 +260,8 @@ contains
 
     ! Check if new memory needs to be allocated 
     !*******************************************
-    if (.not. is_particle_allocated(ipart)) then
-      call allocate_particle(ipart)
+    if (.not. particle_allocated(ipart)) then
+      call alloc_particle(ipart)
     endif
 
     if (part(ipart)%alive) error stop 'Attempting to overwrite existing particle'
@@ -305,7 +305,7 @@ contains
     count%terminated = count%terminated + 1
   end subroutine terminate_particle
  
-  subroutine allocate_particles(nmpart)
+  subroutine alloc_particles(nmpart)
 
     implicit none 
 
@@ -369,9 +369,9 @@ contains
 
     count%allocated = count%allocated+nmpart
     if (nmpart.gt.100) write(*,*) 'Finished allocation'
-  end subroutine allocate_particles
+  end subroutine alloc_particles
 
-  subroutine allocate_particle(ipart)
+  subroutine alloc_particle(ipart)
 
     implicit none 
 
@@ -381,14 +381,14 @@ contains
     ! there is a reason for deallocating some of it
     !**********************************************
     if (ipart.gt.count%allocated) then 
-      call allocate_particles(ipart-count%allocated)
+      call alloc_particles(ipart-count%allocated)
     else
       error stop 'Error: You are trying to allocate an already existing particle'
     endif
 
-  end subroutine allocate_particle
+  end subroutine alloc_particle
 
-  subroutine deallocate_particle_range(istart,iend)
+  subroutine dealloc_particle_range(istart,iend)
 
     implicit none
 
@@ -396,9 +396,9 @@ contains
 
     !deallocate( part(istart:iend) )
     count%inmem(istart:iend) = .false.
-  end subroutine deallocate_particle_range
+  end subroutine dealloc_particle_range
 
-  subroutine deallocate_particle(ipart)
+  subroutine dealloc_particle(ipart)
 
     implicit none
 
@@ -407,9 +407,9 @@ contains
     !deallocate( part(ipart) )
     part = part(1:ipart) ! FORTRAN 2008 only
     count%inmem(ipart+1:) = .false.
-  end subroutine deallocate_particle
+  end subroutine dealloc_particle
 
-  subroutine deallocate_all_particles()
+  subroutine dealloc_all_particles()
 
     implicit none
 
@@ -433,7 +433,7 @@ contains
       deallocate( zplum )
       deallocate( nclust )
     endif
-  end subroutine deallocate_all_particles
+  end subroutine dealloc_all_particles
 
 ! Update_xlon
   subroutine update_xlon_dp(ipart,xchange)
@@ -450,7 +450,7 @@ contains
     part(ipart)%xlon = part(ipart)%xlon + xchange
   end subroutine update_xlon_dp
 
-  subroutine update_xlon_float(ipart,xchange)
+  subroutine update_xlon_sp(ipart,xchange)
     !**************************************
     ! Updates the longitude of the particle
     !**************************************
@@ -462,7 +462,7 @@ contains
       xchange
 
     part(ipart)%xlon = part(ipart)%xlon + real(xchange,kind=dp)
-  end subroutine update_xlon_float
+  end subroutine update_xlon_sp
 
   subroutine update_xlon_int(ipart,xchange)
     !**************************************
@@ -494,7 +494,7 @@ contains
     part(ipart)%xlon = xvalue
   end subroutine set_xlon_dp
 
-  subroutine set_xlon_float(ipart,xvalue)
+  subroutine set_xlon_sp(ipart,xvalue)
     !**************************************
     ! Sets the longitude of the particle
     !**************************************
@@ -506,7 +506,7 @@ contains
       xvalue
 
     part(ipart)%xlon = real(xvalue,kind=dp)
-  end subroutine set_xlon_float
+  end subroutine set_xlon_sp
 
   subroutine set_xlon_int(ipart,xvalue)
     !**************************************
@@ -538,7 +538,7 @@ contains
     part(ipart)%ylat = part(ipart)%ylat + ychange
   end subroutine update_ylat_dp
 
-  subroutine update_ylat_float(ipart,ychange)
+  subroutine update_ylat_sp(ipart,ychange)
     !**************************************
     ! Updates the latitude of the particle
     !**************************************
@@ -550,7 +550,7 @@ contains
       ychange
 
     part(ipart)%ylat = part(ipart)%ylat + real(ychange,kind=dp)
-  end subroutine update_ylat_float
+  end subroutine update_ylat_sp
 
   subroutine update_ylat_int(ipart,ychange)
     !**************************************
@@ -582,7 +582,7 @@ contains
     part(ipart)%ylat = yvalue
   end subroutine set_ylat_dp
 
-  subroutine set_ylat_float(ipart,yvalue)
+  subroutine set_ylat_sp(ipart,yvalue)
     !**************************************
     ! Sets the latitude of the particle
     !**************************************
@@ -594,7 +594,7 @@ contains
       yvalue
 
     part(ipart)%ylat = real(yvalue,kind=dp)
-  end subroutine set_ylat_float
+  end subroutine set_ylat_sp
 
   subroutine set_ylat_int(ipart,yvalue)
     !**************************************
@@ -628,7 +628,7 @@ contains
     part(ipart)%etaupdate=.true.
   end subroutine update_z_dp
 
-  subroutine update_z_float(ipart,zchange)
+  subroutine update_z_sp(ipart,zchange)
     !**************************************
     ! Updates the height of the particle
     !**************************************
@@ -642,7 +642,7 @@ contains
     part(ipart)%z = part(ipart)%z + real(zchange,kind=dp)
     part(ipart)%meterupdate=.false.
     part(ipart)%etaupdate=.true.
-  end subroutine update_z_float  
+  end subroutine update_z_sp  
 
   subroutine update_zeta_dp(ipart,zchange)
     !**************************************
@@ -660,7 +660,7 @@ contains
     part(ipart)%meterupdate=.true.
   end subroutine update_zeta_dp
 
-  subroutine update_zeta_float(ipart,zchange)
+  subroutine update_zeta_sp(ipart,zchange)
     !**************************************
     ! Updates the height of the particle
     !**************************************
@@ -674,7 +674,7 @@ contains
     part(ipart)%zeta = part(ipart)%zeta + real(zchange,kind=dp)
     part(ipart)%etaupdate=.false.
     part(ipart)%meterupdate=.true.
-  end subroutine update_zeta_float
+  end subroutine update_zeta_sp
 ! End update z positions
 
 ! Update z positions
@@ -694,7 +694,7 @@ contains
     part(ipart)%etaupdate=.true.
   end subroutine set_z_dp  
 
-  subroutine set_z_float(ipart,zvalue)
+  subroutine set_z_sp(ipart,zvalue)
     !**************************************
     ! Updates the height of the particle
     !**************************************
@@ -708,7 +708,7 @@ contains
     part(ipart)%z = real(zvalue,kind=dp)
     part(ipart)%meterupdate=.false.
     part(ipart)%etaupdate=.true.
-  end subroutine set_z_float
+  end subroutine set_z_sp
 
   subroutine set_zeta_dp(ipart,zvalue)
     !**************************************
@@ -726,7 +726,7 @@ contains
     part(ipart)%meterupdate=.true.
   end subroutine set_zeta_dp
 
-  subroutine set_zeta_float(ipart,zvalue)
+  subroutine set_zeta_sp(ipart,zvalue)
     !**************************************
     ! Updates the height of the particle
     !**************************************
@@ -740,7 +740,7 @@ contains
     part(ipart)%zeta = real(zvalue,kind=dp)
     part(ipart)%etaupdate=.false.
     part(ipart)%meterupdate=.true.
-  end subroutine set_zeta_float
+  end subroutine set_zeta_sp
 ! End update z positions
 
 end module particle_mod

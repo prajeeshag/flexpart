@@ -100,7 +100,7 @@ subroutine timemanager
   use getfields_mod
   use output_mod
   use restart_mod
-  use interpol_mod, only: interpol_allocate,interpol_deallocate
+  use interpol_mod, only: alloc_interpol,dealloc_interpol
 
   implicit none
   real, parameter ::        &
@@ -167,10 +167,6 @@ subroutine timemanager
 
   filesize=0.
   ! active_per_rel=.false.
-
-  ! ! Allocate memory for windfields
-  ! !*******************************
-  ! call windfields_allocate
   
   do itime=itime_init,ideltas,lsynctime
 
@@ -207,8 +203,8 @@ subroutine timemanager
     if ((itime.ne.0).and.(count%alive.gt.0)) then
       if (part(1)%alive) write(*,*) 'xlon,ylat,z,zeta', part(1)%xlon,part(1)%ylat,part(1)%z,part(1)%zeta
     endif
-    call initialise_output(itime,filesize)
-    
+    call init_output(itime,filesize)
+
   ! Get necessary wind fields if not available
   !*******************************************
     call getfields(itime,nstop1) !OMP on verttransform_ecmwf and readwind_ecmwf, getfields_mod.f90
@@ -291,7 +287,7 @@ subroutine timemanager
 !$OMP END PARALLEL
       count%alive=alive_tmp
       count%spawned=spawned_tmp
-      call get_total_part_num(numpart)
+      call get_totalpart_num(numpart)
     else
       call releaseparticles(itime)
     endif
@@ -306,7 +302,7 @@ subroutine timemanager
   ! If middle of averaging period of output fields is reached, accumulated
   ! deposited mass radioactively decays
   !***********************************************************************
-    if (DEP.and.(itime.eq.loutnext).and.(ldirect.gt.0)) call radioactive_decay() !OMP, unc_mod.f90 (needs test)
+    if (DEP.and.(itime.eq.loutnext).and.(ldirect.gt.0)) call deposit_decay() !OMP, unc_mod.f90 (needs test)
 
 
   ! Is the time within the computation interval, if not, skip
@@ -329,7 +325,7 @@ subroutine timemanager
       endif
       ! Check whether concentrations are to be calculated and outputted
       !****************************************************************
-      call output_concentrations(itime,loutstart,loutend,loutnext,outnum)
+      call output_conc(itime,loutstart,loutend,loutnext,outnum)
       call SYSTEM_CLOCK(count_clock, count_rate, count_max)
       s_writepart = s_writepart + ((count_clock - count_clock0)/real(count_rate)-s_temp)
     endif
@@ -390,7 +386,7 @@ subroutine timemanager
   !***********************************
       if ((part(j)%tstart.eq.itime).or.(itime.eq.0)) then
         call update_zeta_to_z(itime, j)
-        call initialize_particle(itime,j)
+        call init_particle(itime,j)
       endif
 
   ! Memorize particle positions
@@ -428,7 +424,7 @@ subroutine timemanager
       call advance(itime,j,thread)
 
       if (part(j)%nstop.eqv..true.) cycle
-      if (n_average.gt.0) call partpos_average(itime,j)
+      if (n_average.gt.0) call partpos_avg(itime,j)
 
   ! Calculate the gross fluxes across layer interfaces
   !***************************************************
@@ -484,34 +480,43 @@ subroutine timemanager
         terminated_tmp=terminated_tmp+1
       else
 
-  ! Dry deposition and radioactive decay for each species
-  ! Also check maximum (of all species) of initial mass remaining on the particle;
-  ! if it is below a threshold value, terminate particle
-  !*****************************************************************************
+! Dry deposition and radioactive decay for each species
+! Also check maximum (of all species) of initial mass remaining on the particle;
+! if it is below a threshold value, terminate particle
+!*****************************************************************************
 
         xmassfract=0.
         do ks=1,nspec
-          if (DRYDEPSPEC(ks)) then        ! dry deposition (and radioactive decay)
+
+          if (DRYDEPSPEC(ks)) then     ! dry deposition (and radioactive decay)
+
             call drydepo_massloss(j,ks,ldeltat,drydeposit(ks))
-          else if (decay(ks).gt.0.) then  ! no dry deposition, but radioactive decay
-            part(j)%mass(ks)=part(j)%mass(ks)*exp(-real(abs(lsynctime))*decay(ks))
+
+          else if (decay(ks).gt.0.) then  ! no dry depo, but radioactive decay
+
+            part(j)%mass(ks) = part(j)%mass(ks) * &
+              exp( -real(abs(lsynctime)) * decay(ks) )
+
           endif
+
   ! Skip check on mass fraction when npoint represents particle number
           if (mdomainfill.eq.0.and.mquasilag.eq.0) then
-            if ((ipin.eq.3).or.(ipin.eq.4)) then 
-              if (part(j)%mass_init(ks).gt.0) then
-                xmassfract=max(xmassfract,part(j)%mass(ks)/part(j)%mass_init(ks))
-              endif
+            if (ipin.eq.3 .or. ipin.eq.4) then 
+              if (part(j)%mass_init(ks).gt.0) &
+                xmassfract = max( xmassfract, &
+                                  part(j)%mass(ks) / part(j)%mass_init(ks) )
             else if (xmass(part(j)%npoint,ks).gt.0.) then
-              xmassfract=max(xmassfract,real(npart(part(j)%npoint))* &
-                part(j)%mass(ks)/xmass(part(j)%npoint,ks))
+              xmassfract = max( xmassfract, real( npart(part(j)%npoint) ) * &
+                part(j)%mass(ks) /  xmass(part(j)%npoint,ks) )
             endif
           else
             xmassfract=1.0
           end if
+
         end do
         
-        if (xmassfract.le.minmassfrac) then   ! terminate all particles carrying less mass
+        if (xmassfract.le.minmassfrac) then 
+          ! terminate all particles carrying less mass
           call terminate_particle(j,itime)
           alive_tmp=alive_tmp-1
           terminated_tmp=terminated_tmp+1
@@ -616,26 +621,19 @@ subroutine timemanager
 
   ! De-allocate memory and end
   !***************************
-  call deallocate_all_particles
-  call windfields_deallocate
-  call domainfill_deallocate
-  call drydepo_deallocate
-  call convection_deallocate
-  call getfields_deallocate
-  call interpol_deallocate
-  call deallocate_random
-  if (numbnests.ge.1) call windfields_nest_deallocate
-
-  if (iflux.eq.1) then
-      deallocate(flux)
-  endif
-  if (OHREA) then
-      deallocate(OH_field,OH_hourly,lonOH,latOH,altOH)
-  endif
-
-  if ((ipin.ne.3).and.(ipin.ne.4)) then 
+  call dealloc_all_particles
+  call dealloc_windfields
+  call dealloc_domainfill
+  call dealloc_drydepo
+  call dealloc_convect
+  call dealloc_getfields
+  call dealloc_interpol
+  call dealloc_random
+  if (numbnests.ge.1) call dealloc_windfields_nests
+  if (iflux.eq.1) deallocate(flux)
+  if (OHREA) deallocate(OH_field,OH_hourly,lonOH,latOH,altOH)
+  if (ipin.ne.3 .and. ipin.ne.4) &
     deallocate(xpoint1,xpoint2,ypoint1,ypoint2,zpoint1,zpoint2,xmasssave)
-  endif
   deallocate(xmass)
   deallocate(ireleasestart,ireleaseend,npart,kindz)
   deallocate(nan_count)

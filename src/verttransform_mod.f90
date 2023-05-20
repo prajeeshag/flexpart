@@ -107,7 +107,7 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
   ! Search for a point with high surface pressure (i.e. not above significant topography)
   ! Then, use this point to construct a reference z profile, to be used at all times
   !*****************************************************************************
-    call initialise_verttransform(n)
+    call verttransform_init(n)
 
   ! Do not repeat initialization of the Cartesian z grid
   !*****************************************************
@@ -127,7 +127,7 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
   ! Transform the wind fields to the internal coordinate system and save the native ETA 
   ! fields when case wind_coord_type==ETA
   !*************************************************************
-  call verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
+  call verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
 
   ! If north or south pole is in the domain, calculate wind velocities in polar
   ! stereographic coordinates
@@ -136,7 +136,7 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
 
   ! Create cloud fields
   !*********************
-  call verttransform_ecmwf_clouds(n,readclouds,sumclouds,nxmin1,nymin1, &
+  call verttransform_ecmwf_cloud(n,readclouds,sumclouds,nxmin1,nymin1, &
     clouds(0:nxmin1,0:nymin1,:,n), cloudsh(0:nxmin1,0:nymin1,n), &
     clw(0:nxmin1,0:nymin1,:,n),ctwc(0:nxmin1,0:nymin1,n),clwc(0:nxmin1,0:nymin1,:,n), &
     ciwc(0:nxmin1,0:nymin1,:,n),lsprec(0:nxmin1,0:nymin1,1,n), &
@@ -227,16 +227,18 @@ subroutine verttransform_nests(n,uuhn,vvhn,wwhn,pvhn)
     ! Create cloud fields
     !*********************
 
-    call verttransform_ecmwf_clouds(n,readclouds_nest(l),sumclouds_nest(l),nxm1,nym1,        &
-      cloudsn(0:nxm1,0:nym1,:,n,l),cloudshn(0:nxm1,0:nym1,n,l),clwn(0:nxm1,0:nym1,:,n,l),  &
-      ctwcn(0:nxm1,0:nym1,n,l),clwcn(0:nxm1,0:nym1,:,n,l),ciwcn(0:nxm1,0:nym1,:,n,l),        &
-      lsprecn(0:nxm1,0:nym1,1,n,l),convprecn(0:nxm1,0:nym1,1,n,l),rhon(0:nxm1,0:nym1,:,n,l), &
-      ttn(0:nxm1,0:nym1,:,n,l),qvn(0:nxm1,0:nym1,:,n,l),etauvheightn(0:nxm1,0:nym1,:,n,l))
+    call verttransform_ecmwf_cloud(n,readclouds_nest(l),sumclouds_nest(l),nxm1,nym1,&
+      cloudsn(0:nxm1,0:nym1,:,n,l),cloudshn(0:nxm1,0:nym1,n,l), &
+      clwn(0:nxm1,0:nym1,:,n,l), ctwcn(0:nxm1,0:nym1,n,l), &
+      clwcn(0:nxm1,0:nym1,:,n,l), ciwcn(0:nxm1,0:nym1,:,n,l), &
+      lsprecn(0:nxm1,0:nym1,1,n,l),convprecn(0:nxm1,0:nym1,1,n,l), &
+      rhon(0:nxm1,0:nym1,:,n,l),ttn(0:nxm1,0:nym1,:,n,l), &
+      qvn(0:nxm1,0:nym1,:,n,l), etauvheightn(0:nxm1,0:nym1,:,n,l))
       
   end do ! end loop over nests
 end subroutine verttransform_nests
 
-subroutine initialise_verttransform(n)
+subroutine verttransform_init(n)
   implicit none
 
   integer, intent(in) :: n
@@ -292,7 +294,7 @@ subroutine initialise_verttransform(n)
   if (loutrestart.ne.-1) then
     call output_heightlevels(height,nmixz)
   endif
-end subroutine initialise_verttransform
+end subroutine verttransform_init
 
 subroutine output_heightlevels(height_tmp,nmixz_tmp)
   implicit none
@@ -346,7 +348,7 @@ subroutine read_heightlevels(height_tmp,nmixz_tmp)
   write(*,*) ' #### FROM VERTTRANSFORM_MOD.                 #### '
 end subroutine read_heightlevels
 
-subroutine verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
+subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
   implicit none
 
   integer,intent(in) :: n
@@ -629,7 +631,7 @@ subroutine verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,
   endif
 !$OMP END PARALLEL
 
-end subroutine verttransform_ecmwf_transform_windfields
+end subroutine verttransform_ecmwf_windfields
 
 subroutine verttransform_ecmwf_stereographic(n)
   implicit none
@@ -900,7 +902,7 @@ subroutine verttransform_ecmwf_stereographic(n)
   endif
 end subroutine verttransform_ecmwf_stereographic
 
-subroutine verttransform_ecmwf_clouds(n,lreadclouds,lsumclouds,nxlim,nylim,clouds_tmp,cloudsh_tmp,&
+subroutine verttransform_ecmwf_cloud(n,lreadclouds,lsumclouds,nxlim,nylim,clouds_tmp,cloudsh_tmp,&
   clw_tmp,ctwc_tmp,clwc_tmp,ciwc_tmp,lsprec_tmp,convprec_tmp,rho_tmp,tt_tmp,qv_tmp,uvzlev)
   implicit none
 
@@ -1053,7 +1055,7 @@ subroutine verttransform_ecmwf_clouds(n,lreadclouds,lsumclouds,nxlim,nylim,cloud
       end do
     end do
   endif !readclouds
-end subroutine verttransform_ecmwf_clouds
+end subroutine verttransform_ecmwf_cloud
 
 subroutine verttransform_gfs(n,uuh,vvh,wwh,pvh)
   !                      i  i   i   i   i
@@ -1138,7 +1140,7 @@ subroutine verttransform_gfs(n,uuh,vvh,wwh,pvh)
   ! Search for a point with high surface pressure (i.e. not above significant topography)
   ! Then, use this point to construct a reference z profile, to be used at all times
   !*****************************************************************************
-    call initialise_verttransform(n)
+    call verttransform_init(n)
   
   ! Do not repeat initialization of the Cartesian z grid
   !*****************************************************

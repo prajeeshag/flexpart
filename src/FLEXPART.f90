@@ -169,7 +169,7 @@ subroutine read_options_and_initialise_flexpart
   use initialise_mod
   use drydepo_mod
   use getfields_mod
-  use interpol_mod, only: interpol_allocate
+  use interpol_mod, only: alloc_interpol
   use outg_mod
   use binary_output_mod
 
@@ -182,7 +182,7 @@ subroutine read_options_and_initialise_flexpart
     j,                    & ! loop variable for random numbers
     idummy=-320             ! dummy value used by the random routine
 
-  call allocate_random(numthreads)
+  call alloc_random(numthreads)
 
   ! Generate a large number of random numbers
   !******************************************
@@ -206,11 +206,11 @@ subroutine read_options_and_initialise_flexpart
 
   ! Allocate memory for windfields
   !*******************************
-  call windfields_allocate
+  call alloc_windfields
   if (numbnests.ge.1) then
     ! If nested wind fields are used, allocate arrays
     !************************************************
-    call windfields_nest_allocate
+    call alloc_windfields_nests
   endif
 
   ! Read, which wind fields are available within the modelling period
@@ -245,7 +245,7 @@ subroutine read_options_and_initialise_flexpart
 
   ! Set the upper level for where the convection will be working
   !*************************************************************
-  call set_upperlevel_convect
+  call set_conv_top
 
   if (numbnests.ge.1) then
   ! If nested wind fields are used, allocate arrays
@@ -291,11 +291,11 @@ subroutine read_options_and_initialise_flexpart
 
   ! Allocate dry deposition fields if necessary
   !*********************************************
-  call drydepo_allocate
-  call convection_allocate
-  call getfields_allocate
-  call interpol_allocate
-
+  call alloc_drydepo
+  call alloc_convect
+  call alloc_getfields
+  call alloc_interpol
+  
   ! Assign fractional cover of landuse classes to each ECMWF grid point
   !********************************************************************
   call assignland ! CHECK ETA

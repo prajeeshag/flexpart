@@ -12,6 +12,8 @@ ubuntu-build:
   when: manual
 
   before_script:
+    - export DEBIAN_FRONTEND=noninteractive 
+    - export TZ=Etc/UTC
     - apt-get update -qq && apt-get install -y -qq gfortran libnetcdf-dev libnetcdff-dev libeccodes-dev netcdf-bin
 
   script:

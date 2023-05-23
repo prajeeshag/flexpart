@@ -865,7 +865,7 @@ subroutine calcpar(n)
   !*****************************************************************************
 
   use class_gribfile
-  use drydepo_mod, global_ol => ol
+  use drydepo_mod
   use qvsat_mod
 
   implicit none
@@ -1135,7 +1135,7 @@ subroutine calcpar_nests(n)
   !                                                                            *
   !*****************************************************************************
 
-  use drydepo_mod, global_ol => ol
+  use drydepo_mod
   use qvsat_mod
 
   implicit none

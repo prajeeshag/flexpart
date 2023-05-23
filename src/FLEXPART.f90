@@ -360,8 +360,11 @@ subroutine flexpart_initialise_particles
   use point_mod
   use com_mod
   use initialise_mod
+#ifdef USE_NCF  
   use netcdf_output_mod
+#endif
   use readoptions_mod
+  use restart_mod
 
   implicit none
 

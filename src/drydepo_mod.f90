@@ -292,7 +292,7 @@ real function raerod (l,ust,z0)
   !                                                                            *
   !*****************************************************************************
 
-  use turbulence_mod, only: psih
+  use pbl_profile_mod, only: psih
 
   implicit none
 

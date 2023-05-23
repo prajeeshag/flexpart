@@ -6,11 +6,7 @@ SHELL = /bin/bash
 #    Dependencies are resolved in this makefile, so parallel make is
 #    possible ("make -j")
 #
-#    At NILU we have installed gcc-4.9.1 and libraries under user /homevip/flexpart
-#    ("ROOT_DIR")
-#    To use gfortran version 4.9, add "gcc=4.9" to the make command, e.g.
-#       'make -j ecmwf gcc=4.9',
-#    also set environment variable LD_LIBRARY_PATH to point to compiler libraries
+#    gcc 8+ is required.
 #
 #    Makefile was modified to produce unified executable for both ECMWF and GFS meteo data formats
 #    gributils were included to detect format of meteo data
@@ -97,9 +93,10 @@ getfields_mod.o 	initialise_mod.o \
 interpol_mod.o 		mean_mod.o \
 oh_mod.o 		outg_mod.o \
 output_mod.o 		par_mod.o \
-particle_mod.o 		plume_mod.o \
-point_mod.o 		random_mod.o \
-readoptions_mod.o 	settling_mod.o \
+particle_mod.o 		pbl_profile_mod.o \
+plume_mod.o 		point_mod.o \
+random_mod.o 		readoptions_mod.o \
+restart_mod.o 		settling_mod.o \
 timemanager_mod.o 	turbulence_mod.o \
 txt_output_mod.o 	unc_mod.o \
 verttransform_mod.o 	wetdepo_mod.o \
@@ -139,6 +136,10 @@ cleanall:
 .SUFFIXES = $(SUFFIXES) .f90
 
 ## DEPENDENCIES
+
+#1) Independent modules: par_mod.o, com_mod.o, qvsat_mod.o class_gribfile_mod.o
+
+#2) Modules that are only dependent on independent modules
 cmapf_mod.o: par_mod.o
 com_mod.o: par_mod.o
 date_mod.o: par_mod.o
@@ -148,43 +149,46 @@ particle_mod.o: com_mod.o par_mod.o
 point_mod.o: com_mod.o par_mod.o
 unc_mod.o: par_mod.o com_mod.o
 cbl_mod.o: com_mod.o par_mod.o random_mod.o
+pbl_profile_mod.o: par_mod.o qvsat_mod.o
 
+#3) 3rd level dependencies
 turbulence_mod.o: particle_mod.o cbl_mod.o qvsat_mod.o
-windfields_mod.o: cmapf_mod.o point_mod.o class_gribfile_mod.o date_mod.o turbulence_mod.o
-interpol_mod.o: windfields_mod.o
+windfields_mod.o: cmapf_mod.o point_mod.o class_gribfile_mod.o date_mod.o qvsat_mod.o
+
+#4) 4th level dependencies
+verttransform_mod.o: par_mod.o com_mod.o qvsat_mod.o windfields_mod.o
 settling_mod.o: windfields_mod.o
-oh_mod.o: windfields_mod.o
+interpol_mod.o: windfields_mod.o particle_mod.o
+oh_mod.o: windfields_mod.o particle_mod.o
 
+#5)
 coordinates_ecmwf_mod.o: interpol_mod.o
-plume_mod.o: mean_mod.o coordinates_ecmwf_mod.o
-
-outg_mod.o: oh_mod.o unc_mod.o coordinates_ecmwf_mod.o
-flux_mod.o: outg_mod.o
-conv_mod.o: flux_mod.o class_gribfile_mod.o
-
-wetdepo_mod.o: coordinates_ecmwf_mod.o unc_mod.o
 drydepo_mod.o: unc_mod.o interpol_mod.o erf_mod.o
+
+#6)
+advance_mod.o: coordinates_ecmwf_mod.o settling_mod.o drydepo_mod.o turbulence_mod.o
+plume_mod.o: mean_mod.o coordinates_ecmwf_mod.o
+outg_mod.o: oh_mod.o unc_mod.o coordinates_ecmwf_mod.o
+wetdepo_mod.o: coordinates_ecmwf_mod.o unc_mod.o
 readoptions_mod.o: drydepo_mod.o xmass_mod.o
 
-advance_mod.o: coordinates_ecmwf_mod.o settling_mod.o drydepo_mod.o
-
+#7)
+getfields_mod.o: wetdepo_mod.o verttransform_mod.o qvsat_mod.o
+flux_mod.o: outg_mod.o qvsat_mod.o
 txt_output_mod.o: outg_mod.o
 binary_output_mod.o: mean_mod.o outg_mod.o
 netcdf_output_mod.o: mean_mod.o outg_mod.o readoptions_mod.o drydepo_mod.o
+
+#8)
+conv_mod.o: flux_mod.o class_gribfile_mod.o qvsat_mod.o
 output_mod.o: netcdf_output_mod.o binary_output_mod.o txt_output_mod.o
+restart_mod.o: coordinates_ecmwf_mod.o unc_mod.o netcdf_output_mod.o
 
-initialise_mod.o: xmass_mod.o output_mod.o
-verttransform_mod.o: initialise_mod.o
-getfields_mod.o: wetdepo_mod.o verttransform_mod.o
+#9)
+initialise_mod.o: xmass_mod.o output_mod.o turbulence_mod.o
 
-timemanager_mod.o: advance_mod.o wetdepo_mod.o conv_mod.o plume_mod.o getfields_mod.o
+#10)
+timemanager_mod.o: advance_mod.o conv_mod.o plume_mod.o getfields_mod.o restart_mod.o initialise_mod.o
 
+#11)
 FLEXPART.o: timemanager_mod.o
-
-
-
-
-
-
-
-

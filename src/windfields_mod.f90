@@ -14,7 +14,7 @@ module windfields_mod
   use par_mod
   use com_mod
   use point_mod
-  use turbulence_mod
+  use pbl_profile_mod
 
   implicit none
 

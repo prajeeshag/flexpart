@@ -59,11 +59,6 @@ subroutine writeheader_binary
   !                                                                            *
   !*****************************************************************************
 
-  use point_mod
-  use outg_mod
-  use par_mod
-  use com_mod
-
   implicit none
 
   integer :: jjjjmmdd,ihmmss,i,ix,jy,j
@@ -610,9 +605,6 @@ subroutine openreceptors
   !                                                                            *
   !*****************************************************************************
 
-  use par_mod
-  use com_mod
-
   implicit none
 
   integer :: j
@@ -657,7 +649,6 @@ subroutine openreceptors
   write(*,*) ' #### CANNOT BE OPENED.                        #### '
   stop
 end subroutine openreceptors
-
 
 subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
      drygridtotalunc)

@@ -11,6 +11,8 @@
 module verttransform_mod
   use par_mod
   use com_mod
+  use qvsat_mod
+  use cmapf_mod, only: cc2gll
   use windfields_mod
 
   implicit none
@@ -72,11 +74,6 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
   ! ps(0:nxmax,0:nymax,numwfmem)           surface pressure [Pa]               *
   !                                                                            *
   !*****************************************************************************
-
-  use par_mod
-  use com_mod
-  use cmapf_mod, only: cc2gll
-  use qvsat_mod
 
   implicit none
 
@@ -192,10 +189,6 @@ subroutine verttransform_nests(n,uuhn,vvhn,wwhn,pvhn)
   !                                                                            *
   !*****************************************************************************
 
-  use par_mod
-  use com_mod
-  use qvsat_mod
-
   implicit none
 
   real,intent(in),dimension(0:nxmaxn-1,0:nymaxn-1,nuvzmax,maxnests) :: uuhn,vvhn,pvhn
@@ -239,12 +232,6 @@ subroutine verttransform_nests(n,uuhn,vvhn,wwhn,pvhn)
 end subroutine verttransform_nests
 
 subroutine initialise_verttransform(n)
-  use par_mod
-  use com_mod
-  use qvsat_mod
-  use initialise_mod
-  use output_mod
-
   implicit none
 
   integer, intent(in) :: n
@@ -300,11 +287,59 @@ subroutine initialise_verttransform(n)
   call output_heightlevels(height,nmixz)
 end subroutine initialise_verttransform
 
-subroutine verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
-  use par_mod
-  use com_mod
-  use qvsat_mod
+subroutine output_heightlevels(height_tmp,nmixz_tmp)
+  implicit none
 
+  real,intent(in) :: height_tmp(nzmax)
+  integer,intent(in) :: nmixz_tmp
+  integer :: kz
+  character(len=256) :: heightlevels_filename
+
+  heightlevels_filename = path(2)(1:length(2))//'heightlevels.bin'
+
+  write(*,*) 'Writing Initialised heightlevels to file:', trim(heightlevels_filename)
+  
+  open(unitheightlevels,file=trim(heightlevels_filename),form='unformatted')
+
+  write(unitheightlevels) nmixz_tmp
+
+  do kz=1,nz
+    write(unitheightlevels) height_tmp(kz)
+  end do
+  close(unitheightlevels)
+end subroutine output_heightlevels
+
+subroutine read_heightlevels(height_tmp,nmixz_tmp)
+  implicit none
+
+  real,intent(out) :: height_tmp(nzmax)
+  integer,intent(out) :: nmixz_tmp
+  integer :: kz,ios
+  character(len=256) :: heightlevels_filename
+
+  heightlevels_filename = path(2)(1:length(2))//'heightlevels.bin'
+
+  write(*,*) 'Reading heightlevels from file:', trim(heightlevels_filename)
+  
+  open(unitheightlevels,file=trim(heightlevels_filename),form='unformatted',err=9988)
+
+  read(unitheightlevels,iostat=ios) nmixz_tmp
+
+  do kz=1,nz
+    read(unitheightlevels) height_tmp(kz)
+  end do
+  close(unitheightlevels)
+
+  return
+
+9988   write(*,*) ' #### FLEXPART MODEL ERROR!   THE FILE             #### '
+  write(*,*) ' #### '//path(2)(1:length(2))//'heightlevels.bin'//'    #### '
+  write(*,*) ' #### CANNOT BE OPENED. IF A FILE WITH THIS        #### '
+  write(*,*) ' #### NAME DOES NOT EXISTS, REMOVE call read_heightlevels #### '
+  write(*,*) ' #### FROM VERTTRANSFORM_MOD.                 #### '
+end subroutine read_heightlevels
+
+subroutine verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
   implicit none
 
   integer,intent(in) :: n
@@ -590,11 +625,6 @@ subroutine verttransform_ecmwf_transform_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,
 end subroutine verttransform_ecmwf_transform_windfields
 
 subroutine verttransform_ecmwf_stereographic(n)
-  use par_mod
-  use com_mod
-  use cmapf_mod, only: cc2gll
-  use qvsat_mod
-
   implicit none
 
   integer, intent(in) :: n
@@ -865,11 +895,6 @@ end subroutine verttransform_ecmwf_stereographic
 
 subroutine verttransform_ecmwf_clouds(n,lreadclouds,lsumclouds,nxlim,nylim,clouds_tmp,cloudsh_tmp,&
   clw_tmp,ctwc_tmp,clwc_tmp,ciwc_tmp,lsprec_tmp,convprec_tmp,rho_tmp,tt_tmp,qv_tmp,uvzlev)
-  use par_mod
-  use com_mod
-  use cmapf_mod, only: cc2gll
-  use qvsat_mod
-
   implicit none
 
   logical,intent(in) :: lreadclouds,lsumclouds
@@ -1069,10 +1094,7 @@ subroutine verttransform_gfs(n,uuh,vvh,wwh,pvh)
   !                                                                            *
   !*****************************************************************************
 
-  use par_mod
-  use com_mod
-  use cmapf_mod
-  use qvsat_mod
+  !use cmapf_mod
 
   implicit none
 
@@ -1578,9 +1600,6 @@ end subroutine verttransform_gfs
 subroutine verttransform_ecmwf_heights(nxlim,nylim, &
   tt2_tmp,td2_tmp,ps_tmp,qvh_tmp,tth_tmp,prsh_tmp, &
   rhoh_tmp,pinmconv,uvzlev,wzlev)
-  use par_mod
-  use com_mod
-  use qvsat_mod
 
   implicit none
 
@@ -1657,9 +1676,6 @@ end subroutine verttransform_ecmwf_heights
 
 subroutine verttransform_ecmwf_nests_transform_windfields(l,n, &
   uuhn,vvhn,wwhn,pvhn,rhohn,prshn,pinmconv)
-  use par_mod
-  use com_mod
-  use qvsat_mod
 
   implicit none
 

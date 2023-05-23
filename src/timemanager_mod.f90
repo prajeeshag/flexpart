@@ -99,6 +99,7 @@ subroutine timemanager
   use initialise_mod
   use getfields_mod
   use output_mod
+  use restart_mod
   use interpol_mod, only: interpol_allocate,interpol_deallocate
 
   implicit none

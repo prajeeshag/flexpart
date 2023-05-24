@@ -545,6 +545,13 @@ subroutine readcommand
 
   ! try namelist input (default)
   read(unitcommand,command,iostat=readerror)
+  if (readerror.ne.0) then
+        backspace(unitcommand)
+        read(unitcommand,fmt='(A)') line
+        if (lroot) write(*,*) &
+            'Invalid line in COMMAND reads: '//trim(line)
+  end if
+  
   close(unitcommand)
 
   ! distinguish namelist from fixed text input
@@ -2022,7 +2029,15 @@ subroutine readreleases
 
   ! check if namelist input provided
   read(unitreleases,releases_ctrl,iostat=readerror)
-
+  if (readerror.ne.0) then
+        backspace(unitreleases)
+        read(unitreleases,fmt='(A)') line
+        if (lroot) write(*,*) &
+             'Invalid line in RELEASES: '//trim(line)
+            !cgz; Check if the number of species in RELEASES_CTRL is larger than the maximum number of species in par_mod
+        if ((lroot) .and. nspec.gt.maxspec) goto 994
+  end if
+    
   ! prepare namelist output if requested
   if (nmlout.and.lroot) then
     open(unitreleasesout,file=path(2)(1:length(2))//'RELEASES.namelist',access='append',status='replace',err=1000)
@@ -2508,6 +2523,7 @@ subroutine readspecies(id_spec,pos_spec)
   logical :: spec_found
 
   character(len=16) :: pspecies
+  character(len=50) :: line
   real :: pdecay, pweta_gas, pwetb_gas, preldiff, phenry, pf0, pdensity, pdquer
   real :: pdsigma, pdryvel, pweightmolar, pohcconst, pohdconst, pohnconst
   real :: pcrain_aero, pcsnow_aero, pccn_aero, pin_aero
@@ -2578,12 +2594,19 @@ subroutine readspecies(id_spec,pos_spec)
   specnum(pos_spec)=id_spec
   write(aspecnumb,'(i3.3)') specnum(pos_spec)
   open(unitspecies,file=path(1)(1:length(1))//'SPECIES/SPECIES_'//aspecnumb,status='old',form='formatted',err=998)
-  !write(*,*) 'reading SPECIES',specnum(pos_spec)
+  write(*,*) 'reading SPECIES',specnum(pos_spec)
 
   ASSSPEC=.FALSE.
 
   ! try namelist input
   read(unitspecies,species_params,iostat=readerror)
+  !CGZ add check on which line of species file problem occurs
+  if (readerror.ne.0) then
+    backspace(unitspecies)
+    read(unitspecies,fmt='(A)') line
+    if (lroot) write(*,*) &
+        'Invalid line in species: '//trim(line)
+  end if
   close(unitspecies)
 
   if ((len(trim(pspecies)).eq.0).or.(readerror.ne.0)) then ! no namelist found

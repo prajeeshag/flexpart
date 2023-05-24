@@ -30,7 +30,7 @@ module par_mod
   ! dp). sp is default, dp can be used for increased precision.
   !****************************************************************
 
-  integer,parameter :: dep_prec=sp
+  integer,parameter :: dep_prec=dp
 
   !****************************************************************
   ! Set to F to disable use of kernel for concentrations/deposition
@@ -78,27 +78,28 @@ module par_mod
   !real,parameter :: d_trop=50., d_strat=0.1
   real :: d_trop=50., d_strat=0.1, turbmesoscale=0.16 ! turbulence factors can change for different runs
   real,parameter :: rho_water=1000. !ZHG 2015 [kg/m3]
-  !ZHG MAR2016
-  real,parameter :: incloud_ratio=6.2
+  real,parameter :: incloud_ratio=6.2   !ZHG MAR2016
 
-  ! karman                  Karman's constant
-  ! href [m]                Reference height for dry deposition
-  ! konvke                  Relative share of kinetic energy used for parcel lifting
-  ! hmixmin,hmixmax         Minimum and maximum allowed PBL height
-  ! turbmesoscale           the factor by which standard deviations of winds at grid
-  !                    points surrounding the particle positions are scaled to
-  !                    yield the scales for the mesoscale wind velocity fluctuations
-  ! d_trop [m2/s]           Turbulent diffusivity for horizontal components in the troposphere
-  ! d_strat [m2/s]          Turbulent diffusivity for vertical component in the stratosphere
+  ! karman            Karman's constant
+  ! href [m]          Reference height for dry deposition
+  ! konvke            Relative share of kinetic energy used for parcel lifting
+  ! hmixmin,hmixmax   Minimum and maximum allowed PBL height
+  ! turbmesoscale     the factor by which standard deviations of winds at grid
+  !                   points surrounding the particle positions are scaled to
+  !                yield the scales for the mesoscale wind velocity fluctuations
+  ! d_trop [m2/s]     Turbulent diffusivity for horiz components in the troposphere
+  ! d_strat [m2/s]    Turbulent diffusivity for vertical component in the stratosphere
 
+  
   real,parameter :: xmwml=18.016/28.960
+                  ! ratio of molar weights of water vapor and dry air
 
-  ! xmwml   ratio of molar weights of water vapor and dry air
+
   !****************************************************
   ! Constants related to the stratospheric ozone tracer
   !****************************************************
 
-  real,parameter :: ozonescale=60., pvcrit=2.0
+  real,parameter :: ozonescale=60., pvcrit=2.
 
   ! ozonescale              ppbv O3 per PV unit
   ! pvcrit                  PV level of the tropopause
@@ -131,22 +132,30 @@ module par_mod
   !*********************************************
   
   ! ECMWF
-! integer,parameter :: nxmax=361,nymax=181,nuvzmax=92,nwzmax=92,nzmax=92,nxshift=359 ! 1.0 degree 92 level
-!  integer,parameter :: nxmax=361,nymax=181,nuvzmax=138,nwzmax=138,nzmax=138,nxshift=0 ! 1.0 degree 138 level
-!   integer,parameter :: nxmax=361,nymax=181,nuvzmax=138,nwzmax=138,nzmax=138,nxshift=359 ! 1.0 degree 138 level
-! integer,parameter :: nxmax=721,nymax=361,nuvzmax=138,nwzmax=138,nzmax=138,nxshift=359  ! 0.5 degree 138 level
-!  integer,parameter :: nxmax=181,nymax=91,nuvzmax=92,nwzmax=92,nzmax=92,nxshift=0  ! CERA 2.0 degree 92 level
+! integer,parameter :: nxmax=361,nymax=181,nuvzmax=92,nwzmax=92,nzmax=92,nxshift=359 ! 1.0 deg 92 levels
+!  integer,parameter :: nxmax=361,nymax=181,nuvzmax=138,nwzmax=138,nzmax=138,nxshift=0 ! 1.0 deg 138 levels
+!   integer,parameter :: nxmax=361,nymax=181,nuvzmax=138,nwzmax=138,nzmax=138,nxshift=359 ! 1.0 deg 138 levels
+  integer,parameter :: nxmax=721,nymax=361,nuvzmax=138,nwzmax=138,nzmax=138!,nxshift=359  ! 0.5 deg 138 levels
+!  integer,parameter :: nxmax=181,nymax=91,nuvzmax=92,nwzmax=92,nzmax=92,nxshift=0  ! CERA 2.0 deg 92 levels
 
 ! GFS
-   integer,parameter :: nxmax=361,nymax=181,nuvzmax=138,nwzmax=138,nzmax=138
-   integer :: nxshift=0 ! shift not fixed for the executable 
+!   integer,parameter :: nxmax=361,nymax=181,nuvzmax=138,nwzmax=138,nzmax=138
+!   integer,parameter :: nxshift=0 ! shift not fixed for the executable 
+
+  !*********************************
+  ! Parmaters for GRIB file decoding
+  !*********************************
+
+  ! integer,parameter :: jpack=4*nxmax*nymax, jpunp=4*jpack
+  integer,parameter :: jpack=4*361*181, jpunp=4*jpack
+  ! jpack,jpunp             maximum dimensions needed for GRIB file decoding
 
 
   !*********************************************
   ! Maximum dimensions of the nested input grids
   !*********************************************
 
-  integer,parameter :: maxnests=0,nxmaxn=0,nymaxn=0
+  integer,parameter :: maxnests=1,nxmaxn=201,nymaxn=201
 
   ! nxmax,nymax        maximum dimension of wind fields in x and y
   !                    direction, respectively
@@ -154,10 +163,6 @@ module par_mod
   !                    direction (for fields on eta levels)
   ! nzmax              maximum dimension of wind fields in z direction
   !                    for the transformed Cartesian coordinates
-  ! nxshift            for global grids (in x), the grid can be shifted by
-  !                    nxshift grid points, in order to accomodate nested
-  !                    grids, and output grids overlapping the domain "boundary"
-  !                    nxshift must not be negative; "normal" setting would be 0
 
   
   integer,parameter :: nconvlevmax = nuvzmax-1
@@ -166,15 +171,6 @@ module par_mod
   ! ntracermax         maximum number of tracer species in convection
   ! nconvlevmax        maximum number of levels for convection
   ! na                 parameter used in Emanuel's convect subroutine
-
-
-  !*********************************
-  ! Parmaters for GRIB file decoding
-  !*********************************
-
-  integer,parameter :: jpack=4*nxmax*nymax, jpunp=4*jpack
-
-  ! jpack,jpunp             maximum dimensions needed for GRIB file decoding
 
 
   !**************************************
@@ -204,36 +200,36 @@ module par_mod
   ! Maximum number of particles, species, and similar
   !**************************************************
 
-  integer,parameter :: maxpart=100000
+  !integer,parameter :: maxpart=5000000
   integer,parameter :: maxspec=1
 
-  real,parameter :: minmass=0.0001
+  real,parameter :: minmassfrac=0.0
 
-  ! maxpart                 Maximum number of particles
-  ! maxspec                 Maximum number of chemical species per release
-  ! minmass                 Terminate particles carrying less mass
+  ! maxpart      Maximum number of particles
+  ! maxspec      Maximum number of chemical species per release
+  ! minmassfrac  Terminate particles carrying a lower fraction
+  !                compared to their initial mass
 
   ! maxpoint is also set dynamically during runtime
-  ! maxpoint                Maximum number of release locations
+  ! maxpoint     Maximum number of release locations
 
   ! ---------
   ! Sabine Eckhardt: change of landuse inventary numclass=13
-  ! ---------
-  integer,parameter :: maxwf=50000, maxtable=1000, numclass=13, ni=11
+  integer,parameter :: maxwf=1000000, maxtable=1000, numclass=13, maxndia=100
   integer,parameter :: numwfmem=2 ! Serial version/MPI with 2 fields
   !integer,parameter :: numwfmem=3 ! MPI with 3 fields
 
-  ! maxwf                   maximum number of wind fields to be used for simulation
-  ! maxtable                Maximum number of chemical species that can be
-  !                         tabulated for FLEXPART
-  ! numclass                Number of landuse classes available to FLEXPART
-  ! ni                      Number of diameter classes of particles
-  ! numwfmem                Number of windfields kept in memory. 2 for serial
-  !                         version, 2 or 3 for MPI version
+  ! maxwf        maximum number of wind fields to be used for simulation
+  ! maxtable     Maximum number of chemical species that can be tabulated 
+  ! numclass     Number of landuse classes available to FLEXPART
+  ! maxndia      Maximum number of diameter classes of particles
+  ! numwfmem     Number of windfields kept in memory. 2 for serial version, 
+  !              2 or 3 for MPI version
 
   !**************************************************************************
   ! dimension of the OH field
   !**************************************************************************
+  
   integer,parameter :: maxxOH=72, maxyOH=46, maxzOH=7
 
   !**************************************************************************
@@ -248,7 +244,7 @@ module par_mod
   ! Dimension of random number field
   !*********************************
 
-  integer,parameter :: maxrand=1000000
+  integer,parameter :: maxrand=6000000
 
   ! maxrand                 number of random numbers used
   
@@ -264,14 +260,18 @@ module par_mod
   !************************************
 
   integer,parameter :: unitpath=1, unitcommand=1, unitageclasses=1, unitgrid=1
-  integer,parameter :: unitavailab=1, unitreleases=88, unitpartout=93, unitpartout_average=105
+  integer,parameter :: unitavailab=1, unitreleases=88, unitpartout=93
+  integer,parameter :: unitpartout_average=105, unitpartoptions=106
+  integer,parameter :: unitrestart=106,unitheightlevels=107
   integer,parameter :: unitpartin=93, unitflux=98, unitouttraj=96
   integer,parameter :: unitvert=1, unitoro=1, unitpoin=1, unitreceptor=1
+  integer,parameter :: unitreceptorout=2  
   integer,parameter :: unitoutgrid=97, unitoutgridppt=99, unitoutinfo=1
   integer,parameter :: unitspecies=1, unitoutrecept=91, unitoutreceptppt=92
   integer,parameter :: unitlsm=1, unitsurfdata=1, unitland=1, unitwesely=1
   integer,parameter :: unitOH=1
-  integer,parameter :: unitdates=94, unitheader=90,unitheader_txt=100, unitshortpart=95, unitprecip=101
+  integer,parameter :: unitdates=94, unitheader=90,unitheader_txt=100
+  integer,parameter :: unitshortpart=95, unitprecip=101
   integer,parameter :: unitboundcond=89
   integer,parameter :: unittmp=101
 ! RLT
@@ -283,5 +283,38 @@ module par_mod
 
   integer,parameter ::  icmv=-9999
 
+!*******************************************************************************
+! Maximum output of each partoutput NetCDF-4 file in Mb 
+! before a new one is created
+!*******************************************************************************
 
+  integer,parameter :: max_partoutput_filesize=30000
+
+  ! Set maximum number of threads for doing grid computations. 
+  ! Recommended to set this to max 16
+  ! High numbers create more overhead and a larger memory footprint
+  !***********************************************************************
+  integer,parameter :: max_numthreads_grid=16
+  ! Set the coordinate system. At the moment only ECMWF is possible. This bit
+  ! needs to be a parameter that can be set at compile time. 
+  ! Throughout the code there will be SELECT CASE statements or IFDEFs
+  !*******************************************************************
+  
+  character(len=256),parameter :: wind_coord_type='ETA'
+  !character(len=256),parameter :: wind_coord_type='METER'
+
+  ! This flag sets all vertical interpolation to logarithmic instead of linear
+  !***************************************************************************
+  logical,parameter :: logarithmic_interpolation=.false.
+
+  ! mesoscale turbulence is found to give issues, so turned off by default
+  !***********************************************************************
+  logical,parameter :: mesoscale_turbulence=.false.
+
+  ! Threshold equivalent diameter for interaction with surface sublayer 
+  ! resistance (below 10 meters) in micrometer. Above this diameter there
+  ! is no interaction
+  !**********************************************************************
+  real,parameter :: d_thresheqv=20
+  
 end module par_mod

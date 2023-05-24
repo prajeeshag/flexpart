@@ -1,0 +1,194 @@
+SHELL = /bin/bash
+################################################################################
+#  DESCRIPTION
+#    Makefile for FLEXPART. Standard (serial) and parallel (MPI) version
+#
+#    Dependencies are resolved in this makefile, so parallel make is
+#    possible ("make -j")
+#
+#    gcc 8+ is required.
+#
+#    Makefile was modified to produce unified executable for both ECMWF and GFS meteo data formats
+#    gributils were included to detect format of meteo data
+#
+#    Cpp directives USE_MPIINPLACE were added to three source files. The effect of these directives 
+#    are to enable the MPI_IN_PLACE option only if compiled with a -DUSE_MPIINPLACE directive. 
+#    Otherwise, a safer option (which requires the allocation of another array) is used by default. 
+#    In makefile added the -x f95-cpp-input flag for compiling of cpp directives.
+# 
+#  USAGE
+#    Compile serial FLEXPART 
+#      make [-j] serial
+#
+#  NETCDF OUTPUT
+#    To remove support for output in netCDF format, append `ncf=no` to the
+#    `make` command
+# 
+################################################################################
+
+## PROGRAMS
+# Unified executable names
+# The same executable is used for both ECMWF and GFS metdata
+
+# Serial processing executable
+FLEXPART-SERIAL = FLEXPART
+
+export OMP_NESTED=FALSE
+
+ROOT_DIR = . #MD
+
+#F90 = /usr/bin/gfortran
+#
+# JET (INCLUDE/CPATH and LIBRARY_PATH)
+# VSC (CPATH and LIBRARY_PATH)
+# 
+ifndef CPATH
+	$(error CPATH is not set)
+endif
+ifndef LIBRARY_PATH
+        $(error LIBRARY_PATH is not set)
+endif
+# use the environmental variable $INCLUDE
+# split the paths separated by :
+INC = $(subst :, ,$(CPATH))
+# add a -I/path/to/include
+INC := $(INC:%=-I%)
+# use the environmental variable $LIBRARY_PATH
+LIBPATH := $(subst :, ,$(LIBRARY_PATH))
+LIBRPATH := $(LIBPATH:%=-Wl,-rpath=%)
+LIBPATH := $(LIBPATH:%=-L%)
+
+### Enable netCDF output?
+ifeq ($(ncf), no)
+	NCOPT = -UUSE_NCF
+else
+	NCOPT = -DUSE_NCF -lnetcdff
+endif
+
+## OPTIMIZATION LEVEL
+O_LEV = 3 # [0,1,2,3,g,s,fast]
+O_LEV_DBG = g # [0,g]
+# -fopenmp #-pg -fbacktrace -fcheck=all -fbounds-check #-fopenmp#-p -fbacktrace -fopenmp #-tau_options=-optCompInst -tau_makefile=/home/lucie/Codes/Tau/x86_64/lib/Makefile.tau-mpi-pdt-openmp-opari#-fdefault-real-8# -freal-8-real-4#-pg -fcheck=all
+#FUSER = -g -fopenmp -march=skylake-avx512
+FUSER = -g -fopenmp -march=native -mtune=native
+mpi: FUSER := $(FUSER) -Dusempi #-MM -MT -MD
+## LIBRARIES
+LIBS = -leccodes -leccodes_f90 -lm -ljasper $(NCOPT) #MD
+
+FFLAGS   = $(INC) -O$(O_LEV) -m64 -cpp -mcmodel=large -O$(O_LEV) $(NCOPT) $(FUSER)  #-convert little_endian -fpp -WB -check all
+
+DBGFLAGS = $(INC) -O$(O_LEV_DBG) -g3 -ggdb3 -cpp -m64 -mcmodel=large -fconvert=little-endian -frecord-marker=4 -fmessage-length=0 -flto=jobserver -O$(O_LEV_DBG) $(NCOPT) -fbacktrace   -Wall  -fdump-core $(FUSER)  #  -ffpe-trap=invalid,overflow,denormal,underflow,zero  -Warray-bounds -fcheck=all
+
+LDFLAGS  = $(FFLAGS) $(LIBPATH) $(LIBRPATH) $(LIBS) 
+LDDEBUG  = $(DBGFLAGS) $(LIBPATH) $(LIBRPATH) $(LIBS)
+
+MODOBJS = \
+advance_mod.o 		binary_output_mod.o \
+cbl_mod.o 		cmapf_mod.o \
+com_mod.o 		conv_mod.o \
+class_gribfile_mod.o 	coordinates_ecmwf_mod.o \
+date_mod.o 		drydepo_mod.o \
+erf_mod.o 		flux_mod.o \
+getfields_mod.o 	initialise_mod.o \
+interpol_mod.o 		mean_mod.o \
+oh_mod.o 		outg_mod.o \
+output_mod.o 		par_mod.o \
+particle_mod.o 		pbl_profile_mod.o \
+plume_mod.o 		point_mod.o \
+random_mod.o 		readoptions_mod.o \
+restart_mod.o 		settling_mod.o \
+timemanager_mod.o 	turbulence_mod.o \
+txt_output_mod.o 	unc_mod.o \
+verttransform_mod.o 	wetdepo_mod.o \
+windfields_mod.o 	qvsat_mod.o \
+xmass_mod.o
+
+OBJECTS_NCF = netcdf_output_mod.o
+
+OBJECTS = \
+FLEXPART.o
+
+ifeq ($(ncf), no)
+	OBJECTS	:= $(OBJECTS)
+else
+	OBJECTS := $(OBJECTS) $(OBJECTS_NCF)
+endif
+
+%.o: %.mod
+
+# serial executable
+serial: $(FLEXPART-SERIAL)
+serial: FC := $(FC)
+
+$(FLEXPART-SERIAL): $(MODOBJS) $(OBJECTS)
+	+$(FC) -o $@ $(MODOBJS) $(OBJECTS) $(LDFLAGS)
+
+%.o: %.f90
+	+$(FC) -c $(FFLAGS) $<
+
+clean:
+	\rm -f *.o *.mod
+
+cleanall:
+	\rm -f *.o *.mod $(FLEXPART-SERIAL)
+
+
+.SUFFIXES = $(SUFFIXES) .f90
+
+## DEPENDENCIES
+
+#1) Independent modules: par_mod.o, com_mod.o, qvsat_mod.o class_gribfile_mod.o
+
+#2) Modules that are only dependent on independent modules
+cmapf_mod.o: par_mod.o
+com_mod.o: par_mod.o
+date_mod.o: par_mod.o
+erf_mod.o: par_mod.o
+mean_mod.o: par_mod.o
+particle_mod.o: com_mod.o par_mod.o
+point_mod.o: com_mod.o par_mod.o
+unc_mod.o: par_mod.o com_mod.o
+cbl_mod.o: com_mod.o par_mod.o random_mod.o
+pbl_profile_mod.o: par_mod.o qvsat_mod.o
+
+#3) 3rd level dependencies
+turbulence_mod.o: particle_mod.o cbl_mod.o qvsat_mod.o
+windfields_mod.o: cmapf_mod.o point_mod.o class_gribfile_mod.o date_mod.o qvsat_mod.o
+
+#4) 4th level dependencies
+verttransform_mod.o: par_mod.o com_mod.o qvsat_mod.o windfields_mod.o
+settling_mod.o: windfields_mod.o
+interpol_mod.o: windfields_mod.o particle_mod.o
+oh_mod.o: windfields_mod.o particle_mod.o
+
+#5)
+coordinates_ecmwf_mod.o: interpol_mod.o
+drydepo_mod.o: unc_mod.o interpol_mod.o erf_mod.o
+
+#6)
+advance_mod.o: coordinates_ecmwf_mod.o settling_mod.o drydepo_mod.o turbulence_mod.o
+plume_mod.o: mean_mod.o coordinates_ecmwf_mod.o
+outg_mod.o: oh_mod.o unc_mod.o coordinates_ecmwf_mod.o
+wetdepo_mod.o: coordinates_ecmwf_mod.o unc_mod.o
+readoptions_mod.o: drydepo_mod.o xmass_mod.o
+
+#7)
+getfields_mod.o: wetdepo_mod.o verttransform_mod.o qvsat_mod.o
+flux_mod.o: outg_mod.o qvsat_mod.o
+txt_output_mod.o: outg_mod.o
+binary_output_mod.o: mean_mod.o outg_mod.o
+netcdf_output_mod.o: mean_mod.o outg_mod.o readoptions_mod.o drydepo_mod.o
+
+#8)
+conv_mod.o: flux_mod.o class_gribfile_mod.o qvsat_mod.o
+output_mod.o: netcdf_output_mod.o binary_output_mod.o txt_output_mod.o
+restart_mod.o: coordinates_ecmwf_mod.o unc_mod.o netcdf_output_mod.o
+
+#9)
+initialise_mod.o: xmass_mod.o output_mod.o turbulence_mod.o
+
+#10)
+timemanager_mod.o: advance_mod.o conv_mod.o plume_mod.o getfields_mod.o restart_mod.o initialise_mod.o
+
+#11)
+FLEXPART.o: timemanager_mod.o

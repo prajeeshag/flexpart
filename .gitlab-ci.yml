@@ -6,22 +6,23 @@ default:
   tags:
     - podman
 
-ubuntu-build:
-  image: ubuntu:18.04
+alma8-build:
+  image: almalinux:8-minimal
   stage: build
   when: manual
 
   before_script:
-    - apt-get update -qq && apt-get install -y -qq gfortran libnetcdf-dev libnetcdff-dev libeccodes-dev netcdf-bin
+    - microdnf install -y epel-release
+    - microdnf install -y --enablerepo=powertools make netcdf-fortran-devel.x86_64 eccodes-devel.x86_64 netcdf.x86_64
 
   script:
     - export FC=gfortran
-    - export LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
-    - export CPATH=/usr/include
-    - make -C src -f makefile_ci ncf=yes
+    - export LIBRARY_PATH=/usr/lib64
+    - export CPATH=/usr/include:/usr/lib64/gfortran/modules
+    - make -j -C src -f makefile_gfortran
     - ulimit -s unlimited
     - ./src/FLEXPART
 
-  artifacts:
-    paths:
-      - ./src/FLEXPART
+#  artifacts:
+#    paths:
+#      - ./src/FLEXPART

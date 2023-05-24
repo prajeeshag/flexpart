@@ -1,5 +1,12 @@
-# README #
-This is our version on Gitlab.... :)
+![](https://www.flexpart.eu/chrome/site/flexpart_banner.png)
+# Flexpart - The Lagrangian particle dispersion model
+
+This is the main development site @ University of Vienna.
+
+Other references:
+
+- [FLEXPART.eu](https://flexpart.eu)
+- [FLEXPART@NILU](https://git.nilu.no/flexpart/flexpart)
 
 ### What is this repository for? ###
 
@@ -18,7 +25,7 @@ This is our version on Gitlab.... :)
 
 * Compilation
 
-```
+```bash
 > cd src
 
 change the appropriate paths to libraries in the makefile
@@ -32,7 +39,7 @@ change the appropriate paths to libraries in the makefile
    The necessary ECMWF wind fields can be obtained testing flex_ecmwf
    The AVAILABLE file works with the default ERA 5 retrieved winds
    In the winds are available in flex_ecmwf/work it should suffice to execute 
-   ./src/FLEXPART in the main directory  
+   `./src/FLEXPART` in the main directory  
 
 ### Contribution guidelines ###
 
@@ -41,7 +48,4 @@ change the appropriate paths to libraries in the makefile
    An essential test consists of a set of input files and directories that allow FLEXPART to run.
    A test can be accompanied by output files for verification
 * Code review
-
-[comment]: # "### Who do I talk to? ###"
-
-ignacio.pisso@nilu.no
+* report issues via mail to [support](mailto:support.flexpart@univie.ac.at)

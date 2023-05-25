@@ -1,5 +1,5 @@
 ![](https://www.flexpart.eu/chrome/site/flexpart_banner.png)
-# Flexpart - The Lagrangian particle dispersion model
+# Welcome to Flexpart - The Lagrangian particle dispersion model
 
 This is the main development site @ University of Vienna.
 
@@ -8,32 +8,53 @@ Other references:
 - [FLEXPART.eu](https://flexpart.eu)
 - [FLEXPART@NILU](https://git.nilu.no/flexpart/flexpart)
 
-### What is this repository for? ###
+## What is this repository for?
 
-* This repository contains the development version of the Lagrangian model FLEXPART 
+* This repository contains versions of the Lagrangian model FLEXPART
+* Development versions
+* Issues on the FLEXPART model
+* Feature requests for future versions
 
- ### How do I get set up? ###
+## Getting started with Flexpart
 
-* Configuration
+The model is written in Fortran. It needs to be compiled for the architecture that runs it.
 
-  Edit the makefile with the paths to libraries and include files
+### 1.Configuration
 
-* Dependencies
+  The Makefiles e.g. `src/makefile_gfortran` can use environmental variables:
+   - `CPATH` for include directories
+   - `LIBRARY_PATH` for libraries
 
- * Jasper and grib_api or ECCodes
- * NetCDF (optional)
+   This is commonly used on HPC systems. e.g. JET and VSC. These paths will be added via `rpath` so statically linked.
+   Otherwise edit the makefile with the paths to libraries and include files.
 
-* Compilation
+**Required Dependencies:**
+
+ * [ecCodes](https://confluence.ecmwf.int/display/ECC) from ECMWF. 
+ * [NetCDF](https://www.unidata.ucar.edu/software/netcdf/) (optional) from UCAR
+ * Fortran Compiler, e.g. GCC compiler `8.5.0+` or INTEL 19+ or INTEL-ONEAPI
+ * make utils
+
+### 2.Compilation
+
+Clone the git repository or download one of the [releases](https://gitlab.phaidra.org/flexpart/flexpart/-/releases)
 
 ```bash
-> cd src
-
-change the appropriate paths to libraries in the makefile
-
-> make 
+# clone the repository to your directory or download one of our releases
+git clone https://gitlab.phaidra.org/flexpart/flexpart.git
+# change to the SRC directory
+cd flexpart/src
+# Remember to configure your libraries in the makefile or environmental variables
+# use for example the GCC makefile
+make -f makefile_gfortran
+# this will create the FLEXPART executable
+file ./FLEXPART
+# Check its dependencies:
+ldd ./FLEXPART
 ```
+Now you are almost ready to run.
 
-* Deployment instructions 
+### 3.Deployment instructions 
 
    FLEXPART is a standalone executable  
    The necessary ECMWF wind fields can be obtained testing flex_ecmwf
@@ -43,9 +64,12 @@ change the appropriate paths to libraries in the makefile
 
 ### Contribution guidelines ###
 
-* The version contributed should compile on a reference version of the system and compiler. The current reference is gfortran 5.4 on Ubuntu 16.04
+* The version contributed should compile on a reference version of the system and compiler. 
+   - `FLEXPART 10.4` used as reference gfortran 5.4 on Ubuntu 16.04
+   - `FLEXPART 11` uses as reference gfortran 8.5.0 on AlmaLinux 8
 * Code contribution including new features and bug fixes should be complemented with appropriate tests
    An essential test consists of a set of input files and directories that allow FLEXPART to run.
    A test can be accompanied by output files for verification
 * Code review
-* report issues via mail to [support](mailto:support.flexpart@univie.ac.at)
+* report issues via mail to [support](mailto:flexpart-support.img-wien@univie.ac.at)
+* become an active developer and request a user account.

@@ -36,4 +36,4 @@ options-test:
     - microdnf install -y --enablerepo=powertools make netcdf-fortran-devel.x86_64 eccodes-devel.x86_64 netcdf.x86_64
   script:
     - ulimit -s unlimited
-    - ./tests/run_default_options_test.sh
+    - bash ./tests/run_default_options_test.sh

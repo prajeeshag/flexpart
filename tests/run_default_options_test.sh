@@ -29,9 +29,11 @@ report() {
 #
 # initial conditions
 #
-test -f ../src/FLEXPART
-report "[$MM] executable: ../src/FLEXPART" || exit 1
-ln -s ../src/FLEXPART .
+warning "[$MM] $PWD"
+
+test -f ./src/FLEXPART
+report "[$MM] executable: ./src/FLEXPART" || exit 1
+ln -s ./src/FLEXPART .
 test -d ./default_options
 report "[$MM] default options: ./default_options" || exit 1
 cp -f ./default_options ./current

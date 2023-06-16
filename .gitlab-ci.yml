@@ -9,7 +9,7 @@ default:
 alma8-build:
   image: almalinux:8-minimal
   stage: build
-  when: manual
+  #when: manual
 
   before_script:
     - microdnf install -y epel-release
@@ -27,7 +27,7 @@ alma8-build:
 options-test:
   image: almalinux:8-minimal
   stage: test
-  when: manual
+  #when: manual
   needs:
     - alma8-build
 

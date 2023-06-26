@@ -773,7 +773,11 @@ subroutine gridcheck_ecmwf
   ! for unknown reason zsec 1 to 10 is filled in this version
   ! compared to the old one
   ! SEC SEC SE
-  do i=1,nwz
+  akm=0
+  bkm=0
+  akz=0
+  bkz=0
+  do i=0,nwz ! LB: should start counting fom 0 to get the top level
     j=numskip+i
     k=nlev_ec+1+numskip+i
     akm(nwz-i+1)=zsec2(j)

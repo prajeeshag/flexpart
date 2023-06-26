@@ -204,7 +204,9 @@ subroutine timemanager
       call output_restart(itime,loutnext,outnum)
     endif
 
-    if (itime.ne.0) write(*,*) part(1)%xlon,part(1)%ylat,part(1)%z,part(1)%zeta
+    if ((itime.ne.0).and.(count%alive.gt.0)) then
+      if (part(1)%alive) write(*,*) 'xlon,ylat,z,zeta', part(1)%xlon,part(1)%ylat,part(1)%z,part(1)%zeta
+    endif
     call initialise_output(itime,filesize)
     
   ! Get necessary wind fields if not available

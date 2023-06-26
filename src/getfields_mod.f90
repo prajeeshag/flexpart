@@ -1060,6 +1060,7 @@ subroutine calcpar(n)
         loop_start=llev
       end if
 
+      kzmin=nuvz
       do kz=loop_start,nuvz
         if (zlev(kz).ge.altmin) then
           kzmin=kz
@@ -1472,7 +1473,7 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
     vlev,                           &
     akz,bkz
   integer ::                        &
-    i,k,iter,llev,loop_start          ! Loop variables
+    i,k,iter,llev,loop_start,kcheck   ! Loop variables
   real ::                           &
     tv,tvold,                       & ! Virtual temperature
     zref,z,zold,zl,zl1,zl2,         & ! Heights
@@ -1520,6 +1521,7 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
     zref=zold
     rhold=ew(td2,psurf)/ew(tt2,psurf)
 
+
     thetaref=tvold*(100000./pold)**(r_air/cpa)+excess
     thetaold=thetaref
 
@@ -1531,7 +1533,9 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
     else
       loop_start=llev
     end if
+    kcheck=loop_start
     do k=loop_start,nuvz
+      kcheck=k
       pint=akz(k)+bkz(k)*psurf  ! pressure on model layers
       tv=ttlev(k)*(1.+0.608*qvlev(k))
 
@@ -1542,7 +1546,7 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
       endif
 
       theta=tv*(100000./pint)**(r_air/cpa)
-    ! Petra
+    ! PS
       rh = qvlev(k) / f_qvsat( pint, ttlev(k) )
 
 
@@ -1563,8 +1567,8 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
       zold=z
     end do
     ! Check opied from FLEXPART-WRF, 2022 LB
-    if (k.ge.nuvz) then
-      write(*,*) 'richardson not working -- k = nuvz'
+    if (kcheck.ge.nuvz) then
+      write(*,*) 'richardson not working, no stable layer -- k = nuvz'
       ierr = -10
       goto 7000
     endif
@@ -1577,8 +1581,8 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
     theta1=thetaold
     do i=1,20
       zl=zold+real(i)/20.*(z-zold)
-      ul=ulev(k-1)+real(i)/20.*(ulev(k)-ulev(k-1))
-      vl=vlev(k-1)+real(i)/20.*(vlev(k)-vlev(k-1))
+      ul=ulev(kcheck-1)+real(i)/20.*(ulev(kcheck)-ulev(kcheck-1))
+      vl=vlev(kcheck-1)+real(i)/20.*(vlev(kcheck)-vlev(kcheck-1))
       thetal=thetaold+real(i)/20.*(theta-thetaold)
       rhl=rhold+real(i)/20.*(rh-rhold)
       ril=ga/thetaref*(thetal-thetaref)*(zl-zref)/ &
@@ -1587,12 +1591,12 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
       theta2=thetal
       if (ril.gt.ric) exit
       if (i.eq.20) then
-        write(*,*) 'WARNING: NO RICHARDSON NUMBER GREATER THAN 0.25 FOUND', k,ril,ri
+        write(*,*) 'WARNING: NO RICHARDSON NUMBER GREATER THAN 0.25 FOUND', kcheck,nuvz,ril,ri
         exit
       endif
       zl1=zl
       theta1=thetal
-      !if (i.eq.20) stop 'RICHARDSON: NO RICHARDSON NUMBER GREATER THAN 0.25 FOUND'
+      if (i.eq.20) error stop 'RICHARDSON: NO RICHARDSON NUMBER GREATER THAN 0.25 FOUND'
     end do
 
     h=zl
@@ -1634,16 +1638,6 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
   write(*,'(i5        )')  nuvz
   write(*,'(a         )') 'psurf,ust,hf,tt2,td2,h,wst,hmixplus'
   write(*,'(1p,4e18.10)')  psurf,ust,hf,tt2,td2,h,wst,hmixplus
-  write(*,'(a         )') 'ttlev'
-  write(*,'(1p,4e18.10)')  ttlev
-  write(*,'(a         )') 'qvlev'
-  write(*,'(1p,4e18.10)')  qvlev
-  write(*,'(a         )') 'ulev'
-  write(*,'(1p,4e18.10)')  ulev
-  write(*,'(a         )') 'vlev'
-  write(*,'(1p,4e18.10)')  vlev
-  write(*,'(a         )') 'pplev'
-  write(*,'(1p,4e18.10)')  pplev
   return
 end subroutine richardson
 

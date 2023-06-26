@@ -294,7 +294,7 @@ module par_mod
   ! Recommended to set this to max 16
   ! High numbers create more overhead and a larger memory footprint
   !***********************************************************************
-  integer,parameter :: max_numthreads_grid=16
+  integer,parameter :: max_numthreads_grid=1
   ! Set the coordinate system. At the moment only ECMWF is possible. This bit
   ! needs to be a parameter that can be set at compile time. 
   ! Throughout the code there will be SELECT CASE statements or IFDEFs

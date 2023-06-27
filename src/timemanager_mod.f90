@@ -204,18 +204,20 @@ subroutine timemanager
       call output_restart(itime,loutnext,outnum)
     endif
 
-    if (itime.ne.0) write(*,*) part(1)%xlon,part(1)%ylat,part(1)%z,part(1)%zeta
+    if ((itime.ne.0).and.(count%alive.gt.0)) then
+      if (part(1)%alive) write(*,*) 'xlon,ylat,z,zeta', part(1)%xlon,part(1)%ylat,part(1)%z,part(1)%zeta
+    endif
     call initialise_output(itime,filesize)
     
   ! Get necessary wind fields if not available
   !*******************************************
     call getfields(itime,nstop1) !OMP on verttransform_ecmwf and readwind_ecmwf, getfields_mod.f90
-    if (nstop1.gt.1) stop 'NO METEO FIELDS AVAILABLE'
+    if (nstop1.gt.1) error stop 'NO METEO FIELDS AVAILABLE'
 
   ! In case of ETA coordinates being read from file, convert the z positions
   !*************************************************************************
     if (((ipin.eq.1).or.(ipin.eq.4)).and.(itime.eq.itime_init).and.(wind_coord_type.eq.'ETA')) then 
-      if (numpart.le.0) stop 'Something is going wrong reading the old particle file!'
+      if (numpart.le.0) error stop 'Something is going wrong reading the old particle file! No particles found.'
 !$OMP PARALLEL PRIVATE(i)
 !$OMP DO
       do i=1,numpart
@@ -262,7 +264,7 @@ subroutine timemanager
     else if ((ipin.eq.3).or.(ipin.eq.4)) then
       ! If reading from user defined initial conditions, check which particles are 
       ! to be activated
-      if (count%allocated.le.0) stop 'Something is going wrong reading the part_ic.nc file!'
+      if (count%allocated.le.0) error stop 'Something is going wrong reading the part_ic.nc file!'
 
       alive_tmp=count%alive
       spawned_tmp=count%spawned

@@ -118,9 +118,11 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
 
   ! Compute heights of eta levels and their respective pressure and density fields
   !*******************************************************************************
-  call verttransform_ecmwf_heights(nxmax-1,nymax-1,tt2(:,:,1,n),td2(:,:,1,n), &
-    ps(:,:,1,n),qvh(:,:,:,n),tth(:,:,:,n),prsh,rhoh,pinmconv, &
-    etauvheight(:,:,:,n),etawheight(:,:,:,n))
+  call verttransform_ecmwf_heights(nxmin1,nymin1,tt2(0:nxmin1,0:nymin1,1,n), &
+    td2(0:nxmin1,0:nymin1,1,n),ps(0:nxmin1,0:nymin1,1,n),qvh(0:nxmin1,0:nymin1,:,n), &
+    tth(0:nxmin1,0:nymin1,:,n),prsh(0:nxmin1,0:nymin1,:), &
+    rhoh(0:nxmin1,0:nymin1,:),pinmconv(0:nxmin1,0:nymin1,:), &
+    etauvheight(0:nxmin1,0:nymin1,:,n),etawheight(0:nxmin1,0:nymin1,:,n))
 
   ! Transform the wind fields to the internal coordinate system and save the native ETA 
   ! fields when case wind_coord_type==ETA
@@ -134,9 +136,12 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
 
   ! Create cloud fields
   !*********************
-  call verttransform_ecmwf_clouds(n,readclouds,sumclouds,nxmin1,nymin1,clouds(:,:,:,n), &
-    cloudsh(:,:,n),clw(:,:,:,n),ctwc(:,:,n),clwc(:,:,:,n),ciwc(:,:,:,n),lsprec(:,:,1,n), &
-    convprec(:,:,1,n),rho(:,:,:,n),tt(:,:,:,n),qv(:,:,:,n),etauvheight(:,:,:,n))
+  call verttransform_ecmwf_clouds(n,readclouds,sumclouds,nxmin1,nymin1, &
+    clouds(0:nxmin1,0:nymin1,:,n), cloudsh(0:nxmin1,0:nymin1,n), &
+    clw(0:nxmin1,0:nymin1,:,n),ctwc(0:nxmin1,0:nymin1,n),clwc(0:nxmin1,0:nymin1,:,n), &
+    ciwc(0:nxmin1,0:nymin1,:,n),lsprec(0:nxmin1,0:nymin1,1,n), &
+    convprec(0:nxmin1,0:nymin1,1,n),rho(0:nxmin1,0:nymin1,:,n), &
+    tt(0:nxmin1,0:nymin1,:,n),qv(0:nxmin1,0:nymin1,:,n),etauvheight(0:nxmin1,0:nymin1,:,n))
 end subroutine verttransform_ecmwf
 
 subroutine verttransform_nests(n,uuhn,vvhn,wwhn,pvhn)

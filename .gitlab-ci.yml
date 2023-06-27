@@ -9,7 +9,7 @@ default:
 alma8-build:
   image: almalinux:8-minimal
   stage: build
-  when: manual
+  #when: manual
 
   before_script:
     - microdnf install -y epel-release
@@ -20,9 +20,20 @@ alma8-build:
     - export LIBRARY_PATH=/usr/lib64
     - export CPATH=/usr/include:/usr/lib64/gfortran/modules
     - make -j -C src -f makefile_gfortran
-    - ulimit -s unlimited
-    - ./src/FLEXPART
+  artifacts:
+    paths:
+      - ./src/FLEXPART
 
-#  artifacts:
-#    paths:
-#      - ./src/FLEXPART
+options-test:
+  image: almalinux:8-minimal
+  stage: test
+  #when: manual
+  needs:
+    - alma8-build
+
+  before_script:
+    - microdnf install -y epel-release
+    - microdnf install -y --enablerepo=powertools make netcdf-fortran.x86_64 eccodes.x86_64 netcdf.x86_64
+  script:
+    - ulimit -s unlimited
+    - bash ./tests/run_default_options_test.sh

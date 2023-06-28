@@ -13,10 +13,10 @@
  SPECNUM_REL=          24, ! Species numbers in directory SPECIES
  /
 &RELEASE                   ! For each release 
- IDATE1  =       20120101, ! Release start date, YYYYMMDD: YYYY=year, MM=month, DD=day
- ITIME1  =         090000, ! Release start time in UTC HHMISS: HH hours, MI=minutes, SS=seconds
- IDATE2  =       20120101, ! Release end date, same as IDATE1
- ITIME2  =         090000, ! Release end time, same as ITIME1
+ IDATE1  =       20090101, ! Release start date, YYYYMMDD: YYYY=year, MM=month, DD=day
+ ITIME1  =         000000, ! Release start time in UTC HHMISS: HH hours, MI=minutes, SS=seconds
+ IDATE2  =       20090101, ! Release end date, same as IDATE1
+ ITIME2  =         000000, ! Release end time, same as ITIME1
  LON1    =          0.000, ! Left longitude of release box -180 < LON1 <180
  LON2    =          0.000, ! Right longitude of release box, same as LON1
  LAT1    =         20.000, ! Lower latitude of release box, -90 < LAT1 < 90

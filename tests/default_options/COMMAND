@@ -6,14 +6,14 @@
 ***************************************************************************************************************
 &COMMAND
  LDIRECT=               1, ! Simulation direction in time   ; 1 (forward) or -1 (backward)
- IBDATE=         20120101, ! Start date of the simulation   ; YYYYMMDD: YYYY=year, MM=month, DD=day  
- IBTIME=           060000, ! Start time of the simulation   ; HHMISS: HH=hours, MI=min, SS=sec; UTC
- IEDATE=         20120101, ! End date of the simulation     ; same format as IBDATE 
- IETIME=           120000, ! End  time of the simulation    ; same format as IBTIME
+ IBDATE=         20090101, ! Start date of the simulation   ; YYYYMMDD: YYYY=year, MM=month, DD=day  
+ IBTIME=           000000, ! Start time of the simulation   ; HHMISS: HH=hours, MI=min, SS=sec; UTC
+ IEDATE=         20090101, ! End date of the simulation     ; same format as IBDATE 
+ IETIME=           030000, ! End  time of the simulation    ; same format as IBTIME
  LOUTSTEP=           3600, ! Interval of model output; average concentrations calculated every LOUTSTEP (s)  
  LOUTAVER=           3600, ! Interval of output averaging (s)
  LOUTSAMPLE=          900, ! Interval of output sampling  (s), higher stat. accuracy with shorter intervals
- LOUTRESTART=       86400, ! Interval of writing restart files (s), switched off when set to -1
+ LOUTRESTART=          -1, ! Interval of writing restart files (s), switched off when set to -1
  LSYNCTIME=           900, ! All processes are synchronized to this time interval (s)
  CTL=          -5.0000000, ! CTL>1, ABL time step = (Lagrangian timescale (TL))/CTL, uses LSYNCTIME if CTL<0
  IFINE=                 4, ! Reduction for time step in vertical transport, used only if CTL>1 

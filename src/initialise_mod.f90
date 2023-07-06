@@ -854,14 +854,11 @@ subroutine init_particle(itime,ipart)
     if (nrand+2.gt.maxrand) nrand=1
     part(ipart)%mesovel%u=rannumb(nrand)*usig
     part(ipart)%mesovel%v=rannumb(nrand+1)*vsig
-    select case (wind_coord_type)
-      case ('ETA')
+    if (wind_coord_type.eq.'ETA') then
         part(ipart)%mesovel%w=rannumb(nrand+2)*wsigeta
-      case ('METER')
+    else
         part(ipart)%mesovel%w=rannumb(nrand+2)*wsig
-      case default
-        part(ipart)%mesovel%w=rannumb(nrand+2)*wsig
-    end select  
+    endif
   endif
 end subroutine init_particle
 

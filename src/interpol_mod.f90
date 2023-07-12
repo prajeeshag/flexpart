@@ -110,8 +110,8 @@ subroutine find_grid_indices(xt,yt)
   else
     ix=int(xt)
     jy=int(yt)
-    nix=nint(xt)
-    njy=nint(yt)
+    nix=ix!nint(xt)
+    njy=jy!nint(yt)
     ixp=ix+1
     jyp=jy+1
   endif

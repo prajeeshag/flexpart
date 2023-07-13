@@ -76,7 +76,7 @@ module windfields_mod
     uu,vv,ww,                             & ! wind components in x,y and z direction [m/s]
     uupol,vvpol,                          & ! wind components in polar stereographic projection [m/s]
     tt,tth,                               & ! temperature data on internal and half model levels [K]
-    qv,qvh,                               & ! specific humidity data on internal and half model levels
+    qv,qvh,                               & ! specific humidity data on internal and half model levels (eta if 'ETA')
     pv,                                   & ! potential vorticity
     rho,                                  & ! air density [kg/m3]
     drhodz,                               & ! vertical air density gradient [kg/m2]
@@ -807,7 +807,7 @@ subroutine gridcheck_ecmwf
   bkm=0
   akz=0
   bkz=0
-  do i=0,nwz ! LB: should start counting from 0 to get the top level
+  do i=1,nwz ! LB: should start counting from 0 to get the top level?
     akm(nwz-i+1)=zsec2(numskip+i)
     !   write (*,*) 'ifield:',ifield,k,j,zsec2(10+j)
     bkm(nwz-i+1)=zsec2(nlev_ec+1+numskip+i)

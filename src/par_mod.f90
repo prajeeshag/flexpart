@@ -160,7 +160,7 @@ module par_mod
   ! Maximum dimensions of the nested input grids
   !*********************************************
 
-  integer,parameter :: maxnests=0,nxmaxn=0,nymaxn=0
+  integer,parameter :: maxnests=1,nxmaxn=2,nymaxn=2
 
   ! nxmax,nymax        maximum dimension of wind fields in x and y
   !                    direction, respectively
@@ -271,6 +271,18 @@ module par_mod
   real, parameter :: bcls_e(7) = &
       (/0.5689, -0.0923, 0.0402, 1.4523, -2.078, 1.05, -0.1821/)
 
+  ! Cloud parameters to set bottom and top of cloud in verttransform_ecmwf_cloud
+  ! These will be converted to eta coordinates in verttransform if 
+  ! wind_coord_type='ETA'
+
+  integer, parameter :: max_cloudthck = 19000 !Maximum thickness of clouds
+  integer, parameter :: min_cloudthck = 50    !Minimum thickness of clouds
+  ! If clouds in convection regions are outside the following range, they will
+  ! be fixed to lowconv_range in case of convp > 0.1
+  ! or highconv_range otherwise
+  integer, parameter :: conv_clrange(2) = (/ 3000, 6000 /)
+  integer, parameter :: highconvp_clrange(2) = (/ 0, 10000 /)
+  integer, parameter :: lowconvp_clrange(2) = (/ 500, 8000 /)
 
   !**************************************************************************
   ! Maximum number of particles to be released in a single atmospheric column

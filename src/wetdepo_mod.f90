@@ -309,17 +309,8 @@ subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,gridfract,wetscav)
     kz=indz
   endif
   
-  if (ngrid.le.0) then
-	call interpol_rain(lsprec,convprec,tcc,tt,ctwc, &
-         icloudbot,icloudthck,nxmax,nymax,1,nzmax,nx,ny, &
-         memind,xts,yts,1,kz,memtime(1), &
-         memtime(2),interp_time,lsp,convp,cc,t_particle,cl,icbot,ictop,icmv)
-  else
-	call interpol_rain_nests(lsprecn,convprecn,tccn,ttn,ctwcn, &
-         icloudbotn,icloudthckn,nxmaxn,nymaxn,1,nzmax, &
-         maxnests,ngrid,nxn,nyn,memind,xtn,ytn,1,kz,memtime(1), &
-         memtime(2),interp_time,lsp,convp,cc,t_particle,cl,icbot,ictop,icmv)
-  endif
+  ! WHERE IS ICMV DEFINED?
+	call interpol_rain(itime,kz,lsp,convp,cc,t_particle,cl,icbot,ictop,icmv)
 
 ! If total precipitation is less than precsub=0.01 mm/h - no scavenging
 ! Note: original PS version (in order avoid step at 0.01)

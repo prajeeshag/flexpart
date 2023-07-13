@@ -142,13 +142,23 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
 
   ! Create cloud fields
   !*********************
-  call verttransform_ecmwf_cloud(n,lcw,lcwsum,nxmin1,nymin1, &
-    ctwc(0:nxmin1,0:nymin1,n),clwc(0:nxmin1,0:nymin1,:,n), &
-    ciwc(0:nxmin1,0:nymin1,:,n), &
-    icloudbot(0:nxmin1,0:nymin1,n), icloudthck(0:nxmin1,0:nymin1,n), &
-    lsprec(0:nxmin1,0:nymin1,1,:,n),convprec(0:nxmin1,0:nymin1,1,:,n), &
-    rho(0:nxmin1,0:nymin1,:,n), tt(0:nxmin1,0:nymin1,:,n), &
-    qv(0:nxmin1,0:nymin1,:,n), etauvheight(0:nxmin1,0:nymin1,:,n)) 
+  if (wind_coord_type.eq.'ETA') then
+    call verttransform_ecmwf_cloud(n,lcw,lcwsum,nxmin1,nymin1, &
+      ctwc(0:nxmin1,0:nymin1,n),clwc(0:nxmin1,0:nymin1,:,n), &
+      ciwc(0:nxmin1,0:nymin1,:,n), &
+      icloudbot(0:nxmin1,0:nymin1,n), icloudthck(0:nxmin1,0:nymin1,n), &
+      lsprec(0:nxmin1,0:nymin1,1,:,n),convprec(0:nxmin1,0:nymin1,1,:,n), &
+      rhoeta(0:nxmin1,0:nymin1,:,n), tteta(0:nxmin1,0:nymin1,:,n), &
+      qv(0:nxmin1,0:nymin1,:,n), etauvheight(0:nxmin1,0:nymin1,:,n)) 
+  else
+    call verttransform_ecmwf_cloud(n,lcw,lcwsum,nxmin1,nymin1, &
+      ctwc(0:nxmin1,0:nymin1,n),clwc(0:nxmin1,0:nymin1,:,n), &
+      ciwc(0:nxmin1,0:nymin1,:,n), &
+      icloudbot(0:nxmin1,0:nymin1,n), icloudthck(0:nxmin1,0:nymin1,n), &
+      lsprec(0:nxmin1,0:nymin1,1,:,n),convprec(0:nxmin1,0:nymin1,1,:,n), &
+      rho(0:nxmin1,0:nymin1,:,n), tt(0:nxmin1,0:nymin1,:,n), &
+      qv(0:nxmin1,0:nymin1,:,n), etauvheight(0:nxmin1,0:nymin1,:,n)) 
+  endif
 end subroutine verttransform_ecmwf
 
 subroutine verttransform_nest(n,uuhn,vvhn,wwhn,pvhn)
@@ -238,6 +248,7 @@ subroutine verttransform_nest(n,uuhn,vvhn,wwhn,pvhn)
   do l=1,numbnests
     nxm1=nxn(l)-1
     nym1=nyn(l)-1
+    if (nxm1.lt.1 .or. nym1.lt.1 ) cycle
     call verttransform_ecmwf_heights(nxm1,nym1, &
       tt2n(0:nxm1,0:nym1,1,n,l),td2n(0:nxm1,0:nym1,1,n,l),psn(0:nxm1,0:nym1,1,n,l), &
       qvhn(0:nxm1,0:nym1,:,n,l),tthn(0:nxm1,0:nym1,:,n,l),prshn(0:nxm1,0:nym1,:), &
@@ -249,13 +260,21 @@ subroutine verttransform_nest(n,uuhn,vvhn,wwhn,pvhn)
 
     ! Create cloud fields
     !*********************
-
-    call verttransform_ecmwf_cloud(n,lcw_nest(l),lcwsum_nest(l),nxm1,nym1,&
-      ctwcn(0:nxm1,0:nym1,n,l), clwcn(0:nxm1,0:nym1,:,n,l), ciwcn(0:nxm1,0:nym1,:,n,l), &
-      icloudbotn(0:nxm1,0:nym1,n,l), icloudthckn(0:nxm1,0:nym1,n,l), &
-      lsprecn(0:nxm1,0:nym1,1,:,n,l),convprecn(0:nxm1,0:nym1,1,:,n,l), &
-      rhon(0:nxm1,0:nym1,:,n,l),ttn(0:nxm1,0:nym1,:,n,l), &
-      qvn(0:nxm1,0:nym1,:,n,l), etauvheightn(0:nxm1,0:nym1,:,n,l))
+    if (wind_coord_type.eq.'ETA') then
+      call verttransform_ecmwf_cloud(n,lcw_nest(l),lcwsum_nest(l),nxm1,nym1,&
+        ctwcn(0:nxm1,0:nym1,n,l), clwcn(0:nxm1,0:nym1,:,n,l), ciwcn(0:nxm1,0:nym1,:,n,l), &
+        icloudbotn(0:nxm1,0:nym1,n,l), icloudthckn(0:nxm1,0:nym1,n,l), &
+        lsprecn(0:nxm1,0:nym1,1,:,n,l),convprecn(0:nxm1,0:nym1,1,:,n,l), &
+        rhoetan(0:nxm1,0:nym1,:,n,l),ttetan(0:nxm1,0:nym1,:,n,l), &
+        qvn(0:nxm1,0:nym1,:,n,l), etauvheightn(0:nxm1,0:nym1,:,n,l))
+    else
+      call verttransform_ecmwf_cloud(n,lcw_nest(l),lcwsum_nest(l),nxm1,nym1,&
+        ctwcn(0:nxm1,0:nym1,n,l), clwcn(0:nxm1,0:nym1,:,n,l), ciwcn(0:nxm1,0:nym1,:,n,l), &
+        icloudbotn(0:nxm1,0:nym1,n,l), icloudthckn(0:nxm1,0:nym1,n,l), &
+        lsprecn(0:nxm1,0:nym1,1,:,n,l),convprecn(0:nxm1,0:nym1,1,:,n,l), &
+        rhon(0:nxm1,0:nym1,:,n,l),ttn(0:nxm1,0:nym1,:,n,l), &
+        qvn(0:nxm1,0:nym1,:,n,l), etauvheightn(0:nxm1,0:nym1,:,n,l))
+    endif
       
   end do ! end loop over nests
 end subroutine verttransform_nest
@@ -929,7 +948,8 @@ subroutine verttransform_ecmwf_stereo(n)
 end subroutine verttransform_ecmwf_stereo
 
 subroutine verttransform_ecmwf_cloud(n,lcw_tmp,lcwsum_tmp,nxlim,nylim,&
-  ctwc_tmp,clwc_tmp,ciwc_tmp,icloudbot_tmp,icloudthck_tmp,lsprec_tmp,convprec_tmp,rho_tmp,tt_tmp,qv_tmp,uvzlev)
+  ctwc_tmp,clwc_tmp,ciwc_tmp,icloudbot_tmp,icloudthck_tmp,lsprec_tmp,convprec_tmp,rho_tmp, &
+  tt_tmp,qv_tmp,uvzlev)
   implicit none
 
   logical,intent(in) :: lcw_tmp,lcwsum_tmp
@@ -945,10 +965,15 @@ subroutine verttransform_ecmwf_cloud(n,lcw_tmp,lcwsum_tmp,nxlim,nylim,&
   integer,intent(out) :: icloudbot_tmp(0:nxlim,0:nylim), icloudthck_tmp(0:nxlim,0:nylim)
   integer :: icloudtop
 
-  integer :: ix,jy,kz,kz_inv
+  integer :: ix,jy,kz,kz_inv,k
   real :: pressure,rh,rhmin,lsp,convp,prec
   real :: clw
   logical lconvectprec
+
+  ! converted parameters for eta coordinates:
+  integer :: max_cloudthck_eta, min_cloudthck_eta
+  integer, dimension(2) :: conv_clrange_eta,highconvp_clrange_eta,lowconvp_clrange_eta
+
   real,parameter :: precmin = 0.002 ! minimum prec in mm/h for cloud diagn.
   
   ! AT, PS: for v11, we add back the quick fix to interpolate clouds in 
@@ -968,9 +993,25 @@ subroutine verttransform_ecmwf_cloud(n,lcw_tmp,lcwsum_tmp,nxlim,nylim,&
       clwc_tmp(0:nxlim,0:nylim,:) = clwc_tmp(0:nxlim,0:nylim,:) + ciwc_tmp(0:nxlim,0:nylim,:)
     end if
         
-    do kz = 1,nz-1
-      do jy=0,nymin1
-        do ix=0,nxmin1
+    do jy=0,nymin1
+      do ix=0,nxmin1
+        
+        if (wind_coord_type.eq.'ETA') then 
+        ! Convert cloud parameters to eta coords.
+        ! Reverse sign when using eta (eta:1-0, meter:0-max)
+          do k=1,nz
+            if (uvzlev(ix,jy,k).gt.max_cloudthck) max_cloudthck_eta=uvheight(k)
+            ! if (uvzlev(ix,jy,k,memind(1)).gt.min_cloudthck) min_cloudthck_eta=uvheight(k)
+            if (uvzlev(ix,jy,k).gt.conv_clrange(1)) conv_clrange_eta(1)=uvheight(k)
+            if (uvzlev(ix,jy,k).gt.conv_clrange(2)) conv_clrange_eta(2)=uvheight(k)
+            if (uvzlev(ix,jy,k).gt.highconvp_clrange(1)) highconvp_clrange_eta(1)=uvheight(k)
+            if (uvzlev(ix,jy,k).gt.highconvp_clrange(2)) highconvp_clrange_eta(2)=uvheight(k)
+            if (uvzlev(ix,jy,k).gt.lowconvp_clrange(1)) lowconvp_clrange_eta(1)=uvheight(k)
+            if (uvzlev(ix,jy,k).gt.lowconvp_clrange(2)) lowconvp_clrange_eta(2)=uvheight(k)
+          end do
+        endif
+
+        do kz = 1,nz-1 ! Changed order of loop to prevent ETA computation to be done unnecessarily
           if (kz .eq. 1) then
             icloudbot_tmp(ix,jy) = icmv
 !!          icloudtop_tmp=icmv ! this is just a local variable
@@ -988,52 +1029,110 @@ subroutine verttransform_ecmwf_cloud(n,lcw_tmp,lcwsum_tmp,nxlim,nylim,&
             clw = clwc_tmp(ix,jy,kz)*rho_tmp(ix,jy,kz)*(height(kz+1)-height(kz)) 
           endif
           ! Add this layer to column cloud water [m3/m3]
-          ctwc_tmp(ix,jy) = ctwc_tmp(ix,jy)+clw ! kg / m2 in column
+          ctwc_tmp(ix,jy) = ctwc_tmp(ix,jy)+clw ! kg / m2 (or eta) in column
 
           if (clw .gt. 0.) then ! cloud layer - maybe use threshold?
-            if (icloudbot_tmp(ix,jy) .eq. icmv) &
-              icloudbot_tmp(ix,jy) = nint(height(kz))
-            icloudthck_tmp(ix,jy) = nint(height(kz))
+            if (wind_coord_type.eq.'ETA') then
+              if (icloudbot_tmp(ix,jy) .eq. icmv) &
+                icloudbot_tmp(ix,jy) = nint(uvzlev(ix,jy,kz))
+              icloudthck_tmp(ix,jy) = nint(uvzlev(ix,jy,kz))
+            else
+              if (icloudbot_tmp(ix,jy) .eq. icmv) &
+                  icloudbot_tmp(ix,jy) = nint(height(kz))
+                icloudthck_tmp(ix,jy) = nint(height(kz))
+            endif
           endif
 
           if (kz .eq. nz-1) then ! top level
             ! memorise icloudtop
             icloudtop = icloudthck_tmp(ix,jy)
             ! limit cloud top to 19 km:
-            if (icloudthck_tmp(ix,jy) .gt. 19000) icloudthck_tmp(ix,jy) = 19000 
-            if (icloudbot_tmp(ix,jy) .ne. icmv) then
-              icloudthck_tmp(ix,jy) = icloudthck_tmp(ix,jy)-icloudbot_tmp(ix,jy)
-            else
-              icloudthck_tmp(ix,jy) = icmv
+
+            if (wind_coord_type.eq.'ETA') then
+              if (icloudthck_tmp(ix,jy) .lt. max_cloudthck_eta) icloudthck_tmp(ix,jy) = max_cloudthck_eta
+              if (icloudbot_tmp(ix,jy) .ne. icmv) then
+                icloudthck_tmp(ix,jy) = icloudbot_tmp(ix,jy)-icloudthck_tmp(ix,jy)
+              else
+                icloudthck_tmp(ix,jy) = icmv
+              endif
+
+              do k=1,nz
+                if (uvheight(k).le.icloudbot_tmp(ix,jy)) then
+                  max_cloudthck_eta = uvzlev(ix,jy,k)+min_cloudthck ! In meters
+                  exit
+                endif
+              end do
+              do k=1,nz
+                if (uvzlev(ix,jy,k).gt.min_cloudthck_eta) then ! back to eta
+                  min_cloudthck_eta=uvheight(k)
+                  exit
+                endif
+              enddo
+             ! PS  get rid of too thin clouds   
+              if (icloudthck_tmp(ix,jy) .lt. min_cloudthck_eta) then
+                icloudbot_tmp(ix,jy)=icmv
+                icloudthck_tmp(ix,jy)=icmv
+              endif
+              ! PS implement a rough fix for badly represented convection
+              ! PS is based on looking at a limited set of comparison data
+              lsp=  sum(   lsprec_tmp(ix,jy,:) )
+              convp=sum( convprec_tmp(ix,jy,:) )
+              prec=lsp+convp
+              if (lsp.gt.convp) then !  prectype='lsp'
+                lconvectprec = .false.
+              else ! prectype='cp '
+                lconvectprec = .true.
+              endif
+              if (lconvectprec .and. prec .gt. precmin .and.  &
+                (icloudtop .gt. conv_clrange_eta(2) .or. &
+                  icloudbot_tmp(ix,jy) .lt. conv_clrange_eta(1)) ) then
+                if (convp .lt. 0.1) then
+                  icloudbot_tmp(ix,jy) = lowconvp_clrange_eta(1)
+                  icloudtop =         lowconvp_clrange_eta(2)
+                else
+                  icloudbot_tmp(ix,jy) = highconvp_clrange_eta(1)
+                  icloudtop =      highconvp_clrange_eta(2)
+                endif
+                icloudthck_tmp(ix,jy) = icloudtop - icloudbot_tmp(ix,jy)
+              endif
+
+            !---------------------------------------------------------------------------------------
+            else ! METER
+              if (icloudthck_tmp(ix,jy) .gt. max_cloudthck) icloudthck_tmp(ix,jy) = max_cloudthck 
+              if (icloudbot_tmp(ix,jy) .ne. icmv) then
+                icloudthck_tmp(ix,jy) = icloudthck_tmp(ix,jy)-icloudbot_tmp(ix,jy)
+              else
+                icloudthck_tmp(ix,jy) = icmv
+              endif
+             ! PS  get rid of too thin clouds   
+              if (icloudthck_tmp(ix,jy) .lt. min_cloudthck) then
+                icloudbot_tmp(ix,jy)=icmv
+                icloudthck_tmp(ix,jy)=icmv
+              endif
+              ! PS implement a rough fix for badly represented convection
+              ! PS is based on looking at a limited set of comparison data
+              lsp=  sum(   lsprec_tmp(ix,jy,:) )
+              convp=sum( convprec_tmp(ix,jy,:) )
+              prec=lsp+convp
+              if (lsp.gt.convp) then !  prectype='lsp'
+                lconvectprec = .false.
+              else ! prectype='cp '
+                lconvectprec = .true.
+              endif
+              if (lconvectprec .and. prec .gt. precmin .and.  &
+                (icloudtop .lt. conv_clrange(2) .or. &
+                  icloudbot_tmp(ix,jy) .gt. conv_clrange(1)) ) then
+                if (convp .lt. 0.1) then
+                  icloudbot_tmp(ix,jy) = lowconvp_clrange(1)
+                  icloudtop =         lowconvp_clrange(2)
+                else
+                  icloudbot_tmp(ix,jy) = highconvp_clrange(1)
+                  icloudtop =      highconvp_clrange(2)
+                endif
+                icloudthck_tmp(ix,jy) = icloudtop - icloudbot_tmp(ix,jy)
+              endif
             endif
 
-           ! PS  get rid of too thin clouds      
-            if (icloudthck_tmp(ix,jy) .lt. 50) then
-              icloudbot_tmp(ix,jy)=icmv
-              icloudthck_tmp(ix,jy)=icmv
-            endif
-            
-            ! PS implement a rough fix for badly represented convection
-            ! PS is based on looking at a limited set of comparison data
-            lsp=  sum(   lsprec_tmp(ix,jy,:) )
-            convp=sum( convprec_tmp(ix,jy,:) )
-            prec=lsp+convp
-            if (lsp.gt.convp) then !  prectype='lsp'
-              lconvectprec = .false.
-            else ! prectype='cp '
-              lconvectprec = .true.
-            endif
-            if (lconvectprec .and. prec .gt. precmin .and.  &
-              (icloudtop .lt. 6000 .or. icloudbot_tmp(ix,jy) .gt. 3000) ) then
-              if (convp .lt. 0.1) then
-                icloudbot_tmp(ix,jy) = 500
-                icloudtop =         8000
-              else
-                icloudbot_tmp(ix,jy) = 0
-                icloudtop =      10000
-              endif
-              icloudthck_tmp(ix,jy) = icloudtop - icloudbot_tmp(ix,jy)
-            endif
           endif ! end top level
 
         enddo ! ix loop
@@ -1048,10 +1147,26 @@ subroutine verttransform_ecmwf_cloud(n,lcw_tmp,lcwsum_tmp,nxlim,nylim,&
 
     !write(*,*) 'ECMWF fields: using relative humidity for cloud &
     !    &identification'
-    do kz = 1,nz-1
-      do jy=0,nymin1
-        do ix=0,nxmin1
 
+    do jy=0,nymin1
+      do ix=0,nxmin1
+
+        if (wind_coord_type.eq.'ETA') then 
+        ! Convert cloud parameters to eta coords.
+        ! Reverse sign when using eta (eta:1-0, meter:0-max)
+          do k=1,nz
+            if (uvzlev(ix,jy,k).gt.max_cloudthck) max_cloudthck_eta=uvheight(k)
+            ! if (uvzlev(ix,jy,k,memind(1)).gt.min_cloudthck) min_cloudthck_eta=uvheight(k)
+            if (uvzlev(ix,jy,k).gt.conv_clrange(1)) conv_clrange_eta(1)=uvheight(k)
+            if (uvzlev(ix,jy,k).gt.conv_clrange(2)) conv_clrange_eta(2)=uvheight(k)
+            if (uvzlev(ix,jy,k).gt.highconvp_clrange(1)) highconvp_clrange_eta(1)=uvheight(k)
+            if (uvzlev(ix,jy,k).gt.highconvp_clrange(2)) highconvp_clrange_eta(2)=uvheight(k)
+            if (uvzlev(ix,jy,k).gt.lowconvp_clrange(1)) lowconvp_clrange_eta(1)=uvheight(k)
+            if (uvzlev(ix,jy,k).gt.lowconvp_clrange(2)) lowconvp_clrange_eta(2)=uvheight(k)
+          end do
+        endif
+
+        do kz = 1,nz-1 ! Changed order of loop to prevent ETA computation to be done unnecessarily
           rhmin = 0.90 ! standard condition for presence of clouds
           ! PS note that original by Sabine Eckhart was 80%
           ! PS however, for T<-20 C we consider saturation over ice
@@ -1065,49 +1180,108 @@ subroutine verttransform_ecmwf_cloud(n,lcw_tmp,lcwsum_tmp,nxlim,nylim,&
           rh=qv_tmp(ix,jy,kz)/f_qvsat(pressure,tt_tmp(ix,jy,kz))
           ! PS if (prec.gt.0.01) print*,'relhum',prec,kz,rh,height(kz)
           if (rh .ge. rhmin) then
-            if (icloudbot_tmp(ix,jy) .eq. icmv) then
-              icloudbot_tmp(ix,jy)=nint(height(kz))! use int to save memory
+            if (wind_coord_type.eq.'ETA') then
+              if (icloudbot_tmp(ix,jy) .eq. icmv) then
+                icloudbot_tmp(ix,jy)=nint(uvzlev(ix,jy,kz))! use int to save memory
+              endif
+              icloudthck_tmp(ix,jy)=nint(uvzlev(ix,jy,kz)) ! use int to save memory
+            else
+              if (icloudbot_tmp(ix,jy) .eq. icmv) then
+                icloudbot_tmp(ix,jy)=nint(height(kz))! use int to save memory
+              endif
+              icloudthck_tmp(ix,jy)=nint(height(kz)) ! use int to save memory
             endif
-            icloudthck_tmp(ix,jy)=nint(height(kz)) ! use int to save memory
           endif
     
           if (kz .eq. nz-1) then ! top level
             ! memorise icloudtop
             icloudtop = icloudthck_tmp(ix,jy)
-            ! limit cloud top to 19 km:
-            if (icloudthck_tmp(ix,jy) .gt. 19000) icloudthck_tmp(ix,jy) = 19000 
-            if (icloudbot_tmp(ix,jy) .ne. icmv) then
-              icloudthck_tmp(ix,jy) = icloudthck_tmp(ix,jy)-icloudbot_tmp(ix,jy)
-            else
-              icloudthck_tmp(ix,jy) = icmv
-            endif
 
-           ! PS  get rid of too thin clouds      
-            if (icloudthck(ix,jy,n) .lt. 50) then
-              icloudbot(ix,jy,n)=icmv
-              icloudthck(ix,jy,n)=icmv
-            endif
-            
-            ! PS implement a rough fix for badly represented convection
-            ! PS is based on looking at a limited set of comparison data
-            lsp=  sum(   lsprec_tmp(ix,jy,:) )
-            convp=sum( convprec_tmp(ix,jy,:) )
-            prec=lsp+convp
-            if (lsp.gt.convp) then !  prectype='lsp'
-              lconvectprec = .false.
-            else ! prectype='cp '
-              lconvectprec = .true.
-            endif
-            if (lconvectprec .and. prec .gt. precmin .and.  &
-              (icloudtop .lt. 6000 .or. icloudbot_tmp(ix,jy) .gt. 3000) ) then
-              if (convp .lt. 0.1) then
-                icloudbot_tmp(ix,jy) = 500
-                icloudtop =         8000
+            if (wind_coord_type.eq.'ETA') then
+              if (icloudthck_tmp(ix,jy) .lt. max_cloudthck_eta) icloudthck_tmp(ix,jy) = max_cloudthck_eta
+              if (icloudbot_tmp(ix,jy) .ne. icmv) then
+                icloudthck_tmp(ix,jy) = icloudbot_tmp(ix,jy)-icloudthck_tmp(ix,jy)
               else
-                icloudbot_tmp(ix,jy) = 0
-                icloudtop =      10000
+                icloudthck_tmp(ix,jy) = icmv
               endif
-              icloudthck_tmp(ix,jy) = icloudtop - icloudbot_tmp(ix,jy)
+
+              do k=1,nz
+                if (uvheight(k).le.icloudbot_tmp(ix,jy)) then
+                  max_cloudthck_eta = uvzlev(ix,jy,k)+min_cloudthck ! In meters
+                  exit
+                endif
+              end do
+              do k=1,nz
+                if (uvzlev(ix,jy,k).gt.min_cloudthck_eta) then ! back to eta
+                  min_cloudthck_eta=uvheight(k)
+                  exit
+                endif
+              enddo
+             ! PS  get rid of too thin clouds   
+              if (icloudthck_tmp(ix,jy) .lt. min_cloudthck_eta) then
+                icloudbot_tmp(ix,jy)=icmv
+                icloudthck_tmp(ix,jy)=icmv
+              endif
+              ! PS implement a rough fix for badly represented convection
+              ! PS is based on looking at a limited set of comparison data
+              lsp=  sum(   lsprec_tmp(ix,jy,:) )
+              convp=sum( convprec_tmp(ix,jy,:) )
+              prec=lsp+convp
+              if (lsp.gt.convp) then !  prectype='lsp'
+                lconvectprec = .false.
+              else ! prectype='cp '
+                lconvectprec = .true.
+              endif
+              if (lconvectprec .and. prec .gt. precmin .and.  &
+                (icloudtop .gt. conv_clrange_eta(2) .or. &
+                  icloudbot_tmp(ix,jy) .lt. conv_clrange_eta(1)) ) then
+                if (convp .lt. 0.1) then
+                  icloudbot_tmp(ix,jy) = lowconvp_clrange_eta(1)
+                  icloudtop =         lowconvp_clrange_eta(2)
+                else
+                  icloudbot_tmp(ix,jy) = highconvp_clrange_eta(1)
+                  icloudtop =      highconvp_clrange_eta(2)
+                endif
+                icloudthck_tmp(ix,jy) = icloudtop - icloudbot_tmp(ix,jy)
+              endif
+            !---------------------------------------------------------------------------------------
+            else ! METER
+              ! limit cloud top to 19 km:
+              if (icloudthck_tmp(ix,jy) .gt. max_cloudthck) icloudthck_tmp(ix,jy) = max_cloudthck 
+              if (icloudbot_tmp(ix,jy) .ne. icmv) then
+                icloudthck_tmp(ix,jy) = icloudthck_tmp(ix,jy)-icloudbot_tmp(ix,jy)
+              else
+                icloudthck_tmp(ix,jy) = icmv
+              endif
+
+             ! PS  get rid of too thin clouds   
+              if (icloudthck_tmp(ix,jy) .lt. min_cloudthck) then
+                icloudbot_tmp(ix,jy)=icmv
+                icloudthck_tmp(ix,jy)=icmv
+              endif
+              
+              ! PS implement a rough fix for badly represented convection
+              ! PS is based on looking at a limited set of comparison data
+              lsp=  sum(   lsprec_tmp(ix,jy,:) )
+              convp=sum( convprec_tmp(ix,jy,:) )
+              prec=lsp+convp
+              if (lsp.gt.convp) then !  prectype='lsp'
+                lconvectprec = .false.
+              else ! prectype='cp '
+                lconvectprec = .true.
+              endif
+              if (lconvectprec .and. prec .gt. precmin .and.  &
+                (icloudtop .lt. conv_clrange(2) .or.  &
+                  icloudbot_tmp(ix,jy) .gt. conv_clrange(1)) ) then
+                if (convp .lt. 0.1) then
+                  icloudbot_tmp(ix,jy) = lowconvp_clrange(1)
+                  icloudtop =         lowconvp_clrange(2)
+                else
+                  icloudbot_tmp(ix,jy) = highconvp_clrange(1)
+                  icloudtop =      highconvp_clrange(2)
+                endif
+                icloudthck_tmp(ix,jy) = icloudtop - icloudbot_tmp(ix,jy)
+              endif
             endif
           endif ! end top level
 

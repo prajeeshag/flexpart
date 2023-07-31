@@ -3847,17 +3847,18 @@ subroutine alloc_windfields
 
   ! Eta coordinates
   !****************
-  allocate(uueta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(vveta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(wweta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(uupoleta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(vvpoleta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(tteta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(pveta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(prseta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(rhoeta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(drhodzeta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  !allocate(tvirtual(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+  if (wind_coord_type.eq.'ETA') then
+    allocate(uueta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+    allocate(vveta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+    allocate(wweta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+    allocate(uupoleta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+    allocate(vvpoleta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+    allocate(tteta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+    allocate(pveta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+    allocate(prseta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+    allocate(rhoeta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+    allocate(drhodzeta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+  endif
   allocate(etauvheight(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem))
   allocate(etawheight(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem))
 
@@ -3954,17 +3955,19 @@ subroutine alloc_windfields_nest
   allocate(ciwcn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
 
   ! ETA equivalents
-  allocate(uuetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(vvetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(wwetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(ttetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(pvetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests)) 
-  allocate(prsetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))  
-  allocate(rhoetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(drhodzetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  ! allocate(tvirtualn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
+  if (wind_coord_type.eq.'ETA') then
+    allocate(uuetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
+    allocate(vvetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
+    allocate(wwetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
+    allocate(ttetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
+    allocate(pvetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests)) 
+    allocate(prsetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))  
+    allocate(rhoetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
+    allocate(drhodzetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
+  endif
   allocate(etauvheightn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests))
   allocate(etawheightn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests))
+
 
   allocate(prsn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
   allocate(rhon(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
@@ -4023,10 +4026,12 @@ subroutine dealloc_windfields_nest
   deallocate(oron,excessoron,lsmn)
 
   deallocate(uun,vvn,wwn,ttn,qvn,pvn,clwcn,ciwcn, &
-    rhon,prsn,drhodzn,tthn,qvhn,clwchn,ciwchn,ctwcn)
+    rhon,prsn,drhodzn,tthn,qvhn,clwchn,ciwchn,ctwcn,etauvheightn,etawheightn)
 
-  deallocate(uuetan,vvetan,wwetan,ttetan,pvetan,prsetan,rhoetan, &
-    drhodzetan,etauvheightn,etawheightn)
+  if (wind_coord_type.eq.'ETA') then
+    deallocate(uuetan,vvetan,wwetan,ttetan,pvetan,prsetan,rhoetan, &
+      drhodzetan)
+  endif
 
   deallocate(psn,sdn,msln,tccn,u10n,v10n,tt2n,td2n,lsprecn,convprecn, &
     sshfn,ssrn,sfcstressn,ustarn,wstarn,hmixn,tropopausen,olin,vdepn)
@@ -4039,10 +4044,13 @@ subroutine dealloc_windfields
 
   deallocate(oro,excessoro,lsm)
 
-  deallocate(uueta,vveta,wweta,uupoleta,vvpoleta,tteta,pveta, &
-    prseta,rhoeta,drhodzeta,etauvheight,etawheight)
+  if (wind_coord_type.eq.'ETA') then
+    deallocate(uueta,vveta,wweta,uupoleta,vvpoleta,tteta,pveta, &
+      prseta,rhoeta,drhodzeta)
+  endif
 
-  deallocate(uu,vv,ww,uupol,vvpol,tt,tth,qv,qvh,pv,rho,drhodz,pplev,prs,rho_dry)
+  deallocate(uu,vv,ww,uupol,vvpol,tt,tth,qv,qvh,pv,rho,drhodz,pplev,prs,rho_dry, &
+    etauvheight,etawheight)
 
   deallocate(clwc,ciwc,clwch,ciwch,ctwc)
 

@@ -321,7 +321,7 @@ subroutine convmix(itime)
     thread = 0
 #endif
 
-!$OMP DO SCHEDULE(static)
+!$OMP DO SCHEDULE(dynamic)
   do kk=1,cnt-1
     ! Only consider grids that have particles inside
     if (igrid(frst(kk)).eq.-1) cycle
@@ -418,7 +418,7 @@ subroutine convmix(itime)
 !$OMP PARALLEL PRIVATE (igrold,kpart,ipart,igr,jy,ix,kz,lconv, &
 !$OMP ktop,ztold,nage,ipconv,itage)
     igrold = -1
-!$OMP DO
+!$OMP DO SCHEDULE(dynamic)
     do kpart=1,alivepart
       igr = igrid(kpart)
       if (igr .eq. -1) cycle

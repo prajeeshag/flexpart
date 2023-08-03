@@ -363,20 +363,61 @@ subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
 
   real,dimension(0:nymax-1) :: cosf
 
-  integer,dimension(0:nxmax-1,0:nymax-1) :: idx
+  integer,dimension(0:nxmax-1,0:nymax-1,nzmax) :: idx,idxw
 
   integer :: ix,jy,kz,iz,kmin,ixp,jyp,ix1,jy1
   real :: dz1,dz2,dz,dpdeta
   real :: xlon,ylat,xlonr,dzdx,dzdy
   real :: dzdx1,dzdx2,dzdy1,dzdy2
 
-  ! Levels, where u,v,t and q are given
-  !************************************
+
+
+  ! Finding the index in eta levels (uv and w) that correspond to
+  ! a certain height level in meters
+  !**************************************************************
+
+  idx(:,:,1)=1
+  idxw(:,:,1)=1
+  do iz=2,nz-1
+    idx(:,:,iz)=idx(:,:,iz-1)
+    idxw(:,:,iz)=idxw(:,:,iz-1)
+    do jy=0,nymin1
+      do ix=0,nxmin1
+        ! height in meters that corresponds to the eta w level
+        innwz: do kz=idxw(ix,jy,iz),nuvz
+          if ((idxw(ix,jy,iz).le.kz).and. &
+            (height(iz).gt.etawheight(ix,jy,kz-1,n)).and. &
+            (height(iz).le.etawheight(ix,jy,kz,n))) then
+            idxw(ix,jy,iz)=kz
+            exit innwz
+          endif
+        enddo innwz
+
+        ! height in meters that corresponds to the eta uv level
+        if(height(iz).gt.etauvheight(ix,jy,nuvz,n)) then
+          cycle
+        else
+          innuvz: do kz=idx(ix,jy,iz),nuvz
+            if ((idx(ix,jy,iz).le.kz).and. &
+              (height(iz).gt.etauvheight(ix,jy,kz-1,n)).and. &
+              (height(iz).le.etauvheight(ix,jy,kz,n))) then
+              idx(ix,jy,iz)=kz
+              exit innuvz
+            endif
+          enddo innuvz
+        endif
+      end do
+    end do
+  end do
+
 !$OMP PARALLEL PRIVATE(jy,ix,kz,dz1,dz2,dz,ix1,jy1,ixp,jyp,dzdx1,dzdx2,dzdx, &
 !$OMP dzdy1,dzdy2,dzdy,dpdeta)
 
+  ! All bottom and top levels
 !$OMP DO
   do jy=0,nymin1
+    cosf(jy)=1./cos((real(jy)*dy+ylat0)*pi180) ! Needed in slope computations
+    
     do ix=0,nxmin1
 
       uu(ix,jy,1,n)=uuh(ix,jy,1)
@@ -407,22 +448,26 @@ subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
       prs(ix,jy,1,n)=prsh(ix,jy,1)
       prs(ix,jy,nz,n)=prsh(ix,jy,nuvz)
       ! RLT
-      
-      idx(ix,jy)=2
+
+      ww(ix,jy,1,n)=wwh(ix,jy,1)*pinmconv(ix,jy,1)
+      ww(ix,jy,nz,n)=wwh(ix,jy,nwz)*pinmconv(ix,jy,nz)
     end do
   end do
-!$OMP END DO
+!$OMP END DO NOWAIT
 
-  do iz=2,nz-1
 !$OMP DO SCHEDULE(dynamic)
+  do iz=2,nz-1
     do jy=0,nymin1
       do ix=0,nxmin1
-        if(height(iz).gt.etauvheight(ix,jy,nuvz,n)) then
+
+        ! Levels, where uv is given
+        !*************************
+        if (height(iz).gt.etauvheight(ix,jy,nuvz,n)) then
           uu(ix,jy,iz,n)=uu(ix,jy,nz,n)
           vv(ix,jy,iz,n)=vv(ix,jy,nz,n)
           tt(ix,jy,iz,n)=tt(ix,jy,nz,n)
           pv(ix,jy,iz,n)=pv(ix,jy,nz,n)
-          if  (wind_coord_type.ne.'ETA') then
+          if (wind_coord_type.ne.'ETA') then
             qv(ix,jy,iz,n)=qv(ix,jy,nz,n)
             !hg adding the cloud water
             if (readclouds) then
@@ -433,18 +478,7 @@ subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
           rho(ix,jy,iz,n)=rho(ix,jy,nz,n)
           prs(ix,jy,iz,n)=prs(ix,jy,nz,n)   ! RLT
         else
-          innuvz: do kz=idx(ix,jy),nuvz
-            if ((idx(ix,jy).le.kz).and. &
-              (height(iz).gt.etauvheight(ix,jy,kz-1,n)).and. &
-              (height(iz).le.etauvheight(ix,jy,kz,n))) then
-              idx(ix,jy)=kz
-              exit innuvz
-            endif
-          enddo innuvz
-        endif
-
-        if(height(iz).le.etauvheight(ix,jy,nuvz,n)) then
-          kz=idx(ix,jy)
+          kz=idx(ix,jy,iz)
           dz1=height(iz)-etauvheight(ix,jy,kz-1,n)
           dz2=etauvheight(ix,jy,kz,n)-height(iz)
           dz=dz1+dz2
@@ -468,93 +502,23 @@ subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
   ! RLT add pressure
           prs(ix,jy,iz,n)=(prsh(ix,jy,kz-1)*dz2+prsh(ix,jy,kz)*dz1)/dz
         endif
-      enddo
-    enddo
-!$OMP END DO
-!$OMP BARRIER
-  enddo
-  ! Levels, where w is given
-  !*************************
 
-!$OMP DO
-  do jy=0,nymin1
-    do ix=0,nxmin1
-      idx(ix,jy)=2
-      ww(ix,jy,1,n)=wwh(ix,jy,1)*pinmconv(ix,jy,1)
-      ww(ix,jy,nz,n)=wwh(ix,jy,nwz)*pinmconv(ix,jy,nz)
-    end do
-  end do
-!$OMP END DO
-
-  do iz=2,nz-1
-!$OMP DO SCHEDULE(dynamic)
-    do jy=0,nymin1
-      do ix=0,nxmin1
-
-        inn: do kz=idx(ix,jy),nwz
-          if((idx(ix,jy).le.kz) .and. &
-            (height(iz).gt.etawheight(ix,jy,kz-1,n)).and. &
-            (height(iz).le.etawheight(ix,jy,kz,n))) then
-            idx(ix,jy)=kz
-            exit inn
-          endif
-        enddo inn
-
-        kz=idx(ix,jy)
+        ! Levels, where w is given
+        !*************************
+        kz=idxw(ix,jy,iz)
         dz1=height(iz)-etawheight(ix,jy,kz-1,n)
         dz2=etawheight(ix,jy,kz,n)-height(iz)
         dz=dz1+dz2
         ww(ix,jy,iz,n)=(wwh(ix,jy,kz-1)*pinmconv(ix,jy,kz-1)*dz2 &
              +wwh(ix,jy,kz)*pinmconv(ix,jy,kz)*dz1)/dz
-        ! Compute density gradients at intermediate levels
-        !*************************************************
-        drhodz(ix,jy,iz,n)=(rho(ix,jy,iz+1,n)-rho(ix,jy,iz-1,n))/ &
-          (height(iz+1)-height(iz-1))
-      end do
-    end do
-!$OMP END DO
-!$OMP BARRIER
-  end do
 
-!$OMP DO
-  do jy=0,nymin1
-    do ix=0,nxmin1
-      drhodz(ix,jy,nz,n)=drhodz(ix,jy,nz-1,n)
-      drhodz(ix,jy,1,n)=(rho(ix,jy,2,n)-rho(ix,jy,1,n))/(height(2)-height(1))
-    end do
-  end do
-!$OMP END DO NOWAIT
+        if ((jy.eq.nymin1).or.(ix.eq.nxmin1)) cycle
 
-  !****************************************************************
-  ! Compute slope of eta levels in windward direction and resulting
-  ! vertical wind correction
-  !****************************************************************
-
-!$OMP DO
-  do jy=1,ny-2
-    cosf(jy)=1./cos((real(jy)*dy+ylat0)*pi180)
-    do ix=1,nx-2
-      idx(ix,jy)=2
-    end do
-  end do
-!$OMP END DO
-
-  do iz=2,nz-1
-!$OMP DO SCHEDULE(dynamic)
-    do jy=1,ny-2
-      do ix=1,nx-2
-        ! For gridpoint (ix,jy) and height (iz), this loop finds the first eta levels that is
-        ! encompassing the height(iz) level and saves it in idx(ix,jy)
-        inneta: do kz=idx(ix,jy),nz
-          if ((idx(ix,jy).le.kz).and. &
-            (height(iz).gt.etauvheight(ix,jy,kz-1,n)).and. &
-            (height(iz).le.etauvheight(ix,jy,kz,n))) then
-            idx(ix,jy)=kz
-            exit inneta
-          endif
-        enddo inneta
-
-        kz=idx(ix,jy)
+        !****************************************************************
+        ! Compute slope of eta levels in windward direction and resulting
+        ! vertical wind correction
+        !****************************************************************
+        kz=idx(ix,jy,iz)
         dz1=height(iz)-etauvheight(ix,jy,kz-1,n)
         dz2=etauvheight(ix,jy,kz,n)-height(iz)
         dz=dz1+dz2
@@ -572,17 +536,38 @@ subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
         dzdy=(dzdy1*dz2+dzdy2*dz1)/dz
 
         ww(ix,jy,iz,n)=ww(ix,jy,iz,n) + dzdx*uu(ix,jy,iz,n)*dxconst*cosf(jy) &
-                                      + dzdy*vv(ix,jy,iz,n)*dyconst
-      end do
-    end do
+                                      + dzdy*vv(ix,jy,iz,n)*dyconst        
+
+      enddo
+    enddo
+  enddo
 !$OMP END DO
-!$OMP BARRIER
+
+  ! Compute density gradients
+  !**************************
+!$OMP DO
+  do jy=0,nymin1
+    do ix=0,nxmin1
+      drhodz(ix,jy,nz,n)=drhodz(ix,jy,nz-1,n)
+      drhodz(ix,jy,1,n)=(rho(ix,jy,2,n)-rho(ix,jy,1,n))/(height(2)-height(1))
+    end do
   end do
+!$OMP END DO NOWAIT
+
+!$OMP DO
+  do iz=2,nz-1
+    do jy=0,nymin1
+      do ix=0,nxmin1
+        drhodz(ix,jy,iz,n)=(rho(ix,jy,iz+1,n)-rho(ix,jy,iz-1,n))/ &
+          (height(iz+1)-height(iz-1))
+      enddo
+    enddo
+  enddo
+!$OMP END DO NOWAIT
 
   ! Keep original fields if wind_coord_type==ETA
   if (wind_coord_type.eq.'ETA') then
 !$OMP DO
-
     do kz=1,nz
       do jy=0,nymin1
         do ix=0,nxmin1

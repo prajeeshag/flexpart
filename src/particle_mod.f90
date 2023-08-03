@@ -339,8 +339,8 @@ contains
     integer, allocatable       :: tmpnclust(:)
     integer                    :: i
 
-    !if (nmpart.gt.100) 
-    write(*,*) 'Allocating ',nmpart,' particles', count%allocated, count%terminated, count%spawned
+    if (nmpart.gt.100) &
+      write(*,*) 'Allocating ',nmpart,' particles', count%allocated, count%terminated, count%spawned
 
     ! Keeping track of the allocated memory in case 
     ! there is a reason for deallocating some of it

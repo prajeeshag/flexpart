@@ -44,7 +44,7 @@ Before compiling FLEXPART, you might want to change parameters defined in par_mo
 - *max_partoutput_filesize*: maximum output of each partoutput NetCDF-4 file in Mb before a new one is created.
 - *max_numthreads_grid*: when using many openmp threads and gridded output (IOUT>0 in COMMAND option file), this variable sets a maximum on how many threads are used for doing the reductions on the grid. A high number can result in a significant increase in RAM usage.
 
-## Compiling
+## <a name="compiling"></a>Compiling FLEXPART
 _FLEXPART_ is compiled with [make](https://www.gnu.org/software/make/), which uses the makefile in the `src` subdirectory. In the makefile, make sure that the library and include paths point to the directories where `ecCodes` and `netCDF` are installed. Starting from the root directory, you can then compile _FLEXPART_ with the following steps:
 
     $ cd src/

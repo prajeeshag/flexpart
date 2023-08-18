@@ -11,8 +11,6 @@
 !          - Array operations in convect subroutine
 !          - OpenMP parallelisation in convmix and redist
 !          - Moved all subroutines related to the convection to this module
-!       2022 M. Duetsch:
-!          - Removed goto statements in sort2 subroutine
 !*******************************************************************************
 
 module conv_mod

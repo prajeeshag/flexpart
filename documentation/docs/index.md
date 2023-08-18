@@ -1,4 +1,4 @@
-# Welcome to the FLEXPART documentation!
+# Welcome to the FLEXPART documentation
 
 Links to papers and to code
 

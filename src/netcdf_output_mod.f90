@@ -94,7 +94,7 @@ module netcdf_output_mod
     rhoavID,ttavID,topoavID,hmixavID,travID,uavID,vavID,wavID,vsetavID,massavID(maxspec)
   ! For initial particle outputs
   integer  :: partIDi,tIDi,lonIDi,latIDi,levIDi,relIDi,pvIDi,prIDi,qvIDi, &
-    rhoIDi,ttIDi,uIDi,vIDi,wIDi,vsetIDi,massIDi(maxspec),topoIDi,trIDi,hmixIDi
+    rhoIDi,ttIDi,uIDi,vIDi,wIDi,massIDi(maxspec),topoIDi,trIDi,hmixIDi
 
   real :: eps
   !  private:: writemetadata, output_units, nf90_err
@@ -117,11 +117,14 @@ module netcdf_output_mod
 
   private
 
-  public :: writeheader_netcdf,concoutput_sfc_nest_netcdf,concoutput_netcdf,&
-       concoutput_nest_netcdf,concoutput_sfc_netcdf,writeheader_partoutput,partoutput_netcdf,&
+  public :: writeheader_netcdf,concoutput_netcdf,&
+       concoutput_nest_netcdf,writeheader_partoutput,partoutput_netcdf,&
        open_partoutput_file,close_partoutput_file,create_particles_initialoutput,&
        topo_written,mass_written,wrt_part_initialpos,partinit_netcdf,open_partinit_file, &
        readpartpositions_netcdf,readinitconditions_netcdf,partinitpointer1,tpointer
+
+  ! Not written yet:
+  ! concoutput_sfc_netcdf,concoutput_sfc_nest_netcdf,
 contains
 
 !****************************************************************
@@ -173,7 +176,6 @@ subroutine writemetadata(ncid,lnest)
 
   integer, intent(in) :: ncid
   logical, intent(in) :: lnest
-  integer             :: status
   character           :: time*10,date*8,adate*8,atime*6
   character(5)        :: zone
   character(255)      :: login_name, host_name
@@ -271,7 +273,7 @@ subroutine writeheader_netcdf(lnest)
   integer :: ncid, sID, wdsID, ddsID
   integer :: timeDimID, latDimID, lonDimID, levDimID, receptorDimID
   integer :: nspecDimID, npointDimID, nageclassDimID, ncharDimID, pointspecDimID
-  integer :: tID, lonID, latID, levID, poleID, lageID, oroID, ncharrecDimID
+  integer :: tID, lonID, latID, levID, lageID, oroID, ncharrecDimID
   integer :: volID, areaID
   integer :: rellng1ID, rellng2ID, rellat1ID, rellat2ID, relzz1ID, relzz2ID
   integer :: relcomID, relkindzID, relstartID, relendID, relpartID, relxmassID
@@ -290,8 +292,7 @@ subroutine writeheader_netcdf(lnest)
   integer, dimension(6)       :: chunksizes
   integer, dimension(5)       :: dep_chunksizes
 
-  integer                     :: i,ix,jy
-  integer                     :: test_unit
+  integer                     :: i
 
 
   ! Check if output directory exists (the netcdf library will
@@ -869,11 +870,11 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
   real(dep_prec),intent(out):: wetgridtotalunc,drygridtotalunc
   real, intent(out)   :: gridtotalunc
   real                :: densityoutrecept(maxreceptor),recout(maxreceptor)
-  integer             :: ncid,kp,ks,kz,ix,jy,iix,jjy,kzz,kzzm1,ngrid
+  integer             :: ncid,kp,ks,kz,ix,jy,iix,jjy,kzz,ngrid
   integer             :: nage,i,l,jj
   real                :: tot_mu(maxspec,maxpointspec_act)
   real                :: halfheight,dz,dz1,dz2
-  real                :: xl,yl,xlrot,ylrot,zagnd,zagndprev
+  real                :: xl,yl
   real(dep_prec)      :: auxgrid(nclassunc)
   real(dep_prec)      :: gridtotal,gridsigmatotal
   real(dep_prec)      :: wetgridtotal,wetgridsigmatotal
@@ -1178,7 +1179,7 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
   end do
 !$OMP END PARALLEL
 
-  if (gridtotal.gt.0.) gridtotalunc=gridsigmatotal/gridtotal
+  if (gridtotal.gt.0.) gridtotalunc=real(gridsigmatotal/gridtotal,kind=sp)
   if (wetgridtotal.gt.0.) wetgridtotalunc=wetgridsigmatotal/ &
        wetgridtotal
   if (drygridtotal.gt.0.) drygridtotalunc=real(drygridsigmatotal/ &
@@ -1214,19 +1215,19 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
   gridunc(:,:,:,1:nspec,:,:,1:nageclass) = 0.  
 end subroutine concoutput_netcdf
 
-subroutine concoutput_sfc_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
+! subroutine concoutput_sfc_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
 
-  use unc_mod, only: gridunc,drygridunc,wetgridunc,drygridunc0,wetgridunc0
+!   use unc_mod, only: gridunc,drygridunc,wetgridunc,drygridunc0,wetgridunc0
 
-  implicit none
+!   implicit none
 
-  integer, intent(in) :: itime
-  real, intent(in)    :: outnum
-  real(sp), intent(out)   :: gridtotalunc
-  real(dep_prec), intent(out)   :: wetgridtotalunc,drygridtotalunc
+!   integer, intent(in) :: itime
+!   real, intent(in)    :: outnum
+!   real(sp), intent(out)   :: gridtotalunc
+!   real(dep_prec), intent(out)   :: wetgridtotalunc,drygridtotalunc
 
-  print*,'Netcdf output for surface only not yet implemented'
-end subroutine concoutput_sfc_netcdf
+!   print*,'Netcdf output for surface only not yet implemented'
+! end subroutine concoutput_sfc_netcdf
 
 subroutine concoutput_nest_netcdf(itime,outnum)
   !                               i     i 
@@ -1273,11 +1274,11 @@ subroutine concoutput_nest_netcdf(itime,outnum)
   integer, intent(in) :: itime
   real, intent(in)    :: outnum
   real                :: densityoutrecept(maxreceptor)
-  integer             :: ncid,kp,ks,kz,ix,jy,iix,jjy,kzz,kzzm1,ngrid
-  integer             :: nage,i,l, jj
+  integer             :: ncid,kp,ks,kz,ix,jy,iix,jjy,kzz,ngrid
+  integer             :: nage,i,l,jj
   real                :: tot_mu(maxspec,maxpointspec_act)
   real                :: halfheight,dz,dz1,dz2
-  real                :: xl,yl,xlrot,ylrot,zagnd,zagndprev
+  real                :: xl,yl
   real(dep_prec)      :: auxgrid(nclassunc)
   real                :: gridtotal
   real, parameter     :: weightair=28.97
@@ -1560,15 +1561,15 @@ subroutine concoutput_nest_netcdf(itime,outnum)
   griduncn(:,:,:,1:nspec,:,:,1:nageclass) = 0.  
 end subroutine concoutput_nest_netcdf
 
-subroutine concoutput_sfc_nest_netcdf(itime,outnum)
+! subroutine concoutput_sfc_nest_netcdf(itime,outnum)
 
-  implicit none
+!   implicit none
 
-  integer, intent(in) :: itime
-  real, intent(in)    :: outnum
+!   integer, intent(in) :: itime
+!   real, intent(in)    :: outnum
 
-  print*,'Netcdf output for surface only not yet implemented'
-end subroutine concoutput_sfc_nest_netcdf
+!   print*,'Netcdf output for surface only not yet implemented'
+! end subroutine concoutput_sfc_nest_netcdf
 
 subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
 
@@ -1587,10 +1588,10 @@ subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
 
   integer, intent(in) :: itime,idate,itime_start,idate_start
   ! integer, intent(in) :: irelease
-  integer             :: cache_size,ncid,j,totpart,np
+  integer             :: ncid,j,np
   integer             :: partDimID
   character(len=11)   :: fprefix
-  character(len=3)    :: anspec,arelease
+  character(len=3)    :: anspec
   character           :: adate*8,atime*6,adate_start*8,atime_start*6,timeunit*32
   character(len=255)  :: fname_partoutput
   real                :: fillval
@@ -1777,8 +1778,7 @@ subroutine partinit_netcdf(itime,field,fieldname,imass,ncid)
   integer, intent(in)            :: itime,imass
   real, intent(in)               :: field(:)
   character(2), intent(in)       :: fieldname  ! input field to interpolate over
-  integer, allocatable           :: partindices(:)
-  integer                        :: ncid,newpart,j,iend
+  integer                        :: ncid,newpart
 
   newpart = partinitpointer - (partinitpointer1-1)
 
@@ -1841,11 +1841,11 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
 
   integer, intent(in) :: itime,idate,itime_start,idate_start
   ! integer, intent(in) :: irelease
-  integer             :: cache_size,ncid,j,i,totpart,np
-  integer             :: timeDimID,partDimID,tID,memDimID
+  integer             :: ncid,j,i,totpart,np
+  integer             :: timeDimID,partDimID,tID
   integer             :: latDimID, lonDimID, lonID, latID
   character(len=11)   :: fprefix
-  character(len=3)    :: anspec,arelease
+  character(len=3)    :: anspec
   character           :: adate*8,atime*6,adate_start*8,atime_start*6,timeunit*32
   character(len=255)  :: fname_partoutput
   real                :: fillval
@@ -2377,7 +2377,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   integer             :: idate_start,itime_start
   character           :: adate*8,atime*6,timeunit*32,adate_start*8,atime_start*6
   character(len=3)    :: anspec
-  real(kind=dp)       :: julin,julcommand,julpartin
+  real(kind=dp)       :: julin,julcommand
 
   integer :: idummy = -8
 
@@ -2491,10 +2491,10 @@ subroutine readinitconditions_netcdf()
 
   implicit none 
 
-  integer             :: ncidend,tIDend,pIDend,tempIDend,stat
-  integer             :: plen,tend,i,j,release_max,nsp
+  integer             :: ncidend,pIDend,tempIDend,stat
+  integer             :: plen,i,j,release_max,nsp
   integer             :: zkind
-  real                :: totmass,cun
+  real                :: cun
   integer,allocatable, dimension (:) :: specnum_rel,numpoint_max
   real,allocatable,dimension(:,:) :: mass_temp
   real,allocatable,dimension(:) :: vsh,fracth,schmih
@@ -2590,6 +2590,7 @@ subroutine readinitconditions_netcdf()
   ! Above sea-level or ground?
   call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='kindz',varid=NF90_GLOBAL))
   call nf90_err(nf90_get_att(ncid=ncidend,varid=NF90_GLOBAL,name='kindz',values=zkind))
+  
   kindz=zkind
   do j=1,numpoint
    if ((kindz(j).le.0).or.(kindz(j).ge.4)) then

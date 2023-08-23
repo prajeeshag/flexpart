@@ -178,7 +178,6 @@ subroutine read_options_and_initialise_flexpart
   implicit none
 
   integer ::              &
-    i,                    & ! loop variable for number of points
     inest                   ! loop variable for nested gridcells
   integer ::              &
     j,                    & ! loop variable for random numbers

@@ -120,11 +120,10 @@ subroutine advance(itime,ipart,thread)
     thread                          ! OMP thread
   integer ::                      &
     itimec,                       &
-    i,j,k,                        & ! loop variables
+    i,j,                          & ! loop variables
     nrand,                        & ! random number used for turbulence
     memindnext,                   & ! seems useless
-    ngr,                          & ! temporary new grid index of moved particle
-    nsp                             ! loop variables for number of species
+    ngr                             ! temporary new grid index of moved particle
   real ::                         &
     ux,vy,                        & ! random turbulent velocities above PBL
     weta_settling,                & ! Settling velocity in eta coordinates
@@ -246,7 +245,7 @@ subroutine advance(itime,ipart,thread)
   if (.not. turboff) then 
     ! mesoscale turbulence is found to give issues, so turned off
     if (lmesoscale_turb) then
-      call interpol_mesoscale(itime, &
+      call interpol_mesoscale( &
         real(part(ipart)%xlon),real(part(ipart)%ylat), &
         real(part(ipart)%z),real(part(ipart)%zeta))
       call turb_mesoscale(nrand,dxsave,dysave,ipart, &
@@ -352,7 +351,7 @@ subroutine adv_above_pbl(itime,itimec,dxsave,dysave,ux,vy,tropop,nrand,ipart)
   yts=real(part(ipart)%ylat)
   if (lsettling) part(ipart)%settling=0.
 
-  call interpol_wind(itime,xts,yts,zts,ztseta,ipart)
+  call interpol_wind(itime,xts,yts,zts,ztseta)
 
   ! Compute everything for above the PBL
 
@@ -390,7 +389,7 @@ subroutine adv_above_pbl(itime,itimec,dxsave,dysave,ux,vy,tropop,nrand,ipart)
       endif
       ! LB change to eta coords?
       if (density(nsp).gt.0.) then
-        call get_settling(itime,xts,yts,zts,nsp,part(ipart)%settling)
+        call get_settling(xts,yts,zts,nsp,part(ipart)%settling)
         if (wind_coord_type.eq.'ETA') then
           call update_zeta_to_z(itime,ipart)
           call w_to_weta(itime,dt,part(ipart)%xlon,part(ipart)%ylat, &
@@ -448,7 +447,7 @@ subroutine adv_in_pbl(itime,itimec, dxsave,dysave,dawsave,dcwsave, abovePBL,  &
     nrand                           ! random number used for turbulence
   real ::                         &
     dt,                           & ! real(ldt)
-    xts,yts,zts,ztseta,           & ! local 'real' copy of the particle position
+    xts,yts,zts,                  & ! local 'real' copy of the particle position
     rhoa,                         & ! air density, used in CBL
     rhograd                     ! vertical gradient of air density, used in CBL
   integer ::                      &
@@ -564,7 +563,7 @@ subroutine adv_in_pbl(itime,itimec, dxsave,dysave,dawsave,dcwsave, abovePBL,  &
           nsp=1
         endif
         if (density(nsp).gt.0.) then
-          call get_settling(itime,xts,yts,zts,nsp,part(ipart)%settling)  !bugfix
+          call get_settling(xts,yts,zts,nsp,part(ipart)%settling)  !bugfix
           w=w+part(ipart)%settling
         end if
       end if
@@ -635,10 +634,7 @@ subroutine petterssen_corr(itime,ipart)
   real ::                         &
     xts,yts,zts,ztseta,           & ! local 'real' copy of the particle position
     uold,vold,wold,woldeta,       &
-    weta_settling       
-  real(kind=dp) ::                &
-    ztemp                           ! temporarily storing z position
-
+    weta_settling
 
   xts=real(part(ipart)%xlon)
   yts=real(part(ipart)%ylat)
@@ -677,8 +673,7 @@ subroutine petterssen_corr(itime,ipart)
           call update_zeta_to_z(itime+part(ipart)%idt,ipart)
           call update_z_to_zeta(itime+part(ipart)%idt,ipart)
           zts=real(part(ipart)%z)
-          call get_settling( &
-           itime+part(ipart)%idt,xts,yts,zts,nsp,part(ipart)%settling) !bugfix
+          call get_settling(xts,yts,zts,nsp,part(ipart)%settling) !bugfix
           call w_to_weta( &
             itime+part(ipart)%idt, real(part(ipart)%idt), part(ipart)%xlon, &
             part(ipart)%ylat, part(ipart)%z, part(ipart)%zeta, &
@@ -687,8 +682,7 @@ subroutine petterssen_corr(itime,ipart)
            !woldeta=
      !real(part(ipart)%zeta-part(ipart)%zeta_prev)/real(part(ipart)%idt*ldirect)
         else
-          call get_settling( &
-            itime+part(ipart)%idt,xts,yts,zts,nsp,part(ipart)%settling)
+          call get_settling(xts,yts,zts,nsp,part(ipart)%settling)
           w=w+part(ipart)%settling
         endif          
       end if
@@ -750,7 +744,7 @@ subroutine update_xy(xchange,ychange,ipart)
     ylat=ylat0+real(part(ipart)%ylat)*dy
     call cll2xy(northpolemap,ylat,xlon,xpol,ypol)   
       !convert old particle position in polar stereographic
-    gridsize=1000.*cgszll(northpolemap,ylat,xlon)   
+    gridsize=1000.*cgszll(northpolemap,ylat)   
       !calculate size in m of grid element in polar stereographic coordinate
     xpol=xpol+xchange/gridsize*real(ldirect)        
       !position in grid unit polar stereographic
@@ -766,7 +760,7 @@ subroutine update_xy(xchange,ychange,ipart)
     xlon=xlon0+real(part(ipart)%xlon)*dx
     ylat=ylat0+real(part(ipart)%ylat)*dy
     call cll2xy(southpolemap,ylat,xlon,xpol,ypol)
-    gridsize=1000.*cgszll(southpolemap,ylat,xlon)
+    gridsize=1000.*cgszll(southpolemap,ylat)
     xpol=xpol+xchange/gridsize*real(ldirect)
     ypol=ypol+ychange/gridsize*real(ldirect)
     call cxy2ll(southpolemap,xpol,ypol,ylat,xlon)

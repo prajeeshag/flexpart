@@ -89,18 +89,16 @@ contains
     implicit none
     integer, intent(in) :: n
     integer, intent(inout) :: arr(n),brr(n)
-    integer, dimension(:) :: arrout(n), brrout(n), work(n/2)
+    integer, dimension(:) :: brrout(n), work(n/2)
     integer(int_size), dimension(:) :: iarr(n)
     integer :: i
 
     call sort_index(arr, iarr, work)
 
     do i=1,n
-      !arrout(i) = arr(iarr(i))
       brrout(i) = brr(iarr(i))
     end do
 
-    !arr = arrout
     brr = brrout
 
   end subroutine sort2

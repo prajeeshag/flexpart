@@ -73,8 +73,8 @@ subroutine calcfluxes(itime,nage,jpart,xold,yold,zold,thread)
      kp=1
   endif
   call update_zeta_to_z(itime,jpart)
-  xmean=(xold+part(jpart)%xlon)/2.
-  ymean=(yold+part(jpart)%ylat)/2.
+  xmean=(xold+real(part(jpart)%xlon))/2.
+  ymean=(yold+real(part(jpart)%ylat))/2.
 
   ixave=int((xmean*dx+xoutshift)/dxout)
   jyave=int((ymean*dy+youtshift)/dyout)

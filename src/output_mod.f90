@@ -196,22 +196,17 @@ subroutine output_particles(itime,initial_output)
   real :: tmp(2)
   character :: adate*8,atime*6
 
-  real :: xlon(numpart),ylat(numpart),ztemp1,ztemp2,val_av(numpart,2),z_av(numpart)
-  real :: tti(numpart),rhoi(numpart),pvi(numpart),qvi(numpart),pri(numpart)
-  real :: topo(numpart),hmixi(numpart),tri(numpart),ztemp(numpart)
+  real :: dummy(2)
   real :: masstemp(numpart,nspec),masstemp_av(numpart,nspec)
   real :: wetdepotemp(numpart,nspec),drydepotemp(numpart,nspec)
 
   real :: output(num_partopt, numpart)
 
-  ! For averaged output
-  real :: xlon_av(numpart),ylat_av(numpart)
-
   real :: cartxyz(3)
   logical :: cartxyz_comp
 
 #ifdef USE_NCF
-  integer  :: ncid, mythread, thread_divide(12),mass_divide(nspec)
+  integer  :: ncid
 #else
   error stop 'NETCDF missing! Please compile with netcdf if you want the particle dump.'
 #endif
@@ -265,10 +260,10 @@ subroutine output_particles(itime,initial_output)
       endif
       select case (partopt(np)%name)
         case ('LO')
-          output(np,i)=xlon0+part(i)%xlon*dx
+          output(np,i)=xlon0+real(part(i)%xlon)*dx
           cycle
         case ('LA')
-          output(np,i)=ylat0+part(i)%ylat*dy
+          output(np,i)=ylat0+real(part(i)%ylat)*dy
           cycle
         case ('TO') ! Topography
           if (ngrid.le.0) then
@@ -303,7 +298,7 @@ subroutine output_particles(itime,initial_output)
           cycle
         case ('ZZ') ! Height
           call update_zeta_to_z(itime, i) ! Convert eta z coordinate to meters if necessary
-          output(np,i)=part(i)%z
+          output(np,i)=real(part(i)%z)
           cycle
         ! case ('UU') ! Longitudinal velocity
         !   output(np,i)=part(i)%vel%u !This would be preferred, but not implemented yet
@@ -411,8 +406,8 @@ subroutine output_particles(itime,initial_output)
       call open_partoutput_file(ncid)
 
       ! First allocate the time and particle dimensions within the netcdf file
-      call partoutput_netcdf(itime,xlon,'TI',j,ncid)
-      call partoutput_netcdf(itime,xlon,'PA',j,ncid)
+      call partoutput_netcdf(itime,dummy,'TI',j,ncid)
+      call partoutput_netcdf(itime,dummy,'PA',j,ncid)
     endif
 
     ! Fill the fields in parallel
@@ -537,42 +532,50 @@ subroutine output_conc(itime,loutstart,loutend,loutnext,outnum)
   ! If necessary, first sample of new grid is also taken
   !*****************************************************
   if ((iout.le.3.).or.(iout.eq.5)) then
-    if (surf_only.ne.1) then 
+    if (surf_only.ne.1) then
+      if (lnetcdfout.eq.1) then
 #ifdef USE_NCF
-      call concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
-#else
-      call concoutput(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
+        call concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
 #endif
-    else
-#ifdef USE_NCF
-      call concoutput_sfc_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
-#else
-      if (linversionout.eq.1) then
-        call concoutput_inversion(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
       else
-        call concoutput_sfc(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
+        call concoutput(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
       endif
+    else
+      if (lnetcdfout.eq.1) then
+#ifdef USE_NCF
+        ! call concoutput_sfc_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
+        error stop 'Netcdf output for surface only not yet implemented'
 #endif
+      else
+        if (linversionout.eq.1) then
+          call concoutput_inversion(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
+        else
+          call concoutput_sfc(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
+        endif
+      endif
     endif
 
     if (nested_output .eq. 1) then
+      if (lnetcdfout.eq.1) then
 #ifdef USE_NCF
-      if (surf_only.ne.1) then
-        call concoutput_nest_netcdf(itime,outnum)
-      else 
-        call concoutput_sfc_nest_netcdf(itime,outnum)
-      endif
-#else
-      if (surf_only.ne.1) then
-        call concoutput_nest(itime,outnum)
-      else 
-        if(linversionout.eq.1) then
-          call concoutput_inversion_nest(itime,outnum)
+        if (surf_only.ne.1) then
+          call concoutput_nest_netcdf(itime,outnum)
         else 
-          call concoutput_sfc_nest(itime,outnum)
+          error stop 'Netcdf output for surface only not yet implemented'
+          !call concoutput_sfc_nest_netcdf(itime,outnum)
+        endif
+#endif
+      else
+        if (surf_only.ne.1) then
+          call concoutput_nest(itime,outnum)
+        else 
+          if(linversionout.eq.1) then
+            call concoutput_inversion_nest(itime,outnum)
+          else 
+            call concoutput_sfc_nest(itime,outnum)
+          endif
         endif
       endif
-#endif
     endif
     outnum=0.
   endif
@@ -631,10 +634,9 @@ subroutine conccalc(itime,weight)
   integer,intent(in) :: itime
   real,intent(in) :: weight
   integer :: itage,i,j,kz,ks,n,nage,inage,thread,ithread
-  integer :: il,ind,indz,indzp,nrelpointer
+  integer :: nrelpointer
   integer :: ix,jy,ixp,jyp
   real :: ddx,ddy
-  real(kind=dp) :: mm3
   real :: hx,hy,hz,hxyz,xd,yd,zd,xkern,r2,c(maxspec)
   real :: rhoi
   real :: xl,yl,wx,wy,w
@@ -725,8 +727,8 @@ subroutine conccalc(itime,weight)
   ! Do everything for mother domain
   !********************************
 
-      xl=(part(i)%xlon*dx+xoutshift)/dxout
-      yl=(part(i)%ylat*dy+youtshift)/dyout
+      xl=(real(part(i)%xlon)*dx+xoutshift)/dxout
+      yl=(real(part(i)%ylat)*dy+youtshift)/dyout
       ix=int(xl)
       if (xl.lt.0.) ix=ix-1
       jy=int(yl)
@@ -936,8 +938,8 @@ subroutine conccalc(itime,weight)
   !************************************
 
       if (nested_output.eq.1) then
-        xl=(part(i)%xlon*dx+xoutshiftn)/dxoutn
-        yl=(part(i)%ylat*dy+youtshiftn)/dyoutn
+        xl=(real(part(i)%xlon)*dx+xoutshiftn)/dxoutn
+        yl=(real(part(i)%ylat)*dy+youtshiftn)/dyoutn
         ix=int(xl)
         if (xl.lt.0.) ix=ix-1
         jy=int(yl)
@@ -1237,10 +1239,9 @@ subroutine partpos_avg(itime,j)
   integer,intent(in) :: itime,j
   integer :: np,i_av,ns,m
   real :: xlon,ylat,x,y,z
-  real :: topo,hm(2),hmixi,pvi,qvi
-  real :: tti,rhoi,ttemp
-  real :: uui,vvi,output
-  real :: tr(2),tri!,energy
+  real :: hm(2)
+  real :: output
+  real :: tr(2)!,energy
 
   logical :: cart_comp
 
@@ -1344,7 +1345,7 @@ subroutine partpos_avg(itime,j)
         ! Convert eta z coordinate to meters if necessary. Can be moved to output only
         !************************************************
         call update_zeta_to_z(itime,j)
-        part(j)%val_av(i_av)=part(j)%val_av(i_av)+part(j)%z
+        part(j)%val_av(i_av)=part(j)%val_av(i_av)+real(part(j)%z)
       case ('ma')
         do ns=1,nspec
           part(j)%val_av(i_av+(ns-1))=part(j)%val_av(i_av+(ns-1))+part(j)%mass(ns)

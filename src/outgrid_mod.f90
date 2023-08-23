@@ -706,11 +706,9 @@ subroutine initcond_calc(itime,i,thread)
 
   integer, intent(in) :: itime,i,thread
   integer :: kz,ks
-  integer :: il,ind,indz,indzp,nrelpointer
-  real :: rddx,rddy,p1,p2,p3,p4,dz1,dz2,dz
+  integer :: nrelpointer
   real :: ddx,ddy
-  real :: rhoprof(2),rhoi,xl,yl,wx,wy,w
-  integer :: mind2
+  real :: rhoi,xl,yl,wx,wy,w
   ! mind2        eso: pointer to 2nd windfield in memory
 
 
@@ -757,8 +755,8 @@ subroutine initcond_calc(itime,i,thread)
   if (kz.le.numzgrid) then           ! inside output domain
 
 
-    xl=(part(i)%xlon*dx+xoutshift)/dxout
-    yl=(part(i)%ylat*dy+youtshift)/dyout
+    xl=(real(part(i)%xlon)*dx+xoutshift)/dxout
+    yl=(real(part(i)%ylat)*dy+youtshift)/dyout
     ix=int(xl)
     if (xl.lt.0.) ix=ix-1
     jy=int(yl)

@@ -990,7 +990,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   endif
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
-                       sp_fact*1.e12*wetgrid(ix,jy)/area(ix,jy)
+                       sp_fact*1.e12*real(wetgrid(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -1023,7 +1023,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
                        sp_fact* &
-                       1.e12*drygrid(ix,jy)/area(ix,jy)
+                       1.e12*real(drygrid(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -1107,7 +1107,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
                        sp_fact* &
-                       1.e12*wetgrid(ix,jy)/area(ix,jy)
+                       1.e12*real(wetgrid(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -1142,7 +1142,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
                        sp_fact* &
-                       1.e12*drygrid(ix,jy)/area(ix,jy)
+                       1.e12*real(drygrid(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -1597,7 +1597,7 @@ subroutine concoutput_nest(itime,outnum)
                  endif
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
-                      sp_fact*1.e12*wetgrid(ix,jy)/arean(ix,jy)
+                      sp_fact*1.e12*real(wetgrid(ix,jy))/arean(ix,jy)
   !                sparse_dump_u(sp_count_r)=
   !+                1.e12*wetgridsigma(ix,jy,ks,kp,nage)/area(ix,jy)
               else ! concentration is zero
@@ -1634,7 +1634,7 @@ subroutine concoutput_nest(itime,outnum)
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
                       sp_fact* &
-                      1.e12*drygrid(ix,jy)/arean(ix,jy)
+                      1.e12*real(drygrid(ix,jy))/arean(ix,jy)
   !                sparse_dump_u(sp_count_r)=
   !+                1.e12*drygridsigma(ix,jy,ks,kp,nage)/area(ix,jy)
               else ! concentration is zero
@@ -1722,7 +1722,7 @@ subroutine concoutput_nest(itime,outnum)
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
                       sp_fact* &
-                      1.e12*wetgrid(ix,jy)/arean(ix,jy)
+                      1.e12*real(wetgrid(ix,jy))/arean(ix,jy)
   !                sparse_dump_u(sp_count_r)=
   !    +            ,1.e12*wetgridsigma(ix,jy,ks,kp,nage)/area(ix,jy)
               else ! concentration is zero
@@ -1761,7 +1761,7 @@ subroutine concoutput_nest(itime,outnum)
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
                       sp_fact* &
-                      1.e12*drygrid(ix,jy)/arean(ix,jy)
+                      1.e12*real(drygrid(ix,jy))/arean(ix,jy)
   !                sparse_dump_u(sp_count_r)=
   !    +            ,1.e12*drygridsigma(ix,jy,ks,kp,nage)/area(ix,jy)
               else ! concentration is zero
@@ -3208,7 +3208,7 @@ subroutine concoutput_sfc(itime,outnum,gridtotalunc,wetgridtotalunc, &
               drygridsigma(ix,jy)= &
                    drygridsigma(ix,jy)* &
                    sqrt(real(nclassunc))
-125           drygridsigmatotal=drygridsigmatotal+ &
+              drygridsigmatotal=drygridsigmatotal+ &
                    drygridsigma(ix,jy)
             endif
 
@@ -3277,9 +3277,9 @@ subroutine concoutput_sfc(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   endif
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
-                       sp_fact*1.e12*wetgrid(ix,jy)/area(ix,jy)
+                       sp_fact*1.e12*real(wetgrid(ix,jy))/area(ix,jy)
                   sparse_dump_u(sp_count_r)= &
-                       1.e12*wetgridsigma(ix,jy)/area(ix,jy)
+                       1.e12*real(wetgridsigma(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -3317,9 +3317,9 @@ subroutine concoutput_sfc(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
                        sp_fact* &
-                       1.e12*drygrid(ix,jy)/area(ix,jy)
+                       1.e12*real(drygrid(ix,jy))/area(ix,jy)
                   sparse_dump_u(sp_count_r)= &
-                       1.e12*drygridsigma(ix,jy)/area(ix,jy)
+                       1.e12*real(drygridsigma(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -3403,9 +3403,9 @@ subroutine concoutput_sfc(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
                        sp_fact* &
-                       1.e12*wetgrid(ix,jy)/area(ix,jy)
+                       1.e12*real(wetgrid(ix,jy))/area(ix,jy)
                   sparse_dump_u(sp_count_r)= &
-                       1.e12*wetgridsigma(ix,jy)/area(ix,jy)
+                       1.e12*real(wetgridsigma(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -3439,9 +3439,9 @@ subroutine concoutput_sfc(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
                        sp_fact* &
-                       1.e12*drygrid(ix,jy)/area(ix,jy)
+                       1.e12*real(drygrid(ix,jy))/area(ix,jy)
                   sparse_dump_u(sp_count_r)= &
-                       1.e12*drygridsigma(ix,jy)/area(ix,jy)
+                       1.e12*real(drygridsigma(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -3886,9 +3886,9 @@ subroutine concoutput_sfc_nest(itime,outnum)
                  endif
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
-                      sp_fact*1.e12*wetgrid(ix,jy)/arean(ix,jy)
+                      sp_fact*1.e12*real(wetgrid(ix,jy))/arean(ix,jy)
                  sparse_dump_u(sp_count_r)= &
-                      1.e12*wetgridsigma(ix,jy)/area(ix,jy)
+                      1.e12*real(wetgridsigma(ix,jy))/area(ix,jy)
               else ! concentration is zero
                   sp_zer=.true.
               endif
@@ -3920,9 +3920,9 @@ subroutine concoutput_sfc_nest(itime,outnum)
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
                       sp_fact* &
-                      1.e12*drygrid(ix,jy)/arean(ix,jy)
+                      1.e12*real(drygrid(ix,jy))/arean(ix,jy)
                  sparse_dump_u(sp_count_r)= &
-                      1.e12*drygridsigma(ix,jy)/area(ix,jy)
+                      1.e12*real(drygridsigma(ix,jy))/area(ix,jy)
               else ! concentration is zero
                   sp_zer=.true.
               endif
@@ -4043,9 +4043,9 @@ subroutine concoutput_sfc_nest(itime,outnum)
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
                       sp_fact* &
-                      1.e12*wetgrid(ix,jy)/arean(ix,jy)
+                      1.e12*real(wetgrid(ix,jy))/arean(ix,jy)
                  sparse_dump_u(sp_count_r)= &
-                      1.e12*wetgridsigma(ix,jy)/area(ix,jy)
+                      1.e12*real(wetgridsigma(ix,jy))/area(ix,jy)
               else ! concentration is zero
                   sp_zer=.true.
               endif
@@ -4079,9 +4079,9 @@ subroutine concoutput_sfc_nest(itime,outnum)
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
                       sp_fact* &
-                      1.e12*drygrid(ix,jy)/arean(ix,jy)
+                      1.e12*real(drygrid(ix,jy))/arean(ix,jy)
                  sparse_dump_u(sp_count_r)= &
-                      1.e12*drygridsigma(ix,jy)/area(ix,jy)
+                      1.e12*real(drygridsigma(ix,jy))/area(ix,jy)
               else ! concentration is zero
                   sp_zer=.true.
               endif

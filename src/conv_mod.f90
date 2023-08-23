@@ -182,7 +182,7 @@ subroutine convmix(itime)
   integer,allocatable,dimension(:) :: frst
   double precision :: tmarray(2)
 
-  integer :: totpart,alivepart
+  integer :: alivepart
   real:: eps
   eps=nxmax/3.e5
   ! Calculate auxiliary variables for time interpolation
@@ -543,7 +543,7 @@ subroutine calcmatrix(lconv,delt,cbmf)
 
   real :: rlevmass,summe
 
-  integer :: iflag, k, kk, kuvz
+  integer :: iflag, k, kk
 
   !1-d variables for convection
   !variables for redistribution matrix
@@ -1114,12 +1114,12 @@ end subroutine redist
   real :: ad, afac, ahmax, ahmin, alt, altem
   real :: am, amp1, anum, asij, awat, b6, bf2, bsum, by
   real :: byp, c6, cape, capem, cbmfold, chi, coeff
-  real :: cpinv, cwat, damps, dbo, dbosum
+  real :: cpinv, cwat, damps
   real :: defrac, dei, delm, delp, delt0, delti, denom, dhdp
   real :: dpinv, dtma, dtmin, dtpbl, elacrit, ents
   real :: epmax, fac, fqold, frac, ftold
   real :: plcl, qp1, qsm, qstm, qti, rat
-  real :: rdcp, revap, rh, scrit, sigt, sjmax
+  real :: revap, rh, scrit, sigt, sjmax
   real :: sjmin, smid, smin, stemp, tca
   real :: tvaplcl, tvpplcl, tvx, tvy, wdtrain
 
@@ -1134,7 +1134,7 @@ end subroutine redist
   INTEGER :: NENT(NA)
   REAL :: M(NA),MP(NA),MENT(NA,NA),QENT(NA,NA),ELIJ(NA,NA)
   REAL :: SIJ(NA,NA),TVP(NA),TV(NA),WATER(NA)
-  REAL :: QP(NA),EP(NA),TH(NA),WT(NA),EVAP(NA),CLW(NA)
+  REAL :: QP(NA),EP(NA),WT(NA),EVAP(NA),CLW(NA)
   REAL :: SIGP(NA),TP(NA),CPN(NA)
   REAL :: LV(NA),LVCP(NA),H(NA),HP(NA),GZ(NA),HM(NA)
   !

@@ -109,16 +109,12 @@ subroutine timemanager
     j,i,                    & ! loop variable
     ks,                     & ! loop variable species
     kp,                     & ! loop variable for maxpointspec_act
-    l,                      & ! loop variable over nclassunc
-    n,                      & ! loop variable over particles
     itime=0,                & ! time index
     nstop1,                 & ! windfield existence flag
     loutnext,               & ! following timestep
     loutstart,loutend,      & ! concentration calculation starting and ending time
-    ix,jy,                  & ! gridcell indices
     ldeltat,                & ! radioactive decay time
     itage,nage,inage,       & ! related to age classes
-    idummy,                 & ! used for the random routines
     i_nan=0,ii_nan,total_nan_intl=0, &  !added by mc to check instability in CBL scheme 
     thread                    ! openmp change (not sure if necessary)
   ! logical ::                &
@@ -132,14 +128,10 @@ subroutine timemanager
   real ::                   &
     outnum,                 & ! concentration calculation sample number
     prob_rec(maxspec),      & ! dry deposition related
-    decfact,                & ! radioactive decay factor
-    wetscav,                & ! wet scavenging
-    xmassfract,             & ! dry deposition related
-    grfraction(3)             ! wet deposition related
+    xmassfract                ! dry deposition related
   real(dep_prec) ::         &
     drydeposit(maxspec)       ! dry deposition related
-  real(kind=dp) :: zhier,zetahier
-  integer :: npart_alive=0,alive_tmp,spawned_tmp,terminated_tmp
+  integer :: alive_tmp,spawned_tmp
 
   ! First output for time 0
   !************************
@@ -444,8 +436,7 @@ subroutine timemanager
   end do
 
 
-!$OMP PARALLEL PRIVATE(prob_rec,nage,inage,itage,ks,kp,thread,i,j,xmassfract,drydeposit) &
-!$OMP REDUCTION(+:alive_tmp,terminated_tmp) 
+!$OMP PARALLEL PRIVATE(prob_rec,nage,inage,itage,ks,kp,thread,i,j,xmassfract,drydeposit)
 
 !num_threads(numthreads_grid)
 

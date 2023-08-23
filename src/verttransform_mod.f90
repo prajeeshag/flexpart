@@ -136,7 +136,7 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
 
   ! Create cloud fields
   !*********************
-  call verttransform_ecmwf_cloud(n,readclouds,sumclouds,nxmin1,nymin1, &
+  call verttransform_ecmwf_cloud(readclouds,sumclouds,nxmin1,nymin1, &
     clouds(0:nxmin1,0:nymin1,:,n), cloudsh(0:nxmin1,0:nymin1,n), &
     clw(0:nxmin1,0:nymin1,:,n),ctwc(0:nxmin1,0:nymin1,n),clwc(0:nxmin1,0:nymin1,:,n), &
     ciwc(0:nxmin1,0:nymin1,:,n),lsprec(0:nxmin1,0:nymin1,1,n), &
@@ -199,12 +199,10 @@ subroutine verttransform_nest(n,uuhn,vvhn,wwhn,pvhn)
   real,intent(in),dimension(0:nxmaxn-1,0:nymaxn-1,nuvzmax,maxnests) :: uuhn,vvhn,pvhn
   real,intent(in),dimension(0:nxmaxn-1,0:nymaxn-1,nwzmax,maxnests) :: wwhn
 
-  real,dimension(0:nxmaxn-1,0:nymaxn-1,nuvzmax) :: rhohn,uvzlev,wzlev,prshn
+  real,dimension(0:nxmaxn-1,0:nymaxn-1,nuvzmax) :: rhohn,prshn
   real,dimension(0:nxmaxn-1,0:nymaxn-1,nzmax) :: pinmconv
 
-  integer,dimension(0:nxmaxn-1,0:nymaxn-1) :: rain_cloud_above, idx
-
-  integer :: ix,jy,kz,iz,n,l,kmin,kl,klp,ix1,jy1,ixp,jyp,kz_inv
+  integer :: n,l
   integer :: nxm1, nym1
 
   !  real,parameter :: precmin = 0.002 ! minimum prec in mm/h for cloud diagnostics
@@ -227,7 +225,7 @@ subroutine verttransform_nest(n,uuhn,vvhn,wwhn,pvhn)
     ! Create cloud fields
     !*********************
 
-    call verttransform_ecmwf_cloud(n,readclouds_nest(l),sumclouds_nest(l),nxm1,nym1,&
+    call verttransform_ecmwf_cloud(readclouds_nest(l),sumclouds_nest(l),nxm1,nym1,&
       cloudsn(0:nxm1,0:nym1,:,n,l),cloudshn(0:nxm1,0:nym1,n,l), &
       clwn(0:nxm1,0:nym1,:,n,l), ctwcn(0:nxm1,0:nym1,n,l), &
       clwcn(0:nxm1,0:nym1,:,n,l), ciwcn(0:nxm1,0:nym1,:,n,l), &
@@ -365,9 +363,9 @@ subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
 
   integer,dimension(0:nxmax-1,0:nymax-1,nzmax) :: idx,idxw
 
-  integer :: ix,jy,kz,iz,kmin,ixp,jyp,ix1,jy1
+  integer :: ix,jy,kz,iz,ixp,jyp,ix1,jy1
   real :: dz1,dz2,dz,dpdeta
-  real :: xlon,ylat,xlonr,dzdx,dzdy
+  real :: dzdx,dzdy
   real :: dzdx1,dzdx2,dzdy1,dzdy2
 
 
@@ -895,13 +893,12 @@ subroutine verttransform_ecmwf_stereo(n)
   endif
 end subroutine verttransform_ecmwf_stereo
 
-subroutine verttransform_ecmwf_cloud(n,lreadclouds,lsumclouds,nxlim,nylim,clouds_tmp,cloudsh_tmp,&
+subroutine verttransform_ecmwf_cloud(lreadclouds,lsumclouds,nxlim,nylim,clouds_tmp,cloudsh_tmp,&
   clw_tmp,ctwc_tmp,clwc_tmp,ciwc_tmp,lsprec_tmp,convprec_tmp,rho_tmp,tt_tmp,qv_tmp,uvzlev)
   implicit none
 
   logical,intent(in) :: lreadclouds,lsumclouds
   integer, intent(in) :: nxlim,nylim
-  integer, intent(in) :: n
   integer(kind=1),intent(inout) :: clouds_tmp(0:nxlim,0:nylim,nzmax)
   integer,intent(inout) :: cloudsh_tmp(0:nxlim,0:nylim)
   real,intent(inout) :: clw_tmp(0:nxlim,0:nylim,nzmax)
@@ -943,6 +940,11 @@ subroutine verttransform_ecmwf_cloud(n,lreadclouds,lsumclouds,nxlim,nylim,clouds
         prec=lsp+convp
   !        tot_cloud_h=0
   ! Find clouds in the vertical
+        if (wind_coord_type.eq.'ETA') then
+          cloudh_min=uvzlev(ix,jy,nz-1)
+        else
+          cloudh_min=height(nz-1)
+        endif
         do kz=1, nz-1 !go from top to bottom
           if (clwc_tmp(ix,jy,kz).gt.0) then      
   ! assuming rho is in kg/m3 and hz in m gives: kg/kg * kg/m3 *m3/kg /m = m2/m3
@@ -972,9 +974,9 @@ subroutine verttransform_ecmwf_cloud(n,lreadclouds,lsumclouds,nxlim,nylim,clouds
             if (clw_tmp(ix,jy,kz).gt. 0) then ! is in cloud
               if (wind_coord_type.eq.'ETA') then
                 cloudsh_tmp(ix,jy)=cloudsh_tmp(ix,jy) + &
-                  uvzlev(ix,jy,kz)-uvzlev(ix,jy,kz-1)
+                  int(uvzlev(ix,jy,kz)-uvzlev(ix,jy,kz-1))
               else
-                cloudsh_tmp(ix,jy)=cloudsh_tmp(ix,jy)+height(kz)-height(kz-1) 
+                cloudsh_tmp(ix,jy)=cloudsh_tmp(ix,jy)+int(height(kz)-height(kz-1))
               endif
               clouds_tmp(ix,jy,kz)=1        ! is a cloud
               if (lsp.ge.convp) then
@@ -1025,10 +1027,10 @@ subroutine verttransform_ecmwf_cloud(n,lreadclouds,lsumclouds,nxlim,nylim,clouds
               rain_cloud_above(ix,jy)=1
               if (wind_coord_type.eq.'ETA') then
                 cloudsh_tmp(ix,jy)=cloudsh_tmp(ix,jy)+ &
-                     uvzlev(ix,jy,kz)-uvzlev(ix,jy,kz-1)              
+                     int(uvzlev(ix,jy,kz)-uvzlev(ix,jy,kz-1))
               else
                 cloudsh_tmp(ix,jy)=cloudsh_tmp(ix,jy)+ &
-                     height(kz)-height(kz-1)
+                     int(height(kz)-height(kz-1))
               endif
               if (lsp.ge.convp) then
                 clouds_tmp(ix,jy,kz)=3 ! lsp dominated rainout
@@ -1104,7 +1106,7 @@ subroutine verttransform_gfs(n,uuh,vvh,wwh,pvh)
 
   implicit none
 
-  integer :: ix,jy,kz,iz,n,kmin,kl,klp,ix1,jy1,ixp,jyp,ixm,jym
+  integer :: ix,jy,kz,iz,n,kmin,kl,klp,ix1,jy1,ixp,jyp
   integer :: rain_cloud_above,kz_inv
   real :: pressure
   real :: rh,lsp,cloudh_min,convp,prec
@@ -1523,6 +1525,7 @@ subroutine verttransform_gfs(n,uuh,vvh,wwh,pvh)
         lsp=lsprec(ix,jy,1,n)
         convp=convprec(ix,jy,1,n)
         prec=lsp+convp
+        cloudh_min=height(nz-1)
   ! Find clouds in the vertical
         do kz=1, nz-1 !go from top to bottom
           if (clwc(ix,jy,kz,n).gt.0) then
@@ -1538,7 +1541,7 @@ subroutine verttransform_gfs(n,uuh,vvh,wwh,pvh)
 
           do kz=nz,2,-1 !go Bottom up!
             if (clw(ix,jy,kz,n).gt. 0) then ! is in cloud
-              cloudsh(ix,jy,n)=cloudsh(ix,jy,n)+height(kz)-height(kz-1)
+              cloudsh(ix,jy,n)=cloudsh(ix,jy,n)+int(height(kz)-height(kz-1))
               clouds(ix,jy,kz,n)=1          ! is a cloud
               if (lsp.ge.convp) then
                 clouds(ix,jy,kz,n)=3        ! lsp in-cloud
@@ -1580,7 +1583,7 @@ subroutine verttransform_gfs(n,uuh,vvh,wwh,pvh)
          if (rh.gt.0.8) then ! in cloud
            if ((lsp.gt.0.01).or.(convp.gt.0.01)) then ! cloud and precipitation
               rain_cloud_above=1
-              cloudsh(ix,jy,n)=cloudsh(ix,jy,n)+height(kz)-height(kz-1)
+              cloudsh(ix,jy,n)=cloudsh(ix,jy,n)+int(height(kz)-height(kz-1))
               if (lsp.ge.convp) then
                  clouds(ix,jy,kz,n)=3 ! lsp dominated rainout
               else
@@ -1619,7 +1622,6 @@ subroutine verttransform_ecmwf_heights(nxlim,nylim, &
   real,dimension(0:nxlim,0:nylim) :: tvold,pold,pint,tv
   real,parameter :: const=r_air/ga
   integer :: ix,jy,kz
-  integer :: nxm1,nym1
 
   ! Loop over the whole grid
   !*************************
@@ -1695,15 +1697,13 @@ subroutine verttransform_ecmwf_windfields_nest(l,n, &
   real,intent(in),dimension(0:nxmaxn-1,0:nymaxn-1,nzmax) :: pinmconv
   real,dimension(0:nymaxn-1) :: cosf
 
-  integer,dimension(0:nxmaxn-1,0:nymaxn-1) :: rain_cloud_above, idx
+  integer,dimension(0:nxmaxn-1,0:nymaxn-1) :: idx
 
-  integer :: ix,jy,kz,iz,kmin,kl,klp,ix1,jy1,ixp,jyp,kz_inv
-  real :: pressure,rh,lsp,convp,cloudh_min,prec
+  integer :: ix,jy,kz,iz,ix1,jy1,ixp,jyp
 
   real :: dz1,dz2,dz,dpdeta
   real :: dzdx,dzdy
   real :: dzdx1,dzdx2,dzdy1,dzdy2
-  real :: tot_cloud_h
   integer :: nxm1, nym1
 
   nxm1=nxn(l)-1 

@@ -8,7 +8,7 @@ module settling_mod
   public :: get_settling
 contains
 
-subroutine get_settling(itime,xt,yt,zt,nsp,settling)
+subroutine get_settling(xt,yt,zt,nsp,settling)
   !                          i   i  i  i   i     o
   !*****************************************************************************
   !                                                                            *
@@ -59,7 +59,7 @@ subroutine get_settling(itime,xt,yt,zt,nsp,settling)
 
   implicit none
 
-  integer, intent(in) :: itime, nsp
+  integer, intent(in) :: nsp
   real, intent(in) :: xt, yt, zt
   real, intent(out) :: settling
   integer :: indz
@@ -71,7 +71,7 @@ subroutine get_settling(itime,xt,yt,zt,nsp,settling)
   integer :: i,n,nix,njy,indzh
 
   ! Variables needed for drag coefficient calculation
-  real :: dfdr,f,e,kn,ks,alpha1,beta1,kn1
+  real :: dfdr,kn,ks,alpha1,beta1,kn1
 
   !*****************************************************************************
   ! 1. Interpolate temperature and density: nearest neighbor interpolation sufficient

@@ -43,12 +43,11 @@ subroutine turbulence_pbl(ipart,nrand,dt,zts,rhoa,rhograd,thread)
     ru,rv,rw,wp,icbt_r,       & ! used for computing turbulence
     dtf,rhoaux,dtftlw,ath,bth,& ! CBL related
     ptot_lhh,Q_lhh,phi_lhh,   & ! CBL related
-    old_wp_buf,dcas,dcas1,    & ! CBL related
-    del_test                    ! CBL related
+    old_wp_buf                  ! CBL related
   integer ::                  &
     flagrein,                 & ! flag used in CBL scheme
-    icbt,                     &
     i                           ! loop variable
+  integer(kind=2) :: icbt
 
   ! tlw,dsigwdz and dsigw2dz are defined in hanna
     if (turbswitch) then
@@ -104,13 +103,13 @@ subroutine turbulence_pbl(ipart,nrand,dt,zts,rhoa,rhograd,thread)
               flagrein=0
               nrand=nrand+1
               old_wp_buf=wp
-              call cbl(wp,zts,ust,wst,h,rhoa,rhograd,&
+              call cbl(wp,zts,wst,h,rhoa,rhograd,&
                 sigw,dsigwdz,tlw,ptot_lhh,Q_lhh,phi_lhh,ath,bth,ol,flagrein) !inside the routine for inverse time
               wp=(wp+ath*dtf+&
                 bth*rannumb(nrand)*sqrt(dtf))*icbt_r
               delz=wp*dtf
               if ((flagrein.eq.1).or.(wp.ne.wp).or.((wp-1.).eq.wp)) then
-                call reinit_particle(zts,ust,wst,h,sigw,old_wp_buf,nrand,ol)
+                call reinit_particle(zts,wst,h,sigw,old_wp_buf,nrand,ol)
                 wp=old_wp_buf
                 delz=wp*dtf
                 nan_count(thread+1)=nan_count(thread+1)+1
@@ -240,8 +239,7 @@ subroutine turbulence_mesoscale(nrand,dxsave,dysave,ipart,usig,vsig,wsig,wsigeta
   real, intent(inout) ::          &
     dxsave,dysave                   ! accumulated displacement in long and lat
   real ::                         &
-    r,rs,                         & ! mesoscale related
-    ux,vy                           ! random turbulent velocities above PBL
+    r,rs                            ! mesoscale related
 
   r=exp(-2.*real(abs(lsynctime))/real(lwindinterv))
   rs=sqrt(1.-r**2)

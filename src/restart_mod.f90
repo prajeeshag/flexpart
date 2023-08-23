@@ -128,8 +128,7 @@ subroutine readrestart
   integer :: i,j,ios
   integer :: id1,id2,it1,it2
   integer :: ks,kp,kz,nage,jy,ix,l
-  real(kind=dp) :: julin,julpartin
-  integer :: idummy = -8
+  real(kind=dp) :: julin
 
   numparticlecount=0
 

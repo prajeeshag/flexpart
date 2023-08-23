@@ -127,8 +127,6 @@ subroutine getfields(itime,nstop)
   implicit none
 
   integer :: indj,itime,nstop,memaux
-  integer :: kz, ix
-  character(len=100) :: rowfmt
 
   integer :: indmin = 1
 
@@ -1290,7 +1288,7 @@ subroutine calcpar_nest(n)
   !    searched for. This is to avoid inversions in the lower troposphere
   !    to be identified as the tropopause
   !************************************************************************
-
+      kzmin=1
       do kz=1,nuvz
         if (zlev(kz).ge.altmin) then
           kzmin=kz

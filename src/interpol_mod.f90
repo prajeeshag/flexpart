@@ -208,7 +208,6 @@ end subroutine find_z_level_meters
 subroutine find_z_level_eta(zteta)
 
   real, intent(in)       :: zteta    ! height in eta coordinates
-  integer                :: i        ! loop variable
 
   call find_z_level_eta_w(zteta)
 
@@ -301,7 +300,7 @@ subroutine find_vert_vars(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
   ! levels are following pressure, while METER levels are linear.
   !##############################################################
   if (.not. log_interpol) then
-    call find_vert_vars_lin(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
+    call find_vert_vars_lin(vertlevels,zpos,zlevel,dz1,dz2,bounds)
     return
   endif
   
@@ -366,17 +365,16 @@ subroutine find_vert_vars(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
   ! endif
 end subroutine find_vert_vars
 
-subroutine find_vert_vars_lin(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
+subroutine find_vert_vars_lin(vertlevels,zpos,zlevel,dz1,dz2,bounds)
 
   real, intent(in)    :: vertlevels(:)   ! vertical levels in coordinate system
   real, intent(in)    :: zpos            ! verticle particle position
   integer, intent(in) :: zlevel          ! vertical level of interest
-  logical, intent(in) :: bounds(2),wlevel! flag marking if particles are outside
+  logical, intent(in) :: bounds(2)       ! flag marking if particles are outside
                                          ! bounds  
   real, intent(inout) :: dz1,dz2         ! fractional distance to point 1
                                          ! (closer to ground) and 2
-  real                :: dz,dh1,dh,pfact
-  real :: psint1(2),psint,pr1,pr2,temp   ! pressure of encompassing levels
+  real                :: dz
 
   ! If the particle is below bounds (bounds(1)==.true.):
   if (bounds(1)) then
@@ -875,14 +873,12 @@ subroutine interpol_pbl_short(zt,rhoa,rhograd)
   call vert_interpol(rhogradprof(indz),rhogradprof(indzp),dz1,dz2,rhograd)
 end subroutine interpol_pbl_short
 
-subroutine interpol_mesoscale(itime,xt,yt,zt,zteta)
+subroutine interpol_mesoscale(xt,yt,zt,zteta)
 
   use turbulence_mod
 
-  integer, intent(in) :: itime
   real, intent(in)    :: xt,yt,zt,zteta
   integer             :: iw(2),iuv(2),iweta(2)
-  integer             :: m,indexh
 
   ! Where in the grid? Stereographic (ngrid<0) or nested (ngrid>0)
   !***************************************************************
@@ -907,7 +903,7 @@ subroutine interpol_mesoscale(itime,xt,yt,zt,zteta)
 
 end subroutine interpol_mesoscale
 
-subroutine interpol_wind(itime,xt,yt,zt,zteta,pp)
+subroutine interpol_wind(itime,xt,yt,zt,zteta)
   !                           i   i  i  i
 
   !*****************************************************************************
@@ -936,7 +932,7 @@ subroutine interpol_wind(itime,xt,yt,zt,zteta,pp)
   !                                                                            *
   !*****************************************************************************
 
-  integer, intent(in) :: itime,pp
+  integer, intent(in) :: itime
   real, intent(in)    :: xt,yt,zt,zteta
   integer             :: iw(2),iuv(2),iweta(2)
 
@@ -1453,7 +1449,7 @@ subroutine stdev_eta(iw,iuv,iweta)
   !***********************************************
 
   integer,intent(in)  :: iw(2),iuv(2),iweta(2)
-  real :: wsl,wsq,wxaux,usl,usq,uxaux,vsl,vsq,vxaux,wetasl,wetasq,wetaxaux
+  real :: wsl,wsq,usl,usq,vsl,vsq,wetasl,wetasq
   integer             :: n,m
   real,parameter      :: eps=1.0e-30
   
@@ -1509,7 +1505,7 @@ subroutine stdev_meter(iw)
   !***********************************************
 
   integer,intent(in)  :: iw(2)
-  real                :: wsl,wsq,wxaux,usl,usq,uxaux,vsl,vsq,vxaux
+  real                :: wsl,wsq,usl,usq,vsl,vsq
   integer             :: n,m
   real,parameter      :: eps=1.0e-30
 

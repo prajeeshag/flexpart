@@ -82,11 +82,9 @@ subroutine readageclasses
     end do
     read(unitageclasses,*) nageclass
     read(unitageclasses,*) lage(1)
-    if (nageclass.ge.2) then
-      do i=2,nageclass
-        read(unitageclasses,*) lage(i)
-      end do
-    endif
+    do i=2,nageclass
+      read(unitageclasses,*) lage(i)
+    end do
     close(unitageclasses)
   endif
 
@@ -464,7 +462,6 @@ subroutine readcommand
   implicit none
 
   character(len=50) :: line
-  logical :: old
   integer :: ios
 
   namelist /command/ &
@@ -1310,7 +1307,7 @@ subroutine readlanduse
   ! get only the right half of the byte
         r2lr=rlr-int(rlr)
   ! shift left by 4
-        lu_perc=r2lr*16.
+        lu_perc=int(r2lr*16.)
         landinvent(ix,jy,k)=lu_cat
         landinvent(ix,jy,k+3)=lu_perc
   ! if ((jy.lt.10).and.(ix.lt.10)) write(*,*) 'reading: ',ix,jy,lu_cat,lu_perc
@@ -1805,7 +1802,7 @@ subroutine readreceptors
   implicit none
 
   integer :: j
-  real :: x,y,xm,ym
+  real :: xm,ym
   character(len=16) :: receptor
 
   integer :: ios
@@ -2023,13 +2020,12 @@ subroutine readreleases
 
   implicit none
 
-  integer :: numpartmax,i,j,id1,it1,id2,it2,idum,stat,irel,ispc,nsettle
+  integer :: numpartmax,i,j,id1,it1,id2,it2,stat,irel,ispc,nsettle
   integer,parameter :: num_min_discrete=100
-  real :: releaserate,xdum,cun
+  real :: releaserate,cun
   real(kind=dp) :: jul1,jul2,julm
   real,parameter :: eps2=1.e-9
   character(len=50) :: line
-  logical :: old
 
   ! help variables for namelist reading
   integer :: numpoints, parts, ios
@@ -2413,7 +2409,7 @@ subroutine readreleases
     releaserate=releaserate+real(npart(numpoint))/ &
          real(ireleaseend(numpoint)-ireleasestart(numpoint))
   else
-    releaserate=99999999
+    releaserate=99999999.
   endif
   numpartmax=numpartmax+npart(numpoint)
   goto 101
@@ -2502,17 +2498,6 @@ subroutine readreleases
   write(*,*) '#####################################################'
   error stop
 
-998 write(*,*) '#####################################################'
-  write(*,*) '#### FLEXPART MODEL SUBROUTINE READRELEASES:     ####'
-  write(*,*) '####                                             ####'
-  write(*,*) '#### FATAL ERROR - FILE "RELEASES" IS            ####'
-  write(*,*) '#### CORRUPT. PLEASE CHECK YOUR INPUTS FOR       ####'
-  write(*,*) '#### MISTAKES OR GET A NEW "RELEASES"-           ####'
-  write(*,*) '#### FILE ...                                    ####'
-  write(*,*) '#####################################################'
-  error stop
-
-
 999 write(*,*) '#####################################################'
   write(*,*) '   FLEXPART MODEL SUBROUTINE READRELEASES: '
   write(*,*)
@@ -2568,7 +2553,6 @@ subroutine readspecies(id_spec,pos_spec)
   integer :: i, pos_spec,j
   integer :: idow,ihour,id_spec
   character(len=3) :: aspecnumb
-  logical :: spec_found
 
   character(len=16) :: pspecies
   character(len=50) :: line
@@ -2581,7 +2565,6 @@ subroutine readspecies(id_spec,pos_spec)
   integer :: pshape,porient
   ! Daria Tatsii: species shape properties
   real ::pla,pia,psa,f,e,paspectratio
-  real :: la(maxspec),ia(maxspec),sa(maxspec) ! Axes
 
   ! declare namelist
   namelist /species_params/ &
@@ -3005,8 +2988,6 @@ subroutine readspecies(id_spec,pos_spec)
     write(*,*) '#### SPECIES NUMBER',aspecnumb
     error stop
   endif
-20 continue
-
 
 22 close(unitspecies)
 
@@ -3026,17 +3007,6 @@ subroutine readspecies(id_spec,pos_spec)
   write(*,*) '#### PLEASE MODIFY SPECIES DESCR. FILE!        #### '
   write(*,*) '#####################################################'
   error stop
-
-
-997 write(*,*) '#####################################################'
-  write(*,*) '#### FLEXPART MODEL ERROR!                      #### '
-  write(*,*) '#### THE ASSSOCIATED SPECIES HAS TO BE DEFINED  #### '
-  write(*,*) '#### BEFORE THE ONE WHICH POINTS AT IT          #### '
-  write(*,*) '#### PLEASE CHANGE ORDER IN RELEASES OR ADD     #### '
-  write(*,*) '#### THE ASSOCIATED SPECIES IN RELEASES         #### '
-  write(*,*) '#####################################################'
-  error stop
-
 
 998 write(*,*) '#####################################################'
   write(*,*) '#### FLEXPART MODEL ERROR!                      #### '
@@ -3074,7 +3044,7 @@ subroutine readpartoptions
 
   implicit none
 
-  integer :: i,np
+  integer :: np
 
   ! namelist help variables
   integer :: ios

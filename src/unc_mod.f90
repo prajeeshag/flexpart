@@ -53,8 +53,7 @@ subroutine deposit_decay()
     ks,                     & ! loop variable species
     kp,                     & ! loop variable for maxpointspec_act
     l,                      & ! loop variable over nclassunc
-    nage,                   & ! loop variable over age classes
-    n                         ! loop variable over particles
+    nage                      ! loop variable over age classes
 
 !$OMP PARALLEL PRIVATE(ks,kp,nage,l,j,i)
 !$OMP DO COLLAPSE(2)

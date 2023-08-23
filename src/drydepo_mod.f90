@@ -740,7 +740,7 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
   implicit none
 
   real :: xt,yt,zt
-  integer :: itime,i,j,k,memindnext
+  integer :: itime,memindnext
   integer :: ks,m!nix,njy,
   real :: prob(maxspec),vdepo(maxspec),vdeptemp(2)
   real :: eps
@@ -1271,7 +1271,7 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
   real :: schmi(maxspec,maxndia)
   real :: stokes,vdepj,rdp,alpha
   real :: & ! Variables related to shape
-    dfdr, alpha1, alpha2, beta1, beta2, ks, kn, c_d, &
+    dfdr, alpha1, beta1, ks, kn, c_d, &
     settling, settling_old, reynolds, kn1
 
   real,parameter :: eps=1.e-5

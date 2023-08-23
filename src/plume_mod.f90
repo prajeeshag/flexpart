@@ -95,10 +95,10 @@ subroutine plumetraj(itime)
       if (.not.part(i)%alive) cycle
       if (part(i)%npoint.ne.j) cycle
       n=n+1
-      xplum(n)=xlon0+part(i)%xlon*dx
-      yplum(n)=ylat0+part(i)%ylat*dy
+      xplum(n)=xlon0+real(part(i)%xlon)*dx
+      yplum(n)=ylat0+real(part(i)%ylat)*dy
       call update_zeta_to_z(itime,i)
-      zplum(n)=part(i)%z
+      zplum(n)=real(part(i)%z)
 
   ! Interpolate PBL height, PV, and tropopause height to each
   ! particle position in order to determine fraction of particles
@@ -122,8 +122,8 @@ subroutine plumetraj(itime)
         ixp=ixp-nxmax
       end if
 
-      ddx=part(i)%xlon-real(ix)
-      ddy=part(i)%ylat-real(jy)
+      ddx=real(part(i)%xlon)-real(ix)
+      ddy=real(part(i)%ylat)-real(jy)
       rddx=1.-ddx
       rddy=1.-ddy
       p1=rddx*rddy
@@ -142,7 +142,8 @@ subroutine plumetraj(itime)
 
   ! Potential vorticity
   !********************
-
+      indz=nz-1
+      indzp=nz
       do il=2,nz
         if (height(il).gt.zplum(n)) then
           indz=il-1
@@ -406,6 +407,7 @@ subroutine clustering(n,xclust,yclust,zclust,fclust,rms, &
 
     do i=1,n
       distancemin=10.**10.
+      ncl=1
       do j=1,ncluster
         distances=distance2(yplum(i),xplum(i),yclust(j),xclust(j))
         if (distances.lt.distancemin) then

@@ -269,7 +269,6 @@ subroutine detectformat
   implicit none
 
   character(len=255) :: filename
-  character(len=255) :: wfname1(maxwf)
 
   ! If no file is available
   if ( maxwf.le.0 ) then
@@ -353,7 +352,7 @@ subroutine gridcheck_ecmwf
   integer :: gribVer,parCat,parNum,typSurf,valSurf,discipl,parId
   !HSO  end
   integer :: ix,jy,i,ifn,ifield,j,k,iumax,iwmax,numskip
-  real :: sizesouth,sizenorth,xauxa,conversion_factor
+  real :: sizesouth,sizenorth,xauxa
 
   ! VARIABLES AND ARRAYS NEEDED FOR GRIB DECODING
 
@@ -570,10 +569,10 @@ subroutine gridcheck_ecmwf
       call grib_get_real8(igrib,'latitudeOfFirstGridPointInDegrees', &
            yaux2in,iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
-      xaux1=xaux1in
-      xaux2=xaux2in
-      yaux1=yaux1in
-      yaux2=yaux2in
+      xaux1=real(xaux1in)
+      xaux2=real(xaux2in)
+      yaux1=real(yaux1in)
+      yaux2=real(yaux2in)
       if (xaux1.gt.180.) xaux1=xaux1-360.0
       if (xaux2.gt.180.) xaux2=xaux2-360.0
       if (xaux1.lt.-180.) xaux1=xaux1+360.0
@@ -923,7 +922,7 @@ subroutine gridcheck_gfs
   integer :: gribVer,parCat,parNum,typSurf,valSurf,discipl
   !HSO  end
   integer :: ix,jy,i,ifn,ifield,j,k,iumax,iwmax,numskip
-  real :: sizesouth,sizenorth,xauxa,pint
+  real :: sizesouth,sizenorth,xauxa
   real :: akm_usort(nwzmax)
   real,parameter :: eps=0.0001
 
@@ -1068,10 +1067,10 @@ subroutine gridcheck_gfs
       ! Fix for flexpart.eu ticket #48
       if (xaux2in.lt.0) xaux2in = 359.0
 
-      xaux1=xaux1in
-      xaux2=xaux2in
-      yaux1=yaux1in
-      yaux2=yaux2in
+      xaux1=real(xaux1in)
+      xaux2=real(xaux2in)
+      yaux1=real(yaux1in)
+      yaux2=real(yaux2in)
 
       nxfield=isec2(2)
       ny=isec2(3)
@@ -1409,7 +1408,6 @@ subroutine gridcheck_nest
   real :: akmn(nwzmax),bkmn(nwzmax),akzn(nuvzmax),bkzn(nuvzmax)
   real(kind=4) :: xaux1,xaux2,yaux1,yaux2
   real(kind=8) :: xaux1in,xaux2in,yaux1in,yaux2in
-  real :: conversion_factor !added by mc to make it consistent with new gridchek.f90
 
   ! VARIABLES AND ARRAYS NEEDED FOR GRIB DECODING
 
@@ -1449,7 +1447,7 @@ subroutine gridcheck_nest
   igrib=0
   iret=0
 
-5   call grib_open_file(ifile,path(numpath+2*(l-1)+1) &
+  call grib_open_file(ifile,path(numpath+2*(l-1)+1) &
          (1:length(numpath+2*(l-1)+1))//trim(wfnamen(l,ifn)),'r',iret)
   if (iret.ne.GRIB_SUCCESS) then
     goto 999   ! ERROR DETECTED
@@ -1640,10 +1638,10 @@ subroutine gridcheck_nest
       call grib_get_real8(igrib,'latitudeOfFirstGridPointInDegrees', &
            yaux2in,iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
-      xaux1=xaux1in
-      xaux2=xaux2in
-      yaux1=yaux1in
-      yaux2=yaux2in
+      xaux1=real(xaux1in)
+      xaux2=real(xaux2in)
+      yaux1=real(yaux1in)
+      yaux2=real(yaux2in)
       if(xaux1.gt.180.) xaux1=xaux1-360.0
       if(xaux2.gt.180.) xaux2=xaux2-360.0
       if(xaux1.lt.-180.) xaux1=xaux1+360.0
@@ -1888,7 +1886,6 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
   real(kind=4) :: vvh(0:nxmax-1,0:nymax-1,nuvzmax)
   real(kind=4) :: wwh(0:nxmax-1,0:nymax-1,nwzmax)
   integer :: indj,i,j,k,n,levdiff2,iumax,iwmax!,ifield
-  integer :: kz
 
   ! VARIABLES AND ARRAYS NEEDED FOR GRIB DECODING
 
@@ -2121,8 +2118,8 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
     if (xauxin.gt.180.) xauxin=xauxin-360.0
     if (xauxin.lt.-180.) xauxin=xauxin+360.0
 
-    xaux=xauxin+real(nxshift)*dx
-    yaux=yauxin
+    xaux=real(xauxin)+real(nxshift)*dx
+    yaux=real(yauxin)
     if (xaux.gt.180.) xaux=xaux-360.0
     if(abs(xaux-xlon0).gt.eps) &
       error stop 'READWIND: LOWER LEFT LONGITUDE NOT CONSISTENT'
@@ -2589,7 +2586,7 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
 
   !HSO  for grib api error messages
   character(len=24) :: gribErrorMsg = 'Error reading grib file'
-  character(len=20) :: gribFunction = 'readwind_gfs'
+  ! character(len=20) :: gribFunction = 'readwind_gfs'
   character(len=20) :: shortname
 
 
@@ -2777,8 +2774,8 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
     call grib_get_real8(igrib,'latitudeOfLastGridPointInDegrees', &
          yauxin,iret)
     !  call grib_check(iret,gribFunction,gribErrorMsg)
-    xaux=xauxin+real(nxshift)*dx
-    yaux=yauxin
+    xaux=real(xauxin)+real(nxshift)*dx
+    yaux=real(yauxin)
 
     ! CHECK GRID SPECIFICATIONS
 
@@ -3228,10 +3225,6 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
   write(*,*) ' #### ',wfname(indj),'                    #### '
   write(*,*) ' #### IS NOT GRIB FORMAT !!!                  #### '
   error stop 'Execution terminated'
-999   write(*,*) ' #### FLEXPART MODEL ERROR! WINDFIELD         #### '
-  write(*,*) ' #### ',wfname(indj),'                    #### '
-  write(*,*) ' #### CANNOT BE OPENED !!!                    #### '
-  error stop 'Execution terminated'
 
 end subroutine readwind_gfs
 
@@ -3311,7 +3304,7 @@ subroutine readwind_nest(indj,n,uuhn,vvhn,wwhn)
   ! OPENING OF DATA FILE (GRIB CODE)
   !
 
-5   call grib_open_file(ifile,path(numpath+2*(l-1)+1) &
+    call grib_open_file(ifile,path(numpath+2*(l-1)+1) &
          (1:length(numpath+2*(l-1)+1))//trim(wfnamen(l,indj)),'r')
     if (iret.ne.GRIB_SUCCESS) then
       goto 888   ! ERROR DETECTED
@@ -3486,8 +3479,8 @@ subroutine readwind_nest(indj,n,uuhn,vvhn,wwhn)
         if (xauxin.gt.180.) xauxin=xauxin-360.0
         if (xauxin.lt.-180.) xauxin=xauxin+360.0
 
-        xaux=xauxin
-        yaux=yauxin
+        xaux=real(xauxin)
+        yaux=real(yauxin)
         if (abs(xaux-xlon0n(l)).gt.eps) &
         error stop 'READWIND: LOWER LEFT LONGITUDE NOT CONSISTENT FOR A NESTING LEVEL'
         if (abs(yaux-ylat0n(l)).gt.eps) &

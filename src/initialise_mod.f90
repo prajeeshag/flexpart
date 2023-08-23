@@ -111,8 +111,6 @@ subroutine releaseparticles(itime)
   !save idummy,xmasssave
   !data idummy/-7/,xmasssave/maxpoint*0./
 
-  real :: frac,psint,zzlev,zzlev2,ttemp
-
   real :: eps
   eps=nxmax/3.e5
 
@@ -297,8 +295,8 @@ subroutine releaseparticles(itime)
         else
           ix=int(part(ipart)%xlon)
           jy=int(part(ipart)%ylat)
-          ddy=part(ipart)%ylat-real(jy)
-          ddx=part(ipart)%xlon-real(ix)
+          ddy=real(part(ipart)%ylat)-real(jy)
+          ddx=real(part(ipart)%xlon)-real(ix)
         endif
         ixp=ix+1
         jyp=jy+1
@@ -324,7 +322,7 @@ subroutine releaseparticles(itime)
   ! If starting height is in pressure coordinates, retrieve pressure profile and convert zpart1 to meters
   !*****************************************************************************
         if (kindz(i).eq.3) then
-          presspart=part(ipart)%z
+          presspart=real(part(ipart)%z)
           do kz=1,nz
             if (ngrid.gt.0) then
               r=p1*rhon(ix ,jy ,kz,2,ngrid) &
@@ -403,17 +401,18 @@ subroutine releaseparticles(itime)
 
   ! Interpolate the air density
   !****************************
-
+          indz=nz-1
+          indzp=nz
           do ii=2,nz
-            if (height(ii).gt.part(ipart)%z) then
+            if (height(ii).gt.real(part(ipart)%z)) then
               indz=ii-1
               indzp=ii
               exit
             endif
           end do
 
-          dz1=part(ipart)%z-height(indz)
-          dz2=height(indzp)-part(ipart)%z
+          dz1=real(part(ipart)%z)-height(indz)
+          dz2=height(indzp)-real(part(ipart)%z)
           dz=1./(dz1+dz2)
 
           if (ngrid.gt.0) then
@@ -461,16 +460,16 @@ subroutine releaseparticles(itime)
 #endif
   return
 
-996   continue
-  write(*,*) '#####################################################'
-  write(*,*) '#### FLEXPART MODEL SUBROUTINE RELEASEPARTICLES: ####'
-  write(*,*) '####                                             ####'
-  write(*,*) '#### ERROR - TOTAL NUMBER OF PARTICLES REQUIRED  ####'
-  write(*,*) '#### EXCEEDS THE MAXIMUM ALLOWED NUMBER. REDUCE  ####'
-  write(*,*) '#### EITHER NUMBER OF PARTICLES PER RELEASE POINT####'
-  write(*,*) '#### OR REDUCE NUMBER OF RELEASE POINTS.         ####'
-  write(*,*) '#####################################################'
-  stop
+! 996   continue
+!   write(*,*) '#####################################################'
+!   write(*,*) '#### FLEXPART MODEL SUBROUTINE RELEASEPARTICLES: ####'
+!   write(*,*) '####                                             ####'
+!   write(*,*) '#### ERROR - TOTAL NUMBER OF PARTICLES REQUIRED  ####'
+!   write(*,*) '#### EXCEEDS THE MAXIMUM ALLOWED NUMBER. REDUCE  ####'
+!   write(*,*) '#### EITHER NUMBER OF PARTICLES PER RELEASE POINT####'
+!   write(*,*) '#### OR REDUCE NUMBER OF RELEASE POINTS.         ####'
+!   write(*,*) '#####################################################'
+!   stop
 
 end subroutine releaseparticles
 
@@ -684,10 +683,9 @@ subroutine init_particle(itime,ipart)
   integer,intent(in) ::  &
     itime,               &
     ipart
-  integer :: i,j,k,m,indexh
+  integer :: k
   integer :: nrand
-  real :: dz,dz1,dz2,wp
-  real :: ttemp,dummy1,dummy2
+  real :: dummy1,dummy2
   real :: xt,yt,zt,zteta
   integer :: thread
 
@@ -772,7 +770,7 @@ subroutine init_particle(itime,ipart)
   !if (ol.lt.0.) then
   !if (ol.gt.0.) then !by mc : only for test correct is lt.0
         call init_cbl_vel( &
-          iseed1(thread),zt,ust,wst,h,sigw,part(ipart)%turbvel%w,ol,thread)
+          iseed1(thread),zt,wst,h,sigw,part(ipart)%turbvel%w,ol,thread)
       else
         part(ipart)%turbvel%w=part(ipart)%turbvel%w*sigw
       end if
@@ -819,7 +817,7 @@ subroutine init_particle(itime,ipart)
   ! Interpolate the wind
   !*********************
 
-    call interpol_wind(itime,xt,yt,zt,zteta,10)
+    call interpol_wind(itime,xt,yt,zt,zteta)
 
 
   ! Compute everything for above the PBL
@@ -850,7 +848,7 @@ subroutine init_particle(itime,ipart)
   ! 1/2 of time interval between wind fields
   !****************************************************************
   if (lmesoscale_turb) then
-    call interpol_mesoscale(itime,xt,yt,zt,zteta)
+    call interpol_mesoscale(xt,yt,zt,zteta)
     if (nrand+2.gt.maxrand) nrand=1
     part(ipart)%mesovel%u=rannumb(nrand)*usig
     part(ipart)%mesovel%v=rannumb(nrand+1)*vsig
@@ -907,7 +905,7 @@ subroutine init_domainfill
   real :: pvpart,ddx,ddy,rddx,rddy,p1,p2,p3,p4,y1(2)
   integer :: idummy = -11
 
-  real :: frac,psint,zzlev,zzlev2,ttemp,height_tmp
+  real :: height_tmp
 
   logical :: deall
 
@@ -1114,8 +1112,8 @@ subroutine init_domainfill
               jym=int(part(numpart+jj)%ylat)
               ixp=ixm+1
               jyp=jym+1
-              ddx=part(numpart+jj)%xlon-real(ixm)
-              ddy=part(numpart+jj)%ylat-real(jym)
+              ddx=real(part(numpart+jj)%xlon)-real(ixm)
+              ddy=real(part(numpart+jj)%ylat)-real(jym)
               rddx=1.-ddx
               rddy=1.-ddy
               p1=rddx*rddy
@@ -1361,9 +1359,9 @@ subroutine boundcond_domainfill(itime,loutend)
 #endif
   implicit none
 
-  real :: dz,dz1,dz2,dt1,dt2,dtt,ylat,xm,cosfact,accmasst
-  integer :: itime,in,indz,indzp,i,loutend,numparticlecount_tmp
-  integer :: j,k,ix,jy,m,indzh,indexh,minpart,ipart,mmass,ithread
+  real :: dz,dz1,dz2,dt1,dt2,dtt,ylat,cosfact,accmasst
+  integer :: itime,ii,indz,indzp,i,loutend,numparticlecount_tmp
+  integer :: j,k,ix,jy,m,indzh,indexh,ipart,mmass,ithread
   integer :: numactiveparticles
 
   real :: windl(2),rhol(2)
@@ -1413,7 +1411,7 @@ subroutine boundcond_domainfill(itime,loutend)
 
   ! Loop from south to north
   !*************************
-!$OMP PARALLEL PRIVATE(i,jy,k,j,deltaz,boundarea,indz,indzp,indexh,windl,rhol, &
+!$OMP PARALLEL PRIVATE(i,jy,k,j,ii,deltaz,boundarea,indz,indzp,indexh,windl,rhol, &
 !$OMP windhl,rhohl,windx,rhox,fluxofmass,mmass,ixm,jym,ixp,jyp,ddx,ddy,rddx, &
 !$OMP rddy,p1,p2,p3,p4,indzm,mm,indzh,pvpart,ylat,ix,cosfact,ipart) &
 !$OMP REDUCTION(+:numactiveparticles,numparticlecount_tmp,accmasst)
@@ -1483,10 +1481,10 @@ subroutine boundcond_domainfill(itime,loutend)
 
         do m=1,2
           indexh=memind(m)
-          do in=1,2
-            indzh=indz+in-1
-            windl(in)=uu(nx_we(k),jy,indzh,indexh)
-            rhol(in)=rho(nx_we(k),jy,indzh,indexh)
+          do ii=1,2
+            indzh=indz+ii-1
+            windl(ii)=uu(nx_we(k),jy,indzh,indexh)
+            rhol(ii)=rho(nx_we(k),jy,indzh,indexh)
           end do
 
           windhl(m)=(dz2*windl(1)+dz1*windl(2))*dz
@@ -1569,8 +1567,8 @@ subroutine boundcond_domainfill(itime,loutend)
           jym=int(part(ipart)%ylat)
           ixp=ixm+1
           jyp=jym+1
-          ddx=part(ipart)%xlon-real(ixm)
-          ddy=part(ipart)%ylat-real(jym)
+          ddx=real(part(ipart)%xlon)-real(ixm)
+          ddy=real(part(ipart)%ylat)-real(jym)
           rddx=1.-ddx
           rddy=1.-ddy
           p1=rddx*rddy
@@ -1591,9 +1589,9 @@ subroutine boundcond_domainfill(itime,loutend)
           dz=1./(dz1+dz2)
           do mm=1,2
             indexh=memind(mm)
-            do in=1,2
-              indzh=indzm+in-1
-              y1(in)=p1*pv(ixm,jym,indzh,indexh) &
+            do ii=1,2
+              indzh=indzm+ii-1
+              y1(ii)=p1*pv(ixm,jym,indzh,indexh) &
                    +p2*pv(ixp,jym,indzh,indexh) &
                    +p3*pv(ixm,jyp,indzh,indexh) &
                    +p4*pv(ixp,jyp,indzh,indexh)
@@ -1699,10 +1697,10 @@ subroutine boundcond_domainfill(itime,loutend)
 
         do m=1,2
           indexh=memind(m)
-          do in=1,2
-            indzh=indz+in-1
-            windl(in)=vv(ix,ny_sn(k),indzh,indexh)
-            rhol(in)=rho(ix,ny_sn(k),indzh,indexh)
+          do ii=1,2
+            indzh=indz+ii-1
+            windl(ii)=vv(ix,ny_sn(k),indzh,indexh)
+            rhol(ii)=rho(ix,ny_sn(k),indzh,indexh)
           end do
 
           windhl(m)=(dz2*windl(1)+dz1*windl(2))*dz
@@ -1783,8 +1781,8 @@ subroutine boundcond_domainfill(itime,loutend)
           jym=int(part(ipart)%ylat)
           ixp=ixm+1
           jyp=jym+1
-          ddx=part(ipart)%xlon-real(ixm)
-          ddy=part(ipart)%ylat-real(jym)
+          ddx=real(part(ipart)%xlon)-real(ixm)
+          ddy=real(part(ipart)%ylat)-real(jym)
           rddx=1.-ddx
           rddy=1.-ddy
           p1=rddx*rddy
@@ -1805,9 +1803,9 @@ subroutine boundcond_domainfill(itime,loutend)
           dz=1./(dz1+dz2)
           do mm=1,2
             indexh=memind(mm)
-            do in=1,2
-              indzh=indzm+in-1
-              y1(in)=p1*pv(ixm,jym,indzh,indexh) &
+            do ii=1,2
+              indzh=indzm+ii-1
+              y1(ii)=p1*pv(ixm,jym,indzh,indexh) &
                    +p2*pv(ixp,jym,indzh,indexh) &
                    +p3*pv(ixm,jyp,indzh,indexh) &
                    +p4*pv(ixp,jyp,indzh,indexh)

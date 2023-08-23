@@ -2870,7 +2870,7 @@ subroutine readspecies(id_spec,pos_spec)
       ! Pre-compute ks and kn values needed for horizontal and average orientation (B&B Figure 12 k_(s,max))
       ks1(pos_spec)=(Fs(pos_spec)**(1./3.) + Fs(pos_spec)**(-1./3.))/2.
       ks2(pos_spec)=0.5*((Fs(pos_spec)**0.05)+(Fs(pos_spec)**(-0.36)))
-      kn2(pos_spec)=10.**(alpha2*(-log10(Fn(nsp)))**beta2)
+      kn2(pos_spec)=10.**(alpha2*(-log10(Fn(pos_spec)))**beta2)
 
     else ! Spheres
       write(*,*) "Particle shape SPHERE for particle", id_spec

@@ -71,7 +71,7 @@ subroutine get_settling(itime,xt,yt,zt,nsp,settling)
   integer :: i,n,nix,njy,indzh
 
   ! Variables needed for drag coefficient calculation
-  real :: dfdr,f,e,kn,ks,alpha1,alpha2,beta1,beta2,kn1
+  real :: dfdr,f,e,kn,ks,alpha1,beta1,kn1
 
   !*****************************************************************************
   ! 1. Interpolate temperature and density: nearest neighbor interpolation sufficient
@@ -210,7 +210,7 @@ subroutine get_settling(itime,xt,yt,zt,nsp,settling)
       alpha1=0.45+10.0/(exp(2.5*log10(dfdr))+30.0)
       beta1=1.-37.0/(exp(3.0*log10(dfdr))+100.0)
       kn1=10.**(alpha1*(-log10(Fn(nsp)))**beta1)
-      ks=(ks1(nsp+ks2(nsp))/2.
+      ks=(ks1(nsp)+ks2(nsp))/2.
       kn=(kn1+kn2(nsp))/2.
     endif
 

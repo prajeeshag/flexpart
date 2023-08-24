@@ -507,14 +507,12 @@ subroutine readpartpositions
 
   ! Open header file of dumped particle data
   !*****************************************
-  if (lnetcdfout.eq.1) then
 #ifdef USE_NCF
     call readpartpositions_netcdf(ibtime,ibdate)
     call get_totalpart_num(numpart)
     numparticlecount=numpart
     return
 #endif
-  endif
 
   open(unitpartin,file=path(2)(1:length(2))//'header', &
        form='unformatted',err=998)

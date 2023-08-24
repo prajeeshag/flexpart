@@ -527,7 +527,7 @@ subroutine readcommand
   mquasilag=0
   nested_output=0
   linit_cond=0
-  lnetcdfout=0
+  lnetcdfout=1
   surf_only=0 
   cblflag=0 ! if using old-style COMMAND file, set to 1 here to use mc cbl routine
   linversionout=0
@@ -702,26 +702,26 @@ subroutine readcommand
     endif
   endif
 
-#ifndef USE_NCF
-  if ((loutrestart.ne.-1).or.(ipin.ne.0)) then
-    write(*,*) ' WARNING: restart option set with intervals'
-    write(*,*) ' LOUTRESTART', loutrestart
-    write(*,*) ' not possible when using binary gridded output'
-    write(*,*) ' ==> RESTART FUNCTION SWITCHED OFF!'
-  endif
-  if (ipin.ne.0) then 
-    write(*,*) ' ERROR: restart option not possible using binary'
-    write(*,*) ' output.'
-    write(*,*) ' Please only use IPIN>0 when compiling and running using'
-    write(*,*) ' netcdf output. '
-  endif
-#else
-  if ((surf_only.eq.1).or.(linversionout.eq.1)) then
-    write(*,*) ' ERROR: NetCDF output for surface only or for inversions'
-    write(*,*) ' is not yet implemented. Please compile without NetCDF.'
-    error stop 'Surface only option is not supported for NetCDF'
-  endif
-#endif
+! #ifndef USE_NCF
+!   if ((loutrestart.ne.-1).or.(ipin.ne.0)) then
+!     write(*,*) ' WARNING: restart option set with intervals'
+!     write(*,*) ' LOUTRESTART', loutrestart
+!     write(*,*) ' not possible when using binary gridded output'
+!     write(*,*) ' ==> RESTART FUNCTION SWITCHED OFF!'
+!   endif
+!   if (ipin.ne.0) then 
+!     write(*,*) ' ERROR: restart option not possible using binary'
+!     write(*,*) ' output.'
+!     write(*,*) ' Please only use IPIN>0 when compiling and running using'
+!     write(*,*) ' netcdf output. '
+!   endif
+! #else
+!   if ((surf_only.eq.1).or.(linversionout.eq.1)) then
+!     write(*,*) ' ERROR: NetCDF output for surface only or for inversions'
+!     write(*,*) ' is not yet implemented. Please compile without NetCDF.'
+!     error stop 'Surface only option is not supported for NetCDF'
+!   endif
+! #endif
 
   ! Determine kind of dispersion method
   !************************************
@@ -736,20 +736,33 @@ subroutine readcommand
 
   ! Check for netcdf output switch
   !*******************************
-#ifdef USE_NCF
-  lnetcdfout = 1
-#endif
-  if (iout.ge.8) then
-    lnetcdfout = 1
-    iout = iout - 8
+  if (iout.gt.8) then
+    lnetcdfout=1
+    iout = iout -8
+  endif
+  if (lnetcdfout.eq.1) then
 #ifndef USE_NCF
-    write(*,*) 'ERROR: netcdf output not activated during compile time &
-      &but used in COMMAND file!'
+    write(*,*) 'WARNING: netcdf output not activated during compile time &
+      &but switched on in COMMAND or set to default value 1.'
     write(*,*) 'Please recompile with netcdf library (`make [...] ncf=yes`) &
-      &or use standard output format.'
-    error stop 'FLEXPART not compiled with NetCDF'
+      &when requiring NetCDF output.'
+    write(*,*) 'LNETCDFOUT set to 0.'
+    lnetcdfout = 0
+#endif
+  else
+#ifdef USE_NCF
+    write(*,*) 'WARNING: Executable compiled using NetCDF libraries, but &
+      &BINARY output is requested. If this was unintended, please add 8 &
+      &to IOUT or set LOUTNETCDF=1 in the COMMAND file.'
 #endif
   endif
+
+  if ((lnetcdfout.eq.1).and.((surf_only.eq.1).or.(linversionout.eq.1))) then
+    write(*,*) ' WARNING: NetCDF output for surface only or for inversions'
+    write(*,*) ' is not yet implemented. LNETCDFOUT set to 0.'
+    lnetcdfout=0
+  endif
+
 #ifndef USE_NCF
   if (ipout.ne.0) then
     write(*,*) 'ERROR: NETCDF missing! Please recompile with the netcdf'
@@ -1811,6 +1824,7 @@ subroutine readreceptors
   ! declare namelist
   namelist /receptors/ receptor, lon, lat
 
+  numreceptor=0 ! Initialise numreceptor
 !CPS I comment this out - why should we not have receptor output in bwd runs? 
   ! For backward runs, do not allow receptor output. Thus, set number of
   ! receptors to zero

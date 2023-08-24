@@ -260,14 +260,10 @@ subroutine getfields(itime,nstop)
   end if
 
   ! RLT calculate dry air density
-  if (DRYDEP) then
+  if ((DRYDEP).or.(lnetcdfout.eq.0)) then
     pwater=qv*prs/((r_air/r_water)*(1.-qv)+qv)
     rho_dry=(prs-pwater)/(r_air*tt)
   endif
-#ifndef USE_NCF
-  pwater=qv*prs/((r_air/r_water)*(1.-qv)+qv)
-  rho_dry=(prs-pwater)/(r_air*tt)
-#endif
 
   lwindinterv=abs(memtime(2)-memtime(1))
 

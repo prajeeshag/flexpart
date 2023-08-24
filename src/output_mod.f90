@@ -37,58 +37,45 @@ subroutine init_output(itime,filesize)
 
   ! Writing header information to either binary or NetCDF format
   if (itime.eq.itime_init) then
-    if (iout.ne.0) then ! No gridded output
+    if (iout.ne.0) then ! No gridded output for iout=0
+      if (lnetcdfout.eq.1) then
 #ifdef USE_NCF
-      if (lnetcdfout.eq.1) then 
         call writeheader_netcdf(lnest=.false.)
-      else 
-        call writeheader_bin
-      end if
-
-      if (nested_output.eq.1) then
-        if (lnetcdfout.eq.1) then
-          call writeheader_netcdf(lnest=.true.)
-        else if ((nested_output.eq.1).and.(surf_only.ne.1)) then
-          call writeheader_bin_nest
-        else if ((nested_output.eq.1).and.(surf_only.eq.1)) then
-          call writeheader_bin_sfc_nest
-        else if ((nested_output.ne.1).and.(surf_only.eq.1)) then 
-          call writeheader_bin_sfc
-        endif
-      endif
-#else
-      call writeheader_bin
-
-      !if (nested_output.eq.1) call writeheader_nest
-      if ((nested_output.eq.1).and.(surf_only.ne.1)) call writeheader_bin_nest
-      if ((nested_output.eq.1).and.(surf_only.eq.1)) call writeheader_bin_sfc_nest
-      if ((nested_output.ne.1).and.(surf_only.eq.1)) call writeheader_bin_sfc
+        if (nested_output.eq.1) call writeheader_netcdf(lnest=.true.)
 #endif
+      else if ((ipin.ne.1).or.(ipin.ne.4)) then ! Not necessary for restart
+        call writeheader_bin
+
+        !if (nested_output.eq.1) call writeheader_nest
+        if ((nested_output.eq.1).and.(surf_only.ne.1)) call writeheader_bin_nest
+        if ((nested_output.eq.1).and.(surf_only.eq.1)) call writeheader_bin_sfc_nest
+        if ((nested_output.ne.1).and.(surf_only.eq.1)) call writeheader_bin_sfc
+      endif
     endif ! iout.ne.0
     ! FLEXPART 9.2 ticket ?? write header in ASCII format 
-    call writeheader_txt
+    if ((ipin.ne.1).or.(ipin.ne.4)) call writeheader_txt
 
     ! NetCDF only: Create file for storing initial particle positions.
 #ifdef USE_NCF
-    if (itime_init.ne.0) then
-      jul=bdate+real(itime,kind=dp)/86400._dp
-      call caldate(jul,jjjjmmdd,ihmmss)      
-    endif
-    if ((mdomainfill.eq.0).and.(ipout.ge.1).and.(ipin.le.1)) then
-      if (itime_init.ne.0) then
-        if (ldirect.eq.1) then
-          call create_particles_initialoutput(ihmmss,jjjjmmdd,ibtime,ibdate)
-        else
-          call create_particles_initialoutput(ihmmss,jjjjmmdd,ietime,iedate)
-        endif
-      else if (ldirect.eq.1) then
-        call create_particles_initialoutput(ibtime,ibdate,ibtime,ibdate)
-      else
-        call create_particles_initialoutput(ietime,iedate,ietime,iedate)
-      endif
-    endif
-    ! Create header files for files that store the particle dump output
     if (ipout.ge.1) then
+      if (itime_init.ne.0) then
+        jul=bdate+real(itime,kind=dp)/86400._dp
+        call caldate(jul,jjjjmmdd,ihmmss)      
+      endif
+      if ((mdomainfill.eq.0).and.(ipin.le.1)) then
+        if (itime_init.ne.0) then
+          if (ldirect.eq.1) then
+            call create_particles_initialoutput(ihmmss,jjjjmmdd,ibtime,ibdate)
+          else
+            call create_particles_initialoutput(ihmmss,jjjjmmdd,ietime,iedate)
+          endif
+        else if (ldirect.eq.1) then
+          call create_particles_initialoutput(ibtime,ibdate,ibtime,ibdate)
+        else
+          call create_particles_initialoutput(ietime,iedate,ietime,iedate)
+        endif
+      endif
+      ! Create header files for files that store the particle dump output
       if (itime_init.ne.0) then
         if (ldirect.eq.1) then
           call writeheader_partoutput(ihmmss,jjjjmmdd,ibtime,ibdate)
@@ -524,7 +511,7 @@ subroutine output_conc(itime,loutstart,loutend,loutnext,outnum)
 
   ! If it is not time yet to write outputs, return
   !***********************************************
-  if ((itime.ne.loutend).or.(outnum.le.0)) then
+  if ((itime.ne.loutend).or.(outnum.le.0).or.(itime.eq.itime_init)) then
     return
   endif
 

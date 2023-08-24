@@ -55,7 +55,7 @@ module netcdf_output_mod
                        weightmolar,ohcconst,ohdconst,vsetaver,&
                        numparticlecount,receptorname, &
                        memind,xreceptor,yreceptor,numreceptor,creceptor,iout, &
-                       itsplit, lsynctime, ctl, ifine, lagespectra, ipin, &
+                       loutrestart,lnetcdfout,lsynctime, ctl, ifine, lagespectra, ipin, &
                        ioutputforeachrelease, iflux, mdomainfill, mquasilag, & 
                        nested_output, ipout, surf_only, linit_cond, &
                        flexversion,mpi_mode,DRYBKDEP,WETBKDEP,numpart,numpoint, &
@@ -225,7 +225,7 @@ subroutine writemetadata(ncid,lnest)
   call nf90_err(nf90_put_att(ncid, nf90_global, 'loutstep', loutstep))
   call nf90_err(nf90_put_att(ncid, nf90_global, 'loutaver', loutaver))
   call nf90_err(nf90_put_att(ncid, nf90_global, 'loutsample', loutsample))
-  call nf90_err(nf90_put_att(ncid, nf90_global, 'itsplit', itsplit))
+  call nf90_err(nf90_put_att(ncid, nf90_global, 'loutrestart', loutrestart))
   call nf90_err(nf90_put_att(ncid, nf90_global, 'lsynctime', lsynctime))
   call nf90_err(nf90_put_att(ncid, nf90_global, 'ctl', ctl))
   call nf90_err(nf90_put_att(ncid, nf90_global, 'ifine', ifine))
@@ -802,6 +802,18 @@ subroutine read_grid_id(lnest)
         call nf90_err(nf90_inq_varid(ncid=ncid,name='DD_spec'//anspec,varid=ddspecIDn(i)))
       endif
     end do 
+  endif
+
+  ! RECEPTORS
+  if (numreceptor.ge.1) then
+    do i = 1,nspec
+      if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
+        call nf90_err(nf90_inq_varid(ncid,name='receptor_conc'//anspec,varid=recconcID(i)))
+      endif
+      if ((iout.eq.2).or.(iout.eq.3)) then
+        call nf90_err(nf90_inq_varid(ncid,name='receptor_pptv'//anspec,varid=recpptvID(i)))
+      endif
+    end do
   endif
 
   call nf90_err(nf90_close(ncid))

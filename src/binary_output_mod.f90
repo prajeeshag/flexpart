@@ -619,22 +619,32 @@ subroutine openreceptors
   !*********************
 
     if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
-      open(unitoutrecept,file=path(2)(1:length(2))//'receptor_conc', &
-           form='unformatted',err=997)
-      write(unitoutrecept) (receptorname(j),j=1,numreceptor)
-      write(unitoutrecept) (xreceptor(j)*dx+xlon0, &
-           yreceptor(j)*dy+ylat0,j=1,numreceptor)
+      if ((ipin.eq.1).or.(ipin.eq.4)) then
+        open(unitoutrecept,file=path(2)(1:length(2))//'receptor_conc', &
+           access='APPEND',status='OLD',err=997)
+      else
+        open(unitoutrecept,file=path(2)(1:length(2))//'receptor_conc', &
+             form='unformatted',err=997)
+        write(unitoutrecept) (receptorname(j),j=1,numreceptor)
+        write(unitoutrecept) (xreceptor(j)*dx+xlon0, &
+             yreceptor(j)*dy+ylat0,j=1,numreceptor)
+      endif
     endif
 
   ! Mixing ratio output
   !********************
 
     if ((iout.eq.2).or.(iout.eq.3)) then
-      open(unitoutreceptppt,file=path(2)(1:length(2))//'receptor_pptv', &
-           form='unformatted',err=998)
-      write(unitoutreceptppt) (receptorname(j),j=1,numreceptor)
-      write(unitoutreceptppt) (xreceptor(j)*dx+xlon0, &
-           yreceptor(j)*dy+ylat0,j=1,numreceptor)
+      if ((ipin.eq.1).or.(ipin.eq.4)) then
+        open(unitoutreceptppt,file=path(2)(1:length(2))//'receptor_pptv', &
+           access='APPEND',status='OLD',err=997)
+      else
+        open(unitoutreceptppt,file=path(2)(1:length(2))//'receptor_pptv', &
+             form='unformatted',err=998)
+        write(unitoutreceptppt) (receptorname(j),j=1,numreceptor)
+        write(unitoutreceptppt) (xreceptor(j)*dx+xlon0, &
+             yreceptor(j)*dy+ylat0,j=1,numreceptor)
+      endif
     endif
   endif
 
@@ -731,6 +741,12 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
   ! Overwrite existing dates file on first call, later append to it
   ! This fixes a bug where the dates file kept growing across multiple runs
 
+  ! Restarting a run:
+  if ((ipin.eq.1).or.(ipin.eq.4)) then
+    file_stat='OLD'
+    init=.false.
+  endif
+
   ! If 'dates' file exists in output directory, make a backup
   inquire(file=path(2)(1:length(2))//'dates', exist=ldates_file)
   if (ldates_file.and.init) then
@@ -796,9 +812,9 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
     endif
     do kzz=2,nz
       if ((height(kzz-1).lt.halfheight).and. &
-           (height(kzz).gt.halfheight)) goto 46
+           (height(kzz).gt.halfheight)) exit
     end do
-46  kzz=max(min(kzz,nz),2)
+    kzz=max(min(kzz,nz),2)
     dz1=halfheight-height(kzz-1)
     dz2=height(kzz)-halfheight
     dz=dz1+dz2

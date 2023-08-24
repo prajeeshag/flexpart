@@ -374,8 +374,8 @@ subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
   ! a certain height level in meters
   !**************************************************************
 
-  idx(:,:,1)=1
-  idxw(:,:,1)=1
+  idx(:,:,1)=2
+  idxw(:,:,1)=2
   do iz=2,nz-1
     idx(:,:,iz)=idx(:,:,iz-1)
     idxw(:,:,iz)=idxw(:,:,iz-1)
@@ -510,7 +510,7 @@ subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
         ww(ix,jy,iz,n)=(wwh(ix,jy,kz-1)*pinmconv(ix,jy,kz-1)*dz2 &
              +wwh(ix,jy,kz)*pinmconv(ix,jy,kz)*dz1)/dz
 
-        if ((jy.eq.nymin1).or.(ix.eq.nxmin1)) cycle
+        if ((jy.eq.nymin1).or.(ix.eq.nxmin1).or.(ix.eq.0).or.(jy.eq.0)) cycle
 
         !****************************************************************
         ! Compute slope of eta levels in windward direction and resulting

@@ -305,6 +305,7 @@ contains
       ipart,               & ! to be terminated particle index
       itime                  ! Time at which particle is terminated
     integer ::             &
+      i,                   & ! loop variable
       iloc                   ! location of ipart in count%ialive
 
     ! Flagging the particle as having been terminated
@@ -317,7 +318,14 @@ contains
     count%alive = count%alive - 1
     ! And remove from the ialive array
     !*********************************
-    iloc=findloc(count%ialive,ipart,1)
+    ! iloc=findloc(count%ialive,ipart,1) ! findloc not supported in gcc<v9
+    iloc=count%allocated
+    do i=1,count%alive+1
+      if (count%ialive(i).eq.ipart) then
+        iloc=i
+        exit
+      endif
+    end do
     if (iloc.ne.count%allocated) then
       count%ialive(iloc:count%allocated-1)=count%ialive(iloc+1:count%allocated)
     endif

@@ -73,7 +73,7 @@ O_LEV_DBG = g # [0,g]
 FUSER = -g -fopenmp -march=native -mtune=native
 mpi: FUSER := $(FUSER) -Dusempi #-MM -MT -MD
 ## LIBRARIES
-LIBS = -leccodes -leccodes_f90 -lm -ljasper $(NCOPT) #MD
+LIBS = -leccodes -leccodes_f90 -lm $(NCOPT) #MD -ljasper
 
 FFLAGS   = $(INC) -O$(O_LEV) -m64 -cpp -mcmodel=large -O$(O_LEV) $(NCOPT) $(FUSER)  #-convert little_endian -fpp -WB -check all
 

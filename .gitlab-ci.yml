@@ -52,7 +52,7 @@ etex-simulation:
   stage: test
   when: manual
   needs:
-    -alma8-build
+    - alma8-build
 
   script:
     - ulimit -s unlimited

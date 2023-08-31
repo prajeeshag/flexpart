@@ -56,6 +56,8 @@ sed "/SPECNUM_REL=/c\ SPECNUM_REL=   40," ./default_options/RELEASES > ./current
 
 sed "/output/c\ output_omp1" ./pathnames > ./pathnames_omp1
 sed "/output/c\ output_omp32" ./pathnames > ./pathnames_omp32
+mkdir -p ./output_omp1/
+mkdir -p ./output_omp32/
 export OMP_NUM_THREADS=1
 ./FLEXPART pathnames_omp1
 export OMP_NUM_THREADS=32

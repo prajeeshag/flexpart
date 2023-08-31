@@ -49,7 +49,6 @@ openmp-simulation:
 openmp-test:
   image: harbor.wolke.img.univie.ac.at/flexpart/postprocessing:py39
   stage: compare
-  when: manual
   needs:
     - openmp-simulation
   script:

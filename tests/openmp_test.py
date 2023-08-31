@@ -2,20 +2,6 @@ import netCDF4 as nc
 import numpy as np
 import os
 
-dirs = os.listdir('./')
-
-paths=[]
-for dd in dirs:
-  print(dd)
-  if dd.startswith('output_'):
-    files_lv1 = os.listdir('./'+dd)
-    for f1 in files_lv1:
-      print(f1)
-      if f1.endswith('_init.nc'):
-        paths.append('./'+dd+f1)
-
-print(paths)
-
 ndata_1 = nc.Dataset("./output_omp1/partoutput_20090101000000_init.nc", 'r')
 ndata_32 = nc.Dataset("./output_omp32/partoutput_20090101000000_init.nc", 'r')
 
@@ -25,7 +11,7 @@ for idvars in dvars:
   mn=np.mean(np.abs(temp))
   mx=np.max(np.abs(temp))
   mean1=(np.mean(np.abs(ndata_1[idvars])))
-  print(idvars,": ","mean difference:",mn," max abs difference:",mx, "mean: ", mean1)
+  print(idvars,": ","mean difference:",mn," max abs difference:",mx, "abs mean: ", mean1)
   if (mn>(mean1/1.e8)):
     print('Mean difference exceeds allowed value of ',mean1/1.e8)
     raise ValueError('Mean allowed difference exceeded.')
@@ -40,8 +26,8 @@ print("Checking gridded output...")
 temp=ndata_1['spec001_mr'][:]-ndata_32['spec001_mr'][:]
 mn_c=np.mean(temp)
 mx_c=np.max(temp)
-mn_c1=np.mean(ndata_1['spec001_mr'][:])
-print("Concentrations: mean difference",mn_c," max abs difference:",mx_c, "mean: ",mn_c1)
+mn_c1=np.mean(np.abs(ndata_1['spec001_mr'][:]))
+print("Concentrations: mean difference",mn_c," max abs difference:",mx_c, "abs mean: ",mn_c1)
 if (mn_c>(mn_c1/1.e8)):
   print('Gridded concentration output: mean difference exceeds allowed value of ',mn_c1/1.e8)
   raise ValueError('Gridded concentration output deviates between serial and OMP version')
@@ -50,8 +36,8 @@ if (mn_c>(mn_c1/1.e8)):
 temp=ndata_1['WD_spec001'][:]-ndata_32['WD_spec001'][:]
 mn_c=np.mean(temp)
 mx_c=np.max(temp)
-mn_c1=np.mean(ndata_1['spec001_mr'][:])
-print("WET deposition: mean difference",mn_c," max abs difference:",mx_c, "mean: ",mn_c1)
+mn_c1=np.mean(np.abs(ndata_1['spec001_mr'][:]))
+print("WET deposition: mean difference",mn_c," max abs difference:",mx_c, "abs mean: ",mn_c1)
 if (mn_c>(mn_c1/1.e8)):
   print('Gridded WET deposition output: mean difference exceeds allowed value of ',mn_c1/1.e8)
   raise ValueError('Gridded WET deposition output deviates between serial and OMP version')
@@ -60,8 +46,8 @@ if (mn_c>(mn_c1/1.e8)):
 temp=ndata_1['DD_spec001'][:]-ndata_32['DD_spec001'][:]
 mn_c=np.mean(temp)
 mx_c=np.max(temp)
-mn_c1=np.mean(ndata_1['spec001_mr'][:])
-print("DRY deposition: mean difference",mn_c," max abs difference:",mx_c, "mean: ",mn_c1)
+mn_c1=np.mean(np.abs(ndata_1['spec001_mr'][:]))
+print("DRY deposition: mean difference",mn_c," max abs difference:",mx_c, "abs mean: ",mn_c1)
 if (mn_c>(mn_c1/1.e8)):
   print('Gridded DRY deposition output: mean difference exceeds allowed value of ',mn_c1/1.e8)
   raise ValueError('Gridded DRY deposition output deviates between serial and OMP version')

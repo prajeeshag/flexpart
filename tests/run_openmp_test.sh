@@ -63,8 +63,6 @@ export OMP_NUM_THREADS=32
 report "[$MM] TEST $TESTRUN (LOUTRESTART)"
 STATUS=$((STATUS + $?))
 TESTSRUN=$((TESTSRUN + 1))
-# clean up
-rm -rf ./current ./output_omp1/* ./output_omp32/* pathnames_omp1 pathnames_omp32
 #
 # FINAL
 #

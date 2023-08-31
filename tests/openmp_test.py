@@ -1,5 +1,6 @@
 import netCDF4 as nc
 import numpy as np
+import os
 
 ndata_1 = nc.Dataset("./output_omp1/partoutput_20090101000000_init.nc", 'r')
 ndata_32 = nc.Dataset("./output_omp32/partoutput_20090101000000_init.nc", 'r')
@@ -19,3 +20,10 @@ for idvars in dvars:
 		return 1
 ndata_1.close()
 ndata_32.close()
+
+# clean up
+os.rmdir('./current') 
+os.rmdir('./output_omp1')
+os.rmdir('./output_omp32')
+os.remove('pathnames_omp1'
+os.remove('pathnames_omp32')

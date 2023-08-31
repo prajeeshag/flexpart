@@ -45,20 +45,11 @@ mkdir -p ./output/
 STATUS=0
 TESTSRUN=0
 #
-# run Options test with restart output disabled
-#
-sed "/LOUTRESTART=/c\ LOUTRESTART=   -1," ./default_options/COMMAND > ./current/COMMAND
-./FLEXPART pathnames
-report "[$MM] TEST $TESTRUN (LOUTRESTART)"
-STATUS=$((STATUS + $?))
-TESTSRUN=$((TESTSRUN + 1))
-# clean up
-rm -rf ./current ./output/*
 #
 # 
 #BACKWARD WET DEPOSITION
 cp -rf ./default_options ./current
-sed "/LDIRECT=/c\ LDIRECT=   -1," ./default_options/COMMAND > ./current/COMMAND
+sed -i "/LDIRECT=/c\ LDIRECT=   -1," ./current/COMMAND
 # change release
 # 
 # IND_RECEPTOR=          1, ! Unit to be used at the receptor; [0]no receptor [1]mass 2]mass mixing ratio 3]wet depo. 4]dry depo.
@@ -76,23 +67,12 @@ rm -rf ./current ./output/*
 # 
 #BACKWARD DRY DEPOSITION
 cp -rf ./default_options ./current
-sed "/LDIRECT=/c\ LDIRECT=   -1," ./default_options/COMMAND > ./current/COMMAND
+sed -i "/LDIRECT=/c\ LDIRECT=   -1," ./current/COMMAND
 sed -i "s/ITIME1.*/ITIME1  =   030000,/" ./current/RELEASES
 sed -i "s/ITIME2.*/ITIME2  =   030000,/" ./current/RELEASES
 sed -i "/IND_RECEPTOR.*/IND_RECEPTOR=  4,"./current/COMMAND
 ./FLEXPART pathnames
 report "[$MM] TEST $TESTRUN (IND_RECEPTOR=4)"
-STATUS=$((STATUS + $?))
-TESTSRUN=$((TESTSRUN + 1))
-# clean up
-rm -rf ./current ./output/*
-#
-#
-#OUTRESTART
-cp -rf ./default_options ./current
-sed "/LOUTRESTART.*/LOUTRESTART=  3600," ./default_options/COMMAND > ./current/COMMAND
-./FLEXPART pathnames
-report "[$MM] TEST $TESTRUN (LOUTRESTART=3600)"
 STATUS=$((STATUS + $?))
 TESTSRUN=$((TESTSRUN + 1))
 # clean up
@@ -165,10 +145,18 @@ TESTSRUN=$((TESTSRUN + 1))
 rm -rf ./current ./output/*
 #
 #
-#IPIN
+#
+#OUTRESTART
+cp -rf ./default_options ./current
+sed -i "/LOUTRESTART.*/LOUTRESTART=  3600," ./current/COMMAND
+./FLEXPART pathnames
+report "[$MM] TEST $TESTRUN (LOUTRESTART=3600)"
+STATUS=$((STATUS + $?))
+TESTSRUN=$((TESTSRUN + 1))
+#
+# and IPIN
 ./FLEXPART pathnames
 mv output/restart_20090101020000 output/restart.bin
-cp -rf ./default_options ./current
 sed -i "/IPIN.*/IPIN=  1,"./current/COMMAND
 ./FLEXPART pathnames
 report "[$MM] TEST $TESTRUN (IPIN=1)"

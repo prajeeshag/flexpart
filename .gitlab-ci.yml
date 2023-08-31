@@ -1,6 +1,7 @@
 stages:
   - build
-  - test
+  - test_options
+  - test_omp
   - compare
 
 default:
@@ -22,13 +23,24 @@ alma8-build:
 
 options-test:
   image: harbor.wolke.img.univie.ac.at/flexpart/almalinux8:fp11_1
-  stage: test
+  stage: test_options
   needs:
     - alma8-build
 
   script:
     - ulimit -s unlimited
     - bash ./tests/run_default_options_test.sh
+
+openmp-test:
+  image: harbor.wolke.img.univie.ac.at/flexpart/almalinux8:fp11_1
+  stage: test_omp
+  when: manual
+  needs:
+    - alma8-build
+
+  script:
+    - ulimit -s unlimited
+    - bash ./tests/run_openmp_test.sh
   
   #artifacts:
   #  when: on_success

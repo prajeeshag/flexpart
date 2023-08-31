@@ -480,6 +480,7 @@ subroutine readcommand
   ipoutfac, &
   lsubgrid, &
   lconvection, &
+  lturbulence, &
   lagespectra, &
   ipin, &
   ioutputforeachrelease, &
@@ -517,6 +518,7 @@ subroutine readcommand
   ipoutfac=1
   lsubgrid=1
   lconvection=1
+  lturbulence=1
   lagespectra=0
   ipin=0
   ioutputforeachrelease=1

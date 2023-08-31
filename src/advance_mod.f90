@@ -242,7 +242,7 @@ subroutine advance(itime,ipart,thread)
   ! time interval between wind fields
   !****************************************************************
 
-  if (.not. turboff) then 
+  if (lturbulence.eq.1) then 
     ! mesoscale turbulence is found to give issues, so turned off
     if (lmesoscale_turb) then
       call interpol_mesoscale( &
@@ -364,7 +364,7 @@ subroutine adv_above_pbl(itime,itimec,dxsave,dysave,ux,vy,tropop,nrand,ipart)
   part(ipart)%idt=abs(lsynctime-itimec+itime)
   dt=real(part(ipart)%idt)
 
-  if (.not.turboff) then
+  if (lturbulence.eq.1) then
     call turbulence_above_pbl(dt,nrand,ux,vy,wp,tropop,zts)
   else
     !sec switch off turbulence
@@ -520,7 +520,7 @@ subroutine adv_in_pbl(itime,itimec, dxsave,dysave,dawsave,dcwsave, abovePBL,  &
   ! Determine the sigmas and the timescales 
   !****************************************
 
-    if (.not.turboff) then
+    if (lturbulence.eq.1) then
       call turbulence_pbl(ipart,nrand,dt,zts,rhoa,rhograd,thread) 
       ! Note: zts and nrand get updated
 

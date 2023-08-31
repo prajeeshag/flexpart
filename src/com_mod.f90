@@ -136,10 +136,11 @@ module com_mod
   ! mintime                 minimum time step to be used by FLEXPART
   ! itsplit                 time constant for splitting particles
 
-  integer :: lsubgrid,lconvection,lagespectra
+  integer :: lsubgrid,lconvection,lturbulence,lagespectra
 
   ! lsubgrid     1 if subgrid topography parameterization switched on, 2 if not
   ! lconvection  1 if convection parameterization switched on, 0 if not
+  ! lturbulence  1 if turbulence parameterization switched on, 0 if not
   ! lagespectra  1 if age spectra calculation switched on, 2 if not
 
   integer :: lnetcdfout
@@ -488,7 +489,6 @@ module com_mod
   logical :: lroot=.true. ! true if serial version, or if MPI .and. root process
   
   logical, parameter :: interpolhmix=.false. ! true if the hmix shall be interpolated
-  logical, parameter :: turboff=.false.       ! true if the turbulence shall be switched off
 
   integer :: numthreads,numthreads_grid  ! number of available threads in parallel sections
   !integer :: nclassunc2, nrecclunc, ngriclunc

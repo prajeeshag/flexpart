@@ -44,7 +44,7 @@ program flexpart
   real :: s_timemanager
   character(len=256) ::   &
     inline_options          ! pathfile, flexversion, arg2
-  character(len=256) :: gitversion_tmp="901911f HEAD -> optimise, origin/optimise Tue Aug 29 17:23:41 2023 +0200"
+  character(len=256) :: gitversion_tmp="f35310a HEAD -> optimise, origin/optimise Wed Aug 30 16:36:59 2023 +0200"
 
   ! Keeping track of the total running time of FLEXPART, printed out at the end.
   !*****************************************************************************
@@ -124,7 +124,7 @@ program flexpart
     end if
   end if
 
-  if (turboff) write(*,*) 'Turbulence switched off'
+  if (lturbulence.eq.0) write(*,*) 'Turbulence switched off'
 
   ! Calculate particle trajectories
   !********************************

@@ -45,8 +45,6 @@ openmp-simulation:
     paths:
       - ./tests/output_omp1
       - ./tests/output_omp32
-      - ./tests/output_omp1/*
-      - ./tests/output_omp32/*
     expire_in: 5 mins
 
 openmp-test:

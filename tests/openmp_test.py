@@ -27,8 +27,6 @@ for idvars in dvars:
   mx=np.max(np.abs(temp))
   mean1=(np.mean(np.abs(ndata_1[idvars])))
   print("mean difference:",mn," max abs difference:",mx, "mean: ", mean1)
-
-  print("small mean", smallmean)
   if (mn>(mean1/1.e8)):
     print('Mean difference exceeds allowed value of ',mean1/1.e8)
     raise ValueError('Mean allowed difference exceeded.')

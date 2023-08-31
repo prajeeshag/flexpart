@@ -53,7 +53,8 @@ openmp-test:
   image: harbor.wolke.img.univie.ac.at/flexpart/postprocessing:py39
   stage: compare
   needs:
-    - openmp-simulation
+    - job: openmp-simulation
+      artifacts: true
   script:
     - cd ./tests/
     - python3 ./openmp_test.py

@@ -51,7 +51,7 @@ openmp-test:
   stage: compare
   when: manual
   needs:
-    - openmp-test
+    - openmp-simulation
   script:
     - cd ./tests/
     - python3 ./openmp_test.py

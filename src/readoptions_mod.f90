@@ -1951,20 +1951,20 @@ subroutine readreceptors
   write(*,*) '#### in namelist in file RECEPTORS'
   write(*,*) '#### note that in v11+ coordinate names are lon and lat'
 
-  stop
+  error stop
 
 992 continue
   write(*,*) ' #### FLEXPART MODEL ERROR! TOO MANY RECEPTOR #### '
   write(*,*) ' #### POINTS ARE GIVEN.                       #### '
   write(*,*) ' #### MAXIMUM NUMBER IS ',maxreceptor,'       #### '
 !        write(*,*) ' #### PLEASE MAKE CHANGES IN FILE RECEPTORS   #### '
-  stop
+  error stop' maxreceptor smaller than numreceptor'
 
 993 continue
   write(*,*) '#### FLEXPART ERROR: namelist in file RECEPTORS'
   write(*,*) '#### first receptor point did not contain lon and/or lat'
   write(*,*) '#### Check your namelist!'
-  stop
+  error stop
 
 999 write(*,*) 'INFORMATION: input file RECEPTORS cannot be opened'
     write(*,*) 'in directory '//trim(path(1))
@@ -1978,7 +1978,7 @@ subroutine readreceptors
   write(*,'(a)') ' #### '//trim(path(2))
   write(*,*)    ' #### either write perm missing or old file exists ###'
 
-  stop
+  error stop
 
 end subroutine readreceptors
 

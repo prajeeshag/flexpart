@@ -1,6 +1,6 @@
 #!/bin/bash
-# By MB
-# run default tests
+# By LB
+# run OpenMP simulations
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -62,7 +62,7 @@ export OMP_NUM_THREADS=1
 ./FLEXPART pathnames_omp1
 export OMP_NUM_THREADS=32
 ./FLEXPART pathnames_omp32
-report "[$MM] TEST $TESTRUN (LOUTRESTART)"
+report "[$MM] TEST $TESTRUN (OpenMP)"
 STATUS=$((STATUS + $?))
 TESTSRUN=$((TESTSRUN + 1))
 #

@@ -195,7 +195,7 @@ module par_mod
   !integer maxxgrid,maxygrid,maxzgrid,maxxgridn,maxygridn
   !integer,parameter :: maxxgrid=361,maxygrid=181,maxxgridn=0,maxygridn=0)
 
-  integer,parameter :: maxreceptor=20
+  integer,parameter :: maxreceptor=170
 
   ! maxreceptor             maximum number of receptor points
 

@@ -47,6 +47,23 @@ openmp-simulation:
       - ./tests/output_omp32
     expire_in: 5 mins
 
+etex-simulation:
+  image: harbor.wolke.img.univie.ac.at/flexpart/almalinux8:latest
+  stage: test
+  when: manual
+  needs:
+    -alma8-build
+
+  script:
+    - ulimit -s unlimited
+    - bash ./tests/run_etex_test.sh
+
+  artifacts:
+    when: on_success
+    paths:
+      - ./tests/output_etex
+    expire_in: 10 mins
+
 openmp-test:
   image: harbor.wolke.img.univie.ac.at/flexpart/postprocessing:py39
   stage: compare
@@ -56,4 +73,18 @@ openmp-test:
   script:
     - cd ./tests/
     - python3 ./openmp_test.py
-  
+
+etex-test:
+  image: harbor.wolke.img.univie.ac.at/flexpart/postprocessing:py39
+  stage: compare
+  needs:
+    - job: etex-simulation
+      artifacts: true
+  script:
+    - cd ./tests/
+    - python3 ./etex_test.py
+  artifacts:
+    when: on_success
+    paths:
+      - ./tests/etex_test.txt
+    expire_in: never

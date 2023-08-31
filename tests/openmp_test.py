@@ -2,6 +2,20 @@ import netCDF4 as nc
 import numpy as np
 import os
 
+dirs = os.listdir('./')
+
+paths=[]
+for dd in dirs:
+  print(dd)
+  if dd.startswith('output_'):
+    files_lv1 = os.listdir('./'+dd)
+    for f1 in files_lv1:
+      if f1.endswith('_init.nc'):
+        print(f1)
+        paths.append('./'+dd+f1)
+
+print(paths)
+
 ndata_1 = nc.Dataset("./output_omp1/partoutput_20090101000000_init.nc", 'r')
 ndata_32 = nc.Dataset("./output_omp32/partoutput_20090101000000_init.nc", 'r')
 

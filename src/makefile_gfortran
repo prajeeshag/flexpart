@@ -43,10 +43,10 @@ ROOT_DIR = . #MD
 # VSC (CPATH and LIBRARY_PATH)
 # 
 ifndef CPATH
-	$(error CPATH is not set)
+$(error CPATH is not set)
 endif
 ifndef LIBRARY_PATH
-        $(error LIBRARY_PATH is not set)
+$(error LIBRARY_PATH is not set)
 endif
 # use the environmental variable $INCLUDE
 # split the paths separated by :

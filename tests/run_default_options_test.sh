@@ -67,11 +67,13 @@ sed -i "/Z2      =/c\ Z2    =       100.0000," ./current/RELEASES
 sed -i "/IND_RECEPTOR/c\ IND_RECEPTOR=  3," ./current/COMMAND
 sed -i "/IOUTPUTFOREACHRELEASE=/c\ IOUTPUTFOREACHRELEASE=  1," ./current/COMMAND
 
+cp pathnames pathnames_tmp
 sed -i "/output/c\./output_bkw/" ./pathnames_tmp
 mkdir output_bkw
 
 ./FLEXPART pathnames_tmp
 
+cp pathnames pathnames_tmp
 sed -i "/output/c\./output_bkw_eta/" ./pathnames_tmp
 mkdir output_bkw_eta
 

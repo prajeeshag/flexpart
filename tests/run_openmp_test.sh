@@ -35,6 +35,7 @@ cd $(dirname $0)
 test -f ../src/FLEXPART
 report "[$MM] executable: ../src/FLEXPART" || exit 1
 ln -s ../src/FLEXPART .
+ln -s ../src/FLEXPART_ETA .
 test -d ./default_options
 report "[$MM] default options: ./default_options" || exit 1
 cp -rf ./default_options ./current

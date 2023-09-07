@@ -18,9 +18,11 @@ alma8-build:
     - make -j -C src -f makefile_gfortran
     - make -j -C src -f makefile_gfortran eta=yes
   artifacts:
+    when: on_success
     paths:
       - ./src/FLEXPART
       - ./src/FLEXPART_ETA
+    expire_in: never
 
 options-test:
   image: harbor.wolke.img.univie.ac.at/flexpart/almalinux8:latest

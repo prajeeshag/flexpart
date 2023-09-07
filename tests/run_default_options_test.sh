@@ -179,14 +179,8 @@ rm -rf ./current ./output/*
 cp -rf ./default_options ./current
 sed -i "/IPOUT=/c\ IPOUT=  1," ./current/COMMAND
 sed "/SPECNUM_REL=/c\ SPECNUM_REL=   40," ./default_options/RELEASES > ./current/RELEASES
-sed -i "/LON1    =/c\ LON1    =    -50.0," ./current/RELEASES
-sed -i "/LON2    =/c\ LON2    =    50.0," ./current/RELEASES
-sed -i "/LAT1    =/c\ LAT1    =        10.0," ./current/RELEASES
-sed -i "/LAT2    =/c\ LAT2    =        80.0," ./current/RELEASES
-sed -i "/Z1      =/c\ Z1    =         1.0000," ./current/RELEASES
-sed -i "/Z2      =/c\ Z2    =       100.0000," ./current/RELEASES
 sed -i "/PSHAPE/c\ PSHAPE= 0" ./current/SPECIES/SPECIES_040
-sed -i "/PDQUER/c\ PDQUER=100.0E-06" ./current/SPECIES/SPECIES_040
+sed -i "/PDQUER/c\ PDQUER=1.0E-06" ./current/SPECIES/SPECIES_040
 
 cp pathnames pathnames_tmp
 sed -i "/output/c\./output_settling/" ./pathnames_tmp

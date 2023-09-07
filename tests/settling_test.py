@@ -39,19 +39,19 @@ with open(output_name, 'a') as f:
       mx2_prev=float(tmp2[7])
       if (np.abs(mn-mn_prev)>(np.abs(mn)/resolution)): 
         print("WARNING: ",idvars,"gives a different mean value compared to the previous version.")
-        print(np.abs(mn-mn_prev)/np.abs(mn)*100, "percent")
+        print(np.abs(mn-mn_prev)/np.abs(mn)*100., "percent")
         return_flag = True
       if (np.abs(mn2-mn2_prev)>(np.abs(mn2)/resolution)): 
         print("WARNING: ",idvars,"ETA gives a different mean value compared to the previous version.")
-        print(np.abs(mn2-mn2_prev)/np.abs(mn2)*100, "percent")
+        print(np.abs(mn2-mn2_prev)/np.abs(mn2)*100., "percent")
         return_flag = True
       if (np.abs(mx-mx_prev)>(np.abs(mx)/resolution)):
         print("WARNING: ",idvars,"gives a different max value compared to the previous version.")
-        print(np.abs(mx-mx_prev)/np.abs(mx)*100, "percent")
+        print(np.abs(mx-mx_prev)/np.abs(mx)*100., "percent")
         return_flag = True
       if (np.abs(mx2-mx2_prev)>(np.abs(mx2)/resolution)):
         print("WARNING: ",idvars,"ETA gives a different max value compared to the previous version.")
-        print(np.abs(mx2-mx2_prev)/np.abs(mx2)*100, "percent")
+        print(np.abs(mx2-mx2_prev)/np.abs(mx2)*100., "percent")
         return_flag = True
       #f.write(tmp)
       #f.write("\n")

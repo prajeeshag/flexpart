@@ -336,6 +336,7 @@ subroutine releaseparticles(itime)
 #ifdef ETA
         call z_to_zeta(itime,part(ipart)%xlon,part(ipart)%ylat,part(ipart)%z,part(ipart)%zeta)
         part(ipart)%etaupdate = .true. ! The z(meter) coordinate is up to date
+        part(ipart)%meterupdate = .true.
 #endif
         
         call init_mass_conversion(ipart,i)

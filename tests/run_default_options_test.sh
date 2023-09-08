@@ -184,8 +184,8 @@ sed -i "/LON1    =/c\ LON1    =    10.00833011," ./current/RELEASES
 sed -i "/LON2    =/c\ LON2    =    30.00833011," ./current/RELEASES
 sed -i "/LAT1    =/c\ LAT1    =        20.0583," ./current/RELEASES
 sed -i "/LAT2    =/c\ LAT2    =        50.0583," ./current/RELEASES
-sed -i "/Z1      =/c\ Z1    =         0.0100," ./current/RELEASES
-sed -i "/Z2      =/c\ Z2    =       100.0100," ./current/RELEASES
+sed -i "/Z1      =/c\ Z1      =         0.0100," ./current/RELEASES
+sed -i "/Z2      =/c\ Z2      =       100.0100," ./current/RELEASES
 sed -i "/PDQUER/c\ PDQUER=1.0E-06" ./current/SPECIES/SPECIES_040
 
 cp pathnames pathnames_tmp

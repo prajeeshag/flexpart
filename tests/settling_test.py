@@ -5,7 +5,7 @@ import re
 
 return_flag = False
 
-resolution=1.e7
+resolution=0.01 #Maximum allowed percentual difference
 
 compare = False
 # Comparing to previous version, if it exists
@@ -37,21 +37,25 @@ with open(output_name, 'a') as f:
       tmp2=tmp.split()
       mn2_prev=float(tmp2[4])
       mx2_prev=float(tmp2[7])
-      if (np.abs(mn-mn_prev)>(np.abs(mn)/resolution)): 
+      diff_pr=np.abs(mn-mn_prev)/np.abs(mn)*100.
+      if (diff_pr>resolution): 
         print("WARNING: ",idvars,"gives a different mean value compared to the previous version.")
-        print(np.abs(mn-mn_prev)/np.abs(mn)*100., "percent")
+        print(diff_pr, "percent")
         return_flag = True
-      if (np.abs(mn2-mn2_prev)>(np.abs(mn2)/resolution)): 
+      diff_pr=np.abs(mn2-mn2_prev)/np.abs(mn2)*100.
+      if (diff_pr>resolution): 
         print("WARNING: ",idvars,"ETA gives a different mean value compared to the previous version.")
-        print(np.abs(mn2-mn2_prev)/np.abs(mn2)*100., "percent")
+        print(diff_pr, "percent")
         return_flag = True
-      if (np.abs(mx-mx_prev)>(np.abs(mx)/resolution)):
+      diff_pr=np.abs(mx-mx_prev)/np.abs(mx)*100.
+      if (diff_pr>resolution): 
         print("WARNING: ",idvars,"gives a different max value compared to the previous version.")
-        print(np.abs(mx-mx_prev)/np.abs(mx)*100., "percent")
+        print(diff_pr, "percent")
         return_flag = True
-      if (np.abs(mx2-mx2_prev)>(np.abs(mx2)/resolution)):
+      diff_pr=np.abs(mx2-mx2_prev)/np.abs(mx2)*100.
+      if (diff_pr>resolution): 
         print("WARNING: ",idvars,"ETA gives a different max value compared to the previous version.")
-        print(np.abs(mx2-mx2_prev)/np.abs(mx2)*100., "percent")
+        print(diff_pr, "percent")
         return_flag = True
       #f.write(tmp)
       #f.write("\n")
@@ -81,21 +85,25 @@ with open(output_name, 'a') as f:
     tmp2=tmp.split()
     mn2_prev=float(tmp2[4])
     mx2_prev=float(tmp2[7])
-    if (np.abs(mn_c-mn_prev)>(np.abs(mn_c)/resolution)): 
+    diff_pr=np.abs(mn_c-mn_prev)/np.abs(mn_c)*100.
+    if (diff_pr>resolution): 
       print("WARNING: CONCENTRATIONS give a different mean value compared to the previous version.")
-      print(np.abs(mn_c-mn_prev)/np.abs(mn_c)*100, "percent")
+      print(diff_pr, "percent")
       return_flag = True
-    if (np.abs(mn2_c-mn2_prev)>(np.abs(mn2_c)/resolution)): 
+    diff_pr=np.abs(mn2_c-mn2_prev)/np.abs(mn2_c)*100.
+    if (diff_pr>resolution): 
       print("WARNING: ETA CONCENTRATIONS give a different mean value compared to the previous version.")
-      print(np.abs(mn2_c-mn2_prev)/np.abs(mn2_c)*100, "percent")
+      print(diff_pr, "percent")
       return_flag = True
-    if (np.abs(mx_c-mx_prev)>(np.abs(mx_c)/resolution)):
+    diff_pr=np.abs(mx_c-mx_prev)/np.abs(mx_c)*100.
+    if (diff_pr>resolution): 
       print("WARNING: CONCENTRATIONS give a different max value compared to the previous version.")
-      print(np.abs(mx_c-mx_prev)/np.abs(mx_c)*100, "percent")
+      print(diff_pr, "percent")
       return_flag = True
-    if (np.abs(mx2_c-mx2_prev)>(np.abs(mx2_c)/resolution)):
+    diff_pr=np.abs(mx2_c-mx2_prev)/np.abs(mx2_c)*100.
+    if (diff_pr>resolution): 
       print("WARNING: ETA CONCENTRATIONS give a different max value compared to the previous version.")
-      print(np.abs(mx2_c-mx2_prev)/np.abs(mx2_c)*100, "percent")
+      print(diff_pr, "percent")
       return_flag = True
     #f.write(tmp)
     #f.write("\n")
@@ -118,21 +126,25 @@ with open(output_name, 'a') as f:
     tmp2=tmp.split()
     mn2_prev=float(tmp2[5])
     mx2_prev=float(tmp2[8])
-    if (np.abs(mn_c-mn_prev)>(np.abs(mn_c)/resolution)): 
+    diff_pr=np.abs(mn_c-mn_prev)/np.abs(mn_c)*100.
+    if (diff_pr>resolution): 
       print("WARNING: Wet deposition gives a different mean value compared to the previous version.")
-      print(np.abs(mn_c-mn_prev)/np.abs(mn_c)*100, "percent")
+      print( "percent")
       return_flag = True
-    if (np.abs(mn2_c-mn2_prev)>(np.abs(mn2_c)/resolution)): 
+    diff_pr=np.abs(mn2_c-mn2_prev)/np.abs(mn2_c)*100.
+    if (diff_pr>resolution): 
       print("WARNING: Wet ETA deposition gives a different mean value compared to the previous version.")
-      print(np.abs(mn2_c-mn2_prev)/np.abs(mn2_c)*100, "percent")
+      print(diff_pr, "percent")
       return_flag = True
-    if (np.abs(mx_c-mx_prev)>(np.abs(mx_c)/resolution)):
+    diff_pr=np.abs(mx_c-mx_prev)/np.abs(mx_c)*100.
+    if (diff_pr>resolution): 
       print("WARNING: Wet deposition gives  a different max value compared to the previous version.")
-      print(np.abs(mx_c-mx_prev)/np.abs(mx_c)*100, "percent")
+      print(diff_pr, "percent")
       return_flag = True
-    if (np.abs(mx2_c-mx2_prev)>(np.abs(mx2_c)/resolution)):
+    diff_pr=np.abs(mx2_c-mx2_prev)/np.abs(mx2_c)*100.
+    if (diff_pr>resolution): 
       print("WARNING: Wet ETA deposition gives  a different max value compared to the previous version.")
-      print(np.abs(mx2_c-mx2_prev)/np.abs(mx2_c)*100, "percent")
+      print(diff_pr, "percent")
       return_flag = True
     #f.write(tmp)
     #f.write("\n")
@@ -155,21 +167,25 @@ with open(output_name, 'a') as f:
     tmp2=tmp.split()
     mn2_prev=float(tmp2[5])
     mx2_prev=float(tmp2[8])
-    if (np.abs(mn_c-mn_prev)>(np.abs(mn_c)/resolution)): 
+    diff_pr=np.abs(mn_c-mn_prev)/np.abs(mn_c)*100.
+    if (diff_pr>resolution): 
       print("WARNING: Dry deposition gives a different mean value compared to the previous version.")
-      print(np.abs(mn_c-mn_prev)/np.abs(mn_c)*100, "percent")
+      print(diff_pr, "percent")
       return_flag = True
-    if (np.abs(mn2_c-mn2_prev)>(np.abs(mn2_c)/resolution)): 
+    diff_pr=np.abs(mn2_c-mn2_prev)/np.abs(mn2_c)*100.
+    if (diff_pr>resolution): 
       print("WARNING: Dry ETA deposition gives a different mean value compared to the previous version.")
-      print(np.abs(mn2_c-mn2_prev)/np.abs(mn2_c)*100, "percent")
+      print(diff_pr, "percent")
       return_flag = True
-    if (np.abs(mx_c-mx_prev)>(np.abs(mx_c)/resolution)):
+    diff_pr=np.abs(mx_c-mx_prev)/np.abs(mx_c)*100.
+    if (diff_pr>resolution): 
       print("WARNING: Dry deposition gives a different max value compared to the previous version.")
-      print(np.abs(mx_c-mx_prev)/np.abs(mx_c)*100, "percent")
+      print(diff_pr, "percent")
       return_flag = True
-    if (np.abs(mx2_c-mx2_prev)>(np.abs(mx2_c)/resolution)):
+    diff_pr=np.abs(mx2_c-mx2_prev)/np.abs(mx2_c)*100.
+    if (diff_pr>resolution): 
       print("WARNING: Dry ETA deposition gives a different max value compared to the previous version.")
-      print(np.abs(mx2_c-mx2_prev)/np.abs(mx2_c)*100, "percent")
+      print(diff_pr, "percent")
       return_flag = True
     #f.write(tmp)
     #f.write("\n")

@@ -15,8 +15,8 @@ if (os.path.isfile("./settling_master.txt")):
 
 output_name = 'settling_orig.txt'
 with open(output_name, 'a') as f:
-  ndata = nc.Dataset("./output_settling_orig/partoutput_20090101000000_init.nc", 'r')
-  ndata2 = nc.Dataset("./output_settling_eta_orig/partoutput_20090101000000_init.nc", 'r')
+  ndata = nc.Dataset("./output_settling/partoutput_20090101000000_init.nc", 'r')
+  ndata2 = nc.Dataset("./output_settling_eta/partoutput_20090101000000_init.nc", 'r')
 
   dvars = list(ndata.variables)
   for idvars in dvars:
@@ -63,8 +63,8 @@ with open(output_name, 'a') as f:
   ndata.close()
   ndata2.close()
 
-  ndata = nc.Dataset("./output_settling_orig/grid_conc_20090101000000.nc", 'r')
-  ndata2 = nc.Dataset("./output_settling_eta_orig/grid_conc_20090101000000.nc", 'r')
+  ndata = nc.Dataset("./output_settling/grid_conc_20090101000000.nc", 'r')
+  ndata2 = nc.Dataset("./output_settling_eta/grid_conc_20090101000000.nc", 'r')
   
   print("Checking gridded output...")
   #Concentrations

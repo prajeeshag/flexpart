@@ -180,12 +180,19 @@ cp -rf ./default_options ./current
 sed -i "/IPOUT=/c\ IPOUT=  1," ./current/COMMAND
 sed "/SPECNUM_REL=/c\ SPECNUM_REL=   40," ./default_options/RELEASES > ./current/RELEASES
 sed -i "/PSHAPE/c\ PSHAPE= 0" ./current/SPECIES/SPECIES_040
+sed -i "/LON1    =/c\ LON1    =    10.00833011," ./current/RELEASES
+sed -i "/LON2    =/c\ LON2    =    30.00833011," ./current/RELEASES
+sed -i "/LAT1    =/c\ LAT1    =        20.0583," ./current/RELEASES
+sed -i "/LAT2    =/c\ LAT2    =        50.0583," ./current/RELEASES
+sed -i "/Z1      =/c\ Z1    =         0.0100," ./current/RELEASES
+sed -i "/Z2      =/c\ Z2    =       100.0100," ./current/RELEASES
 sed -i "/PDQUER/c\ PDQUER=1.0E-06" ./current/SPECIES/SPECIES_040
 
 cp pathnames pathnames_tmp
 sed -i "/output/c\./output_settling/" ./pathnames_tmp
 #sed -i "s/default_winds/default_etex/g" ./pathnames_tmp
 mkdir output_settling
+export OMP_NUM_THREADS=1
 ./FLEXPART pathnames_tmp
 
 cp pathnames pathnames_tmp
@@ -194,6 +201,7 @@ sed -i "/output/c\./output_settling_eta/" ./pathnames_tmp
 mkdir output_settling_eta
 ./FLEXPART_ETA pathnames_tmp
 
+export OMP_NUM_THREADS=32
 report "[$MM] TEST $TESTRUN (IPOUT=1)"
 STATUS=$((STATUS + $?))
 TESTSRUN=$((TESTSRUN + 1))

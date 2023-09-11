@@ -394,6 +394,8 @@ contains
       allocate( tmpxscav(count%allocated+nmpart,maxspec) )
       if (count%allocated.gt.0) tmpxscav(1:count%allocated,:) = xscav_frac1
       call move_alloc(tmpxscav,xscav_frac1)
+      ! Initialise it here
+      xscav_frac1(count%allocated+1:count%allocated+nmpart,:) = -1.
     endif
 
     if ((iout.eq.4).or.(iout.eq.5)) then

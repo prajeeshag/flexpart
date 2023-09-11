@@ -5,7 +5,7 @@ import re
 
 return_flag = False
 
-resolution=1.e7
+resolution=0.01
 
 compare = False
 # Comparing to previous version, if it exists
@@ -29,13 +29,15 @@ with open(output_name, 'a') as f:
     tmp2=tmp.split()
     mn_prev=float(tmp2[3])
     mx_prev=float(tmp2[6])
-    if (np.abs(mn_c-mn_prev)>(np.abs(mn_c)/resolution)): 
-      print("WARNING: CONCENTRATIONS give a different mean value compared to the previous version.")
-      print(np.abs(mn_c-mn_prev)/np.abs(mn_c)*100, "percent")
+    diff_pr=np.abs(mn_c-mn_prev)/np.abs(mn_c)*100.
+    if (diff_pr>resolution):
+      print("WARNING: DRY deposition give a different mean value compared to the previous version.")
+      print(diff_pr, "percent")
       return_flag = True
-    if (np.abs(mx_c-mx_prev)>(np.abs(mx_c)/resolution)):
-      print("WARNING: CONCENTRATIONS give a different max value compared to the previous version.")
-      print(np.abs(mx_c-mx_prev)/np.abs(mx_c)*100, "percent")
+    diff_pr=np.abs(mx_c-mx_prev)/np.abs(mx_c)*100.
+    if (diff_pr>resolution):
+      print("WARNING: DRY deposition give a different max value compared to the previous version.")
+      print(diff_pr, "percent")
       return_flag = True
     #f.write(tmp)
     #f.write("\n")
@@ -54,13 +56,15 @@ with open(output_name, 'a') as f:
     tmp2=tmp.split()
     mn_prev=float(tmp2[4])
     mx_prev=float(tmp2[7])
-    if (np.abs(mn_c-mn_prev)>(np.abs(mn_c)/resolution)): 
-      print("WARNING: CONCENTRATIONS give a different mean value compared to the previous version.")
-      print(np.abs(mn_c-mn_prev)/np.abs(mn_c)*100, "percent")
+    diff_pr=np.abs(mn_c-mn_prev)/np.abs(mn_c)*100.
+    if (diff_pr>resolution):
+      print("WARNING: DRY ETA deposition give a different mean value compared to the previous version.")
+      print(diff_pr, "percent")
       return_flag = True
+    diff_pr=np.abs(mx_c-mx_prev)/np.abs(mx_c)*100.
     if (np.abs(mx_c-mx_prev)>(np.abs(mx_c)/resolution)):
-      print("WARNING: CONCENTRATIONS give a different max value compared to the previous version.")
-      print(np.abs(mx_c-mx_prev)/np.abs(mx_c)*100, "percent")
+      print("WARNING: DRY ETA deposition give a different max value compared to the previous version.")
+      print(diff_pr, "percent")
       return_flag = True
     #f.write(tmp)
     #f.write("\n")
@@ -79,13 +83,15 @@ with open(output_name, 'a') as f:
     tmp2=tmp.split()
     mn_prev=float(tmp2[3])
     mx_prev=float(tmp2[6])
-    if (np.abs(mn_c-mn_prev)>(np.abs(mn_c)/resolution)): 
-      print("WARNING: CONCENTRATIONS give a different mean value compared to the previous version.")
-      print(np.abs(mn_c-mn_prev)/np.abs(mn_c)*100, "percent")
+    diff_pr=np.abs(mn_c-mn_prev)/np.abs(mn_c)*100.
+    if (diff_pr>resolution):
+      print("WARNING:  deposition give a different mean value compared to the previous version.")
+      print(diff_pr, "percent")
       return_flag = True
+    diff_pr=np.abs(mx_c-mx_prev)/np.abs(mx_c)*100.
     if (np.abs(mx_c-mx_prev)>(np.abs(mx_c)/resolution)):
-      print("WARNING: CONCENTRATIONS give a different max value compared to the previous version.")
-      print(np.abs(mx_c-mx_prev)/np.abs(mx_c)*100, "percent")
+      print("WARNING:  deposition give a different max value compared to the previous version.")
+      print(diff_pr, "percent")
       return_flag = True
     #f.write(tmp)
     #f.write("\n")
@@ -104,13 +110,15 @@ with open(output_name, 'a') as f:
     tmp2=tmp.split()
     mn_prev=float(tmp2[4])
     mx_prev=float(tmp2[7])
+    diff_pr=np.abs(mn_c-mn_prev)/np.abs(mn_c)*100.
     if (np.abs(mn_c-mn_prev)>(np.abs(mn_c)/resolution)): 
-      print("WARNING: CONCENTRATIONS give a different mean value compared to the previous version.")
-      print(np.abs(mn_c-mn_prev)/np.abs(mn_c)*100, "percent")
+      print("WARNING: WET ETA deposition  give a different mean value compared to the previous version.")
+      print(diff_pr, "percent")
       return_flag = True
+    diff_pr=np.abs(mx_c-mx_prev)/np.abs(mx_c)*100.
     if (np.abs(mx_c-mx_prev)>(np.abs(mx_c)/resolution)):
-      print("WARNING: CONCENTRATIONS give a different max value compared to the previous version.")
-      print(np.abs(mx_c-mx_prev)/np.abs(mx_c)*100, "percent")
+      print("WARNING: WET ETA deposition  give a different max value compared to the previous version.")
+      print(diff_pr, "percent")
       return_flag = True
     #f.write(tmp)
     #f.write("\n")

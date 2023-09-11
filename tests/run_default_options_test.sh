@@ -90,6 +90,8 @@ rm -rf ./current
 cp -rf ./default_options ./current
 sed -i "/LDIRECT=/c\ LDIRECT=   -1," ./current/COMMAND
 sed "/SPECNUM_REL=/c\ SPECNUM_REL=   40," ./default_options/RELEASES > ./current/RELEASES
+sed -i "/PSHAPE=/c\ PSHAPE= 0," ./current/SPECIES/SPECIES_040
+sed -i "/PDQUER=/c\ PDQUER=1.0E-06," ./current/SPECIES/SPECIES_040
 sed -i "/ITIME1  =/c\ ITIME1  =   030000," ./current/RELEASES
 sed -i "/ITIME2  =/c\ ITIME2  =   030000," ./current/RELEASES
 sed -i "/LON1    =/c\ LON1    =    -50.0," ./current/RELEASES
@@ -102,11 +104,11 @@ sed -i "/IND_RECEPTOR/c\ IND_RECEPTOR=  4," ./current/COMMAND
 sed -i "/IOUTPUTFOREACHRELEASE=/c\ IOUTPUTFOREACHRELEASE=  1," ./current/COMMAND
 
 cp pathnames pathnames_tmp
-sed -i "/output/c\./output_bkw/" ./pathnames_tmp
+sed -i "/output/c\./output_bkw_orig/" ./pathnames_tmp
 ./FLEXPART pathnames_tmp
 
 cp pathnames pathnames_tmp
-sed -i "/output/c\./output_bkw_eta/" ./pathnames_tmp
+sed -i "/output/c\./output_bkw_eta_orig/" ./pathnames_tmp
 ./FLEXPART_ETA pathnames_tmp
 
 report "[$MM] TEST $TESTRUN (IND_RECEPTOR=4)"

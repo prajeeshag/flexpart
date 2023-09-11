@@ -654,13 +654,13 @@ subroutine init_particle(itime,ipart)
   integer :: thread
 
 
-  ! Initialise scavenging for backward runs
-  !****************************************
-  if (DRYBKDEP.or.WETBKDEP) then ! if there is no scavenging in wetdepo it will be set to 0
-    do k=1,nspec
-      xscav_frac1(ipart,k)=-1.
-    end do
-  endif
+  ! ! Initialise scavenging for backward runs
+  ! !****************************************
+  ! if (DRYBKDEP.or.WETBKDEP) then ! if there is no scavenging in wetdepo it will be set to 0
+  !   do k=1,nspec
+  !     xscav_frac1(ipart,k)=-1.
+  !   end do
+  ! endif
 
 
 #ifdef _OPENMP

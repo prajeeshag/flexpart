@@ -1159,9 +1159,9 @@ subroutine init_domainfill
   end do
 
 
-  alive_tmp=count%alive
-  spawned_tmp=count%spawned
-  terminated_tmp=count%terminated
+  ! alive_tmp=count%alive
+  ! spawned_tmp=count%spawned
+  ! terminated_tmp=count%terminated
 
 ! !$OMP PARALLEL PRIVATE(j) REDUCTION(+:alive_tmp,spawned_tmp,allocated_tmp,terminated_tmp)
  
@@ -1172,16 +1172,16 @@ subroutine init_domainfill
     if ((part(j)%xlon.lt.0.).or.(part(j)%xlon.ge.real(nxmin1,kind=dp)).or. &
          (part(j)%ylat.lt.0.).or.(part(j)%ylat.ge.real(nymin1,kind=dp))) then
       call terminate_particle(j,0) ! Cannot be within an OMP region
-      alive_tmp=alive_tmp-1
-      terminated_tmp=terminated_tmp+1
+      ! alive_tmp=alive_tmp-1
+      ! terminated_tmp=terminated_tmp+1
     endif
   end do
 ! !$OMP END DO
 ! !$OMP END PARALLEL
 
-  count%alive=alive_tmp
-  count%spawned=spawned_tmp
-  count%terminated=terminated_tmp
+  ! count%alive=alive_tmp
+  ! count%spawned=spawned_tmp
+  ! count%terminated=terminated_tmp
   ! Check whether numpart is really smaller than maxpart
   !*****************************************************
 

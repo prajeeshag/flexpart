@@ -442,10 +442,9 @@ subroutine timemanager
 #endif
 
   ! Terminating particles flagged in advance call
-  do i=1,count%alive
-    j=count%ialive(i)
-    if (part(j)%nstop) then
-      call terminate_particle(j,itime)
+  do i=1,count%spawned
+    if ((part(i)%nstop).and.(part(i)%alive)) then
+      call terminate_particle(i,itime)
     endif
   end do
 
@@ -549,10 +548,9 @@ subroutine timemanager
 !$OMP END PARALLEL
 
   ! Terminating particles flagged due to insufficient mass or exceeded max age
-  do i=1,count%alive
-    j=count%ialive(i)
-    if (part(j)%nstop) then
-      call terminate_particle(j,itime)
+  do i=1,count%spawned
+    if ((part(i)%nstop).and.(part(i)%alive)) then
+      call terminate_particle(i,itime)
     endif
   end do
 

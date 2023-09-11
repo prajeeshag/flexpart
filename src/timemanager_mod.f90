@@ -181,7 +181,7 @@ subroutine timemanager
   ! of the size of these files.
   !*********************************************************************
     
-    write(*,*) 'Time: ', itime, 'seconds.'
+    write(*,*) 'Time: ', itime, 'seconds. Total spawned:',count%spawned, 'alive:',count%alive, 'terminated:',count%terminated
 
     if (itime.eq.itime_init) then
       call SYSTEM_CLOCK(count_clock, count_rate, count_max)

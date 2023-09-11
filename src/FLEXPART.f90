@@ -44,7 +44,7 @@ program flexpart
   real :: s_timemanager
   character(len=256) ::   &
     inline_options          ! pathfile, flexversion, arg2
-  character(len=256) :: gitversion_tmp="56ae844 HEAD -> optimise, origin/optimise Wed Sep 6 15:05:45 2023 +0200"
+  character(len=256) :: gitversion_tmp="7257dae HEAD -> optimise, origin/optimise Mon Sep 11 15:11:05 2023 +0200"
 
   ! Keeping track of the total running time of FLEXPART, printed out at the end.
   !*****************************************************************************
@@ -422,7 +422,7 @@ subroutine initialise_particles
   !**************************************************************
   if (lsettling) then
     do i=1,nspec
-      if (ishape(i).eq.1) l_lookup=.true.
+      if (ishape(i).eq.0) l_lookup=.true.
     end do
     if (l_lookup) call init_dragcoeff_lookup()
   endif

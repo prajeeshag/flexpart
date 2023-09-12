@@ -1,28 +1,21 @@
 SHELL = /bin/bash
 ################################################################################
 #  DESCRIPTION
-#    Makefile for FLEXPART. Standard (serial) and parallel (MPI) version
+#    Makefile for FLEXPART.
 #
-#    Dependencies are resolved in this makefile, so parallel make is
-#    possible ("make -j")
-#
-#    gcc 8+ is required.
+#    also set environment variables CPATH and LD_LIBRARY_PATH to point to compiler libraries
 #
 #    Makefile was modified to produce unified executable for both ECMWF and GFS meteo data formats
 #    gributils were included to detect format of meteo data
 #
-#    Cpp directives USE_MPIINPLACE were added to three source files. The effect of these directives 
-#    are to enable the MPI_IN_PLACE option only if compiled with a -DUSE_MPIINPLACE directive. 
-#    Otherwise, a safer option (which requires the allocation of another array) is used by default. 
-#    In makefile added the -x f95-cpp-input flag for compiling of cpp directives.
-# 
 #  USAGE
-#    Compile serial FLEXPART 
-#      make [-j] serial
+#    Compile FLEXPART
+#      make [-j]
+#    Compile FLEXPART with eta coordinates
+#      make [-j] eta=yes
+#    Compile FLEXPART without NetCDF
+#      make [-j] eta=<yes/no> ncf=no
 #
-#  NETCDF OUTPUT
-#    To remove support for output in netCDF format, append `ncf=no` to the
-#    `make` command
 # 
 ################################################################################
 
@@ -91,7 +84,7 @@ mpi: FUSER := $(FUSER) -Dusempi #-MM -MT -MD
 ## LIBRARIES
 LIBS = -leccodes -leccodes_f90 -lm $(NCOPT) $(ETAOPT) #MD -ljasper
 
-FFLAGS   = $(INC) -O$(O_LEV) -m64 -cpp -mcmodel=large -O$(O_LEV) $(NCOPT) $(ETAOPT) $(FUSER)  #-convert little_endian -fpp -WB -check all
+FFLAGS   = $(INC) -O$(O_LEV) -m64 -cpp -mcmodel=large $(NCOPT) $(ETAOPT) $(FUSER)  #-convert little_endian -fpp -WB -check all
 
 DBGFLAGS = $(INC) -O$(O_LEV_DBG) -g3 -ggdb3 -cpp -m64 -mcmodel=large -fconvert=little-endian -frecord-marker=4 -fmessage-length=0 -flto=jobserver -O$(O_LEV_DBG) $(NCOPT) $(ETAOPT) -fbacktrace   -Wall  -fdump-core $(FUSER)  #  -ffpe-trap=invalid,overflow,denormal,underflow,zero  -Warray-bounds -fcheck=all
 
@@ -100,25 +93,24 @@ LDDEBUG  = $(DBGFLAGS) $(LIBPATH) $(LIBRPATH) $(LIBS)
 
 MODOBJS = \
 advance_mod.o 		binary_output_mod.o \
-cbl_mod.o 		cmapf_mod.o \
-com_mod.o 		conv_mod.o \
+cbl_mod.o 			cmapf_mod.o \
+com_mod.o 			conv_mod.o \
 class_gribfile_mod.o \
-date_mod.o 		drydepo_mod.o \
-erf_mod.o 		flux_mod.o \
+date_mod.o 			drydepo_mod.o \
+erf_mod.o 			flux_mod.o \
 getfields_mod.o 	initialise_mod.o \
 interpol_mod.o 		mean_mod.o \
-ohr_mod.o 		outgrid_mod.o \
+ohr_mod.o 			outgrid_mod.o \
 output_mod.o 		par_mod.o \
 particle_mod.o 		pbl_profile_mod.o \
 plume_mod.o 		point_mod.o \
 random_mod.o 		readoptions_mod.o \
 restart_mod.o 		settling_mod.o \
-sort_mod.o  \
-timemanager_mod.o 	turbulence_mod.o \
-txt_output_mod.o 	unc_mod.o \
-verttransform_mod.o 	wetdepo_mod.o \
-windfields_mod.o 	qvsat_mod.o \
-xmass_mod.o
+sort_mod.o  		timemanager_mod.o \
+turbulence_mod.o 	txt_output_mod.o \
+unc_mod.o 			verttransform_mod.o \
+wetdepo_mod.o 		windfields_mod.o \
+qvsat_mod.o 		xmass_mod.o
 
 OBJECTS_NCF = netcdf_output_mod.o
 

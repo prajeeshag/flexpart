@@ -57,7 +57,7 @@ subroutine find_dragcoeff(reynolds, c_drag)
   if (reynolds.le.0.02) then
     c_drag=(24.0/reynolds)
 
-  else if (reynolds.le.8000) then ! Outside of lookup table range
+  else if (reynolds.gt.8000) then ! Outside of lookup table range
     c_drag=(24.0/reynolds)*(1+0.15*(reynolds**0.687))+ &
       0.42/(1.0+42500.0/(reynolds**1.16))
 

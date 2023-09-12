@@ -907,7 +907,7 @@ subroutine verttransform_ecmwf_cloud(lreadclouds,lsumclouds,nxlim,nylim,clouds_t
   real,intent(in) :: ciwc_tmp(0:nxlim,0:nylim,nzmax)
   real,intent(in) :: lsprec_tmp(0:nxlim,0:nylim),convprec_tmp(0:nxlim,0:nylim)
   real,intent(in),dimension(0:nxlim,0:nylim,nzmax) :: rho_tmp,tt_tmp,qv_tmp
-  real,intent(out),dimension(0:nxlim,0:nylim,nzmax) :: uvzlev
+  real,intent(in),dimension(0:nxlim,0:nylim,nzmax) :: uvzlev
 
   integer,dimension(0:nxmax-1,0:nymax-1) :: rain_cloud_above
 

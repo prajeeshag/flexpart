@@ -898,12 +898,12 @@ subroutine readcommand
 
   ! Check whether input and output settings don't contradict
   !*********************************************************
-  if (((iout.eq.4).or.(iout.eq.5)).and.((ipin.eq.3).or.(ipin.eq.4))) then
-    write(*,*) ' #### FLEXPART MODEL ERROR! FILE COMMAND:     #### '
-    write(*,*) ' #### IOUT CANNOT BE 4 or 5 (plume) WHEN      #### '
-    write(*,*) ' #### READING FROM part_ic.nc (ipin=4/5)      #### '
-    error stop
-  endif    
+  ! if (((iout.eq.4).or.(iout.eq.5)).and.((ipin.eq.3).or.(ipin.eq.4))) then
+  !   write(*,*) ' #### FLEXPART MODEL ERROR! FILE COMMAND:     #### '
+  !   write(*,*) ' #### IOUT CANNOT BE 4 or 5 (plume) WHEN      #### '
+  !   write(*,*) ' #### READING FROM part_ic.nc (ipin=4/5)      #### '
+  !   error stop
+  ! endif    
 
   if(lsubgrid.ne.1.and.verbosity.eq.0) then
     write(*,*) '             ----------------               '
@@ -1383,12 +1383,12 @@ subroutine readlanduse
 998 write(*,*) ' #### FLEXPART ERROR! FILE                     ####'
   write(*,*)   ' #### ', path(1)(1:length(1))//'IGBP_int1.dat'
   write(*,*)   " #### (LANDUSE INVENTORY) COULD NOT BE OPENED  ####"
-  stop
+  error stop
 
 999 write(*,*) ' #### FLEXPART ERROR! FILE              ####'
   write(*,*)   ' #### ', path(1)(1:length(1))//'sfcdata.t'
   write(*,*)   ' #### DOES NOT EXIST.                   ####'
-  stop
+  error stop
 end subroutine readlanduse
 
 subroutine readoutgrid

@@ -256,7 +256,7 @@ subroutine nf90_err(status)
   integer, intent (in) :: status
    if(status /= nf90_noerr) then
       print *, trim(nf90_strerror(status))
-      stop 'Stopped'
+      error stop 'Stopped'
     end if
 end subroutine nf90_err
 
@@ -308,7 +308,7 @@ subroutine writeheader_netcdf(lnest)
        & (or failed to write there).' 
   write(*,*) 'EXITING' 
   write(*,FMT='(80("#"))')
-  stop
+  error stop
 101 continue
 
   !************************
@@ -2129,7 +2129,7 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
           'meters',.true.,'htropo_average','averaged height above ground of tropopause')
       case default
         write(*,*) 'The field you are trying to write to file is not coded in yet: ', partopt(np)%long_name
-        stop
+        error stop
     end select
   end do
   ! global (metadata) attributes
@@ -2147,7 +2147,7 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
        & (or failed to write there).' 
   write(*,*) 'EXITING' 
   write(*,FMT='(80("#"))')
-  stop
+  error stop
 end subroutine writeheader_partoutput
 
 subroutine write_to_file(ncid,short_name,xtype,dimids,varid,chunksizes,units,l_positive, &
@@ -2399,7 +2399,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   
   if (mquasilag.ne.0) then 
     write(*,*) 'Combination of ipin, netcdf partoutput, and mquasilag!=0 does not work yet'
-    stop 
+    error stop 
   endif
 
   ! Open partoutput_end.nc file
@@ -2431,7 +2431,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
     write(*,*) 'ERROR: The given starting time and date do not correspond to'
     write(*,*) 'the last timestep of partoutput_end.nc:'
     write(*,*) julin,julcommand,tend
-    stop 
+    error stop 
   endif
 
   ! Then the particle dimension
@@ -2515,7 +2515,7 @@ subroutine readinitconditions_netcdf()
   
   if (mquasilag.ne.0) then 
     write(*,*) 'Combination of ipin, netcdf partoutput, and mquasilag!=0 does not work yet'
-    stop 
+    error stop 
   endif
 
   ! Open part_ic.nc file
@@ -2612,7 +2612,7 @@ subroutine readinitconditions_netcdf()
   do j=1,numpoint
    if ((kindz(j).le.0).or.(kindz(j).ge.4)) then
       write(*,*) 'ERROR: kindz should be an integer between 1 and 3, not', kindz(nsp)
-      stop
+      error stop
    endif
   end do
 
@@ -2646,6 +2646,26 @@ subroutine readinitconditions_netcdf()
     if (part(i)%z.lt.zpoint1(part(i)%npoint)) zpoint1(part(i)%npoint)=part(i)%z
   end do
 
+  ! Setting xpoint1, ypoint1, xpoint2, ypoint2
+  allocate(ypoint1(numpoint),ypoint2(numpoint))
+  allocate(xpoint1(numpoint),xpoint2(numpoint))
+  xpoint2(:)=0.
+  xpoint1(:)=1.e8
+  ypoint2(:)=0.
+  ypoint1(:)=1.e8
+  do i=1,plen
+    if (part(i)%xlon.gt.xpoint2(part(i)%npoint)) xpoint2(part(i)%npoint)=part(i)%xlon
+    if (part(i)%xlon.lt.xpoint1(part(i)%npoint)) xpoint1(part(i)%npoint)=part(i)%xlon
+    if (part(i)%ylat.gt.ypoint2(part(i)%npoint)) ypoint2(part(i)%npoint)=part(i)%ylat
+    if (part(i)%ylat.lt.ypoint1(part(i)%npoint)) ypoint1(part(i)%npoint)=part(i)%ylat
+  end do
+  do j=1,numpoint
+    xpoint1(j)=(xpoint1(j)-xlon0)/dx
+    xpoint2(j)=(xpoint2(j)-xlon0)/dx
+    ypoint1(j)=(ypoint1(j)-ylat0)/dy
+    ypoint2(j)=(ypoint2(j)-ylat0)/dy
+  end do
+
   allocate(xmass(numpoint,nspec), npart(numpoint),ireleasestart(numpoint),ireleaseend(numpoint))
   xmass=0
   npart=0
@@ -2665,11 +2685,6 @@ subroutine readinitconditions_netcdf()
       endif
     end do
   end do
-  if ((iout.eq.4).or.(iout.eq.5)) then
-    write(*,*) "ERROR: IPIN=3 or IPIN=4, using the part_ic.nc file, is not possible in combination with plume", &
-      "computations (IOUT=4 or 5)."
-    stop
-  endif
 
   part(:)%idt=mintime
   do i=1,plen
@@ -2712,7 +2727,7 @@ subroutine readinitconditions_netcdf()
       write(*,*) 'must be specified for all simulated species.'
       write(*,*) 'Check table SPECIES or choose concentration'
       write(*,*) 'output instead if molar weight is not known.'
-      stop
+      error stop
     endif
 
     ! Radioactive decay

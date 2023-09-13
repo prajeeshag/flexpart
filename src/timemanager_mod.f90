@@ -625,8 +625,8 @@ subroutine timemanager
   if (numbnests.ge.1) call dealloc_windfields_nest
   if (iflux.eq.1) deallocate(flux)
   if (OHREA) deallocate(OH_field,OH_hourly,lonOH,latOH,altOH)
-  if (ipin.ne.3 .and. ipin.ne.4) &
-    deallocate(xpoint1,xpoint2,ypoint1,ypoint2,zpoint1,zpoint2,xmasssave)
+  if (ipin.ne.3 .and. ipin.ne.4) deallocate(xmasssave)
+  deallocate(xpoint1,xpoint2,ypoint1,ypoint2,zpoint1,zpoint2)
   deallocate(xmass)
   deallocate(ireleasestart,ireleaseend,npart,kindz)
   deallocate(nan_count)

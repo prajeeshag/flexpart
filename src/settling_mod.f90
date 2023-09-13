@@ -5,88 +5,90 @@ module settling_mod
   implicit none
 
   integer :: re_nsteps ! Number of Reynolds number table points
-  real, allocatable ,dimension(:) :: re_lookup, cd_lookup
+  ! real, allocatable ,dimension(:) :: re_lookup, cd_lookup
 
 
   private :: viscosity
   public :: get_settling
 contains
 
-subroutine init_dragcoeff_lookup()
-  implicit none
-  !*****************************
-  ! Clift and Guavin 1971 model*
-  !*****************************
-  real :: re_min, re_max ! Range of Reynolds numbers
-  integer :: i
+! subroutine init_dragcoeff_lookup()
+!   implicit none
+!   !*****************************
+!   ! Clift and Guavin 1971 model*
+!   !*****************************
+!   real :: re_min, re_max ! Range of Reynolds numbers
+!   integer :: i
 
-  re_nsteps=1000
+!   re_nsteps=1000
 
-  allocate (re_lookup(re_nsteps), cd_lookup(re_nsteps))
+!   allocate (re_lookup(re_nsteps), cd_lookup(re_nsteps))
 
-  ! Reynolds numbers range between 0.2 and 8000. 
-  ! Below this range, the approx of re/24 is sufficient and above 8000, the 
-  ! full equation is executed during run-time.
-  ! logarithmic spacing with a 1000 steps gives a maximum deviation of drag_coeff of
-  ! 0.07% as compared to using the full equation (mean=0.0037% deviation)
-  !**********************************************************************
-  re_min=log10(0.02)
-  re_max=log10(8000.)
-  do i=1,re_nsteps
-    re_lookup(i) = 10.**((re_max-re_min) * real(i-1) / real(re_nsteps-1) + re_min)
-  end do
+!   ! Reynolds numbers range between 0.2 and 8000. 
+!   ! Below this range, the approx of re/24 is sufficient and above 8000, the 
+!   ! full equation is executed during run-time.
+!   ! logarithmic spacing with a 1000 steps gives a maximum deviation of drag_coeff of
+!   ! 0.07% as compared to using the full equation (mean=0.0037% deviation)
+!   !**********************************************************************
+!   re_min=log10(0.02)
+!   re_max=log10(8000.)
+!   do i=1,re_nsteps
+!     re_lookup(i) = 10.**((re_max-re_min) * real(i-1) / real(re_nsteps-1) + re_min)
+!   end do
 
-  ! Computing drag coefficients
-  !****************************
-  cd_lookup=(24.0/re_lookup)*(1+0.15*(re_lookup**0.687))+ &
-      0.42/(1.0+42500.0/(re_lookup**1.16))
+!   ! Computing drag coefficients
+!   !****************************
+!   cd_lookup=(24.0/re_lookup)*(1+0.15*(re_lookup**0.687))+ &
+!       0.42/(1.0+42500.0/(re_lookup**1.16))
 
-end subroutine init_dragcoeff_lookup
+! end subroutine init_dragcoeff_lookup
 
-subroutine find_dragcoeff(reynolds, c_drag)
-  implicit none
-  real, intent(in) :: reynolds
-  real, intent(out) :: c_drag
-  integer :: i, i_re
-  real :: dre,dre1,dre2
+! subroutine find_dragcoeff(reynolds, c_drag)
+!   implicit none
+!   real, intent(in) :: reynolds
+!   real, intent(out) :: c_drag
+!   integer :: i, i_re, minsteps
+!   real :: dre,dre1,dre2
+!   ! This lookup table is extremely slow. For now it will just return
+!   ! the function instead.
 
 
-  ! If reynolds<0.2, approximation 24/reynolds is valid
-  ! 24/reynolds makes up >99% of all components
-  !****************************************************
-  if (reynolds.le.0.02) then
-    c_drag=(24.0/reynolds)
+!   ! If reynolds<0.2, approximation 24/reynolds is valid
+!   ! 24/reynolds makes up >99% of all components
+!   !****************************************************
+!   if (reynolds.le.0.02) then
+!     c_drag=(24.0/reynolds)
 
-  else if (reynolds.gt.8000) then ! Outside of lookup table range
-    c_drag=(24.0/reynolds)*(1+0.15*(reynolds**0.687))+ &
-      0.42/(1.0+42500.0/(reynolds**1.16))
+!   else if (reynolds.gt.8000) then ! Outside of lookup table range
+!     c_drag=(24.0/reynolds)*(1+0.15*(reynolds**0.687))+ &
+!       0.42/(1.0+42500.0/(reynolds**1.16))
 
-  else
-    ! Linear search for correct indices in lookup table
-    !**************************************************
-    i_re = re_nsteps
-    do i = 1, re_nsteps
-      if (re_lookup(i) >= reynolds) then
-        i_re=i
-        exit
-      endif
-    end do
+!   else
+!     ! Linear search for correct indices in lookup table
+!     !**************************************************
+!     i_re = re_nsteps
+!     do i = 0, re_nsteps
+!       if (re_lookup(i).ge.reynolds) then
+!         i_re=i
+!         exit
+!       endif
+!     end do
 
-    ! Linear interpolation (maybe also do logarithmic?)
-    !*********************
-    if (i_re.eq.re_nsteps) then
-      c_drag=cd_lookup(re_nsteps)
-    else if (i_re.eq.1) then
-      c_drag=cd_lookup(1)
-    else
-      dre=1./(cd_lookup(i_re+1)-cd_lookup(i_re))
-      dre1=(reynolds-re_lookup(i_re))*dre
-      dre2=(re_lookup(i_re+1)-reynolds)*dre
-      c_drag=dre1*cd_lookup(i_re+1)+dre2*cd_lookup(i_re)
-    endif
-  endif
+!     ! Linear interpolation (maybe also do logarithmic?)
+!     !*********************
+!     if (i_re.eq.re_nsteps) then
+!       c_drag=cd_lookup(re_nsteps)
+!     else if (i_re.eq.1) then
+!       c_drag=cd_lookup(1)
+!     else
+!       dre=1./(cd_lookup(i_re+1)-cd_lookup(i_re))
+!       dre1=(reynolds-re_lookup(i_re))*dre
+!       dre2=(re_lookup(i_re+1)-reynolds)*dre
+!       c_drag=dre1*cd_lookup(i_re+1)+dre2*cd_lookup(i_re)
+!     endif
+!   endif
 
-end subroutine
+! end subroutine
 
 subroutine get_settling(xt,yt,zt,nsp,settling)
   !                          i   i  i  i   i     o
@@ -220,7 +222,18 @@ subroutine get_settling(xt,yt,zt,nsp,settling)
 
       ! Clift and Guavin 1971 model
 
-      call find_dragcoeff(reynolds, c_d)
+      ! call find_dragcoeff(reynolds, c_d)
+
+      ! If reynolds<0.2, approximation 24/reynolds is valid
+      ! 24/reynolds makes up >99% of all components
+      !****************************************************
+      if (reynolds.le.0.02) then
+        c_d=(24.0/reynolds)
+
+      else ! Outside of lookup table range
+        c_d=(24.0/reynolds)*(1+0.15*(reynolds**0.687))+ &
+          0.42/(1.0+42500.0/(reynolds**1.16))
+      endif
 
       settling=-1.* &
            sqrt(4*ga*dquer(nsp)/1.e6*density(nsp)*cunningham(nsp)/ &

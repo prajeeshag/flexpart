@@ -44,7 +44,7 @@ program flexpart
   real :: s_timemanager
   character(len=256) ::   &
     inline_options          ! pathfile, flexversion, arg2
-  character(len=256) :: gitversion_tmp="eaa61eb HEAD -> optimise Mon Sep 11 16:40:18 2023 +0200"
+  character(len=256) :: gitversion_tmp="9e60d30 HEAD -> optimise, origin/optimise Wed Sep 13 10:45:56 2023 +0200"
 
   ! Keeping track of the total running time of FLEXPART, printed out at the end.
   !*****************************************************************************
@@ -377,7 +377,7 @@ subroutine initialise_particles
   implicit none
 
   integer :: i
-  logical :: l_lookup=.false.
+  ! logical :: l_lookup=.false.
 
   ! Read the coordinates of the release locations
   !**********************************************
@@ -418,13 +418,13 @@ subroutine initialise_particles
     numparticlecount=0
   endif
 
-  ! Initialise look-up table for drag coefficients when necessary
-  !**************************************************************
-  if (lsettling) then
-    do i=1,nspec
-      if (ishape(i).eq.0) l_lookup=.true.
-    end do
-    if (l_lookup) call init_dragcoeff_lookup()
-  endif
+  ! ! Initialise look-up table for drag coefficients when necessary
+  ! !**************************************************************
+  ! if (lsettling) then
+  !   do i=1,nspec
+  !     if (ishape(i).eq.0) l_lookup=.true.
+  !   end do
+  !   if (l_lookup) call init_dragcoeff_lookup()
+  ! endif
 
 end subroutine initialise_particles

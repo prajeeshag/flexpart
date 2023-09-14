@@ -2214,7 +2214,7 @@ end subroutine open_partinit_file
 
 subroutine partoutput_netcdf(itime,field,fieldname,imass,ncid)
   
-
+  use particle_mod
   !*****************************************************************************
   !                                                                            *
   !   Writing a field from PARTOPTIONS to partoutput_xxx.nc created in         *
@@ -2239,19 +2239,19 @@ subroutine partoutput_netcdf(itime,field,fieldname,imass,ncid)
       tpointer_part = tpointer_part + 1
       call nf90_err(nf90_put_var(ncid, timeIDpart, itime, (/ tpointer_part /)))
     case('PA')
-      newpart = numpart - ppointer_part
+      newpart = count%allocated - ppointer_part
       
       if (tpointer_part.eq.1) then 
-        allocate ( partindices(numpart) )
-        do j=1,numpart 
+        allocate ( partindices(count%allocated) )
+        do j=1,count%allocated 
           partindices(j)=j
         end do 
 
-        call nf90_err(nf90_put_var(ncid, partID,partindices, (/ 1 /),(/ numpart /)))
+        call nf90_err(nf90_put_var(ncid, partID,partindices, (/ 1 /),(/ count%allocated /)))
 
         deallocate (partindices)
 
-        ppointer_part = numpart 
+        ppointer_part = count%allocated
 
       else if (newpart.ge.0) then
 
@@ -2264,103 +2264,103 @@ subroutine partoutput_netcdf(itime,field,fieldname,imass,ncid)
         
         deallocate (partindices)
 
-        ppointer_part = numpart
+        ppointer_part = count%allocated
       endif 
     case('LO') ! Longitude
-      call nf90_err(nf90_put_var(ncid,lonIDpart,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,lonIDpart,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('lo') ! Longitude averaged
-      call nf90_err(nf90_put_var(ncid,lonavIDpart,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,lonavIDpart,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('LA') ! Latitude
-      call nf90_err(nf90_put_var(ncid,latIDpart,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,latIDpart,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('la') ! Latitude averaged
-      call nf90_err(nf90_put_var(ncid,latavIDpart,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,latavIDpart,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('ZZ') ! Height
-      call nf90_err(nf90_put_var(ncid,levIDpart,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,levIDpart,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('zz') ! Height averaged
-      call nf90_err(nf90_put_var(ncid,levavIDpart,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,levavIDpart,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('IT') ! Itramem (not in use atm)
-      call nf90_err(nf90_put_var(ncid,itramemID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,itramemID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('TO') ! Topography
       if (mdomainfill.ge.1) then 
         if (topo_written.eqv..false.) call nf90_err(nf90_put_var(ncid,topoID,oro(0:nx-1,0:ny-1), (/ 1,1 /),(/ nx,ny /)))
         topo_written=.true.
       else
-        call nf90_err(nf90_put_var(ncid,topoID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+        call nf90_err(nf90_put_var(ncid,topoID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
       endif
     case('to') ! topography averaged
-      call nf90_err(nf90_put_var(ncid,topoavID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,topoavID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('PV') ! Potential vorticity
-      call nf90_err(nf90_put_var(ncid,pvID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,pvID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('pv') ! Potential vorticity averaged
-      call nf90_err(nf90_put_var(ncid,pvavID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,pvavID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('PR') ! Pressure
-      call nf90_err(nf90_put_var(ncid,prID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,prID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('pr') ! Pressure averaged
-      call nf90_err(nf90_put_var(ncid,pravID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,pravID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('QV') ! Specific humidity
-      call nf90_err(nf90_put_var(ncid,qvID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,qvID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('qv') ! Specific humidity averaged
-      call nf90_err(nf90_put_var(ncid,qvavID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,qvavID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('RH') ! Air density
-      call nf90_err(nf90_put_var(ncid,rhoID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,rhoID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('rh') ! Air density averaged
-      call nf90_err(nf90_put_var(ncid,rhoavID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,rhoavID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('UU') ! Longitudinal velocity
-      call nf90_err(nf90_put_var(ncid,uID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,uID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('uu') ! Longitudinal velocity averaged
-      call nf90_err(nf90_put_var(ncid,uavID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,uavID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('VV') ! Latitudinal velocity
-      call nf90_err(nf90_put_var(ncid,vID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,vID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('vv') ! Latitudinal velocity averaged
-      call nf90_err(nf90_put_var(ncid,vavID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,vavID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('WW') ! Vertical velocity
-      call nf90_err(nf90_put_var(ncid,wID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,wID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('ww') ! Vertical velocity averaged
-      call nf90_err(nf90_put_var(ncid,wavID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,wavID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('VS') ! Settling velocity
-      call nf90_err(nf90_put_var(ncid,vsetID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,vsetID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('vs') ! Settling velocity averaged
-      call nf90_err(nf90_put_var(ncid,vsetavID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,vsetavID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('HM') ! Mixing height
       if (mdomainfill.ge.1) then 
         call nf90_err(nf90_put_var(ncid,hmixID,hmix(0:nx-1,0:ny-1,1,memind(1)), &
           (/ tpointer_part,1,1 /),(/ 1,nx,ny /)))
       else
-        call nf90_err(nf90_put_var(ncid,hmixID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+        call nf90_err(nf90_put_var(ncid,hmixID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
       endif
     case('hm') ! Mixing height averaged
-      call nf90_err(nf90_put_var(ncid,hmixavID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,hmixavID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('TR') ! Tropopause
       if (mdomainfill.ge.1) then 
         call nf90_err(nf90_put_var(ncid,trID,tropopause(0:nx-1,0:ny-1,1,memind(1)), &
           (/ tpointer_part,1,1 /),(/ 1,nx,ny /)))
       else
-        call nf90_err(nf90_put_var(ncid,trID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+        call nf90_err(nf90_put_var(ncid,trID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
       endif
     case('tr') ! Tropopause averaged
-      call nf90_err(nf90_put_var(ncid,travID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,travID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('TT') ! Temperature
-      call nf90_err(nf90_put_var(ncid,ttID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,ttID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('tt') ! Temperature averaged
-      call nf90_err(nf90_put_var(ncid,ttavID,field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,ttavID,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('MA') ! Mass
       if ((mdomainfill.ge.1).and.(imass.eq.1)) then
         if (mass_written.eqv..false.) call nf90_err(nf90_put_var(ncid=ncid,varid=massID(1),values=field(1)))
         mass_written=.true.
       else
-        call nf90_err(nf90_put_var(ncid,massID(imass),field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+        call nf90_err(nf90_put_var(ncid,massID(imass),field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
       endif
     case('ma') ! Mass averaged
       if ((mdomainfill.ge.1).and.(imass.eq.1)) then
         if (mass_written.eqv..false.) call nf90_err(nf90_put_var(ncid=ncid,varid=massavID(1),values=field(1)))
         massav_written=.true.
       else
-        call nf90_err(nf90_put_var(ncid,massavID(imass),field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+        call nf90_err(nf90_put_var(ncid,massavID(imass),field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
       endif
     case('WD') ! Cumulative mass of wet deposition
-      call nf90_err(nf90_put_var(ncid,wdID(imass),field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,wdID(imass),field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
     case('DD') ! Cumulative mass of wet deposition
-      call nf90_err(nf90_put_var(ncid,ddID(imass),field, (/ tpointer_part,1 /),(/ 1,numpart /)))
+      call nf90_err(nf90_put_var(ncid,ddID(imass),field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
   end select
 
   ! call nf90_err(nf90_close(ncid))

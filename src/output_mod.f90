@@ -188,10 +188,10 @@ subroutine output_particles(itime,initial_output)
   character :: adate*8,atime*6
 
   real :: dummy(2)
-  real :: masstemp(count%spawned,nspec),masstemp_av(count%spawned,nspec)
-  real :: wetdepotemp(count%spawned,nspec),drydepotemp(count%spawned,nspec)
+  real :: masstemp(count%allocated,nspec),masstemp_av(count%allocated,nspec)
+  real :: wetdepotemp(count%allocated,nspec),drydepotemp(count%allocated,nspec)
 
-  real :: output(num_partopt, count%spawned)
+  real :: output(num_partopt, count%allocated)
 
   real :: cartxyz(3)
   logical :: cartxyz_comp
@@ -215,7 +215,7 @@ subroutine output_particles(itime,initial_output)
   call find_time_vars(itime)
 
 !$OMP DO
-  do i=1,count%spawned ! Loop over all particles, including terminated ones
+  do i=1,count%allocated ! Loop over all particles, including terminated ones
     if (((.not. part(i)%alive).and.(abs(part(i)%tend-itime).ge.ipoutfac*loutstep)) .or. &
       (init_out .and. (i.lt.partinitpointer1-1))) then ! Only freshly spawned particles need to be computed for init_out
       output(:,i) = -1

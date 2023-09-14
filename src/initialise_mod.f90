@@ -1374,7 +1374,7 @@ subroutine boundcond_domainfill(itime,loutend)
   ! trajectory calculation domain is not global
   !********************************************************************
 
-  do i=1,numpart
+  do i=1,count%allocated
     if (.not. part(i)%alive) cycle
 
     if ((part(i)%ylat.gt.real(ny_sn(2))).or. &

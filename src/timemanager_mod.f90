@@ -254,8 +254,6 @@ subroutine timemanager
       ! to be activated
       if (count%allocated.le.0) error stop 'Something is going wrong reading the part_ic.nc file!'
 
-      alive_tmp=count%alive
-      spawned_tmp=count%spawned
       do i=1,count%allocated
         if (.not. part(i)%alive) then
           if (ldirect.lt.0) then
@@ -269,7 +267,7 @@ subroutine timemanager
       end do
 
 #ifdef ETA
-!$OMP PARALLEL PRIVATE(i) REDUCTION(+:alive_tmp,spawned_tmp)
+!$OMP PARALLEL PRIVATE(i)
 !$OMP DO
       do i=1,count%alive
         j=count%ialive(i)
@@ -438,7 +436,7 @@ subroutine timemanager
 #endif
 
   ! Terminating particles flagged in advance call
-  do i=1,count%spawned
+  do i=1,count%allocated
     if ((part(i)%nstop).and.(part(i)%alive)) then
       call terminate_particle(i,itime)
     endif
@@ -544,7 +542,7 @@ subroutine timemanager
 !$OMP END PARALLEL
 
   ! Terminating particles flagged due to insufficient mass or exceeded max age
-  do i=1,count%spawned
+  do i=1,count%allocated
     if ((part(i)%nstop).and.(part(i)%alive)) then
       call terminate_particle(i,itime)
     endif

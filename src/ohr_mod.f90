@@ -182,7 +182,7 @@ subroutine ohreaction(itime,ltsample,loutnext)
 
   implicit none
 
-  integer :: jpart,itime,ltsample,loutnext,ldeltat,j,k,ix,jy!,ijx,jjy
+  integer :: ii,jpart,itime,ltsample,loutnext,ldeltat,j,k,ix,jy!,ijx,jjy
 !PS  integer :: ngrid,interp_time,m,n,ih,indz,i!,ia,il
   integer :: ngrid,interp_time,n,indz,i!,ia,il
 !PS  integer :: jjjjmmdd,hhmmss,
@@ -215,8 +215,9 @@ subroutine ohreaction(itime,ltsample,loutnext)
 !$OMP restmass,ohreacted,altOHtop,ngrid)
 
 !$OMP DO
-  do jpart=1,numpart
+  do ii=1,count%alive
 
+    jpart=count%ialive(ii)
     ! Determine which nesting level to be used
     ngrid=0
     do j=numbnests,1,-1 ! Why is there a +/- eps everywhere else for ngrid but not here?

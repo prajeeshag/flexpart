@@ -59,7 +59,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
 
   implicit none
 
-  integer :: jpart,itime,ltsample,loutnext,ldeltat
+  integer :: i,jpart,itime,ltsample,loutnext,ldeltat
   integer :: itage,nage,inage,ithread,thread
   integer :: ks, kp
   integer(selected_int_kind(16)), dimension(nspec) :: blc_count, inc_count
@@ -94,13 +94,9 @@ subroutine wetdepo(itime,ltsample,loutnext)
 #endif
 
 !$OMP DO 
-  do jpart=1,numpart
+  do i=1,count%alive
 
-    ! Check if memory has been deallocated
-    if (.not. particle_allocated(jpart)) cycle
-
-    ! Check if particle is still allive
-    if (.not. part(jpart)%alive) cycle
+    jpart=count%ialive(i)
 
   ! Determine age class of the particle - nage is used for the kernel
   !******************************************************************

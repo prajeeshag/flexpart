@@ -607,9 +607,6 @@ subroutine initcond_calc(itime,i,thread)
   ! for backward simulations, make an additional loop over the release points
   !**************************************************************************
 
-
-  if (.not. part(i)%alive) return
-
   ! Depending on output option, calculate air density or set it to 1
   ! linit_cond: 1=mass unit, 2=mass mixing ratio unit
   !*****************************************************************

@@ -59,7 +59,7 @@ subroutine plumetraj(itime)
 
   implicit none
 
-  integer :: itime,ix,jy,ixp,jyp,indexh,i,j,k,m,n,il,ind,indz,indzp
+  integer :: ii,itime,ix,jy,ixp,jyp,indexh,i,j,k,m,n,il,ind,indz,indzp
   ! real :: xl(maxpart),yl(maxpart),zl(maxpart) ! moved to particle_mod and now xplum,yplum,zplum
   real :: xcenter,ycenter,zcenter,dist,rmsdist,zrmsdist
 
@@ -93,8 +93,8 @@ subroutine plumetraj(itime)
     zrmsdist=0.
 
     n=0
-    do i=1,numpart
-      if (.not.part(i)%alive) cycle
+    do ii=1,count%alive
+      i=count%ialive(ii)
       if (part(i)%npoint.ne.j) cycle
       n=n+1
       xplum(n)=xlon0+real(part(i)%xlon)*dx

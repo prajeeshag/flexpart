@@ -173,7 +173,7 @@ subroutine readrestart
   write(*,*) 'Reading Restart file:', path(2)(1:length(2))//'restart.bin'
   
   read(unitpartin,iostat=ios) itime_init
-  read(unitpartin) numpart
+  read(unitpartin) numpart ! count%allocated
   read(unitpartin) loutnext_init
   read(unitpartin) outnum_init
   read(unitpartin) numreceptor

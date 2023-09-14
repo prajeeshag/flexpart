@@ -115,14 +115,16 @@ end subroutine init_output
 
 subroutine finalise_output(itime)
   ! Complete the calculation of initial conditions for particles not yet terminated
-  
+  use particle_mod
+
   implicit none 
 
   integer, intent(in) :: itime
-  integer :: j,ithread
+  integer :: i,j,ithread
 
   if (linit_cond.ge.1) then
-    do j=1,numpart
+    do i=1,count%alive
+      j=count%ialive(i)
       call initcond_calc(itime,j,1)
     end do
 #ifdef _OPENMP
@@ -180,16 +182,16 @@ subroutine output_particles(itime,initial_output)
   integer,intent(in) :: itime
   logical,optional,intent(in) :: initial_output
   logical :: init_out
-  integer :: i,j,m,jjjjmmdd,ihmmss,np,ns,i_av
+  integer :: ii,i,j,m,jjjjmmdd,ihmmss,np,ns,i_av
   real(kind=dp) :: jul
   real :: tmp(2)
   character :: adate*8,atime*6
 
   real :: dummy(2)
-  real :: masstemp(numpart,nspec),masstemp_av(numpart,nspec)
-  real :: wetdepotemp(numpart,nspec),drydepotemp(numpart,nspec)
+  real :: masstemp(count%spawned,nspec),masstemp_av(count%spawned,nspec)
+  real :: wetdepotemp(count%spawned,nspec),drydepotemp(count%spawned,nspec)
 
-  real :: output(num_partopt, numpart)
+  real :: output(num_partopt, count%spawned)
 
   real :: cartxyz(3)
   logical :: cartxyz_comp
@@ -213,7 +215,7 @@ subroutine output_particles(itime,initial_output)
   call find_time_vars(itime)
 
 !$OMP DO
-  do i=1,numpart
+  do i=1,count%spawned ! Loop over all particles, including terminated ones
     if (((.not. part(i)%alive).and.(abs(part(i)%tend-itime).ge.ipoutfac*loutstep)) .or. &
       (init_out .and. (i.lt.partinitpointer1-1))) then ! Only freshly spawned particles need to be computed for init_out
       output(:,i) = -1

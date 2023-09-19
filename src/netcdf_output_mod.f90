@@ -2692,9 +2692,9 @@ subroutine readinitconditions_netcdf()
          nclassunc)
     part(i)%mass_init=part(i)%mass
     ! Activate particles that are alive from the start of the simulation
-    if (part(i)%tstart.eq.0) then
-      call spawn_particle(0,i)
-    endif
+    ! if (part(i)%tstart.eq.0) then
+    !   call spawn_particle(0,i)
+    ! endif
   end do
   write(*,FMT='(A,ES14.7)') ' Total mass to be released:', sum(xmass(1:numpoint,1:nspec))
   call get_totalpart_num(numpart)

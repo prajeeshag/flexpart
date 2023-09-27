@@ -2557,6 +2557,20 @@ subroutine readinitconditions_netcdf()
   call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%ylat, & 
     start=(/ 1 /),count=(/ plen /)))
   part(:)%ylat=(part(:)%ylat-ylat0)/dx
+  ! Check if they are within the bounds
+  do i=1,plen
+    if ((part(i)%xlon.lt.0).or.(part(i)%xlon.gt.nx)) then
+      write(*,*) 'Dimensions (nx,ny): ',nx,ny
+      write(*,*) "Particle", i, "with xlon", part(i)%xlon
+      error stop "Initial latitude particle outside of domain."
+    endif
+    if ((part(i)%ylat.lt.0).or.(part(i)%ylat.gt.ny)) then
+        write(*,*) 'Dimensions (nx,ny): ',nx,ny
+      write(*,*) "Particle", i, "with ylat", part(i)%ylat
+      error stop "Initial latitude particle outside of domain."
+    endif
+  end do
+
   ! Height
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='height',varid=tempIDend))
   call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%z, & 

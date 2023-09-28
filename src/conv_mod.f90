@@ -66,7 +66,7 @@ module conv_mod
 ! $OMP tconv, qconv, qsconv, psconv, tt2conv, td2conv, &
 ! $OMP nconvtop,uvzlev,wsub,cbaseflux,cbasefluxn)
 
-!$OMP THREADPRIVATE( psconv, tt2conv, td2conv,nconvtop,uvzlev)
+!$OMP THREADPRIVATE( psconv, tt2conv, td2conv,nconvtop)
 ! , &
 ! !$OMP fup,fdown,MENT,NENT,M,MP,QENT,ELIJ,SIJ,TVP,TV, &
 ! !$OMP WATER,QP,EP,TH,WT,EVAP,CLW,SIGP,TP,CPN,LV,LVCP, &

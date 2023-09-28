@@ -212,14 +212,14 @@ subroutine read_options_and_initialise_flexpart
   call readageclasses
 
 
-  ! Allocate memory for windfields
-  !*******************************
-  call alloc_windfields
-  if (numbnests.ge.1) then
-    ! If nested wind fields are used, allocate arrays
-    !************************************************
-    call alloc_windfields_nest
-  endif
+  ! ! Allocate memory for windfields
+  ! !*******************************
+  ! call alloc_windfields
+  ! if (numbnests.ge.1) then
+  !   ! If nested wind fields are used, allocate arrays
+  !   !************************************************
+  !   call alloc_windfields_nest
+  ! endif
 
   ! Read, which wind fields are available within the modelling period
   !******************************************************************
@@ -331,11 +331,12 @@ subroutine read_options_and_initialise_flexpart
 
   ! Initialize cloud-base mass fluxes for the convection scheme
   !************************************************************
-
-  cbaseflux(0:nxmin1,0:nymin1)=0.
-  do inest=1,numbnests
-    cbasefluxn(0:nxn(inest)-1,0:nyn(inest)-1,inest)=0.
-  end do
+  if (lconvection.eq.1) then
+    cbaseflux(0:nxmin1,0:nymin1,:)=0.
+    do inest=1,numbnests
+      cbasefluxn(0:nxn(inest)-1,0:nyn(inest)-1,inest,:)=0.
+    end do
+  endif
 
   ! Allocating nan_count for CBL option
   !************************************

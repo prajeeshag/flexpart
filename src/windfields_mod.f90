@@ -40,7 +40,7 @@ module windfields_mod
 
   !Windfield parameters
   !********************
-  !integer :: nxmax,nymax,nuvzmax,nwzmax,nzmax !Size of windfield
+  integer :: nxmax,nymax,nuvzmax,nwzmax,nzmax !Size of windfield
 
   ! Fixed fields, unchangeable with time
   !*************************************
@@ -204,8 +204,8 @@ module windfields_mod
   real ::      &
     dxconst,   & ! auxiliary variables for utransform
     dyconst      ! auxiliary variables for vtransform
-  ! integer :: nconvlevmax !maximum number of levels for convection
-  ! integer :: na ! parameter used in Emanuel's convect subroutine
+  integer :: nconvlevmax !maximum number of levels for convection
+  integer :: na ! parameter used in Emanuel's convect subroutine
 
   !*************************************************
   ! Variables used for vertical model discretization
@@ -362,14 +362,14 @@ subroutine gridcheck_ecmwf
   ! dimension of zsec2 at least (10+nn), where nn is the number of vertical
   ! coordinate parameters
 
-  integer :: isec1(56),isec2(22+nxmax+nymax)
-  real(kind=4) :: zsec2(60+2*nuvzmax),zsec4(jpunp)
+  integer :: isec1(56), isec2(12)
+  real(kind=4),allocatable,dimension(:) :: zsec2
+  real(kind=4) :: zsec4(jpunp)
   character(len=1) :: opt
 
   !HSO  grib api error messages
   character(len=24) :: gribErrorMsg = 'Error reading grib file'
   character(len=20) :: gribFunction = 'gridcheck'
-
 
   iumax=0
   iwmax=0
@@ -553,6 +553,7 @@ subroutine gridcheck_ecmwf
       ny=isec2(3)
       nlev_ec=isec2(12)/2-1
 
+      allocate(zsec2(60+2*nlev_ec))
       !  get the size and data of the vertical coordinate array
       call grib_get_real4_array(igrib,'pv',zsec2,iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
@@ -639,40 +640,41 @@ subroutine gridcheck_ecmwf
       if (nxshift.ge.nxfield) error stop 'nxshift (par_mod) too large'
     endif ! gotGrid
 
-    if (nx.gt.nxmax) then
-      write(*,*) 'FLEXPART error: Too many grid points in x direction.'
-      write(*,*) 'Reduce resolution of wind fields.'
-      write(*,*) 'Or change parameter settings in file par_mod.'
-      write(*,*) nx,nxmax
-      error stop
-    endif
+    ! if (nx.gt.nxmax) then
+    !   write(*,*) 'FLEXPART error: Too many grid points in x direction.'
+    !   write(*,*) 'Reduce resolution of wind fields.'
+    !   write(*,*) 'Or change parameter settings in file par_mod.'
+    !   write(*,*) nx,nxmax
+    !   error stop
+    ! endif
 
-    if (ny.gt.nymax) then
-      write(*,*) 'FLEXPART error: Too many grid points in y direction.'
-      write(*,*) 'Reduce resolution of wind fields.'
-      write(*,*) 'Or change parameter settings in file par_mod.'
-      write(*,*) ny,nymax
-      error stop
-    endif
+    ! if (ny.gt.nymax) then
+    !   write(*,*) 'FLEXPART error: Too many grid points in y direction.'
+    !   write(*,*) 'Reduce resolution of wind fields.'
+    !   write(*,*) 'Or change parameter settings in file par_mod.'
+    !   write(*,*) ny,nymax
+    !   error stop
+    ! endif
 
     k=isec1(8)
     if(isec1(6).eq.131) iumax=max(iumax,nlev_ec-k+1)
     if(isec1(6).eq.135) iwmax=max(iwmax,nlev_ec-k+1)
 
     if (isec1(6) .eq. 167) then
-      ! ! Assing grid values and allocate memory to read windfields
-      ! nxmax=nxfield
-      ! if (xglobal) then
-      !   nxmax=nxfield+1
-      ! endif
-      ! nymax=ny
-      ! nwzmax=iwmax+1
-      ! nuvzmax=iumax+1
-      ! nzmax=nuvzmax
-      ! nconvlevmax=iumax
-      ! na=nuvzmax
-      ! ! Temporary nxmax and nymax
-      call fixedfields_allocate
+      ! Asking grid values and allocate memory to read windfields
+      nxmax=nxfield
+      if (xglobal) then
+        nxmax=nxfield+1
+      endif
+      nymax=ny
+      nwzmax=iwmax+1
+      nuvzmax=iumax+1
+      nzmax=nuvzmax
+      nconvlevmax=iumax
+      na=nuvzmax
+      ! Temporary nxmax and nymax
+      call alloc_fixedfields
+      write(*,*) 'grid dim:',nxmax,nymax,nwzmax,nuvzmax,nconvlevmax,na
     endif
 
     if(isec1(6).eq.129) then
@@ -705,6 +707,9 @@ subroutine gridcheck_ecmwf
   call grib_close_file(ifile)
 
   ! call windfields_allocate
+  ! Allocate memory for windfields
+  !*******************************
+  call alloc_windfields
 
   !error message if no fields found with correct first longitude in it
   if (gotGrid.eq.0) then
@@ -776,7 +781,7 @@ subroutine gridcheck_ecmwf
   bkm=0
   akz=0
   bkz=0
-  do i=1,nwz ! LB: should start counting fom 0 to get the top level
+  do i=1,nwz ! LB: should start counting fom 0 to get the top level?
     j=numskip+i
     k=nlev_ec+1+numskip+i
     akm(nwz-i+1)=zsec2(j)
@@ -1169,7 +1174,7 @@ subroutine gridcheck_gfs
 
     if((isec1(6).eq.007).and.(isec1(7).eq.001)) then
     ! IP 8/5/23 allocate fields missing for GFS reading 
-    call fixedfields_allocate
+    call alloc_fixedfields
     ! IP 8/5/23
       do jy=0,ny-1
         do ix=0,nxfield-1
@@ -1286,6 +1291,10 @@ subroutine gridcheck_gfs
          ylat0,' to ',ylat0+(ny-1)*dy,'   Grid distance: ',dy
     write(*,*)
   end if
+
+  ! Allocate memory for windfields
+  !*******************************
+  call alloc_windfields
 
   ! CALCULATE VERTICAL DISCRETIZATION OF ECMWF MODEL
   ! PARAMETER akm,bkm DESCRIBE THE HYBRID "ETA" COORDINATE SYSTEM
@@ -1752,6 +1761,13 @@ subroutine gridcheck_nest
     error stop
   endif
 
+  ! Allocate memory for windfields
+  !*******************************
+  if (numbnests.ge.1) then
+    ! If nested wind fields are used, allocate arrays
+    !************************************************
+    call alloc_windfields_nest
+  endif
 
   ! CALCULATE VERTICAL DISCRETIZATION OF ECMWF MODEL
   ! PARAMETER akm,bkm DESCRIBE THE HYBRID "ETA" COORDINATE SYSTEM
@@ -3781,13 +3797,13 @@ subroutine shift_field(field,nxf,nyf,nzfmax,nzf,nmax,n)
   end do
 end subroutine shift_field
 
-subroutine fixedfields_allocate
+subroutine alloc_fixedfields
   implicit none
   allocate(oro(0:nxmax-1,0:nymax-1))
   allocate(excessoro(0:nxmax-1,0:nymax-1))
   allocate(lsm(0:nxmax-1,0:nymax-1))
   allocate(pv(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-end subroutine fixedfields_allocate
+end subroutine alloc_fixedfields
 
 subroutine alloc_windfields
   implicit none

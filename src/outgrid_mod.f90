@@ -166,7 +166,7 @@ subroutine outgrid_init
 
   use ohr_mod
   use unc_mod
-
+  use windfields_mod, only: nxmax
   implicit none
 
   integer :: ix,jy,kz,i,nage,l,iix,jjy,ixp,jyp,i1,j1,j,ngrid
@@ -401,7 +401,8 @@ subroutine outgrid_init_nest
   !*****************************************************************************
 
   use unc_mod
-
+  use windfields_mod, only: nxmax
+  
   implicit none
 
   integer :: ix,jy,kz,ks,kp,nage,l,iix,jjy,ixp,jyp,i1,j1,j,ngrid

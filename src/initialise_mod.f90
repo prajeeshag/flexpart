@@ -594,7 +594,7 @@ subroutine readpartpositions
 
 end subroutine readpartpositions
 
-subroutine init_particle(itime,ipart)
+subroutine init_particle(itime,ipart,ithread)
   !                        i    i   o  o  o
   !        o       o       o    i  i  i   o
   !*****************************************************************************
@@ -645,14 +645,13 @@ subroutine init_particle(itime,ipart)
   implicit none
 
   integer,intent(in) ::  &
+    ithread,             & ! OMP thread starting at 0
     itime,               &
     ipart
   integer :: k
   integer :: nrand
   real :: dummy1,dummy2
   real :: xt,yt,zt,zteta
-  integer :: thread
-
 
   ! ! Initialise scavenging for backward runs
   ! !****************************************
@@ -663,15 +662,9 @@ subroutine init_particle(itime,ipart)
   ! endif
 
 
-#ifdef _OPENMP
-  thread = OMP_GET_THREAD_NUM()
-#else 
-  thread = 0
-#endif
-
   part(ipart)%icbt=1           ! initialize particle to no "reflection"
 
-  nrand=int(ran3(iseed1(thread),thread)*real(maxrand-1))+1
+  nrand=int(ran3(iseed1(ithread),ithread)*real(maxrand-1))+1
 
   xt = real(part(ipart)%xlon)
   yt = real(part(ipart)%ylat)
@@ -717,7 +710,7 @@ subroutine init_particle(itime,ipart)
 
   if (zeta.le.1.) then
 
-    call interpol_pbl(itime,xt,yt,zt,zteta)
+    call interpol_pbl(itime,xt,yt,zt,zteta,ithread+1)
 
   ! Vertical interpolation of u,v,w,rho and drhodz
   !***********************************************
@@ -725,7 +718,7 @@ subroutine init_particle(itime,ipart)
   ! Vertical distance to the level below and above current position
   ! both in terms of (u,v) and (w) fields
   !****************************************************************
-    call interpol_pbl_short(zt,dummy1,dummy2)
+    call interpol_pbl_short(zt,dummy1,dummy2,ithread+1)
 
   ! Compute the turbulent disturbances
 
@@ -753,7 +746,7 @@ subroutine init_particle(itime,ipart)
   !if (ol.lt.0.) then
   !if (ol.gt.0.) then !by mc : only for test correct is lt.0
         call init_cbl_vel( &
-          iseed1(thread),zt,wst,h,sigw,part(ipart)%turbvel%w,ol,thread)
+          iseed1(ithread),zt,wst,h,sigw,part(ipart)%turbvel%w,ol,ithread)
       else
         part(ipart)%turbvel%w=part(ipart)%turbvel%w*sigw
       end if

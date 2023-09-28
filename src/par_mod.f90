@@ -130,22 +130,6 @@ module par_mod
   ! switchnorth    use polar stereographic grid north of switchnorth
   ! switchsouth    use polar stereographic grid south of switchsouth
 
-
-  !*********************************************
-  ! Maximum dimensions of the input mother grids
-  !*********************************************
-  
-  ! ECMWF
-! integer,parameter :: nxmax=361,nymax=181,nuvzmax=92,nwzmax=92,nzmax=92,nxshift=359 ! 1.0 deg 92 levels
-!  integer,parameter :: nxmax=361,nymax=181,nuvzmax=138,nwzmax=138,nzmax=138,nxshift=0 ! 1.0 deg 138 levels
-!   integer,parameter :: nxmax=361,nymax=181,nuvzmax=138,nwzmax=138,nzmax=138,nxshift=359 ! 1.0 deg 138 levels
-  integer,parameter :: nxmax=721,nymax=361,nuvzmax=138,nwzmax=138,nzmax=138!,nxshift=359  ! 0.5 deg 138 levels
-!  integer,parameter :: nxmax=181,nymax=91,nuvzmax=92,nwzmax=92,nzmax=92,nxshift=0  ! CERA 2.0 deg 92 levels
-
-! GFS
-!   integer,parameter :: nxmax=361,nymax=181,nuvzmax=138,nwzmax=138,nzmax=138
-!   integer,parameter :: nxshift=0 ! shift not fixed for the executable 
-
   !*********************************
   ! Parmaters for GRIB file decoding
   !*********************************
@@ -167,15 +151,6 @@ module par_mod
   !                    direction (for fields on eta levels)
   ! nzmax              maximum dimension of wind fields in z direction
   !                    for the transformed Cartesian coordinates
-
-  
-  integer,parameter :: nconvlevmax = nuvzmax-1
-  integer,parameter :: na = nconvlevmax+1
-
-  ! ntracermax         maximum number of tracer species in convection
-  ! nconvlevmax        maximum number of levels for convection
-  ! na                 parameter used in Emanuel's convect subroutine
-
 
   !**************************************
   ! Maximum dimensions of the output grid

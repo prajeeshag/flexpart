@@ -14,11 +14,11 @@ module interpol_mod
 
   implicit none
 
-  real,dimension(nzmax) ::          &
+  real,allocatable,dimension(:,:) ::          &
     uprof,vprof,wprof,              &
     usigprof,vsigprof,wsigprof,     &
     rhoprof,rhogradprof
-  logical,dimension(nzmax) ::       &
+  logical,allocatable,dimension(:,:) ::       &
     indzindicator
 
   real :: u,v,w,usig,vsig,wsig
@@ -32,7 +32,7 @@ module interpol_mod
   logical :: depoindicator(maxspec)
   logical :: lbounds(2) ! marking particles below or above bounds
 #ifdef ETA
-  real,dimension(nzmax) ::wprofeta,wsigprofeta
+  real,allocatable,dimension(:,:) :: wprofeta ! ,wsigprofeta
   real :: ueta,veta,weta,wsigeta
   integer :: indzeta,indzpeta
   logical :: lbounds_w(2),lbounds_uv(2) ! marking particles below or above bounds
@@ -57,35 +57,43 @@ module interpol_mod
     procedure find_ngrid_dp, find_ngrid_sp
   end interface find_ngrid
 
+! uprof,vprof,wprof,usigprof,vsigprof,wsigprof,indzindicator, wsigprofeta,
+! rhoprof,rhogradprof,
 #ifdef ETA
-!$OMP THREADPRIVATE(uprof,vprof,wprof,usigprof,vsigprof,wsigprof, &
-!$OMP rhoprof,rhogradprof,u,v,w,usig,vsig,wsig, &
+!$OMP THREADPRIVATE( &
+!$OMP u,v,w,usig,vsig,wsig, &
 !$OMP p1,p2,p3,p4,ddx,ddy,rddx,rddy,dtt,dt1,dt2,ix,jy,ixp,jyp, &
-!$OMP ngrid,indz,indzp,depoindicator,indzindicator, &
-!$OMP wprofeta,wsigprofeta,induv,indpuv,lbounds,lbounds_w,lbounds_uv, &
+!$OMP ngrid,indz,indzp,depoindicator,&
+!$OMP wprofeta,induv,indpuv,lbounds,lbounds_w,lbounds_uv, &
 !$OMP indzeta,indzpeta,ueta,veta,weta,wsigeta, &
 !$OMP xtn,ytn,nix,njy,dz1out,dz2out)
 #else
-!$OMP THREADPRIVATE(uprof,vprof,wprof,usigprof,vsigprof,wsigprof, &
-!$OMP rhoprof,rhogradprof,u,v,w,usig,vsig,wsig, &
+!$OMP THREADPRIVATE( &
+!$OMP u,v,w,usig,vsig,wsig, &
 !$OMP p1,p2,p3,p4,ddx,ddy,rddx,rddy,dtt,dt1,dt2,ix,jy,ixp,jyp, &
-!$OMP ngrid,indz,indzp,depoindicator,indzindicator, &
+!$OMP ngrid,indz,indzp,depoindicator, &
 !$OMP induv,indpuv,lbounds,xtn,ytn,nix,njy,dz1out,dz2out)
 #endif
 
 
 contains
 
-subroutine alloc_interpol
-  ! allocate(uprof(nzmax),vprof(nzmax),wprof(nzmax),wprofeta(nzmax),      &
-  !   usigprof(nzmax),vsigprof(nzmax),wsigprof(nzmax),wsigprofeta(nzmax), &
-  !   rhoprof(nzmax),rhogradprof(nzmax),indzindicator(nzmax))
+subroutine alloc_interpol ! wsigprofeta(nzmax,numthreads),
+  allocate(uprof(nzmax,numthreads),vprof(nzmax,numthreads),wprof(nzmax,numthreads),      &
+    usigprof(nzmax,numthreads),vsigprof(nzmax,numthreads),wsigprof(nzmax,numthreads),  &
+    rhoprof(nzmax,numthreads),rhogradprof(nzmax,numthreads),indzindicator(nzmax,numthreads))
+#ifdef ETA
+  allocate(wprofeta(nzmax,numthreads))
+#endif
 end subroutine alloc_interpol
 
-subroutine dealloc_interpol
-  ! deallocate(uprof,vprof,wprof,wprofeta,      &
-  !   usigprof,vsigprof,wsigprof,wsigprofeta, &
-  !   rhoprof,rhogradprof,indzindicator)
+subroutine dealloc_interpol ! wsigprofeta,
+  deallocate(uprof,vprof,wprof,      &
+    usigprof,vsigprof,wsigprof,  &
+    rhoprof,rhogradprof,indzindicator)
+#ifdef ETA
+  deallocate(wprofeta)
+#endif
 end subroutine dealloc_interpol
 
 subroutine init_interpol(itime,xt,yt,zt,zteta)
@@ -633,7 +641,7 @@ end subroutine stdev
 ! Interpolation functions
 !************************
 
-subroutine interpol_pbl(itime,xt,yt,zt,zteta)
+subroutine interpol_pbl(itime,xt,yt,zt,zteta,ithread)
   !                          i   i  i  i
   !*****************************************************************************
   !                                                                            *
@@ -663,6 +671,7 @@ subroutine interpol_pbl(itime,xt,yt,zt,zteta)
 
   use turbulence_mod
 
+  integer,intent(in)  :: ithread ! If OMP, number of the thread, otherwise 1
   integer, intent(in) :: itime
   real, intent(in)    :: xt,yt,zt,zteta
   integer             :: m,n,indexh
@@ -766,14 +775,14 @@ subroutine interpol_pbl(itime,xt,yt,zt,zteta)
           call hor_interpol(vv,vh1(m),iw(n),memind(m),nzmax)
         endif
       end do
-      call temporal_interpolation(wh1(1),wh1(2),wprof(iw(n)))
+      call temporal_interpolation(wh1(1),wh1(2),wprof(iw(n),ithread))
 #ifdef ETA
-      call temporal_interpolation(wetah1(1),wetah1(2),wprofeta(iweta(n)))
+      call temporal_interpolation(wetah1(1),wetah1(2),wprofeta(iweta(n),ithread))
 #endif      
-      call temporal_interpolation(uh1(1),uh1(2),uprof(iw(n)))
-      call temporal_interpolation(vh1(1),vh1(2),vprof(iw(n)))
-      call temporal_interpolation(rho1(1),rho1(2),rhoprof(iw(n)))
-      call temporal_interpolation(rhograd1(1),rhograd1(2),rhogradprof(iw(n)))
+      call temporal_interpolation(uh1(1),uh1(2),uprof(iw(n),ithread))
+      call temporal_interpolation(vh1(1),vh1(2),vprof(iw(n),ithread))
+      call temporal_interpolation(rho1(1),rho1(2),rhoprof(iw(n),ithread))
+      call temporal_interpolation(rhograd1(1),rhograd1(2),rhogradprof(iw(n),ithread))
     end do
   else ! Nest
     do n=1,2
@@ -787,16 +796,16 @@ subroutine interpol_pbl(itime,xt,yt,zt,zteta)
         call hor_interpol_nest(rhon,rho1(m),iw(n),memind(m),nzmax)
         call hor_interpol_nest(drhodzn,rhograd1(m),iw(n),memind(m),nzmax)
       end do
-      call temporal_interpolation(wh1(1),wh1(2),wprof(iw(n)))
+      call temporal_interpolation(wh1(1),wh1(2),wprof(iw(n),ithread))
 #ifdef ETA
-      call temporal_interpolation(wetah1(1),wetah1(2),wprofeta(iweta(n)))
+      call temporal_interpolation(wetah1(1),wetah1(2),wprofeta(iweta(n),ithread))
 #endif
-      call temporal_interpolation(uh1(1),uh1(2),uprof(iw(n)))
-      call temporal_interpolation(vh1(1),vh1(2),vprof(iw(n)))
-      call temporal_interpolation(rho1(1),rho1(2),rhoprof(iw(n)))
-      call temporal_interpolation(rhograd1(1),rhograd1(2),rhogradprof(iw(n)))
+      call temporal_interpolation(uh1(1),uh1(2),uprof(iw(n),ithread))
+      call temporal_interpolation(vh1(1),vh1(2),vprof(iw(n),ithread))
+      call temporal_interpolation(rho1(1),rho1(2),rhoprof(iw(n),ithread))
+      call temporal_interpolation(rhograd1(1),rhograd1(2),rhogradprof(iw(n),ithread))
 
-      indzindicator(iw(n))=.false.
+      indzindicator(iw(n),ithread)=.false.
     end do
   endif
 
@@ -804,13 +813,13 @@ subroutine interpol_pbl(itime,xt,yt,zt,zteta)
 #ifdef ETA
   call find_vert_vars(wheight,zteta,indzeta, &
     dz1weta,dz2weta,lbounds_w,.true.)
-  call vert_interpol(wprofeta(indzeta),wprofeta(indzpeta), &
+  call vert_interpol(wprofeta(indzeta,ithread),wprofeta(indzpeta,ithread), &
     dz1weta,dz2weta,weta)
 #endif
 
 end subroutine interpol_pbl
 
-subroutine interpol_pbl_misslev
+subroutine interpol_pbl_misslev(ithread)
   !*****************************************************************************
   !                                                                            *
   !  This subroutine interpolates u,v,w, density and density gradients.        *
@@ -834,6 +843,7 @@ subroutine interpol_pbl_misslev
   !                                                                            *
   !*****************************************************************************
 
+  integer,intent(in)  :: ithread ! number of OMP thread starting at 1
   real                :: uh1(2),vh1(2),wh1(2),rho1(2),rhograd1(2)
   integer             :: m,n,iw(2)
 
@@ -848,7 +858,7 @@ subroutine interpol_pbl_misslev
 
   iw(:)=(/ indz, indzp /)
   do n=1,2
-    if (indzindicator(iw(n))) then
+    if (indzindicator(iw(n),ithread)) then
       if (ngrid.le.0) then ! No nest
         do m=1,2
           call hor_interpol(ww,wh1(m),iw(n),memind(m),nzmax)
@@ -871,31 +881,32 @@ subroutine interpol_pbl_misslev
           call hor_interpol_nest(drhodzn,rhograd1(m),iw(n),memind(m),nzmax)
         end do
       endif
-      call temporal_interpolation(wh1(1),wh1(2),wprof(iw(n)))
-      call temporal_interpolation(uh1(1),uh1(2),uprof(iw(n)))
-      call temporal_interpolation(vh1(1),vh1(2),vprof(iw(n)))
-      call temporal_interpolation(rho1(1),rho1(2),rhoprof(iw(n)))
-      call temporal_interpolation(rhograd1(1),rhograd1(2),rhogradprof(iw(n)))
+      call temporal_interpolation(wh1(1),wh1(2),wprof(iw(n),ithread))
+      call temporal_interpolation(uh1(1),uh1(2),uprof(iw(n),ithread))
+      call temporal_interpolation(vh1(1),vh1(2),vprof(iw(n),ithread))
+      call temporal_interpolation(rho1(1),rho1(2),rhoprof(iw(n),ithread))
+      call temporal_interpolation(rhograd1(1),rhograd1(2),rhogradprof(iw(n),ithread))
 
-      indzindicator(iw(n))=.false.
+      indzindicator(iw(n),ithread)=.false.
     endif
   end do
 end subroutine interpol_pbl_misslev
 
-subroutine interpol_pbl_short(zt,rhoa,rhograd)
+subroutine interpol_pbl_short(zt,rhoa,rhograd,ithread)
   implicit none 
 
+  integer,intent(in)  :: ithread ! number of OMP thread starting at 1
   real, intent(in)    :: zt
   real, intent(inout) :: rhoa,rhograd
   real                :: dz1,dz2
 
   call find_vert_vars(height,zt,indz,dz1,dz2,lbounds,.false.)
 
-  call vert_interpol(wprof(indz),wprof(indzp),dz1,dz2,w)
-  call vert_interpol(uprof(indz),uprof(indzp),dz1,dz2,u)
-  call vert_interpol(vprof(indz),vprof(indzp),dz1,dz2,v)
-  call vert_interpol(rhoprof(indz),rhoprof(indzp),dz1,dz2,rhoa)
-  call vert_interpol(rhogradprof(indz),rhogradprof(indzp),dz1,dz2,rhograd)
+  call vert_interpol(wprof(indz,ithread),wprof(indzp,ithread),dz1,dz2,w)
+  call vert_interpol(uprof(indz,ithread),uprof(indzp,ithread),dz1,dz2,u)
+  call vert_interpol(vprof(indz,ithread),vprof(indzp,ithread),dz1,dz2,v)
+  call vert_interpol(rhoprof(indz,ithread),rhoprof(indzp,ithread),dz1,dz2,rhoa)
+  call vert_interpol(rhogradprof(indz,ithread),rhogradprof(indzp,ithread),dz1,dz2,rhograd)
 end subroutine interpol_pbl_short
 
 subroutine interpol_mesoscale(xt,yt,zt,zteta)
@@ -1451,25 +1462,26 @@ subroutine interpol_partoutput_val_meter(fieldname,output,j)
   end select
 end subroutine interpol_partoutput_val_meter
 
-#ifdef ETA
-subroutine interpol_mixinglayer_eta(zt,zteta,rhoa,rhograd)
+! #ifdef ETA
+! subroutine interpol_pbl_eta(zt,zteta,rhoa,rhograd,ithread)
+  
+!   integer,intent(in)  :: ithread
+!   real, intent(in)    :: zt,zteta
+!   real, intent(inout) :: rhoa,rhograd
+!   real                :: dz1w,dz2w,dz1uv,dz2uv,dz1weta,dz2weta
 
-  real, intent(in)    :: zt,zteta
-  real, intent(inout) :: rhoa,rhograd
-  real                :: dz1w,dz2w,dz1uv,dz2uv,dz1weta,dz2weta
+!   call find_vert_vars(height,zt,indz,dz1w,dz2w,lbounds,.false.)
+!   call find_vert_vars(uvheight,zteta,induv,dz1uv,dz2uv,lbounds_uv,.false.)
+!   call find_vert_vars(wheight,zteta,indzeta,dz1weta,dz2weta,lbounds_w,.true.)
 
-  call find_vert_vars(height,zt,indz,dz1w,dz2w,lbounds,.false.)
-  call find_vert_vars(uvheight,zteta,induv,dz1uv,dz2uv,lbounds_uv,.false.)
-  call find_vert_vars(wheight,zteta,indzeta,dz1weta,dz2weta,lbounds_w,.true.)
-
-  call vert_interpol(wprof(indz),wprof(indzp),dz1w,dz2w,w)
-  call vert_interpol(uprof(induv),uprof(indpuv),dz1uv,dz2uv,u)
-  call vert_interpol(vprof(induv),vprof(indpuv),dz1uv,dz2uv,v)
-  call vert_interpol(rhoprof(induv),rhoprof(indpuv),dz1uv,dz2uv,rhoa)
-  call vert_interpol(rhogradprof(induv),rhogradprof(indpuv),dz1uv,dz2uv,rhograd)
-  call vert_interpol(wprofeta(indzeta),wprofeta(indzpeta),dz1weta,dz2weta,weta)
-end subroutine interpol_mixinglayer_eta
-#endif
+!   call vert_interpol(wprof(indz,ithread),wprof(indzp,ithread),dz1w,dz2w,w)
+!   call vert_interpol(uprof(induv,ithread),uprof(indpuv,ithread),dz1uv,dz2uv,u)
+!   call vert_interpol(vprof(induv,ithread),vprof(indpuv,ithread),dz1uv,dz2uv,v)
+!   call vert_interpol(rhoprof(induv,ithread),rhoprof(indpuv,ithread),dz1uv,dz2uv,rhoa)
+!   call vert_interpol(rhogradprof(induv,ithread),rhogradprof(indpuv,ithread),dz1uv,dz2uv,rhograd)
+!   call vert_interpol(wprofeta(indzeta,ithread),wprofeta(indzpeta,ithread),dz1weta,dz2weta,weta)
+! end subroutine interpol_pbl_eta
+! #endif
 
 #ifdef ETA
 subroutine stdev_eta(iw,iuv,iweta)

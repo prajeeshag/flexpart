@@ -379,7 +379,7 @@ subroutine timemanager
 #ifdef ETA
         call update_zeta_to_z(itime, j)
 #endif
-        call init_particle(itime,j)
+        call init_particle(itime,j,thread)
       endif
 
   ! Memorize particle positions

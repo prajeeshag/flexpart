@@ -21,6 +21,7 @@ module advance_mod
   use particle_mod
   use turbulence_mod
   use settling_mod
+  use windfields_mod, only: nxmax
 
   implicit none 
     real, parameter ::              &
@@ -34,7 +35,7 @@ module advance_mod
 
 contains
   
-subroutine advance(itime,ipart,thread)
+subroutine advance(itime,ipart,ithread)
 
   !*****************************************************************************
   !                                                                            *
@@ -111,15 +112,11 @@ subroutine advance(itime,ipart,thread)
   !                                                                            *
   !*****************************************************************************
 
-  ! openmp change
-  use omp_lib, only: OMP_GET_THREAD_NUM
-  ! openmp change end
-
   implicit none
   integer, intent(in) ::          &
     itime,                        & ! time index
     ipart,                        & ! particle index
-    thread                          ! OMP thread
+    ithread                         ! OMP thread starting at 0
   integer ::                      &
     itimec,                       &
     i,j,                          & ! loop variables
@@ -143,7 +140,7 @@ subroutine advance(itime,ipart,thread)
 
   part(ipart)%nstop=.false.
   do i=1,nmixz
-    indzindicator(i)=.true.
+    indzindicator(i,ithread+1)=.true.
   end do
   
   if (DRYDEP) then    ! reset probability for deposition
@@ -161,7 +158,7 @@ subroutine advance(itime,ipart,thread)
 
   itimec=itime
 
-  nrand=int(ran3(iseed1(thread),thread)*real(maxrand-1))+1
+  nrand=int(ran3(iseed1(ithread),ithread)*real(maxrand-1))+1
 
   ! Determine whether lat/long grid or polarstereographic projection
   ! is to be used
@@ -214,7 +211,7 @@ subroutine advance(itime,ipart,thread)
     abovePBL=.false.
 
     call adv_in_pbl(itime,itimec,&
-      dxsave,dysave,dawsave,dcwsave,abovePBL,nrand,ipart,thread)
+      dxsave,dysave,dawsave,dcwsave,abovePBL,nrand,ipart,ithread)
 #ifdef ETA
     if (lsettling) then
       call w_to_weta(itime,real(part(ipart)%idt),part(ipart)%xlon, &
@@ -448,7 +445,7 @@ subroutine adv_above_pbl(itime,itimec,dxsave,dysave,ux,vy,tropop,nrand,ipart)
 end subroutine adv_above_pbl
 
 subroutine adv_in_pbl(itime,itimec, dxsave,dysave,dawsave,dcwsave, abovePBL,  &
-  nrand,ipart,thread)
+  nrand,ipart,ithread)
 
   use drydepo_mod, only: drydepo_probability
 
@@ -460,7 +457,7 @@ subroutine adv_in_pbl(itime,itimec, dxsave,dysave,dawsave,dcwsave, abovePBL,  &
   integer, intent(in) ::          &
     itime,                        & ! time index
     ipart,                        & ! particle index
-    thread                          ! number of the omp thread
+    ithread                         ! number of the omp thread starting at 0
   real, intent(inout) ::          &
     dxsave,dysave,                & ! accumulated displacement in long and lat
     dawsave,dcwsave               ! accumulated displacement in wind directions
@@ -515,9 +512,9 @@ subroutine adv_in_pbl(itime,itimec, dxsave,dysave,dawsave,dcwsave, abovePBL,  &
       if (ngrid.le.0) then
         xts=real(part(ipart)%xlon)
         yts=real(part(ipart)%ylat)
-        call interpol_pbl(itime,xts,yts,zts,ztseta)
+        call interpol_pbl(itime,xts,yts,zts,ztseta,ithread+1)
       else
-        call interpol_pbl(itime,xtn,ytn,zts,ztseta)
+        call interpol_pbl(itime,xtn,ytn,zts,ztseta,ithread+1)
       endif
 
     else
@@ -529,7 +526,7 @@ subroutine adv_in_pbl(itime,itimec, dxsave,dysave,dawsave,dcwsave, abovePBL,  &
       ! If one of the levels necessary is not yet available,
       ! calculate it
       !*****************************************************
-      call interpol_pbl_misslev()
+      call interpol_pbl_misslev(ithread+1)
 
     endif
 
@@ -540,14 +537,14 @@ subroutine adv_in_pbl(itime,itimec, dxsave,dysave,dawsave,dcwsave, abovePBL,  &
   ! both in terms of (u,v) and (w) fields
   !****************************************************************
 
-    call interpol_pbl_short(zts,rhoa,rhograd) ! Vertical interpolation
+    call interpol_pbl_short(zts,rhoa,rhograd,ithread+1) ! Vertical interpolation
 
   ! Compute the turbulent disturbances
   ! Determine the sigmas and the timescales 
   !****************************************
 
     if (lturbulence.eq.1) then
-      call turbulence_pbl(ipart,nrand,dt,zts,rhoa,rhograd,thread) 
+      call turbulence_pbl(ipart,nrand,dt,zts,rhoa,rhograd,ithread) 
       ! Note: zts and nrand get updated
 
       ! Determine time step for next integration

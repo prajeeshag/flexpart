@@ -12,7 +12,7 @@
 
 module com_mod
 
-  use par_mod, only: dp, numpath, maxnests, maxageclass, maxspec, maxndia, &
+  use par_mod, only: dp, numpath, maxnests, maxageclass, &
        numclass, maxcolumn, maxwf, nxmaxn, nymaxn, &
        maxreceptor, maxrand, numwfmem
 
@@ -171,9 +171,8 @@ module com_mod
   
 
 !NIK 16.02.2015
-  integer(selected_int_kind(16)), dimension(maxspec) :: tot_blc_count=0, &
-       &tot_inc_count=0
-
+  integer(selected_int_kind(16)),allocatable,dimension(:) :: &
+    tot_blc_count,tot_inc_count
 
   !*********************************************************************
   ! Variables defining the release locations, released species and their
@@ -189,33 +188,33 @@ module com_mod
   !real xpoint2(maxpoint),ypoint2(maxpoint)
   !real zpoint1(maxpoint),zpoint2(maxpoint)
   !integer*2 kindz(maxpoint)
-  integer :: specnum(maxspec)
+  integer,allocatable,dimension(:) :: specnum
   !real xmass(maxpoint,maxspec)
-  real :: decay(maxspec)
-  real :: weta_gas(maxspec),wetb_gas(maxspec)
-  real :: crain_aero(maxspec),csnow_aero(maxspec)
+  real,allocatable,dimension(:) :: decay
+  real,allocatable,dimension(:) :: weta_gas,wetb_gas
+  real,allocatable,dimension(:) :: crain_aero,csnow_aero
 ! NIK: 31.01.2013- parameters for in-cloud scavening
-  real :: ccn_aero(maxspec),in_aero(maxspec)
-  real :: reldiff(maxspec),henry(maxspec),f0(maxspec)
-  real :: density(maxspec),dquer(maxspec),dsigma(maxspec)
-  integer :: ndia(maxspec)
-  real :: vsetaver(maxspec),cunningham(maxspec),weightmolar(maxspec)
-  real :: vset(maxspec,maxndia),schmi(maxspec,maxndia),fract(maxspec,maxndia)
-  real :: ri(5,numclass),rac(5,numclass),rcl(maxspec,5,numclass)
-  real :: rgs(maxspec,5,numclass),rlu(maxspec,5,numclass)
-  real :: rm(maxspec),dryvel(maxspec),kao(maxspec)
-  real :: ohcconst(maxspec),ohdconst(maxspec),ohnconst(maxspec)
+  real,allocatable,dimension(:) :: ccn_aero,in_aero
+  real,allocatable,dimension(:) :: reldiff,henry,f0
+  real,allocatable,dimension(:) :: density,dquer,dsigma
+  integer,allocatable,dimension(:) :: ndia
+  real,allocatable,dimension(:) :: vsetaver,cunningham,weightmolar
+  real,allocatable,dimension(:,:) :: vset,schmi,fract
+  real,allocatable,dimension(:,:) :: ri,rac
+  real,allocatable,dimension(:,:,:) :: rcl,rgs,rlu
+  real,allocatable,dimension(:) :: rm,dryvel
+  real,allocatable,dimension(:) :: ohcconst,ohdconst,ohnconst
   ! Daria Tatsii: species shape properties
-  real :: Fn(maxspec),Fs(maxspec) ! Newton and Stokes' regime
-  real :: ks1(maxspec),ks2(maxspec),kn2(maxspec)
-  integer :: ishape(maxspec),orient(maxspec)
+  real,allocatable,dimension(:) :: Fn,Fs ! Newton and Stokes' regime
+  real,allocatable,dimension(:) :: ks1,ks2,kn2
+  integer,allocatable,dimension(:) :: ishape,orient
 
-  real :: area_hour(maxspec,24),point_hour(maxspec,24)
-  real :: area_dow(maxspec,7),point_dow(maxspec,7)
+  real,allocatable,dimension(:,:) :: area_hour,point_hour
+  real,allocatable,dimension(:,:) :: area_dow,point_dow
 
   !integer npart(maxpoint)
   integer :: nspec,maxpointspec_act
-  character(len=10) :: species(maxspec)
+  character(len=10),allocatable,dimension(:) :: species
 
 
   ! compoint                comment, also "name" of each starting point
@@ -332,8 +331,8 @@ module com_mod
   real :: dxoutn,dyoutn,outlon0n,outlat0n,xoutshiftn,youtshiftn
   !real outheight(maxzgrid),outheighthalf(maxzgrid)
 
-  logical :: DEP,DRYDEP,DRYDEPSPEC(maxspec),WETDEP,WETDEPSPEC(maxspec),&
-       & OHREA,ASSSPEC
+  logical :: DEP,DRYDEP,WETDEP,OHREA,ASSSPEC
+  logical,allocatable,dimension(:) :: DRYDEPSPEC,WETDEPSPEC
   logical :: DRYBKDEP,WETBKDEP
 
   ! numxgrid,numygrid       number of grid points in x,y-direction
@@ -357,8 +356,6 @@ module com_mod
   ! DRYBKDEP,WETBKDEP        .true., for bkwd runs, where mass deposited and source regions is calculated - either for dry or for wet deposition
   !                    (i.e. transfer of mass between these two occurs
 
-
-
   !  if output for each releasepoint shall be created maxpointspec=number of releasepoints
   !  else maxpointspec is 1 -> moved to unc_mod
   !  the OUTGRID is moved to the module outgrid_mod
@@ -379,8 +376,7 @@ module com_mod
 
   real :: xreceptor(maxreceptor),yreceptor(maxreceptor)
   real :: receptorarea(maxreceptor)
-  real :: creceptor(maxreceptor,maxspec)
-  real, allocatable, dimension(:,:) :: creceptor0
+  real,allocatable,dimension(:,:) :: creceptor
   character(len=16) :: receptorname(maxreceptor)
   integer :: numreceptor
 
@@ -388,15 +384,14 @@ module com_mod
   ! creceptor               concentrations at receptor points
   ! receptorarea            area of 1*1 grid cell at receptor point
 
-
-
   !***************************************
   ! Variables characterizing each particle
   !***************************************
 
   integer :: numpart=0
   integer :: numparticlecount
-
+  integer :: maxspec ! Number of chemical species per release
+  integer :: maxndia ! Number of diameter bins
   !real, allocatable, dimension(:,:) :: xscav_frac1
 
   !****************************************************************
@@ -502,6 +497,43 @@ module com_mod
 
 
 contains
+
+  subroutine alloc_com
+    allocate( tot_blc_count(maxspec),tot_inc_count(maxspec))
+    allocate( specnum(maxspec),decay(maxspec),weta_gas(maxspec), &
+      wetb_gas(maxspec),crain_aero(maxspec),csnow_aero(maxspec), &
+      ccn_aero(maxspec),in_aero(maxspec),ndia(maxspec), &
+      reldiff(maxspec),henry(maxspec),f0(maxspec),density(maxspec), &
+      dquer(maxspec),dsigma(maxspec) )
+    allocate( vsetaver(maxspec),cunningham(maxspec), &
+      weightmolar(maxspec),ri(5,numclass),rac(5,numclass), &
+      rcl(maxspec,5,numclass),rgs(maxspec,5,numclass), &
+      rlu(maxspec,5,numclass),rm(maxspec),dryvel(maxspec), &
+      ohcconst(maxspec),ohdconst(maxspec),ohnconst(maxspec) )
+    allocate( Fn(maxspec),Fs(maxspec),ks1(maxspec),ks2(maxspec), &
+      kn2(maxspec),ishape(maxspec),orient(maxspec) )
+    allocate( area_hour(maxspec,24),point_hour(maxspec,24), &
+      area_dow(maxspec,7),point_dow(maxspec,7), &
+      species(maxspec) )
+    allocate( DRYDEPSPEC(maxspec),WETDEPSPEC(maxspec) )
+    allocate( creceptor(maxreceptor,maxspec) )
+    tot_blc_count=0
+    tot_inc_count=0
+  end subroutine alloc_com
+
+  subroutine alloc_com_ndia
+    allocate(vset(maxspec,maxndia),schmi(maxspec,maxndia),fract(maxspec,maxndia))
+  end subroutine alloc_com_ndia
+
+  subroutine dealloc_com
+    deallocate(tot_blc_count,tot_inc_count,specnum,decay,weta_gas,wetb_gas, &
+      crain_aero,csnow_aero,ccn_aero,in_aero,reldiff,henry,f0,density,dquer, &
+      dsigma,ndia,vsetaver,cunningham,weightmolar,vset,schmi,fract,ri,rac,rcl, &
+      rgs,rlu,rm,dryvel,ohcconst,ohdconst,ohnconst,Fn,Fs,ks1,ks2,kn2,ishape, &
+      orient,area_hour,point_hour,area_dow,point_dow,species)
+    deallocate(DRYDEPSPEC,WETDEPSPEC)
+    deallocate(creceptor)
+  end subroutine dealloc_com
 
   subroutine mpi_alloc_part(nmpart)
   !*******************************************************************************    

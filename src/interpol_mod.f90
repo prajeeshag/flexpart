@@ -19,7 +19,7 @@ module interpol_mod
     usigprof,vsigprof,wsigprof,     &
     rhoprof,rhogradprof
   logical,allocatable,dimension(:,:) ::       &
-    indzindicator
+    indzindicator,depoindicator
 
   real :: u,v,w,usig,vsig,wsig
 
@@ -29,7 +29,6 @@ module interpol_mod
   integer :: nix,njy
   integer :: ix,jy,ixp,jyp,ngrid,indz,indzp
   integer :: induv,indpuv
-  logical :: depoindicator(maxspec)
   logical :: lbounds(2) ! marking particles below or above bounds
 #ifdef ETA
   real,allocatable,dimension(:,:) :: wprofeta ! ,wsigprofeta
@@ -58,12 +57,12 @@ module interpol_mod
   end interface find_ngrid
 
 ! uprof,vprof,wprof,usigprof,vsigprof,wsigprof,indzindicator, wsigprofeta,
-! rhoprof,rhogradprof,wprofeta,
+! rhoprof,rhogradprof,wprofeta,depoindicator,
 #ifdef ETA
 !$OMP THREADPRIVATE( &
 !$OMP u,v,w,usig,vsig,wsig, &
 !$OMP p1,p2,p3,p4,ddx,ddy,rddx,rddy,dtt,dt1,dt2,ix,jy,ixp,jyp, &
-!$OMP ngrid,indz,indzp,depoindicator,&
+!$OMP ngrid,indz,indzp, &
 !$OMP induv,indpuv,lbounds,lbounds_w,lbounds_uv, &
 !$OMP indzeta,indzpeta,ueta,veta,weta,wsigeta, &
 !$OMP xtn,ytn,nix,njy,dz1out,dz2out)
@@ -71,7 +70,7 @@ module interpol_mod
 !$OMP THREADPRIVATE( &
 !$OMP u,v,w,usig,vsig,wsig, &
 !$OMP p1,p2,p3,p4,ddx,ddy,rddx,rddy,dtt,dt1,dt2,ix,jy,ixp,jyp, &
-!$OMP ngrid,indz,indzp,depoindicator, &
+!$OMP ngrid,indz,indzp, &
 !$OMP induv,indpuv,lbounds,xtn,ytn,nix,njy,dz1out,dz2out)
 #endif
 
@@ -85,6 +84,7 @@ subroutine alloc_interpol ! wsigprofeta(nzmax,numthreads),
 #ifdef ETA
   allocate(wprofeta(nzmax,numthreads))
 #endif
+  if (DRYDEP) allocate( depoindicator(maxspec,numthreads) )
 end subroutine alloc_interpol
 
 subroutine dealloc_interpol ! wsigprofeta,
@@ -94,6 +94,7 @@ subroutine dealloc_interpol ! wsigprofeta,
 #ifdef ETA
   deallocate(wprofeta)
 #endif
+  if (DRYDEP) deallocate( depoindicator )
 end subroutine dealloc_interpol
 
 subroutine init_interpol(itime,xt,yt,zt,zteta)

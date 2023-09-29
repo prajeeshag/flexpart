@@ -179,13 +179,8 @@ module par_mod
   ! Maximum number of particles, species, and similar
   !**************************************************
 
-  !integer,parameter :: maxpart=5000000
-  integer,parameter :: maxspec=1
-
   real,parameter :: minmassfrac=0.0
 
-  ! maxpart      Maximum number of particles
-  ! maxspec      Maximum number of chemical species per release
   ! minmassfrac  Terminate particles carrying a lower fraction
   !                compared to their initial mass
 
@@ -194,7 +189,7 @@ module par_mod
 
   ! ---------
   ! Sabine Eckhardt: change of landuse inventary numclass=13
-  integer,parameter :: maxwf=1000000, maxtable=1000, numclass=13, maxndia=100
+  integer,parameter :: maxwf=1000000, maxtable=1000, numclass=13
   integer,parameter :: numwfmem=2 ! Serial version/MPI with 2 fields
   !integer,parameter :: numwfmem=3 ! MPI with 3 fields
 

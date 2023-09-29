@@ -144,7 +144,7 @@ subroutine advance(itime,ipart,ithread)
   end do
   
   if (DRYDEP) then    ! reset probability for deposition
-    depoindicator=.true.
+    depoindicator(:,ithread+1)=.true.
     part(ipart)%prob=0.
   endif
   
@@ -630,7 +630,7 @@ subroutine adv_in_pbl(itime,itimec, dxsave,dysave,dawsave,dcwsave, abovePBL,  &
     
   ! Determine probability of deposition
   !************************************
-    call drydepo_probability(part(ipart)%prob,dt,zts,vdepo)
+    call drydepo_probability(part(ipart)%prob,dt,zts,vdepo,ithread+1)
 
     if (zts.lt.0.) call set_z(ipart,min(h-eps2,-1.*part(ipart)%z))    
       ! if particle below ground -> reflection

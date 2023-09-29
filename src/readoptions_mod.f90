@@ -2074,7 +2074,7 @@ subroutine readreleases
   character(len=50) :: line
 
   ! help variables for namelist reading
-  integer :: numpoints, parts, ios
+  integer :: numpoints, parts, ios, nspec_init
   integer*2 :: zkind
   integer :: idate1, itime1, idate2, itime2
   real :: lon1,lon2,lat1,lat2,z1,z2
@@ -2101,11 +2101,10 @@ subroutine readreleases
        comment
 
   numpoint=0
+  nspec_init=50 ! necessary to allocate specnum_rel, would be cleaner to change RELEASES 
+                ! in one extra namelist
 
-  ! allocate with maxspec for first input loop
-  allocate(mass(maxspec),stat=stat)
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate mass'
-  allocate(specnum_rel(maxspec),stat=stat)
+  allocate(specnum_rel(nspec_init),stat=stat)
   if (stat.ne.0) write(*,*)'ERROR: could not allocate specnum_rel'
 
   ! presetting namelist releases_ctrl
@@ -2118,6 +2117,19 @@ subroutine readreleases
 
   ! check if namelist input provided
   read(unitreleases,releases_ctrl,iostat=ios)
+
+  if (nspec.gt.nspec_init) then
+    write(*,*) 'Requested number of species:',nspec
+    error stop 'More than 50 species at a time is not possible when using &
+     & RELEASES. You can do this with the part_ic.nc option (IPIN=3).'
+  end if
+  ! Allocate fields with maxspec
+  maxspec=nspec
+  call alloc_com()
+  ! allocate with maxspec for first input loop
+  allocate(mass(maxspec),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate mass'
+
   if (ios.ne.0) then
         backspace(unitreleases)
         read(unitreleases,fmt='(A)') line
@@ -2225,7 +2237,12 @@ subroutine readreleases
 
   do i=1,nspec
     call readspecies(specnum_rel(i),i)
+  end do
 
+  ! Allocate fields that depend on ndia
+  call alloc_com_ndia
+
+  do i=1,nspec
 
   ! Allocate temporary memory necessary for the different diameter bins
   !********************************************************************
@@ -3008,8 +3025,9 @@ subroutine readspecies(id_spec,pos_spec)
   end if
 
   if (ndia(pos_spec).gt.maxndia) then
-    write(*,*) 'NDIA in SPECIES file', pos_spec, 'set to', ndia(pos_spec), 'larger than maxndia', &
-      maxndia, 'set in par_mod.f90'
+    maxndia=ndia(pos_spec)
+    ! write(*,*) 'NDIA in SPECIES file', pos_spec, 'set to', ndia(pos_spec), 'larger than maxndia', &
+    !   maxndia, 'set in par_mod.f90'
   endif
   !  if (dsigma(i).eq.0.) dsigma(i)=1.0001   ! avoid floating exception
   if (dquer(i).gt.0 .and. dsigma(i).le.1.) then !dsigma(i)=1.0001   ! avoid floating exception

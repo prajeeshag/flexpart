@@ -40,7 +40,7 @@ module netcdf_output_mod
   use outgrid_mod,  only: outheight,oroout,densityoutgrid,factor3d,volume,&
                        wetgrid,wetgridsigma,drygrid,drygridsigma,grid,gridsigma,&
                        area,arean,volumen,orooutn
-  use par_mod,   only: dep_prec, sp, dp, maxspec, maxreceptor, nclassunc,&
+  use par_mod,   only: dep_prec, sp, dp, maxreceptor, nclassunc,&
                        unitoutrecept,unitoutreceptppt,unittmp
   use com_mod,   only: path,length,ldirect,ibdate,ibtime,iedate,ietime,itime_init, &
                        loutstep,loutaver,loutsample,outlon0,outlat0,&
@@ -60,7 +60,7 @@ module netcdf_output_mod
                        nested_output, ipout, sfc_only, linit_cond, &
                        flexversion,mpi_mode,DEP,DRYDEP,WETDEP,DRYBKDEP,WETBKDEP,OHREA, &
                        numpart,numpoint,partopt,num_partopt,gitversion,ndia, &
-                       DRYDEPSPEC,WETDEPSPEC
+                       DRYDEPSPEC,WETDEPSPEC,maxspec,maxndia
   ! use com_mod
   use windfields_mod, only: oro,rho,nxmax,height,nxmin1,nymin1,nz,nx,ny,hmix, &
                        ! for concoutput_netcdf and concoutput_nest_netcdf 
@@ -79,8 +79,9 @@ module netcdf_output_mod
   character(len=255) :: ncfname, ncfnamen, ncfname_part, ncfname_partinit!(maxpoint)
 
   ! netcdf dimension and variable IDs for main and nested output grid
-  integer, dimension(maxspec) :: specID,specIDppt, wdspecID,ddspecID
-  integer, dimension(maxspec) :: specIDn,specIDnppt, wdspecIDn,ddspecIDn,recconcID,recpptvID
+  integer,allocatable,dimension(:) :: specID,specIDppt,wdspecID,ddspecID
+  integer,allocatable,dimension(:) :: specIDn,specIDnppt,wdspecIDn,ddspecIDn, &
+    recconcID,recpptvID
   integer                     :: timeID, timeIDn, timeIDpart
   integer, dimension(6)       :: dimids, dimidsn
   integer, dimension(5)       :: depdimids, depdimidsn
@@ -88,14 +89,16 @@ module netcdf_output_mod
   !IDs for partoutput
   integer             :: partID
   integer             :: itramemID,topoID,pvID,qvID,rhoID,prID,uID,vID,wID,vsetID
-  integer             :: hmixID,trID,ttID,lonIDpart,latIDpart,levIDpart,massID(maxspec)
-  integer             :: wdID(maxspec),ddID(maxspec)
+  integer             :: hmixID,trID,ttID,lonIDpart,latIDpart,levIDpart
+  integer,allocatable,dimension(:) :: massID,wdID,ddID
   ! For averaged output
   integer  :: lonavIDpart,latavIDpart,levavIDpart,pvavID,qvavID,pravID, &
-    rhoavID,ttavID,topoavID,hmixavID,travID,uavID,vavID,wavID,vsetavID,massavID(maxspec)
+    rhoavID,ttavID,topoavID,hmixavID,travID,uavID,vavID,wavID,vsetavID
+  integer,allocatable,dimension(:) :: massavID
   ! For initial particle outputs
   integer  :: partIDi,tIDi,lonIDi,latIDi,levIDi,relIDi,pvIDi,prIDi,qvIDi, &
-    rhoIDi,ttIDi,uIDi,vIDi,wIDi,massIDi(maxspec),topoIDi,trIDi,hmixIDi
+    rhoIDi,ttIDi,uIDi,vIDi,wIDi,topoIDi,trIDi,hmixIDi
+  integer,allocatable,dimension(:) :: massIDi
 
   real :: eps
   !  private:: writemetadata, output_units, nf90_err
@@ -122,11 +125,25 @@ module netcdf_output_mod
        concoutput_nest_netcdf,writeheader_partoutput,partoutput_netcdf,&
        open_partoutput_file,close_partoutput_file,create_particles_initialoutput,&
        topo_written,mass_written,wrt_part_initialpos,partinit_netcdf,open_partinit_file, &
-       readpartpositions_netcdf,readinitconditions_netcdf,partinitpointer1,tpointer
+       readpartpositions_netcdf,readinitconditions_netcdf,partinitpointer1,tpointer, &
+       alloc_netcdf,dealloc_netcdf
 
   ! Not written yet:
   ! concoutput_sfc_netcdf,concoutput_sfc_nest_netcdf,
 contains
+
+subroutine alloc_netcdf
+  allocate( specID(maxspec),specIDppt(maxspec), wdspecID(maxspec),ddspecID(maxspec), &
+    specIDn(maxspec),specIDnppt(maxspec), wdspecIDn(maxspec),ddspecIDn(maxspec), &
+    recconcID(maxspec),recpptvID(maxspec) )
+  allocate( massID(maxspec),wdID(maxspec),ddID(maxspec),massavID(maxspec),massIDi(maxspec) )
+end subroutine alloc_netcdf
+
+subroutine dealloc_netcdf
+  deallocate( specID,specIDppt,wdspecID,ddspecID,specIDn,specIDnppt,wdspecIDn,ddspecIDn, &
+    recconcID,recpptvID )
+  deallocate( massID,wdID,ddID,massavID,massIDi )
+end subroutine dealloc_netcdf
 
 !****************************************************************
 ! determine output units (see table 1 in Stohl et al., ACP 2005
@@ -2391,7 +2408,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   character           :: adate*8,atime*6,timeunit*32,adate_start*8,atime_start*6
   character(len=3)    :: anspec
   real(kind=dp)       :: julin,julcommand
-
+  real,allocatable,dimension(:) :: mass_temp
   integer :: idummy = -8
 
   write(adate,'(i8.8)') ibdate
@@ -2458,14 +2475,19 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%z, & 
     start=(/ tlen, 1 /),count=(/ 1, plen /)))
   ! Mass
+  allocate(mass_temp(count%allocated)) 
   if (mdomainfill.eq.0) then
     do j=1,nspec
       write(anspec, '(i3.3)') j
       call nf90_err(nf90_inq_varid(ncid=ncidend,name='mass'//anspec,varid=tempIDend))
-      call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%mass(j), & 
+      call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=mass_temp(:), & 
         start=(/ tlen, 1 /),count=(/ 1, plen /)))
+      do i=1,count%allocated
+        part(i)%mass(j)=mass_temp(i)
+      end do
     end do
   endif
+  deallocate( mass_temp )
 
   do i=1,plen
     if (part(i)%z.lt.0) then 
@@ -2521,13 +2543,16 @@ subroutine readinitconditions_netcdf()
   ! Open part_ic.nc file
   call nf90_err(nf90_open(trim(path(2)(1:length(2))//'part_ic.nc'), mode=NF90_NOWRITE,ncid=ncidend))
 
-  ! allocate with maxspec for first input loop
-  allocate(specnum_rel(maxspec),stat=stat)
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate specnum_rel'
-
   ! How many species are contained in each particle?
   call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='nspecies',varid=NF90_GLOBAL))
   call nf90_err(nf90_get_att(ncid=ncidend,varid=NF90_GLOBAL,name='nspecies',values=nspec))
+
+  maxspec=nspec
+  call alloc_com()
+
+  ! allocate with maxspec for first input loop
+  allocate(specnum_rel(maxspec),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate specnum_rel'
 
   if (nspec.gt.maxspec) then
     error stop 'number of species in part_ic.nc is larger than the allowed maxspec set in the par_mod.f90'
@@ -2569,8 +2594,10 @@ subroutine readinitconditions_netcdf()
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='mass',varid=tempIDend))
   call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=mass_temp, & 
     start=(/ 1,1 /),count=(/ plen,nspec /)))
-  do nsp=1,nspec
-    part(:)%mass(nsp)=mass_temp(1:plen,nsp)
+  do i=1,plen
+    do nsp=1,nspec
+      part(i)%mass(nsp)=mass_temp(i,nsp)
+    end do
   end do
   deallocate(mass_temp)
 
@@ -2740,6 +2767,12 @@ subroutine readinitconditions_netcdf()
 
   do nsp=1,nspec
     call readspecies(specnum_rel(nsp),nsp)
+  end do
+
+  ! Allocate fields that depend on ndia
+  call alloc_com_ndia
+
+  do nsp=1,nspec
     ! Allocate temporary memory necessary for the different diameter bins
     !********************************************************************
     allocate(vsh(ndia(nsp)),fracth(ndia(nsp)),schmih(ndia(nsp)))

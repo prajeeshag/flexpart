@@ -404,7 +404,7 @@ subroutine timemanager
             call update_zeta_to_z(itime,j)
 #endif
             call get_vdep_prob(itime,real(part(j)%xlon),real(part(j)%ylat), &
-              real(part(j)%z),prob_rec)
+              real(part(j)%z),prob_rec,thread+1)
             if (DRYDEPSPEC(ks)) then        ! dry deposition
               xscav_frac1(j,ks)=prob_rec(ks)
             else
@@ -624,6 +624,7 @@ subroutine timemanager
   if (iflux.eq.1) deallocate(flux)
   if (OHREA) deallocate(OH_field,OH_hourly,lonOH,latOH,altOH)
   if (ipin.ne.3 .and. ipin.ne.4) deallocate(xmasssave)
+  if (lnetcdfout.eq.1) call dealloc_netcdf
   deallocate(xpoint1,xpoint2,ypoint1,ypoint2,zpoint1,zpoint2)
   deallocate(xmass)
   deallocate(ireleasestart,ireleaseend,npart,kindz)

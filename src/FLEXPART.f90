@@ -225,8 +225,6 @@ subroutine read_options_and_initialise_flexpart
   !******************************************************************
   call readavailable
 
-  if (ipout.ne.0) call readpartoptions
-
   ! Detect metdata format
   !**********************
   call detectformat
@@ -303,7 +301,8 @@ subroutine read_options_and_initialise_flexpart
   call alloc_convect
   call alloc_getfields
   call alloc_interpol
-  
+  if (lnetcdfout.eq.1) call alloc_netcdf
+
   ! Assign fractional cover of landuse classes to each ECMWF grid point
   !********************************************************************
   call assignland
@@ -393,6 +392,8 @@ subroutine initialise_particles
     error stop 'Compile with netCDF if you would like to use the ipin=3,4 options.'
 #endif
   endif
+
+  if (ipout.ne.0) call readpartoptions
 
   if (iout.ne.0) then
     call alloc_grid

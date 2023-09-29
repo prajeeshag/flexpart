@@ -714,7 +714,7 @@ subroutine part0(dquer,dsigma,density,ni,fract,schmi,cun,vsh)
   !stop 'part0' 
 end subroutine part0
 
-subroutine get_vdep_prob(itime,xt,yt,zt,prob)
+subroutine get_vdep_prob(itime,xt,yt,zt,prob,ithread)
   !                    i     i  i  i  o
   !*****************************************************************************
   !                                                                            *
@@ -745,17 +745,18 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
 
   implicit none
 
-  real :: xt,yt,zt
-  integer :: itime,memindnext
-  integer :: ks,m!nix,njy,
-  real :: prob(maxspec),vdepo(maxspec),vdeptemp(2)
+  real,intent(in) :: xt,yt,zt
+  integer,intent(in) :: itime,ithread !ithread starting at 1
+  real,intent(out) :: prob(maxspec)
+  integer :: ks,m,memindnext!nix,njy,
+  real :: vdepo(maxspec),vdeptemp(2)
   real :: eps
 
   eps=nxmax/3.e5
 
   if (DRYDEP) then    ! reset probability for deposition
     do ks=1,nspec
-      depoindicator(ks)=.true.
+      depoindicator(ks,ithread)=.true.
       prob(ks)=0.
     end do
   endif
@@ -787,7 +788,7 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
   if ((DRYDEP).and.(real(zt).lt.2.*href)) then
     do ks=1,nspec
       if (DRYDEPSPEC(ks)) then
-        if (depoindicator(ks)) then
+        if (depoindicator(ks,ithread)) then
           if (ngrid.le.0) then
             do m=1,2
               call hor_interpol(vdep,vdeptemp(m),ks,memind(m),maxspec)
@@ -810,13 +811,14 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
   endif
 end subroutine get_vdep_prob
 
-subroutine drydepo_probability(prob,dt,zts,vdepo)
+subroutine drydepo_probability(prob,dt,zts,vdepo,ithread)
   use par_mod
   use com_mod
   use interpol_mod
 
   implicit none
 
+  integer,intent(in) :: ithread ! OMP thread starting at 1
   real,intent(inout) :: prob(maxspec)
   real,intent(inout) :: vdepo(maxspec)  ! deposition velocities for all species
   real,intent(in) :: dt,zts             ! real(ldt), real(zt)
@@ -826,7 +828,7 @@ subroutine drydepo_probability(prob,dt,zts,vdepo)
   if ((DRYDEP).and.(zts.lt.2.*href)) then
     do ns=1,nspec
       if (DRYDEPSPEC(ns)) then
-        if (depoindicator(ns)) then
+        if (depoindicator(ns,ithread)) then
           if (ngrid.le.0) then
             do m=1,2
               call hor_interpol(vdep,vdeptemp(m),ns,memind(m),maxspec)

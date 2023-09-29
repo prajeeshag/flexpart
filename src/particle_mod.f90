@@ -11,7 +11,7 @@
   !*****************************************************************************
 
 module particle_mod
-  use com_mod, only: maxspec,DRYBKDEP,WETBKDEP,iout,n_average,nspec
+  use com_mod, only: maxspec,DRYDEP,WETDEP,DRYBKDEP,WETBKDEP,iout,n_average,nspec
   use par_mod, only: dp
 
   implicit none
@@ -74,12 +74,12 @@ module particle_mod
       nclass,                     &
       !species(maxspec),           & ! the number of the corresponding species file of the particle
       idt                           ! internal time of the particle
-    real               ::         &
-      mass(maxspec),              & ! Particle mass for each particle species
-      mass_init(maxspec),         & ! Initial mass of each particle
-      wetdepo(maxspec)=0.,        & ! Wet deposition (cumulative)
-      drydepo(maxspec)=0.,        & ! Dry deposition (cumulative)
-      prob(maxspec)                 ! Probability of absorption at ground due to dry deposition
+    real,allocatable,dimension(:) ::  &
+      mass,                       & ! Particle mass for each particle species
+      mass_init,                  & ! Initial mass of each particle
+      wetdepo,                    & ! Wet deposition (cumulative)
+      drydepo,                    & ! Dry deposition (cumulative)
+      prob                          ! Probability of absorption at ground due to dry deposition
     
     real,allocatable   ::         &
       val_av(:)                     ! Averaged values; only used when average_output=.true.
@@ -376,7 +376,6 @@ contains
 
     ! Allocating new particle spaces
     !*******************************
-
     allocate( tmppart(count%allocated+nmpart) )
     if (n_average.gt.0) then 
       do i=1,count%allocated+nmpart
@@ -384,6 +383,17 @@ contains
         tmppart(i)%val_av = 0
       end do
     endif
+    do i=1,count%allocated+nmpart
+      allocate( tmppart(i)%mass(maxspec),tmppart(i)%mass_init(maxspec) )
+      if (DRYDEP) then
+        allocate( tmppart(i)%drydepo(maxspec),tmppart(i)%prob(maxspec) )
+        tmppart(i)%drydepo(maxspec)=0.
+      endif
+      if (WETDEP) then 
+        allocate( tmppart(i)%wetdepo(maxspec) )
+        tmppart(i)%wetdepo(maxspec)=0.
+      endif
+    end do
     if (count%allocated.gt.0) tmppart(1:count%allocated) = part
     call move_alloc(tmppart,part)
 

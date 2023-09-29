@@ -924,7 +924,6 @@ subroutine calcpar(n)
 
   ! Loop over entire grid
   !**********************
-  z0_drydep = z0(7) !initialise for now
 !$OMP PARALLEL PRIVATE(jy,ix,ulev,vlev,ttlev,qvlev,llev,ylat,ol,i,hmixplus, &
 !$OMP subsceff,vd,kz,lz,zlev,rh,kzmin,pold,zold,tvold,pint,tv,loop_start,ierr, &
 !$OMP altmin)
@@ -1185,7 +1184,6 @@ subroutine calcpar_nest(n)
 
   ! Loop over entire grid
   !**********************
-  z0_drydepn(:,:,l) = z0(7) !initialise for now
 !$OMP PARALLEL DEFAULT(SHARED) &
 !$OMP PRIVATE(i,ix,jy,kz,lz,kzmin,tvold,pold,zold,zlev,tv,pint, &
 !$OMP rh,ierr,subsceff,ulev,vlev,ttlev,qvlev,ol,altmin,ylat,hmixplus, &

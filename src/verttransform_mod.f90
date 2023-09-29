@@ -127,7 +127,11 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
   ! Transform the wind fields to the internal coordinate system and save the native ETA 
   ! fields when case wind_coord_type==ETA
   !*************************************************************
-  call verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
+  call verttransform_ecmwf_windfields(n,nxmin1,nymin1, &
+    uuh(0:nxmin1,0:nymin1,1:nuvzmax), &
+    vvh(0:nxmin1,0:nymin1,1:nuvzmax),wwh(0:nxmin1,0:nymin1,1:nwzmax), &
+    pvh(0:nxmin1,0:nymin1,1:nuvzmax),rhoh(0:nxmin1,0:nymin1,1:nuvzmax), &
+    prsh(0:nxmin1,0:nymin1,1:nuvzmax),pinmconv(0:nxmin1,0:nymin1,1:nzmax))
 
   ! If north or south pole is in the domain, calculate wind velocities in polar
   ! stereographic coordinates
@@ -346,22 +350,22 @@ subroutine read_heightlevels(height_tmp,nmixz_tmp)
   write(*,*) ' #### FROM VERTTRANSFORM_MOD.                 #### '
 end subroutine read_heightlevels
 
-subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
+subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
   implicit none
 
-  integer,intent(in) :: n
-  real,intent(in),dimension(0:nxmax-1,0:nymax-1,nuvzmax) :: uuh,vvh,pvh
-  real,intent(in),dimension(0:nxmax-1,0:nymax-1,nwzmax) :: wwh
-  real,intent(in),dimension(0:nxmax-1,0:nymax-1,nuvzmax) :: rhoh
-  real,intent(in),dimension(0:nxmax-1,0:nymax-1,nzmax) :: pinmconv
+  integer,intent(in) :: n,nxlim,nylim
+  real,intent(in),dimension(0:nxlim,0:nylim,nuvzmax) :: uuh,vvh,pvh
+  real,intent(in),dimension(0:nxlim,0:nylim,nwzmax) :: wwh
+  real,intent(in),dimension(0:nxlim,0:nylim,nuvzmax) :: rhoh
+  real,intent(in),dimension(0:nxlim,0:nylim,nzmax) :: pinmconv
   ! RLT added pressure
-  real,intent(in),dimension(0:nxmax-1,0:nymax-1,nuvzmax) :: prsh
+  real,intent(in),dimension(0:nxlim,0:nylim,nuvzmax) :: prsh
 
   !real,dimension(0:nxmax-1,0:nymax-1) ::  dpdeta
 
-  real,dimension(0:nymax-1) :: cosf
+  real,dimension(0:nylim) :: cosf
 
-  integer,dimension(0:nxmax-1,0:nymax-1,nzmax) :: idx,idxw
+  integer,dimension(0:nxlim,0:nylim,nzmax) :: idx,idxw
 
   integer :: ix,jy,kz,iz,ixp,jyp,ix1,jy1
   real :: dz1,dz2,dz,dpdeta
@@ -451,7 +455,7 @@ subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
       ww(ix,jy,nz,n)=wwh(ix,jy,nwz)*pinmconv(ix,jy,nz)
     end do
   end do
-!$OMP END DO NOWAIT
+!$OMP END DO
 
 !$OMP DO SCHEDULE(dynamic)
   do iz=2,nz-1
@@ -550,7 +554,7 @@ subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
       drhodz(ix,jy,1,n)=(rho(ix,jy,2,n)-rho(ix,jy,1,n))/(height(2)-height(1))
     end do
   end do
-!$OMP END DO NOWAIT
+!$OMP END DO
 
 !$OMP DO
   do iz=2,nz-1
@@ -590,7 +594,7 @@ subroutine verttransform_ecmwf_windfields(n,uuh,vvh,wwh,pvh,rhoh,prsh,pinmconv)
         end do
       end do
     end do
-!$OMP END DO NOWAIT
+!$OMP END DO
 
 !$OMP DO
     do jy=0,nymin1
@@ -1860,7 +1864,7 @@ subroutine verttransform_ecmwf_windfields_nest(l,n, &
            (height(2)-height(1))
     end do
   end do
-!$OMP END DO NOWAIT
+!$OMP END DO
 
   !****************************************************************
   ! Compute slope of eta levels in windward direction and resulting
@@ -1943,7 +1947,7 @@ subroutine verttransform_ecmwf_windfields_nest(l,n, &
         end do
       end do
     end do
-!$OMP END DO NOWAIT
+!$OMP END DO
 
 !$OMP DO
     do jy=0,nym1

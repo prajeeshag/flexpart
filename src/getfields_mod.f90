@@ -924,17 +924,13 @@ subroutine calcpar(n)
 
   ! Loop over entire grid
   !**********************
+  z0_drydep = z0(7) !initialise for now
+!$OMP PARALLEL PRIVATE(jy,ix,ulev,vlev,ttlev,qvlev,llev,ylat,ol,i,hmixplus, &
+!$OMP subsceff,vd,kz,lz,zlev,rh,kzmin,pold,zold,tvold,pint,tv,loop_start,ierr, &
+!$OMP altmin)
 
-  ! openmp change
-  z0_tmp = z0
-  !$OMP PARALLEL PRIVATE(jy,ix,ulev,vlev,ttlev,qvlev,llev,ylat,ol,i,hmixplus, &
-  !$OMP subsceff,vd,kz,lz,zlev,rh,kzmin,pold,zold,tvold,pint,tv,loop_start,ierr, &
-  !$OMP altmin)
-  z0 = z0_tmp
-
-  !$OMP DO
+!$OMP DO
   do jy=0,nymin1
-
   ! Set minimum height for tropopause
   !**********************************
 
@@ -1035,7 +1031,7 @@ subroutine calcpar(n)
       if (DRYDEP) then
   ! Sabine Eckhardt, Dec 06: use new index for z0 for water depending on
   ! windspeed
-        z0(7)=0.016*ustar(ix,jy,1,n)*ustar(ix,jy,1,n)/ga
+        z0_drydep(ix,jy)=0.016*ustar(ix,jy,1,n)*ustar(ix,jy,1,n)/ga
 
   ! Calculate relative humidity at surface
   !***************************************
@@ -1121,10 +1117,8 @@ subroutine calcpar(n)
 
     end do
   end do
-  !$OMP END DO
-  !$OMP END PARALLEL
-  ! openmp change end
-
+!$OMP END DO
+!$OMP END PARALLEL
   ! Calculation of potential vorticity on 3-d grid
   !***********************************************
 
@@ -1191,12 +1185,11 @@ subroutine calcpar_nest(n)
 
   ! Loop over entire grid
   !**********************
-  z0_tmp = z0
+  z0_drydepn(:,:,l) = z0(7) !initialise for now
 !$OMP PARALLEL DEFAULT(SHARED) &
 !$OMP PRIVATE(i,ix,jy,kz,lz,kzmin,tvold,pold,zold,zlev,tv,pint, &
 !$OMP rh,ierr,subsceff,ulev,vlev,ttlev,qvlev,ol,altmin,ylat,hmixplus, &
 !$OMP dummyakzllev,vd )
-  z0 = z0_tmp
 
 !$OMP DO
   do jy=0,nyn(l)-1
@@ -1278,7 +1271,7 @@ subroutine calcpar_nest(n)
       if (DRYDEP) then
         ! z0(4)=0.016*ustarn(ix,jy,1,n,l)*ustarn(ix,jy,1,n,l)/ga
         ! z0(9)=0.016*ustarn(ix,jy,1,n,l)*ustarn(ix,jy,1,n,l)/ga
-        z0(7)=0.016*ustarn(ix,jy,1,n,l)*ustarn(ix,jy,1,n,l)/ga
+        z0_drydepn(ix,jy,l)=0.016*ustarn(ix,jy,1,n,l)*ustarn(ix,jy,1,n,l)/ga
 
   ! Calculate relative humidity at surface
   !***************************************

@@ -23,6 +23,11 @@ module drydepo_mod
    ! nested area fractions in percent [0-1]
   real,allocatable,dimension(:,:,:,:) :: vdep ! deposition velocity [m/s]
 
+  ! roughness length
+  real,allocatable,dimension(:,:) :: z0_drydep
+  ! roughtness lenght nested area
+  real,allocatable,dimension(:,:,:) :: z0_drydepn
+
 contains
 
 subroutine alloc_drydepo
@@ -33,14 +38,15 @@ subroutine alloc_drydepo
   write(*,*) 'allocate drydepo fields'
   allocate(xlanduse(0:nxmax-1,0:nymax-1,numclass),      &
            xlandusen(0:nxmaxn-1,0:nymaxn-1,numclass,maxnests), &
-           vdep(0:nxmax-1,0:nymax-1,maxspec,numwfmem))
+           vdep(0:nxmax-1,0:nymax-1,maxspec,numwfmem), &
+           z0_drydep(0:nxmax-1,0:nymax-1),z0_drydepn(0:nxmax-1,0:nymax-1,maxnests))
            
 end subroutine alloc_drydepo
 
 subroutine dealloc_drydepo
 
   if (.not. drydep) return
-  deallocate(xlanduse,xlandusen,vdep)
+  deallocate(xlanduse,xlandusen,vdep,z0_drydep,z0_drydepn)
 
 end subroutine dealloc_drydepo
 
@@ -975,8 +981,11 @@ subroutine getvdep(n,ix,jy,ust,temp,pa,L,gr,rh,rr,snow,vdepo)
 
   ! 2. Calculate aerodynamic resistance ra
   !***************************************
-
-      ra=raerod(L,ust,z0(j))
+      if (DRYDEP.and.(j.eq.7)) then
+        ra=raerod(L,ust,z0_drydep(ix,jy))
+      else
+        ra=raerod(L,ust,z0(j))
+      endif
       raquer=raquer+ra*slanduse(j)
 
   ! 3. Calculate surface resistance for gases
@@ -1157,8 +1166,11 @@ subroutine getvdep_nest(n,ix,jy,ust,temp,pa, &
 
   ! 2. Calculate aerodynamic resistance ra
   !***************************************
-
-      ra=raerod(L,ust,z0(j))
+      if (DRYDEP.and.(j.eq.7)) then
+        ra=raerod(L,ust,z0_drydepn(ix,jy,lnest))
+      else
+        ra=raerod(L,ust,z0(j))
+      endif
       raquer=raquer+ra*slanduse(j)
 
   ! 3. Calculate surface resistance for gases

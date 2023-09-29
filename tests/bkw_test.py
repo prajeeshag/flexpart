@@ -8,6 +8,8 @@ return_flag = False
 resolution=0.01
 
 compare = False
+path1="./output_bkw/"
+patheta="./output_bkw_eta/"
 # Comparing to previous version, if it exists
 if (os.path.isfile("./bkw_master.txt")):
   compare = True
@@ -16,7 +18,7 @@ if (os.path.isfile("./bkw_master.txt")):
 output_name = 'bkw_test.txt'
 with open(output_name, 'a') as f:
 
-  ndata = nc.Dataset("./output_bkw/grid_drydep_20090101030000.nc", 'r')
+  ndata = nc.Dataset(path1+"grid_drydep_20090101030000.nc", 'r')
 
   print("Checking gridded output...")
   #Concentrations
@@ -43,7 +45,7 @@ with open(output_name, 'a') as f:
     #f.write("\n")
   ndata.close()
 
-  ndata = nc.Dataset("./output_bkw_eta/grid_drydep_20090101030000.nc", 'r')
+  ndata = nc.Dataset(patheta+"grid_drydep_20090101030000.nc", 'r')
     
   print("Checking gridded output...")
   #Concentrations
@@ -70,7 +72,7 @@ with open(output_name, 'a') as f:
     #f.write("\n")
   ndata.close()
 
-  ndata = nc.Dataset("./output_bkw/grid_wetdep_20090101030000.nc", 'r')
+  ndata = nc.Dataset(path1+"grid_wetdep_20090101030000.nc", 'r')
   
   print("Checking gridded output...")
   #Concentrations
@@ -97,7 +99,7 @@ with open(output_name, 'a') as f:
     #f.write("\n")
   ndata.close()
 
-  ndata = nc.Dataset("./output_bkw_eta/grid_wetdep_20090101030000.nc", 'r')
+  ndata = nc.Dataset(patheta+"grid_wetdep_20090101030000.nc", 'r')
   
   print("Checking gridded output...")
   #Concentrations

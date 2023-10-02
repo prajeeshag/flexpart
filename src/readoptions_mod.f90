@@ -502,7 +502,9 @@ subroutine readcommand
   d_trop, &
   d_strat, &
   nxshift, &
-  maxthreadgrid
+  maxthreadgrid, &
+  maxfilesize, &
+  logvertinterp
 
   ! Presetting namelist command
   ldirect=0
@@ -542,6 +544,8 @@ subroutine readcommand
   ohfields_path="../../flexin/"
   nxshift=-9999
   maxthreadgrid=1
+  maxfilesize=10000
+  logvertinterp=0
 
   !Af set release-switch
   WETBKDEP=.false.
@@ -565,6 +569,7 @@ subroutine readcommand
   close(unitcommand)
 
   if (lturbulence_meso.ne.0) lmesoscale_turb=.true.
+  if (logvertinterp.ne.0) log_interpol=.true.
 
   if (surf_only.ne.-1) then
     write(*,*) 'WARNING: SURF_ONLY in COMMAND will be deprecated and renamed SFC_ONLY'

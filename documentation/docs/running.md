@@ -69,7 +69,9 @@ from a particle netCDF file written in a previous run (only works when the corre
 | <a name="LINIT_COND"></a>LINIT_COND | Switch to produce output sensitivity to initial conditions given in concentration or mixing ratio units (in backwards mode only) | **0 (no)**, 1 (mass), 2 (mass mixing ratio) |
 | <a name="SFC_ONLY"></a>SFC_ONLY | Output of SRR for fluxes only for the lowest model layer, most useful for backward runs when LINIT_COND set to 1 or 2 | **0 (no)**, 1 (yes) |
 | <a name="CBLFLAG"></a>CBLFLAG | Skewed rather than Gaussian turbulence in the convective ABL; when turned on, very short time steps should be used (see CTL and IFINE) | **0 (no)**, 1 (yes) |
-| <a name="MAXTHREADGRID"></a>MAXTHREADGRID | Set maximum number of threads for doing grid computations. Recommended to set this to max 16. High numbers create more overhead and a larger memory footprint  | **1 (default=no parallelisation on grid)** int |
+| <a name="MAXTHREADGRID"></a>MAXTHREADGRID | Set maximum number of threads for doing grid computations. Recommended to set this to max 16. High numbers create more overhead and a larger memory footprint  | **1 (default=no parallelisation on grid)** integer |
+| <a name="MAXFILESIZE"></a>MAXFILESIZE | Maximum output of each partoutput NetCDF-4 file in Mb before a new one is created  | *10000 (default=10GB)** integer |
+| <a name="LOGVERTINTERP"></a>LOGVERTINTERP| Flag to set all vertical interpolation to logarithmic instead of linear  | *0=off (default)**, 1=on |
 
 <br/>
 

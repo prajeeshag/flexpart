@@ -500,7 +500,19 @@ module com_mod
   ! High numbers create more overhead and a larger memory footprint
   !***********************************************************************
   integer :: maxthreadgrid
-  
+
+  !*******************************************************************************
+  ! Maximum output of each partoutput NetCDF-4 file in Mb 
+  ! before a new one is created
+  !*******************************************************************************
+
+  integer :: maxfilesize
+
+  ! This flag sets all vertical interpolation to logarithmic instead of linear
+  !***************************************************************************
+  integer :: logvertinterp
+  logical :: log_interpol=.false.
+
   !*********************************************************
   !LB 04.05.2021, simple timing of IO and total running time
   !*********************************************************

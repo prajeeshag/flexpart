@@ -251,21 +251,4 @@ module par_mod
 
   integer,parameter ::  icmv=-9999
 
-  !*******************************************************************************
-  ! Maximum output of each partoutput NetCDF-4 file in Mb 
-  ! before a new one is created
-  !*******************************************************************************
-
-  integer,parameter :: max_partoutput_filesize=30000
-
-  ! This flag sets all vertical interpolation to logarithmic instead of linear
-  !***************************************************************************
-  logical,parameter :: log_interpol=.false.
-
-  ! Threshold equivalent diameter for interaction with surface sublayer 
-  ! resistance (below 10 meters) in micrometer. Above this diameter there
-  ! is no interaction
-  !**********************************************************************
-  real,parameter :: d_thresheqv=20
-
 end module par_mod

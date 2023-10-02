@@ -105,7 +105,7 @@ program flexpart
 
   if (lturbulence.eq.0) write(*,*) 'WARNING: turbulence switched off.'
   if (lmesoscale_turb) write(*,*) 'WARNING: mesoscale turbulence switched on.'
-
+  if (log_interpol) write(*,*) 'WARNING: using logarithmical vertical interpolation.'
   ! Calculate particle trajectories
   !********************************
   CALL SYSTEM_CLOCK(count_clock, count_rate, count_max)

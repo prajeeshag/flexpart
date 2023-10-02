@@ -1905,7 +1905,12 @@ subroutine readreceptors
       if (ios .eq. 0) then
         numreceptor = j
         allocate( tmprecname(j),tmpxrec(j),tmpyrec(j),tmprecarea(j) )
-
+        if (j.gt.1) then
+          tmprecname(1:j-1)=receptorname
+          tmpxrec(1:j-1)=xreceptor
+          tmpyrec(1:j-1)=yreceptor
+          tmprecarea(1:j-1)=receptorarea
+        endif
         tmprecname(j)=receptor
         tmpxrec(j)=(lon-xlon0)/dx       ! transform to grid coordinates
         tmpyrec(j)=(lat-ylat0)/dy

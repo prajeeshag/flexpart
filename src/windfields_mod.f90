@@ -4029,9 +4029,9 @@ subroutine alloc_windfields_nest
   if (stat.ne.0) error stop "Could not allocate wwetan"
   allocate(ttetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
   if (stat.ne.0) error stop "Could not allocate ttetan"
-  allocate(pvetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests)),stat=stat)
+  allocate(pvetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
   if (stat.ne.0) error stop "Could not allocate pvetan"
-  allocate(prsetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests)) ,stat=stat)
+  allocate(prsetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests) ,stat=stat)
   if (stat.ne.0) error stop "Could not allocate prsetan"
   allocate(rhoetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
   if (stat.ne.0) error stop "Could not allocate rhoetan"

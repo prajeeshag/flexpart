@@ -938,7 +938,7 @@ subroutine gridcheck_gfs
   ! VARIABLES AND ARRAYS NEEDED FOR GRIB DECODING
 
   integer :: isec1(8),isec2(3)
-  real(kind=4) :: zsec4(jpunp)
+  real(kind=4) :: zsec4(16*nxmax*nymax)
   character(len=1) :: opt
 
   !HSO  grib api error messages
@@ -1918,7 +1918,7 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
   ! coordinate parameters
 
   integer :: isec1(56),isec2(22+nxmax+nymax)
-  real(kind=4) :: zsec4( 16*nxmax*nymax ) )
+  real(kind=4) :: zsec4( 16*nxmax*nymax )
   real(kind=4) :: xaux,yaux,xaux0,yaux0
   real(kind=8) :: xauxin,yauxin
   real,parameter :: eps=1.e-4

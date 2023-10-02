@@ -135,7 +135,7 @@ module par_mod
   !*********************************
 
   ! integer,parameter :: jpack=4*nxmax*nymax, jpunp=4*jpack
-  integer,parameter :: jpack=4*361*181, jpunp=4*jpack
+  ! integer,parameter :: jpack=4*361*181, jpunp=4*jpack
   ! jpack,jpunp             maximum dimensions needed for GRIB file decoding
 
 

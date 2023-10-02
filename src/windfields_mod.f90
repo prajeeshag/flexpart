@@ -363,8 +363,7 @@ subroutine gridcheck_ecmwf
   ! coordinate parameters
 
   integer :: isec1(56), isec2(12)
-  real(kind=4),allocatable,dimension(:) :: zsec2
-  real(kind=4) :: zsec4(jpunp)
+  real(kind=4),allocatable,dimension(:) :: zsec2,zsec4
   character(len=1) :: opt
 
   !HSO  grib api error messages
@@ -527,12 +526,6 @@ subroutine gridcheck_ecmwf
     ! !    STOP
     ! endif
 
-    !get the size and data of the values array
-    if (isec1(6).ne.-1) then
-      call grib_get_real4_array(igrib,'values',zsec4,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-    endif
-
     if (ifield.eq.1) then
 
       !HSO  get the required fields from section 2 in a gribex compatible manner
@@ -553,9 +546,15 @@ subroutine gridcheck_ecmwf
       ny=isec2(3)
       nlev_ec=isec2(12)/2-1
 
-      allocate(zsec2(60+2*nlev_ec))
+      allocate(zsec2(60+2*nlev_ec),zsec4(16*nxfield*ny))
       !  get the size and data of the vertical coordinate array
       call grib_get_real4_array(igrib,'pv',zsec2,iret)
+      call grib_check(iret,gribFunction,gribErrorMsg)
+    endif
+
+    !get the size and data of the values array
+    if (isec1(6).ne.-1) then
+      call grib_get_real4_array(igrib,'values',zsec4,iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
     endif
 

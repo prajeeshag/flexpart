@@ -153,13 +153,10 @@ module par_mod
   !**************************************
   ! Maximum dimensions of the output grid
   !**************************************
-
-  !integer,parameter :: maxageclass=1,maxzgrid=10,nclassunc=1
   integer,parameter :: nclassunc=1
 
   ! nclassunc               number of classes used to calculate the uncertainty
   !                         of the output
-  ! maxageclass             maximum number of age classes used for output
 
   ! Sabine Eckhardt, June, 2008
   ! the dimensions of the OUTGRID are now set dynamically during runtime

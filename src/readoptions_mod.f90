@@ -45,10 +45,10 @@ subroutine readageclasses
 
   ! namelist help variables
   integer :: ios
-
   ! namelist declaration
+  namelist /nage/ &
+    nageclass
   namelist /ageclass/ &
-    nageclass, &
     lage
 
   nageclass=-1 ! preset to negative value to identify failed namelist input
@@ -72,6 +72,9 @@ subroutine readageclasses
     form='formatted',status='old',err=999)
 
   ! try to read in as a namelist
+
+  read(unitageclasses,nage,iostat=ios)
+  allocate( lage(nageclass) )
   read(unitageclasses,ageclass,iostat=ios)
   close(unitageclasses)
 

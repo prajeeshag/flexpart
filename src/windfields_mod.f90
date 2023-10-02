@@ -6,7 +6,7 @@
   ! This module stores all meteorological input data and contains routines     *
   ! reading and allocating this data                                           *
   !                                                                            *
-  !   L. Bakels 2021                                                           *
+  ! L. Bakels 2023: Dynamical allocation of all windfields                     *
   !                                                                            *
   !*****************************************************************************
 

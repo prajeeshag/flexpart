@@ -11,7 +11,9 @@
 *time a particle is carried in the simulation. *
 *                                              *
 ************************************************
-&AGECLASS
- NAGECLASS=          1,
- LAGE=    1728000,
+&NAGE
+ NAGECLASS=          2,
+
+%AGECLASS
+ LAGE=    3600,1728000,
  /

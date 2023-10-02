@@ -54,10 +54,10 @@ subroutine alloc_getfields
     vvh(0:nxmax-1,0:nymax-1,nuvzmax),             &
     pvh(0:nxmax-1,0:nymax-1,nuvzmax),             &
     wwh(0:nxmax-1,0:nymax-1,nwzmax),              &
-    uuhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,maxnests), &
-    vvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,maxnests), &
-    pvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,maxnests), &
-    wwhn(0:nxmaxn-1,0:nymaxn-1,nwzmax,maxnests),  &
+    uuhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numbnests), &
+    vvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numbnests), &
+    pvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numbnests), &
+    wwhn(0:nxmaxn-1,0:nymaxn-1,nwzmax,numbnests),  &
     pwater(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
 
   allocate(ppml(0:nxmax-1,0:nymax-1,nuvzmax),ppmk(0:nxmax-1,0:nymax-1,nuvzmax))

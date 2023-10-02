@@ -1803,7 +1803,7 @@ subroutine readpaths
   ! Determine number of available nested domains
   !*********************************************
 
-30   numbnests=i-1
+30  numbnests=i-1
 
   close(unitpath)
   return

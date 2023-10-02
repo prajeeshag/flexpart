@@ -13,7 +13,7 @@
 module com_mod
 
   use par_mod, only: dp, numpath, maxnests, maxageclass, &
-       numclass, maxcolumn, maxwf, nxmaxn, nymaxn, &
+       numclass, maxcolumn, maxwf, &
        maxreceptor, maxrand, numwfmem
 
   implicit none
@@ -283,8 +283,10 @@ module com_mod
   ! for the mother domain, except with a 'n' appended at the end
   !********************************************************************
 
-  integer :: numbnests
+  integer :: numbnests, nxmaxn, nymaxn
 
+  ! nxmax,nymax        maximum dimension of wind fields in x and y
+  !                    direction, respectively
   ! numbnests    number of nested grids
 
   !******************************************************

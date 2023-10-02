@@ -15,8 +15,7 @@
 
 module conv_mod
 
-  use par_mod, only: nxmaxn, nymaxn, maxnests
-  use com_mod, only: lconvection, numthreads
+  use com_mod, only: lconvection, numthreads,nxmaxn, nymaxn,numbnests
   use windfields_mod, only: metdata_format,akz,bkz,akm,bkm,nuvz, &
     uvheight,ps,tt2,td2,tth,qvh,pplev,tt,qv,nx,ny,tt2n,td2n,psn,tthn,qvhn, &
     yln,yrn,xln,xrn,yresoln,xresoln,nxn,nyn,dxn,dyn, &
@@ -86,7 +85,7 @@ subroutine alloc_convect
     sub(nconvlevmax,numthreads), &
     fmassfrac(nconvlevmax,nconvlevmax,numthreads),   &
     cbaseflux(0:nxmax-1,0:nymax-1,numthreads),                        &
-    cbasefluxn(0:nxmaxn-1,0:nymaxn-1,maxnests,numthreads),            &
+    cbasefluxn(0:nxmaxn-1,0:nymaxn-1,numbnests,numthreads),            &
     tconv(na,numthreads),qconv(na,numthreads),qsconv(na,numthreads))
 
   allocate(uvzlev(nuvzmax,numthreads),wsub(nuvzmax,numthreads))

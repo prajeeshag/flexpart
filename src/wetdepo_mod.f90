@@ -64,7 +64,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
   integer :: ks, kp
   integer(selected_int_kind(16)), dimension(nspec) :: blc_count, inc_count
   real :: grfraction(3),wetscav
-  real :: wetdeposit(maxspec),restmass
+  real :: wetdeposit(nspec),restmass
   real,parameter :: smallnum = tiny(0.0) ! smallest number that can be handled
 
   ! Compute interval since radioactive decay of deposited mass was computed

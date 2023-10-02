@@ -705,7 +705,6 @@ subroutine gridcheck_ecmwf
   !
   call grib_close_file(ifile)
 
-  ! call windfields_allocate
   ! Allocate memory for windfields
   !*******************************
   call alloc_windfields
@@ -927,18 +926,18 @@ subroutine gridcheck_gfs
   !HSO  end
   integer :: ix,jy,i,ifn,ifield,j,k,iumax,iwmax,numskip
   real :: sizesouth,sizenorth,xauxa
-  real :: akm_usort(nwzmax)
+  real,allocatable,dimension(:) :: akm_usort,pres,tmppres
   real,parameter :: eps=0.0001
 
   ! NCEP GFS
-  real :: pres(nwzmax), help
+  real :: help
 
   integer :: i179,i180,i181
 
   ! VARIABLES AND ARRAYS NEEDED FOR GRIB DECODING
 
   integer :: isec1(8),isec2(3)
-  real(kind=4) :: zsec4(16*nxmax*nymax)
+  real(kind=4),allocatable,dimension(:) :: zsec4
   character(len=1) :: opt
 
   !HSO  grib api error messages
@@ -1035,12 +1034,6 @@ subroutine gridcheck_gfs
         isec1(6)=81          ! indicatorOfParameter
         isec1(7)=1           ! indicatorOfTypeOfLevel
         isec1(8)=0
-      endif
-
-      if (isec1(6).ne.-1) then
-      !  get the size and data of the values array
-        call grib_get_real4_array(igrib,'values',zsec4,iret)
-        call grib_check(iret,gribFunction,gribErrorMsg)
       endif
 
     endif ! gribVer
@@ -1145,17 +1138,33 @@ subroutine gridcheck_gfs
         nglobal=.false.
         switchnorthg=999999.
       endif
+      ! Set nxmax and nymax and allocate the fields for oro lsm and excessoro
+      nxmax=nx
+      nymax=ny
+      call alloc_fixedfields
+      if (gribVer.eq.1) allocate( zsec4(16*nxmax*nymax) ) ! GRIB Edition 1
     endif ! ifield.eq.1
 
     if (nxshift.lt.0) error stop 'nxshift (par_mod) must not be negative'
     if (nxshift.ge.nxfield) error stop 'nxshift (par_mod) too large'
+
+    if (gribVer.eq.1) then ! GRIB Edition 1
+      if (isec1(6).ne.-1) then
+      !  get the size and data of the values array
+        call grib_get_real4_array(igrib,'values',zsec4,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+      endif
+    endif
 
     ! NCEP ISOBARIC LEVELS
     !*********************
 
     if((isec1(6).eq.33).and.(isec1(7).eq.100)) then ! check for U wind
       iumax=iumax+1
+      allocate( tmppres(iumax) )
+      if (iumax.gt.1) tmppres(1:iumax)=pres
       pres(iumax)=real(isec1(8))*100.0
+      call move_alloc(tmppres,pres)
     endif
 
 
@@ -1220,16 +1229,12 @@ subroutine gridcheck_gfs
   nwz =iumax
   nlev_ec=iumax
 
-  ! ! Assing grid values and allocate memory to read windfields
-  ! nxmax=nx
-  ! nymax=ny
-  ! nwzmax=nwz
-  ! nuvzmax=nuvz
-  ! nzmax=nuvz
-  ! ! nconvlevmax=nuvzmax-1
-  ! ! na=nconvlevmax+1
-
-  ! call windfields_allocate
+  ! Allocate memory for windfields
+  !*******************************
+  nwzmax=nwz
+  nuvzmax=nuvz
+  nzmax=nuvz
+  call alloc_windfields
 
   if (nx.gt.nxmax) then
     write(*,*) 'FLEXPART error: Too many grid points in x direction.'
@@ -1291,13 +1296,10 @@ subroutine gridcheck_gfs
     write(*,*)
   end if
 
-  ! Allocate memory for windfields
-  !*******************************
-  call alloc_windfields
-
   ! CALCULATE VERTICAL DISCRETIZATION OF ECMWF MODEL
   ! PARAMETER akm,bkm DESCRIBE THE HYBRID "ETA" COORDINATE SYSTEM
 
+  allocate( akm_usort(nwzmax))
   numskip=nlev_ec-nuvz  ! number of ecmwf model layers not used
                         ! by trajectory model
   do i=1,nwz
@@ -1358,6 +1360,7 @@ subroutine gridcheck_gfs
   !  aknew(2*(i-1))=akz(i)
   !10     bknew(2*(i-1))=bkz(i)
   ! End doubled vertical resolution
+  deallocate(  akm_usort,pres,zsec4 )
   return
 
 999   write(*,*)

@@ -245,16 +245,16 @@ module par_mod
 ! RLT
   integer,parameter :: unitoutfactor=102
 
-!******************************************************
-! integer code for missing values, used in wet scavenging (PS, 2012)
-!******************************************************
+  !******************************************************
+  ! integer code for missing values, used in wet scavenging (PS, 2012)
+  !******************************************************
 
   integer,parameter ::  icmv=-9999
 
-!*******************************************************************************
-! Maximum output of each partoutput NetCDF-4 file in Mb 
-! before a new one is created
-!*******************************************************************************
+  !*******************************************************************************
+  ! Maximum output of each partoutput NetCDF-4 file in Mb 
+  ! before a new one is created
+  !*******************************************************************************
 
   integer,parameter :: max_partoutput_filesize=30000
 
@@ -267,10 +267,6 @@ module par_mod
   ! This flag sets all vertical interpolation to logarithmic instead of linear
   !***************************************************************************
   logical,parameter :: log_interpol=.false.
-
-  ! mesoscale turbulence is found to give issues, so turned off by default
-  !***********************************************************************
-  logical,parameter :: lmesoscale_turb=.false.
 
   ! Threshold equivalent diameter for interaction with surface sublayer 
   ! resistance (below 10 meters) in micrometer. Above this diameter there

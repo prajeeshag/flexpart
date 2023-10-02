@@ -55,6 +55,7 @@ from a particle netCDF file written in a previous run (only works when the corre
 | <a name="LSUBGRID"></a>LSUBGRID | Increase in ABL heights due to subgrid-scale orographic variations | **0 (off)**, 1 (on) |
 | <a name="LCONVECTION"></a>LCONVECTION | Switch for convection parameterization | 0 (off), **1 (on)** |
 | <a name="LTURBULENCE"></a>LTURBULENCE | Switch for turbulence parameterization | 0 (off), **1 (on)** |
+| <a name="LTURBULENCE_MESO"></a>LTURBULENCE_MESO | Switch for mesoscale turbulence parameterization | **0 (off)**, 1 (on) |
 | <a name="LAGESPECTRA"></a>LAGESPECTRA | Switch for calculation of age spectra (needs file [AGECLASSES](running.md#ageclasses) option file) | 0 (off), **1 (on)** |
 | <a name="IPIN"></a>IPIN | Particle information input. Starting from [RELEASES](running.md#releases) option file, form restart.bin, or user-defined particle input data (see Silvia Bucci's stuff) | **0 (using RELEASES option file)**, 1 (using restart.bin file), 2 (using previous partoutput file), 3 (self made initial conditions), 4 (restart.bin and self made initial conditions) |
 | <a name="IOUTPUTFOREACHRELEASE"></a>IOUTPUTFOREACHRELEASE | Switch for separate output fields for each location in the [RELEASES](running.md#releases) file | 0 (no), **1 (yes)** |

@@ -261,7 +261,7 @@ subroutine advance(itime,ipart,ithread)
       call interpol_mesoscale( &
         real(part(ipart)%xlon),real(part(ipart)%ylat), &
         real(part(ipart)%z),ztseta)
-      call turb_mesoscale(nrand,dxsave,dysave,ipart, &
+      call turbulence_mesoscale(nrand,dxsave,dysave,ipart, &
         usig,vsig,wsig,wsigeta_tmp,eps_eta)
     endif
 

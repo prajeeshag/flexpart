@@ -463,7 +463,8 @@ subroutine readcommand
 
   character(len=50) :: line
   integer :: ios
-
+  integer :: lturbulence_meso
+  
   namelist /command/ &
   ldirect, &
   ibdate,ibtime, &
@@ -481,6 +482,7 @@ subroutine readcommand
   lsubgrid, &
   lconvection, &
   lturbulence, &
+  lturbulence_meso, &
   lagespectra, &
   ipin, &
   ioutputforeachrelease, &
@@ -520,6 +522,7 @@ subroutine readcommand
   lsubgrid=1
   lconvection=1
   lturbulence=1
+  lturbulence_meso=0
   lagespectra=0
   ipin=0
   ioutputforeachrelease=1
@@ -558,6 +561,8 @@ subroutine readcommand
   end if
   
   close(unitcommand)
+
+  if (lturbulence_meso.ne.0) lmesoscale_turb=.true.
 
   if (surf_only.ne.-1) then
     write(*,*) 'WARNING: SURF_ONLY in COMMAND will be deprecated and renamed SFC_ONLY'

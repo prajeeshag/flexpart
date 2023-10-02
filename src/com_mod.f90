@@ -143,6 +143,10 @@ module com_mod
   ! lturbulence  1 if turbulence parameterization switched on, 0 if not
   ! lagespectra  1 if age spectra calculation switched on, 2 if not
 
+  ! mesoscale turbulence is found to give issues, so turned off by default
+  !***********************************************************************
+  logical :: lmesoscale_turb=.false.
+
   integer :: lnetcdfout
   ! lnetcdfout   1 for netcdf grid output, 0 if not. Set in COMMAND (namelist input)
 

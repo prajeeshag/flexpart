@@ -13,7 +13,7 @@
 module com_mod
 
   use par_mod, only: dp, numpath, maxnests, &
-       numclass, maxcolumn, maxwf, maxrand, numwfmem
+       numclass, maxcolumn, maxrand, numwfmem
 
   implicit none
 

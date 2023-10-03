@@ -23,20 +23,18 @@ module windfields_mod
  !******************************************************************************
 
   integer ::            &
-    numbwf,             & ! actual number of wind fields
-    wftime(maxwf)         ! times relative to beginning time of wind fields [s]
+    numbwf                ! actual number of wind fields
 
-  character(len=255) :: &
-    wfname(maxwf),      & ! file names of wind fields
-    wfspec(maxwf)         ! specifications of wind field file, e.g. if on hard
+  integer,allocatable,dimension(:) ::            &
+    wftime         ! times relative to beginning time of wind fields [s]
+
+  character(len=255),allocatable,dimension(:) :: &
+    wfname        ! file names of wind fields
 
   ! Nested equivalents
   !*******************
   character(len=255),allocatable,dimension(:,:) :: &
     wfnamen                                          ! nested wind field names
-  character(len=18),allocatable,dimension(:,:) ::  &
-    wfspecn                                          ! specifications of wind field file, e.g. if on hard
-                                                     ! disc or on tape
 
   !Windfield parameters
   !********************
@@ -271,7 +269,7 @@ subroutine detectformat
   character(len=255) :: filename
 
   ! If no file is available
-  if ( maxwf.le.0 ) then
+  if ( numbwf.le.0 ) then
     print*,'No wind file available'
     metdata_format = GRIBFILE_CENTRE_UNKNOWN
     return
@@ -3975,11 +3973,6 @@ subroutine alloc_windfields_nest
   implicit none 
   integer :: stat
 
-  allocate(wfnamen(numbnests,maxwf),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate wfnamen"
-  allocate(wfspecn(numbnests,maxwf),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate wfspecn"
-
   allocate(nxn(numbnests),stat=stat)
   if (stat.ne.0) error stop "Could not allocate nxn"
   allocate(nyn(numbnests),stat=stat)
@@ -4128,7 +4121,7 @@ end subroutine alloc_windfields_nest
 
 subroutine dealloc_windfields_nest
   
-  deallocate(wfnamen,wfspecn)
+  deallocate(wfnamen)
 
   deallocate(nxn,nyn,dxn,dyn,xlon0n,ylat0n)
 
@@ -4151,6 +4144,7 @@ end subroutine dealloc_windfields_nest
 subroutine dealloc_windfields
   implicit none
 
+  deallocate(wftime,wfname)
   deallocate(oro,excessoro,lsm)
 
 #ifdef ETA

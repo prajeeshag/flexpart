@@ -151,7 +151,7 @@ subroutine readavailable
   ! Variables:                                                                 *
   ! bdate                beginning date as Julian date                         *
   ! beg                  beginning date for windfields                         *
-  ! endl                  ending date for windfields                            *
+  ! endl                  ending date for windfields                           *
   ! fname                filename of wind field, help variable                 *
   ! ideltas [s]          duration of modelling period                          *
   ! idiff                time difference between 2 wind fields                 *
@@ -159,26 +159,26 @@ subroutine readavailable
   ! idiffmax [s]         maximum allowable time between 2 wind fields          *
   ! jul                  julian date, help variable                            *
   ! numbwf               actual number of wind fields                          *
-  ! wfname(maxwf)        file names of needed wind fields                      *
-  ! wfspec(maxwf)        file specifications of wind fields (e.g., if on disc) *
-  ! wftime(maxwf) [s]times of wind fields relative to beginning time           *
-  ! wfname1,wfspec1,wftime1 = same as above, but only local (help variables)   *
+  ! wfname(numbwf)        file names of needed wind fields                     *
+  ! wftime(numbwf) [s]times of wind fields relative to beginning time          *
+  ! wfname1,wftime1 = same as above, but only local (help variables)           *
   !                                                                            *
   ! Constants:                                                                 *
-  ! maxwf                maximum number of wind fields                         *
   ! unitavailab          unit connected to file AVAILABLE                      *
   !                                                                            *
   !*****************************************************************************
 
   implicit none
 
-  integer :: i,idiff,ldat,ltim,wftime1(maxwf),numbwfn(maxnests),k
-  integer :: wftime1n(maxnests,maxwf),wftimen(maxnests,maxwf)
+  integer :: i,idiff,ldat,ltim,k,stat
+  integer,allocatable,dimension(:) :: wftime1,tmpwftime,numbwfn
+  integer,allocatable,dimension(:,:) :: wftimen,wftime1n,tmpwftimen
   logical :: lwarntd=.true.
   real(kind=dp) :: jul,beg,endl
-  character(len=255) :: fname,spec,wfname1(maxwf),wfspec1(maxwf)
-  character(len=255) :: wfname1n(maxnests,maxwf)
-  character(len=40) :: wfspec1n(maxnests,maxwf)
+  character(len=255) :: fname
+  character(len=255),allocatable,dimension(:) :: wfname1, &
+    tmpwfname
+  character(len=255),allocatable,dimension(:,:) :: wfname1n,tmpwfnamen
 
 
   ! Windfields are only used, if they are within the modelling period.
@@ -209,20 +209,21 @@ subroutine readavailable
 
   numbwf=0
 100   read(unitavailab,'(i8,1x,i6,2(6x,a255))',end=99) &
-           ldat,ltim,fname,spec
+           ldat,ltim,fname
     jul=juldate(ldat,ltim)
     if ((jul.ge.beg).and.(jul.le.endl)) then
       numbwf=numbwf+1
-      if (numbwf.gt.maxwf) then      ! check exceedance of dimension
-       write(*,*) 'Number of wind fields needed is too great.'
-       write(*,*) 'Reduce modelling period (file "COMMAND") or'
-       write(*,*) 'reduce number of wind fields (file "AVAILABLE").'
-       error stop 'Number of wind fields is larger than maxwf (set in par_mod)'
+      allocate( tmpwfname(numbwf),tmpwftime(numbwf),stat=stat)
+      if (stat.ne.0) error stop 'ERROR: could not allocate tmpwfname'
+      if (numbwf.gt.1) then
+        tmpwfname(1:numbwf-1)=wfname1
+        tmpwftime(1:numbwf-1)=wftime1
       endif
+      tmpwfname(numbwf)=fname(1:index(fname,' '))
+      tmpwftime(numbwf)=nint((jul-bdate)*86400._dp)
 
-      wfname1(numbwf)=fname(1:index(fname,' '))
-      wfspec1(numbwf)=spec
-      wftime1(numbwf)=nint((jul-bdate)*86400._dp)
+      call move_alloc(tmpwfname,wfname1)
+      call move_alloc(tmpwftime,wftime1)
     endif
     goto 100       ! next wind field
 
@@ -233,41 +234,45 @@ subroutine readavailable
   ! Open the wind field availability file and read available wind fields
   ! within the modelling period (nested grids)
   !*********************************************************************
+  if (numbnests.gt.0) then
+    allocate( numbwfn(numbnests),stat=stat)
+    if (stat.ne.0) error stop 'ERROR: could not allocate numwfn'
 
-  do k=1,numbnests
-  !print*,length(numpath+2*(k-1)+1),length(numpath+2*(k-1)+2),length(4),length(3)
-  !print*,path(numpath+2*(k-1)+2)(1:length(numpath+2*(k-1)+2))
-    open(unitavailab,file=path(numpath+2*(k-1)+2) &
-         (1:length(numpath+2*(k-1)+2)),status='old',err=998)
+    do k=1,numbnests
+    !print*,length(numpath+2*(k-1)+1),length(numpath+2*(k-1)+2),length(4),length(3)
+    !print*,path(numpath+2*(k-1)+2)(1:length(numpath+2*(k-1)+2))
+      open(unitavailab,file=path(numpath+2*(k-1)+2) &
+           (1:length(numpath+2*(k-1)+2)),status='old',err=998)
 
-    do i=1,3
-      read(unitavailab,*)
-    end do
+      do i=1,3
+        read(unitavailab,*)
+      end do
 
-    numbwfn(k)=0
+      numbwfn(k)=0
 700   read(unitavailab,'(i8,1x,i6,2(6x,a255))',end=699) ldat, &
-           ltim,fname,spec
-      jul=juldate(ldat,ltim)
-      if ((jul.ge.beg).and.(jul.le.endl)) then
-        numbwfn(k)=numbwfn(k)+1
-        if (numbwfn(k).gt.maxwf) then      ! check exceedance of dimension
-       write(*,*) 'Number of nested wind fields is too great.'
-       write(*,*) 'Reduce modelling period (file "COMMAND") or'
-       write(*,*) 'reduce number of wind fields (file "AVAILABLE").'
-          error stop 'Number of nested wind fields is larger than maxwf (set in par_mod)'
+             ltim,fname
+        jul=juldate(ldat,ltim)
+        if ((jul.ge.beg).and.(jul.le.endl)) then
+          numbwfn(k)=numbwfn(k)+1
+          allocate( tmpwfnamen(numbnests,numbwf),tmpwftimen(numbnests,numbwf), &
+            stat=stat)
+          if (stat.ne.0) error stop 'ERROR: could not allocate tmpwfnamen'
+          if (numbwfn(k).gt.1) then
+            tmpwfnamen(:,1:numbwf-1)=wfname1n
+            tmpwftimen(:,1:numbwf-1)=wftime1n
+          endif
+          tmpwfnamen(k,numbwfn(k))=fname
+          tmpwftimen(k,numbwfn(k))=nint((jul-bdate)*86400._dp)
+          call move_alloc(tmpwfnamen,wfname1n)
+          call move_alloc(tmpwftimen,wftime1n)
         endif
-
-        wfname1n(k,numbwfn(k))=fname
-        wfspec1n(k,numbwfn(k))=spec
-        wftime1n(k,numbwfn(k))=nint((jul-bdate)*86400._dp)
-      endif
-      goto 700       ! next wind field
+        goto 700       ! next wind field
 
 699   continue
 
-    close(unitavailab)
-  end do
-
+      close(unitavailab)
+    end do
+  endif
 
   ! Check wind field times of file AVAILABLE (expected to be in temporal order)
   !****************************************************************************
@@ -310,33 +315,40 @@ subroutine readavailable
 
   end do
 
-
+  ! Allocating global fields storing the windfield names and times
+  !***************************************************************
+  allocate(wfname(numbwf),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate wfname"
+  allocate(wftime(numbwf),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate wftime"
+  if (numbnests.gt.0) then
+    allocate(wfnamen(numbnests,numbwf),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate wfnamen"
+    allocate(wftimen(numbnests,numbwf),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate wftimen"
+  endif
   ! For backward trajectories, reverse the order of the windfields
   !***************************************************************
 
   if (ideltas.ge.0) then
     do i=1,numbwf
       wfname(i)=wfname1(i)
-      wfspec(i)=wfspec1(i)
       wftime(i)=wftime1(i)
     end do
     do k=1,numbnests
       do i=1,numbwfn(k)
         wfnamen(k,i)=wfname1n(k,i)
-        wfspecn(k,i)=wfspec1n(k,i)
         wftimen(k,i)=wftime1n(k,i)
       end do
     end do
   else
     do i=1,numbwf
       wfname(numbwf-i+1)=wfname1(i)
-      wfspec(numbwf-i+1)=wfspec1(i)
       wftime(numbwf-i+1)=wftime1(i)
     end do
     do k=1,numbnests
       do i=1,numbwfn(k)
         wfnamen(k,numbwfn(k)-i+1)=wfname1n(k,i)
-        wfspecn(k,numbwfn(k)-i+1)=wfspec1n(k,i)
         wftimen(k,numbwfn(k)-i+1)=wftime1n(k,i)
       end do
     end do
@@ -387,7 +399,8 @@ subroutine readavailable
     memind(i)=i
     memtime(i)=999999999
   end do
-
+  deallocate( wftime1,wfname1)
+  if (numbnests.gt.0) deallocate(wftime1n,wftimen,wfname1n,numbwfn)
   return
 
 998   write(*,*) ' #### FLEXPART MODEL ERROR! AVAILABLE FILE   #### '
@@ -1923,7 +1936,7 @@ subroutine readreceptors
       if (ios .eq. 0) then
         numreceptor = j
         allocate( tmprecname(j),tmpxrec(j),tmpyrec(j),tmprecarea(j),stat=stat)
-        if (stat.ne.0) write(*,*)'ERROR: could not allocate tmp arrays in readrec'
+        if (stat.ne.0) error stop 'ERROR: could not allocate tmp arrays in readrec'
         if (j.gt.1) then
           tmprecname(1:j-1)=receptorname
           tmpxrec(1:j-1)=xreceptor
@@ -1947,7 +1960,7 @@ subroutine readreceptors
 !        if (nmlout) write(unitreceptorout,nml=nml_receptors)
       elseif (ios .gt. 0) then
         write(*,*) ' ### FLEXPART MODEL ERROR! Error in RECEPTORS namelist ###'
-        stop 'Error in RECEPTORS namelist'
+        error stop 'Error in RECEPTORS namelist'
       ! else
       !   write (*,*) 'receptor read in nml format, ios<0', ios
       !   write (*,receptors)

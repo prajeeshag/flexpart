@@ -6,14 +6,14 @@ module flux_mod
   ! flux eastward, westward, northward, southward, upward and downward
   ! fluxes of all species and all ageclasses
   ! areaeast,areanorth [m2] side areas of each grid cell
-  use outg_mod
+  use outgrid_mod
   use par_mod
   use com_mod
   use windfields_mod
 
   implicit none
 
-  !Moved to outg_mod, because of dependencies
+  !Moved to outgrid_mod, because of dependencies
   ! real,allocatable, dimension (:,:,:,:,:,:,:) :: flux 
 
   !1 fluxw west - east
@@ -55,7 +55,9 @@ subroutine calcfluxes(itime,nage,jpart,xold,yold,zold,thread)
   !*****************************************************************************
   
   use particle_mod
-  use coordinates_ecmwf_mod
+#ifdef ETA
+  use coord_ecmwf_mod
+#endif
 
   implicit none
   integer, intent(in) :: thread ! for OMP, number of thread
@@ -72,9 +74,12 @@ subroutine calcfluxes(itime,nage,jpart,xold,yold,zold,thread)
   else
      kp=1
   endif
+
+#ifdef ETA
   call update_zeta_to_z(itime,jpart)
-  xmean=(xold+part(jpart)%xlon)/2.
-  ymean=(yold+part(jpart)%ylat)/2.
+#endif
+  xmean=(xold+real(part(jpart)%xlon))/2.
+  ymean=(yold+real(part(jpart)%ylat))/2.
 
   ixave=int((xmean*dx+xoutshift)/dxout)
   jyave=int((ymean*dy+youtshift)/dyout)
@@ -267,12 +272,12 @@ subroutine fluxoutput(itime)
 
   real(kind=dp) :: jul
   integer :: itime,ix,jy,kz,k,nage,jjjjmmdd,ihmmss,kp,i
-  integer :: ncellse(maxspec,maxageclass),ncellsw(maxspec,maxageclass)
-  integer :: ncellss(maxspec,maxageclass),ncellsn(maxspec,maxageclass)
-  integer :: ncellsu(maxspec,maxageclass),ncellsd(maxspec,maxageclass)
-  logical :: sparsee(maxspec,maxageclass),sparsew(maxspec,maxageclass)
-  logical :: sparses(maxspec,maxageclass),sparsen(maxspec,maxageclass)
-  logical :: sparseu(maxspec,maxageclass),sparsed(maxspec,maxageclass)
+  integer :: ncellse(maxspec,nageclass),ncellsw(maxspec,nageclass)
+  integer :: ncellss(maxspec,nageclass),ncellsn(maxspec,nageclass)
+  integer :: ncellsu(maxspec,nageclass),ncellsd(maxspec,nageclass)
+  logical :: sparsee(maxspec,nageclass),sparsew(maxspec,nageclass)
+  logical :: sparses(maxspec,nageclass),sparsen(maxspec,nageclass)
+  logical :: sparseu(maxspec,nageclass),sparsed(maxspec,nageclass)
   character :: adate*8,atime*6
 
 

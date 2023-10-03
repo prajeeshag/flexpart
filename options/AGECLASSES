@@ -11,7 +11,10 @@
 *time a particle is carried in the simulation. *
 *                                              *
 ************************************************
+&NAGE
+ NAGECLASS=          1, ! Number of ageclasses for the age spectra calculation
+ /
+
 &AGECLASS
- NAGECLASS=          1,
- LAGE=    1728000,
+ LAGE=    1728000,      ! Maximum age of particles in seconds for each ageclass
  /

@@ -33,7 +33,6 @@ program flexpart
   ! Constants:                                                                 *
   !                                                                            *
   !*****************************************************************************
-  use omp_lib, only: OMP_GET_MAX_THREADS
   use par_mod
   use com_mod
   use timemanager_mod
@@ -44,6 +43,7 @@ program flexpart
   real :: s_timemanager
   character(len=256) ::   &
     inline_options          ! pathfile, flexversion, arg2
+  character(len=256) :: gitversion_tmp="undefined"
 
   ! Keeping track of the total running time of FLEXPART, printed out at the end.
   !*****************************************************************************
@@ -52,10 +52,11 @@ program flexpart
 
 
   ! FLEXPART version string
-  flexversion_major = '10' ! Major version number, also used for species file names
-  flexversion='Version '//trim(flexversion_major)//'.4 (2019-11-12)'
+  flexversion_major = '11' ! Major version number, also used for species file names
+  flexversion='Version '//trim(flexversion_major)
   verbosity=0
 
+  call update_gitversion(gitversion_tmp)
   ! Read the pathnames where input/output files are stored
   !*******************************************************
 
@@ -76,34 +77,17 @@ program flexpart
   case (0)
     write(pathfile,'(a11)') './pathnames'
   end select
-  
-  ! Print the GPL License statement
-  !*******************************************************
-  print*,'Welcome to FLEXPART ', trim(flexversion)
-  print*,'FLEXPART is free software released under the GNU General Public License.'
-  write(*,*) 'FLEXPART is running with ', trim(wind_coord_type), 'coordinates.'
-  ! Reading the number of threads available and print them for user
-  !****************************************************************
-#ifdef _OPENMP
-    numthreads = OMP_GET_MAX_THREADS()
-    numthreads_grid = min(numthreads,max_numthreads_grid)
-    !numthreads = min(40,numthreads)
-#else
-    numthreads = 1
-    numthreads_grid = 1
-#endif
 
-  if (numthreads.gt.1) then
-    write(*,*)
-    write(*,*) "*********** WARNING  *********************************"
-    write(*,*) "* FLEXPART running in parallel mode                  *"
-    write(*,*) "* Number of uncertainty classes in                   *"
-    write(*,*) "* set to number of threads:", numthreads_grid, ".           *"
-    write(*,*) "* All other computations are done with               *"
-    write(*,*) "* ", numthreads, " threads.                                 *"
-    write(*,*) "******************************************************"
-    write(*,*)
-  endif
+  ! Print the GPL License statement
+  !******************************************************
+  print*,'Welcome to FLEXPART ', trim(flexversion)
+  print*,"Git: ", trim(gitversion)
+  print*,'FLEXPART is free software released under the GNU General Public License.'
+#ifdef ETA
+  write(*,*) 'FLEXPART is running with ETA coordinates.'
+#else
+  write(*,*) 'FLEXPART is running with METER coordinates.'
+#endif
 
   ! Reading user specified options, allocating fields and checking bounds
   !**********************************************************************
@@ -119,8 +103,9 @@ program flexpart
     end if
   end if
 
-  if (turboff) write(*,*) 'Turbulence switched off'
-
+  if (lturbulence.eq.0) write(*,*) 'WARNING: turbulence switched off.'
+  if (lmesoscale_turb) write(*,*) 'WARNING: mesoscale turbulence switched on.'
+  if (log_interpol) write(*,*) 'WARNING: using logarithmical vertical interpolation.'
   ! Calculate particle trajectories
   !********************************
   CALL SYSTEM_CLOCK(count_clock, count_rate, count_max)
@@ -162,34 +147,27 @@ subroutine read_options_and_initialise_flexpart
   use par_mod
   use com_mod
   use conv_mod
-  use class_gribfile
+  use class_gribfile_mod
   use readoptions_mod
   use windfields_mod
   use plume_mod
   use initialise_mod
   use drydepo_mod
   use getfields_mod
-  use interpol_mod, only: interpol_allocate
-  use outg_mod
+  use interpol_mod, only: alloc_interpol
+  use outgrid_mod
   use binary_output_mod
+  use omp_lib, only: OMP_GET_MAX_THREADS
 
   implicit none
 
   integer ::              &
-    i,                    & ! loop variable for number of points
     inest                   ! loop variable for nested gridcells
   integer ::              &
     j,                    & ! loop variable for random numbers
+    stat,                 & ! Check if allocation was successful
     idummy=-320             ! dummy value used by the random routine
 
-  call allocate_random(numthreads)
-
-  ! Generate a large number of random numbers
-  !******************************************
-  do j=1,maxrand-1,2
-    call gasdev1(idummy,rannumb(j),rannumb(j+1))
-  end do
-  call gasdev1(idummy,rannumb(maxrand),rannumb(maxrand-1))
 
   ! Read pathnames from file in working director that specify I/O directories
   !**************************************************************************
@@ -199,25 +177,57 @@ subroutine read_options_and_initialise_flexpart
   !*******************************************************
   call readcommand
 
+  ! Reading the number of threads available and print them for user
+  !****************************************************************
+#ifdef _OPENMP
+    numthreads = OMP_GET_MAX_THREADS()
+    numthreads_grid = min(numthreads,maxthreadgrid)
+    !numthreads = min(40,numthreads)
+#else
+    numthreads = 1
+    numthreads_grid = 1
+#endif
+
+  if (numthreads.gt.1) then
+    write(*,*)
+    write(*,*) "*********** WARNING  **********************************"
+    write(*,*) "* FLEXPART running in parallel mode                   *"
+    write(*,*) "* Number of uncertainty classes in                    *"
+    write(*,901) " * set to number of threads:            ", &
+      numthreads_grid, "          *" 
+    write(*,901) " * All other computations are done with ",&
+      numthreads, " threads. *"
+    write(*,*) "*******************************************************"
+    write(*,*)
+901 format (a,i5,a)
+  endif
+
+  call alloc_random(numthreads)
+
+  ! Generate a large number of random numbers
+  !******************************************
+  do j=1,maxrand-1,2
+    call gasdev1(idummy,rannumb(j),rannumb(j+1))
+  end do
+  call gasdev1(idummy,rannumb(maxrand),rannumb(maxrand-1))
+
   ! Read the age classes to be used
   !********************************
   call readageclasses
 
 
-  ! Allocate memory for windfields
-  !*******************************
-  call windfields_allocate
-  if (numbnests.ge.1) then
-    ! If nested wind fields are used, allocate arrays
-    !************************************************
-    call windfields_nest_allocate
-  endif
+  ! ! Allocate memory for windfields
+  ! !*******************************
+  ! call alloc_windfields
+  ! if (numbnests.ge.1) then
+  !   ! If nested wind fields are used, allocate arrays
+  !   !************************************************
+  !   call alloc_windfields_nest
+  ! endif
 
   ! Read, which wind fields are available within the modelling period
   !******************************************************************
   call readavailable
-
-  if (ipout.ne.0) call readpartoptions
 
   ! Detect metdata format
   !**********************
@@ -230,8 +240,7 @@ subroutine read_options_and_initialise_flexpart
     print *,'NCEP metdata detected'
     if (nxshift.eq.-9999) nxshift=0
   else
-    print *,'Unknown metdata format'
-    stop
+    error stop 'Unknown metdata format'
   endif
   write(*,*) 'NXSHIFT is set to', nxshift
 
@@ -246,12 +255,13 @@ subroutine read_options_and_initialise_flexpart
 
   ! Set the upper level for where the convection will be working
   !*************************************************************
-  call set_upperlevel_convect
+  call set_conv_top
 
   if (numbnests.ge.1) then
   ! If nested wind fields are used, allocate arrays
   !************************************************
-    call gridcheck_nests
+    call alloc_nest_properties
+    call gridcheck_nest
   endif
 
   ! Read the output grid specifications if requested by user
@@ -280,62 +290,65 @@ subroutine read_options_and_initialise_flexpart
   ! For continuation of previous run or from user defined initial 
   ! conditions, read in particle positions
   !*************************************************************************
-  call flexpart_initialise_particles
+  call initialise_particles
 
   ! Convert the release point coordinates from geografical to grid coordinates
   !***************************************************************************
-  call coordtrafo(nxmin1,nymin1) ! CHECK ETA
+  call coordtrafo(nxmin1,nymin1)
 
   ! Read and compute surface resistances to dry deposition of gases
   !****************************************************************
-  call readdepo ! CHECK ETA
+  call readdepo
 
   ! Allocate dry deposition fields if necessary
   !*********************************************
-  call drydepo_allocate
-  call convection_allocate
-  call getfields_allocate
-  call interpol_allocate
+  call alloc_drydepo
+  call alloc_convect
+  call alloc_getfields
+  call alloc_interpol
+  if (lnetcdfout.eq.1) call alloc_netcdf
 
   ! Assign fractional cover of landuse classes to each ECMWF grid point
   !********************************************************************
-  call assignland ! CHECK ETA
+  call assignland
 
   ! Calculate volume, surface area, etc., of all output grid cells
   ! Allocate fluxes and OHfield if necessary
   !***************************************************************
   if (iout.ne.0) then
-    call outgrid_init ! CHECK ETA
+    call outgrid_init
     if (nested_output.eq.1) call outgrid_init_nest ! CHECK ETA
   endif
 
   ! Read the OH field
   !******************
   if (OHREA) then
-    call readOHfield ! CHECK ETA
+    call readOHfield
   endif
 
-#ifndef USE_NCF
-  call openreceptors
-#endif
+  ! Binary receptor output when lnetcdfout is set to zero, otherwise
+  ! added to gridded output
+  if (lnetcdfout.eq.0) call openreceptors
+
   if ((iout.eq.4).or.(iout.eq.5)) call openouttraj ! CHECK ETA
 
 
   ! Initialize cloud-base mass fluxes for the convection scheme
   !************************************************************
-
-  cbaseflux(0:nxmin1,0:nymin1)=0.
-  do inest=1,numbnests
-    cbasefluxn(0:nxn(inest)-1,0:nyn(inest)-1,inest)=0.
-  end do
+  if (lconvection.eq.1) then
+    cbaseflux(0:nxmin1,0:nymin1,:)=0.
+    do inest=1,numbnests
+      cbasefluxn(0:nxn(inest)-1,0:nyn(inest)-1,inest,:)=0.
+    end do
+  endif
 
   ! Allocating nan_count for CBL option
   !************************************
-  allocate(nan_count(numthreads))
+  allocate(nan_count(numthreads), stat=stat)
+  if (stat.ne.0) error stop "Could not allocate nan_count"
 end subroutine read_options_and_initialise_flexpart
 
-
-subroutine flexpart_initialise_particles
+subroutine initialise_particles
 
   !*****************************************************************************
   !                                                                            *
@@ -365,32 +378,44 @@ subroutine flexpart_initialise_particles
 #endif
   use readoptions_mod
   use restart_mod
+  use settling_mod
 
   implicit none
 
   integer :: i
+  ! logical :: l_lookup=.false.
 
   ! Read the coordinates of the release locations
   !**********************************************
-  if (ipin.le.2) call readreleases ! CHECK ETA
-
   itime_init=0
+
+  if (ipin.le.2) then 
+    call readreleases
+  else
+#ifdef USE_NCF
+    call readinitconditions_netcdf
+#else
+    error stop 'Compile with netCDF if you would like to use the ipin=3,4 options.'
+#endif
+  endif
+
+  if (ipout.ne.0) call readpartoptions
+
+  if (iout.ne.0) then
+    call alloc_grid
+    call alloc_grid_unc
+    if (nested_output.eq.1) call alloc_grid_unc_nest
+  endif
+  
   if ((ipin.eq.1).or.(ipin.eq.4)) then ! Restarting from restart.bin file
     call readrestart
   else if (ipin.eq.2) then ! Restarting from netcdf partoutput file
 #ifdef USE_NCF
     call readpartpositions
 #else
-    stop 'Compile with netCDF if you want to use the ipin=2 option.'
+    error stop 'Compile with netCDF if you want to use the ipin=2 option.'
 #endif
-  else if (ipin.eq.3) then ! User defined particle properties
-  ! Reading initial conditions from netcdf file
-#ifdef USE_NCF
-    call readinitconditions_netcdf
-#else
-    stop 'Compile with netCDF if you want to use the ipin=3 option.'
-#endif
-  else
+  else if (ipin.eq.0) then
     ! Releases can only start and end at discrete times (multiples of lsynctime)
     !***************************************************************************
     do i=1,numpoint
@@ -401,4 +426,13 @@ subroutine flexpart_initialise_particles
     numparticlecount=0
   endif
 
-end subroutine flexpart_initialise_particles
+  ! ! Initialise look-up table for drag coefficients when necessary
+  ! !**************************************************************
+  ! if (lsettling) then
+  !   do i=1,nspec
+  !     if (ishape(i).eq.0) l_lookup=.true.
+  !   end do
+  !   if (l_lookup) call init_dragcoeff_lookup()
+  ! endif
+
+end subroutine initialise_particles

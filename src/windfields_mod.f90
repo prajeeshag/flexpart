@@ -6,7 +6,7 @@
   ! This module stores all meteorological input data and contains routines     *
   ! reading and allocating this data                                           *
   !                                                                            *
-  !   L. Bakels 2021                                                           *
+  ! L. Bakels 2023: Dynamical allocation of all windfields                     *
   !                                                                            *
   !*****************************************************************************
 
@@ -23,24 +23,22 @@ module windfields_mod
  !******************************************************************************
 
   integer ::            &
-    numbwf,             & ! actual number of wind fields
-    wftime(maxwf)         ! times relative to beginning time of wind fields [s]
+    numbwf                ! actual number of wind fields
 
-  character(len=255) :: &
-    wfname(maxwf),      & ! file names of wind fields
-    wfspec(maxwf)         ! specifications of wind field file, e.g. if on hard
+  integer,allocatable,dimension(:) ::            &
+    wftime         ! times relative to beginning time of wind fields [s]
+
+  character(len=255),allocatable,dimension(:) :: &
+    wfname        ! file names of wind fields
 
   ! Nested equivalents
   !*******************
   character(len=255),allocatable,dimension(:,:) :: &
     wfnamen                                          ! nested wind field names
-  character(len=18),allocatable,dimension(:,:) ::  &
-    wfspecn                                          ! specifications of wind field file, e.g. if on hard
-                                                     ! disc or on tape
 
   !Windfield parameters
   !********************
-  !integer :: nxmax,nymax,nuvzmax,nwzmax,nzmax !Size of windfield
+  integer :: nxmax,nymax,nuvzmax,nwzmax,nzmax !Size of windfield
 
   ! Fixed fields, unchangeable with time
   !*************************************
@@ -157,7 +155,7 @@ module windfields_mod
     convprec,                           & ! convective precipitation [mm/h]
     sshf,                               & ! surface sensible heat flux
     ssr,                                & ! surface solar radiation
-    surfstr,                            & ! surface stress
+    sfcstress,                            & ! surface stress
     ustar,                              & ! friction velocity [m/s]
     wstar,                              & ! convective velocity scale [m/s]
     hmix,                               & ! mixing height [m]
@@ -179,7 +177,7 @@ module windfields_mod
     convprecn,                              & ! convective precipitation [mm/h]
     sshfn,                                  & ! surface sensible heat flux
     ssrn,                                   & ! surface solar radiation
-    surfstrn,                               & ! surface stress
+    sfcstressn,                               & ! surface stress
     ustarn,                                 & ! friction velocity [m/s]
     wstarn,                                 & ! convective velocity scale [m/s]
     hmixn,                                  & ! mixing height [m]
@@ -204,8 +202,8 @@ module windfields_mod
   real ::      &
     dxconst,   & ! auxiliary variables for utransform
     dyconst      ! auxiliary variables for vtransform
-  ! integer :: nconvlevmax !maximum number of levels for convection
-  ! integer :: na ! parameter used in Emanuel's convect subroutine
+  integer :: nconvlevmax !maximum number of levels for convection
+  integer :: na ! parameter used in Emanuel's convect subroutine
 
   !*************************************************
   ! Variables used for vertical model discretization
@@ -263,16 +261,15 @@ subroutine detectformat
 
   use par_mod
   use com_mod
-  use class_gribfile
+  use class_gribfile_mod
 
 
   implicit none
 
   character(len=255) :: filename
-  character(len=255) :: wfname1(maxwf)
 
   ! If no file is available
-  if ( maxwf.le.0 ) then
+  if ( numbwf.le.0 ) then
     print*,'No wind file available'
     metdata_format = GRIBFILE_CENTRE_UNKNOWN
     return
@@ -347,13 +344,13 @@ subroutine gridcheck_ecmwf
   integer :: ifile
   integer :: iret
   integer :: igrib
-  integer :: gotGrid
+  integer :: gotGrid,stat
   real(kind=4) :: xaux1,xaux2,yaux1,yaux2
   real(kind=8) :: xaux1in,xaux2in,yaux1in,yaux2in
   integer :: gribVer,parCat,parNum,typSurf,valSurf,discipl,parId
   !HSO  end
   integer :: ix,jy,i,ifn,ifield,j,k,iumax,iwmax,numskip
-  real :: sizesouth,sizenorth,xauxa,conversion_factor
+  real :: sizesouth,sizenorth,xauxa
 
   ! VARIABLES AND ARRAYS NEEDED FOR GRIB DECODING
 
@@ -363,14 +360,13 @@ subroutine gridcheck_ecmwf
   ! dimension of zsec2 at least (10+nn), where nn is the number of vertical
   ! coordinate parameters
 
-  integer :: isec1(56),isec2(22+nxmax+nymax)
-  real(kind=4) :: zsec2(60+2*nuvzmax),zsec4(jpunp)
+  integer :: isec1(56), isec2(12)
+  real(kind=4),allocatable,dimension(:) :: zsec2,zsec4
   character(len=1) :: opt
 
   !HSO  grib api error messages
   character(len=24) :: gribErrorMsg = 'Error reading grib file'
   character(len=20) :: gribFunction = 'gridcheck'
-
 
   iumax=0
   iwmax=0
@@ -528,12 +524,6 @@ subroutine gridcheck_ecmwf
     ! !    STOP
     ! endif
 
-    !get the size and data of the values array
-    if (isec1(6).ne.-1) then
-      call grib_get_real4_array(igrib,'values',zsec4,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-    endif
-
     if (ifield.eq.1) then
 
       !HSO  get the required fields from section 2 in a gribex compatible manner
@@ -554,8 +544,18 @@ subroutine gridcheck_ecmwf
       ny=isec2(3)
       nlev_ec=isec2(12)/2-1
 
+      allocate(zsec2(60+2*nlev_ec), stat=stat)
+      if (stat.ne.0) error stop "Could not allocate zsec2"
+      allocate(zsec4(16*nxfield*ny), stat=stat)
+      if (stat.ne.0) error stop "Could not allocate zsec4"
       !  get the size and data of the vertical coordinate array
       call grib_get_real4_array(igrib,'pv',zsec2,iret)
+      call grib_check(iret,gribFunction,gribErrorMsg)
+    endif
+
+    !get the size and data of the values array
+    if (isec1(6).ne.-1) then
+      call grib_get_real4_array(igrib,'values',zsec4,iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
     endif
 
@@ -570,10 +570,10 @@ subroutine gridcheck_ecmwf
       call grib_get_real8(igrib,'latitudeOfFirstGridPointInDegrees', &
            yaux2in,iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
-      xaux1=xaux1in
-      xaux2=xaux2in
-      yaux1=yaux1in
-      yaux2=yaux2in
+      xaux1=real(xaux1in)
+      xaux2=real(xaux2in)
+      yaux1=real(yaux1in)
+      yaux2=real(yaux2in)
       if (xaux1.gt.180.) xaux1=xaux1-360.0
       if (xaux2.gt.180.) xaux2=xaux2-360.0
       if (xaux1.lt.-180.) xaux1=xaux1+360.0
@@ -596,13 +596,13 @@ subroutine gridcheck_ecmwf
         nx=nxfield+1                 ! field is cyclic
         xglobal=.true.
         if (abs(nxshift).ge.nx) &
-             stop 'nxshift in file par_mod is too large'
+          error stop 'nxshift in file par_mod is too large'
         xlon0=xlon0+real(nxshift)*dx
       else
         nx=nxfield
         xglobal=.false.
         if (nxshift.ne.0) &
-             stop 'nxshift (par_mod) must be zero for non-global domain'
+          error stop 'nxshift (par_mod) must be zero for non-global domain'
       endif
       nxmin1=nx-1
       nymin1=ny-1
@@ -636,44 +636,45 @@ subroutine gridcheck_ecmwf
         switchnorthg=999999.
       endif
       if (nxshift.lt.0) &
-           stop 'nxshift (par_mod) must not be negative'
-      if (nxshift.ge.nxfield) stop 'nxshift (par_mod) too large'
+        error stop 'nxshift (par_mod) must not be negative'
+      if (nxshift.ge.nxfield) error stop 'nxshift (par_mod) too large'
     endif ! gotGrid
 
-    if (nx.gt.nxmax) then
-      write(*,*) 'FLEXPART error: Too many grid points in x direction.'
-      write(*,*) 'Reduce resolution of wind fields.'
-      write(*,*) 'Or change parameter settings in file par_mod.'
-      write(*,*) nx,nxmax
-      stop
-    endif
+    ! if (nx.gt.nxmax) then
+    !   write(*,*) 'FLEXPART error: Too many grid points in x direction.'
+    !   write(*,*) 'Reduce resolution of wind fields.'
+    !   write(*,*) 'Or change parameter settings in file par_mod.'
+    !   write(*,*) nx,nxmax
+    !   error stop
+    ! endif
 
-    if (ny.gt.nymax) then
-      write(*,*) 'FLEXPART error: Too many grid points in y direction.'
-      write(*,*) 'Reduce resolution of wind fields.'
-      write(*,*) 'Or change parameter settings in file par_mod.'
-      write(*,*) ny,nymax
-      stop
-    endif
+    ! if (ny.gt.nymax) then
+    !   write(*,*) 'FLEXPART error: Too many grid points in y direction.'
+    !   write(*,*) 'Reduce resolution of wind fields.'
+    !   write(*,*) 'Or change parameter settings in file par_mod.'
+    !   write(*,*) ny,nymax
+    !   error stop
+    ! endif
 
     k=isec1(8)
     if(isec1(6).eq.131) iumax=max(iumax,nlev_ec-k+1)
     if(isec1(6).eq.135) iwmax=max(iwmax,nlev_ec-k+1)
 
     if (isec1(6) .eq. 167) then
-      ! ! Assing grid values and allocate memory to read windfields
-      ! nxmax=nxfield
-      ! if (xglobal) then
-      !   nxmax=nxfield+1
-      ! endif
-      ! nymax=ny
-      ! nwzmax=iwmax+1
-      ! nuvzmax=iumax+1
-      ! nzmax=nuvzmax
-      ! nconvlevmax=iumax
-      ! na=nuvzmax
-      ! ! Temporary nxmax and nymax
-      call fixedfields_allocate
+      ! Asking grid values and allocate memory to read windfields
+      nxmax=nxfield
+      if (xglobal) then
+        nxmax=nxfield+1
+      endif
+      nymax=ny
+      nwzmax=iwmax+1
+      nuvzmax=iumax+1
+      nzmax=nuvzmax
+      nconvlevmax=iumax
+      na=nuvzmax
+      ! Temporary nxmax and nymax
+      call alloc_fixedfields
+      write(*,*) 'grid dim:',nxmax,nymax,nwzmax,nuvzmax,nconvlevmax,na
     endif
 
     if(isec1(6).eq.129) then
@@ -705,13 +706,15 @@ subroutine gridcheck_ecmwf
   !
   call grib_close_file(ifile)
 
-  ! call windfields_allocate
+  ! Allocate memory for windfields
+  !*******************************
+  call alloc_windfields
 
   !error message if no fields found with correct first longitude in it
   if (gotGrid.eq.0) then
     print*,'***ERROR: input file needs to contain GRiB1 formatted'// &
          'messages'
-    stop
+    error stop
   endif
 
   nuvz=iumax
@@ -773,7 +776,11 @@ subroutine gridcheck_ecmwf
   ! for unknown reason zsec 1 to 10 is filled in this version
   ! compared to the old one
   ! SEC SEC SE
-  do i=1,nwz
+  akm=0
+  bkm=0
+  akz=0
+  bkz=0
+  do i=1,nwz ! LB: should start counting fom 0 to get the top level?
     j=numskip+i
     k=nlev_ec+1+numskip+i
     akm(nwz-i+1)=zsec2(j)
@@ -807,11 +814,11 @@ subroutine gridcheck_ecmwf
   ! not done anymore in the standard version. However, this option can still be
   ! switched on by replacing the following lines with those below, that are
   ! currently commented out. For this, similar changes are necessary in
-  ! verttransform.f and verttranform_nests.f
+  ! verttransform.f and verttranform_nest.f
   !*****************************************************************************
 
   nz=nuvz
-  if (nz.gt.nzmax) stop 'nzmax too small'
+  if (nz.gt.nzmax) error stop 'nzmax too small'
   do i=1,nuvz
     aknew(i)=akz(i)
     bknew(i)=bkz(i)
@@ -845,7 +852,7 @@ subroutine gridcheck_ecmwf
   write(*,*)
   read(*,'(a)') opt
   if(opt.eq.'X') then
-    stop
+    error stop
   else
     goto 5
   endif
@@ -913,25 +920,25 @@ subroutine gridcheck_gfs
   !HSO  parameters for grib_api
   integer :: ifile
   integer :: iret
-  integer :: igrib
+  integer :: igrib,stat
   real(kind=4) :: xaux1,xaux2,yaux1,yaux2
   real(kind=8) :: xaux1in,xaux2in,yaux1in,yaux2in
   integer :: gribVer,parCat,parNum,typSurf,valSurf,discipl
   !HSO  end
   integer :: ix,jy,i,ifn,ifield,j,k,iumax,iwmax,numskip
-  real :: sizesouth,sizenorth,xauxa,pint
-  real :: akm_usort(nwzmax)
+  real :: sizesouth,sizenorth,xauxa
+  real,allocatable,dimension(:) :: akm_usort,pres,tmppres
   real,parameter :: eps=0.0001
 
   ! NCEP GFS
-  real :: pres(nwzmax), help
+  real :: help
 
   integer :: i179,i180,i181
 
   ! VARIABLES AND ARRAYS NEEDED FOR GRIB DECODING
 
   integer :: isec1(8),isec2(3)
-  real(kind=4) :: zsec4(jpunp)
+  real(kind=4),allocatable,dimension(:) :: zsec4
   character(len=1) :: opt
 
   !HSO  grib api error messages
@@ -943,7 +950,7 @@ subroutine gridcheck_gfs
   write(*,*) ' FLEXPART ERROR SUBROUTINE GRIDCHECK:'
   write(*,*) ' NO NESTED WINDFIELDAS ALLOWED FOR GFS!      '
   write(*,*) ' ###########################################'
-  stop
+  error stop
   endif
 
   iumax=0
@@ -1030,12 +1037,6 @@ subroutine gridcheck_gfs
         isec1(8)=0
       endif
 
-      if (isec1(6).ne.-1) then
-      !  get the size and data of the values array
-        call grib_get_real4_array(igrib,'values',zsec4,iret)
-        call grib_check(iret,gribFunction,gribErrorMsg)
-      endif
-
     endif ! gribVer
 
     if(ifield.eq.1) then
@@ -1064,10 +1065,10 @@ subroutine gridcheck_gfs
       ! Fix for flexpart.eu ticket #48
       if (xaux2in.lt.0) xaux2in = 359.0
 
-      xaux1=xaux1in
-      xaux2=xaux2in
-      yaux1=yaux1in
-      yaux2=yaux2in
+      xaux1=real(xaux1in)
+      xaux2=real(xaux2in)
+      yaux1=real(yaux1in)
+      yaux2=real(yaux2in)
 
       nxfield=isec2(2)
       ny=isec2(3)
@@ -1099,13 +1100,13 @@ subroutine gridcheck_gfs
         nx=nxfield+1                 ! field is cyclic
         xglobal=.true.
         if (abs(nxshift).ge.nx) &
-             stop 'nxshift in file par_mod is too large'
+          error stop 'nxshift in file par_mod is too large'
         xlon0=xlon0+real(nxshift)*dx
       else
         nx=nxfield
         xglobal=.false.
         if (nxshift.ne.0) &
-             stop 'nxshift (par_mod) must be zero for non-global domain'
+          error stop 'nxshift (par_mod) must be zero for non-global domain'
       endif
       nxmin1=nx-1
       nymin1=ny-1
@@ -1138,17 +1139,37 @@ subroutine gridcheck_gfs
         nglobal=.false.
         switchnorthg=999999.
       endif
+      ! Set nxmax and nymax and allocate the fields for oro lsm and excessoro
+      nxmax=nx
+      nymax=ny
+      call alloc_fixedfields
+      if (gribVer.eq.1) then
+        allocate( zsec4(16*nxmax*nymax),stat=stat) ! GRIB Edition 1
+        if (stat.ne.0) error stop "Could not allocate zsec2"
+      endif
     endif ! ifield.eq.1
 
-    if (nxshift.lt.0) stop 'nxshift (par_mod) must not be negative'
-    if (nxshift.ge.nxfield) stop 'nxshift (par_mod) too large'
+    if (nxshift.lt.0) error stop 'nxshift (par_mod) must not be negative'
+    if (nxshift.ge.nxfield) error stop 'nxshift (par_mod) too large'
+
+    if (gribVer.eq.1) then ! GRIB Edition 1
+      if (isec1(6).ne.-1) then
+      !  get the size and data of the values array
+        call grib_get_real4_array(igrib,'values',zsec4,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+      endif
+    endif
 
     ! NCEP ISOBARIC LEVELS
     !*********************
 
     if((isec1(6).eq.33).and.(isec1(7).eq.100)) then ! check for U wind
       iumax=iumax+1
+      allocate( tmppres(iumax), stat=stat)
+      if (stat.ne.0) error stop "Could not allocate tmppres"
+      if (iumax.gt.1) tmppres(1:iumax)=pres
       pres(iumax)=real(isec1(8))*100.0
+      call move_alloc(tmppres,pres)
     endif
 
 
@@ -1166,7 +1187,7 @@ subroutine gridcheck_gfs
 
     if((isec1(6).eq.007).and.(isec1(7).eq.001)) then
     ! IP 8/5/23 allocate fields missing for GFS reading 
-    call fixedfields_allocate
+    call alloc_fixedfields
     ! IP 8/5/23
       do jy=0,ny-1
         do ix=0,nxfield-1
@@ -1213,31 +1234,27 @@ subroutine gridcheck_gfs
   nwz =iumax
   nlev_ec=iumax
 
-  ! ! Assing grid values and allocate memory to read windfields
-  ! nxmax=nx
-  ! nymax=ny
-  ! nwzmax=nwz
-  ! nuvzmax=nuvz
-  ! nzmax=nuvz
-  ! ! nconvlevmax=nuvzmax-1
-  ! ! na=nconvlevmax+1
-
-  ! call windfields_allocate
+  ! Allocate memory for windfields
+  !*******************************
+  nwzmax=nwz
+  nuvzmax=nuvz
+  nzmax=nuvz
+  call alloc_windfields
 
   if (nx.gt.nxmax) then
-   write(*,*) 'FLEXPART error: Too many grid points in x direction.'
+    write(*,*) 'FLEXPART error: Too many grid points in x direction.'
     write(*,*) 'Reduce resolution of wind fields.'
     write(*,*) 'Or change parameter settings in file par_mod.'
     write(*,*) nx,nxmax
-    stop
+    error stop
   endif
 
   if (ny.gt.nymax) then
-   write(*,*) 'FLEXPART error: Too many grid points in y direction.'
+    write(*,*) 'FLEXPART error: Too many grid points in y direction.'
     write(*,*) 'Reduce resolution of wind fields.'
     write(*,*) 'Or change parameter settings in file par_mod.'
     write(*,*) ny,nymax
-    stop
+    error stop
   endif
 
   if (nuvz.gt.nuvzmax) then
@@ -1246,7 +1263,7 @@ subroutine gridcheck_gfs
     write(*,*) 'Reduce resolution of wind fields.'
     write(*,*) 'Or change parameter settings in file par_mod.'
     write(*,*) nuvz,nuvzmax
-    stop
+    error stop
   endif
 
   if (nwz.gt.nwzmax) then
@@ -1255,7 +1272,7 @@ subroutine gridcheck_gfs
     write(*,*) 'Reduce resolution of wind fields.'
     write(*,*) 'Or change parameter settings in file par_mod.'
     write(*,*) nwz,nwzmax
-    stop
+    error stop
   endif
 
   ! If desired, shift all grids by nxshift grid cells
@@ -1287,6 +1304,8 @@ subroutine gridcheck_gfs
   ! CALCULATE VERTICAL DISCRETIZATION OF ECMWF MODEL
   ! PARAMETER akm,bkm DESCRIBE THE HYBRID "ETA" COORDINATE SYSTEM
 
+  allocate( akm_usort(nwzmax), stat=stat)
+  if (stat.ne.0) error stop "Could not allocate akm_usort"
   numskip=nlev_ec-nuvz  ! number of ecmwf model layers not used
                         ! by trajectory model
   do i=1,nwz
@@ -1326,11 +1345,11 @@ subroutine gridcheck_gfs
   ! not done anymore in the standard version. However, this option can still be
   ! switched on by replacing the following lines with those below, that are
   ! currently commented out. For this, similar changes are necessary in
-  ! verttransform.f and verttranform_nests.f
+  ! verttransform.f and verttranform_nest.f
   !*****************************************************************************
 
   nz=nuvz
-  if (nz.gt.nzmax) stop 'nzmax too small'
+  if (nz.gt.nzmax) error stop 'nzmax too small'
   do i=1,nuvz
     aknew(i)=akz(i)
     bknew(i)=bkz(i)
@@ -1347,6 +1366,7 @@ subroutine gridcheck_gfs
   !  aknew(2*(i-1))=akz(i)
   !10     bknew(2*(i-1))=bkz(i)
   ! End doubled vertical resolution
+  deallocate(  akm_usort,pres,zsec4 )
   return
 
 999   write(*,*)
@@ -1364,14 +1384,14 @@ subroutine gridcheck_gfs
   write(*,*)
   read(*,'(a)') opt
   if(opt.eq.'X') then
-    stop
+    error stop
   else
     goto 5
   endif
 
 end subroutine gridcheck_gfs
 
-subroutine gridcheck_nests
+subroutine gridcheck_nest
 
   !*****************************************************************************
   !                                                                            *
@@ -1395,7 +1415,7 @@ subroutine gridcheck_nests
   !HSO  parameters for grib_api
   integer :: ifile
   integer :: iret
-  integer :: igrib
+  integer :: igrib,stat
   integer :: gribVer,parCat,parNum,typSurf,valSurf,discipl
   integer :: parID !added by mc for making it consistent with new gridcheck.f90
   integer :: gotGrib
@@ -1405,7 +1425,6 @@ subroutine gridcheck_nests
   real :: akmn(nwzmax),bkmn(nwzmax),akzn(nuvzmax),bkzn(nuvzmax)
   real(kind=4) :: xaux1,xaux2,yaux1,yaux2
   real(kind=8) :: xaux1in,xaux2in,yaux1in,yaux2in
-  real :: conversion_factor !added by mc to make it consistent with new gridchek.f90
 
   ! VARIABLES AND ARRAYS NEEDED FOR GRIB DECODING
 
@@ -1415,12 +1434,12 @@ subroutine gridcheck_nests
   ! dimension of zsec2 at least (10+nn), where nn is the number of vertical
   ! coordinate parameters
 
-  integer :: isec1(56),isec2(22+nxmaxn+nymaxn)
-  real(kind=4) :: zsec2(60+2*nuvzmax),zsec4(jpunp)
+  integer :: isec1(56),isec2(12) !(22+nxmaxn+nymaxn)
+  real(kind=4),allocatable,dimension(:) :: zsec2,zsec4
 
   !HSO  grib api error messages
   character(len=24) :: gribErrorMsg = 'Error reading grib file'
-  character(len=20) :: gribFunction = 'gridcheck_nests'
+  character(len=20) :: gribFunction = 'gridcheck_nest'
 
   xresoln(0)=1.       ! resolution enhancement for mother grid
   yresoln(0)=1.       ! resolution enhancement for mother grid
@@ -1438,338 +1457,348 @@ subroutine gridcheck_nests
     else
       ifn=numbwf
     endif
-  !
-  ! OPENING OF DATA FILE (GRIB CODE)
-  !
-  ifile=0
-  igrib=0
-  iret=0
-
-5   call grib_open_file(ifile,path(numpath+2*(l-1)+1) &
-         (1:length(numpath+2*(l-1)+1))//trim(wfnamen(l,ifn)),'r',iret)
-  if (iret.ne.GRIB_SUCCESS) then
-    goto 999   ! ERROR DETECTED
-  endif
-  !turn on support for multi fields messages
-  !call grib_multi_support_on
-
-  gotGrib=0
-  ifield=0
-  do
-    ifield=ifield+1
-
     !
-    ! GET NEXT FIELDS
+    ! OPENING OF DATA FILE (GRIB CODE)
     !
-    call grib_new_from_file(ifile,igrib,iret)
-    if (iret.eq.GRIB_END_OF_FILE)  then
-      exit    ! EOF DETECTED
-    elseif (iret.ne.GRIB_SUCCESS) then
+    ifile=0
+    igrib=0
+    iret=0
+
+    call grib_open_file(ifile,path(numpath+2*(l-1)+1) &
+           (1:length(numpath+2*(l-1)+1))//trim(wfnamen(l,ifn)),'r',iret)
+    if (iret.ne.GRIB_SUCCESS) then
       goto 999   ! ERROR DETECTED
     endif
+    !turn on support for multi fields messages
+    !call grib_multi_support_on
 
-    !first see if we read GRIB1 or GRIB2
-    call grib_get_int(igrib,'editionNumber',gribVer,iret)
-    call grib_check(iret,gribFunction,gribErrorMsg)
+    gotGrib=0
+    ifield=0
+    do
+      ifield=ifield+1
 
-    if (gribVer.eq.1) then ! GRIB Edition 1
-
-      !print*,'GRiB Edition 1'
-      !read the grib2 identifiers
-      call grib_get_int(igrib,'indicatorOfParameter',isec1(6),iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_int(igrib,'level',isec1(8),iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-
-      !change code for etadot to code for omega
-      if (isec1(6).eq.77) then
-        isec1(6)=135
+      !
+      ! GET NEXT FIELDS
+      !
+      call grib_new_from_file(ifile,igrib,iret)
+      if (iret.eq.GRIB_END_OF_FILE)  then
+        exit    ! EOF DETECTED
+      elseif (iret.ne.GRIB_SUCCESS) then
+        goto 999   ! ERROR DETECTED
       endif
 
-      !print*,isec1(6),isec1(8)
+      !first see if we read GRIB1 or GRIB2
+      call grib_get_int(igrib,'editionNumber',gribVer,iret)
+      call grib_check(iret,gribFunction,gribErrorMsg)
 
-    else
+      if (gribVer.eq.1) then ! GRIB Edition 1
 
-      !print*,'GRiB Edition 2'
-      !read the grib2 identifiers
-      call grib_get_int(igrib,'discipline',discipl,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_int(igrib,'parameterCategory',parCat,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_int(igrib,'parameterNumber',parNum,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_int(igrib,'typeOfFirstFixedSurface',typSurf,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_int(igrib,'level',valSurf,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_int(igrib,'paramId',parId,iret) !added by mc to make it consisitent with new grid_check.f90
-      call grib_check(iret,gribFunction,gribErrorMsg) !added by mc to make it consisitent with new  grid_check.f90
+        !print*,'GRiB Edition 1'
+        !read the grib2 identifiers
+        call grib_get_int(igrib,'indicatorOfParameter',isec1(6),iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_int(igrib,'level',isec1(8),iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
 
-      !print*,discipl,parCat,parNum,typSurf,valSurf
+        !change code for etadot to code for omega
+        if (isec1(6).eq.77) then
+          isec1(6)=135
+        endif
 
-      !convert to grib1 identifiers
-      isec1(6)=-1
-      isec1(7)=-1
-      isec1(8)=-1
-      isec1(8)=valSurf     ! level
-      if ((parCat.eq.0).and.(parNum.eq.0).and.(typSurf.eq.105)) then ! T
-        isec1(6)=130         ! indicatorOfParameter
-      elseif ((parCat.eq.2).and.(parNum.eq.2).and.(typSurf.eq.105)) then ! U
-        isec1(6)=131         ! indicatorOfParameter
-      elseif ((parCat.eq.2).and.(parNum.eq.3).and.(typSurf.eq.105)) then ! V
-        isec1(6)=132         ! indicatorOfParameter
-      elseif ((parCat.eq.1).and.(parNum.eq.0).and.(typSurf.eq.105)) then ! Q
-        isec1(6)=133         ! indicatorOfParameter
-      elseif ((parCat.eq.1).and.(parNum.eq.83).and.(typSurf.eq.105)) then ! clwc
-        isec1(6)=246         ! indicatorOfParameter
-      elseif ((parCat.eq.1).and.(parNum.eq.84).and.(typSurf.eq.105)) then ! ciwc
-        isec1(6)=247         ! indicatorOfParameter
-      !ZHG end
-      ! ESO qc(=clwc+ciwc)
-      elseif ((parCat.eq.201).and.(parNum.eq.31).and.(typSurf.eq.105)) then ! qc
-        isec1(6)=201031      ! indicatorOfParameter
-      elseif ((parCat.eq.3).and.(parNum.eq.0).and.(typSurf.eq.1)) then !SP
-        isec1(6)=134         ! indicatorOfParameter
-      elseif ((parCat.eq.2).and.(parNum.eq.32)) then ! W, actually eta dot
-        isec1(6)=135         ! indicatorOfParameter
-      elseif ((parCat.eq.128).and.(parNum.eq.77)) then ! W, actually eta dot !added bymc to make it consistent with new gridcheck.f90
-        isec1(6)=135         ! indicatorOfParameter    !
-      elseif ((parCat.eq.3).and.(parNum.eq.0).and.(typSurf.eq.101)) then !SLP
-        isec1(6)=151         ! indicatorOfParameter
-      elseif ((parCat.eq.2).and.(parNum.eq.2).and.(typSurf.eq.103)) then ! 10U
-        isec1(6)=165         ! indicatorOfParameter
-      elseif ((parCat.eq.2).and.(parNum.eq.3).and.(typSurf.eq.103)) then ! 10V
-        isec1(6)=166         ! indicatorOfParameter
-      elseif ((parCat.eq.0).and.(parNum.eq.0).and.(typSurf.eq.103)) then ! 2T
-        isec1(6)=167         ! indicatorOfParameter
-      elseif ((parCat.eq.0).and.(parNum.eq.6).and.(typSurf.eq.103)) then ! 2D
-        isec1(6)=168         ! indicatorOfParameter
-      elseif ((parCat.eq.1).and.(parNum.eq.11).and.(typSurf.eq.1)) then ! SD
-        isec1(6)=141         ! indicatorOfParameter
-      elseif ((parCat.eq.6).and.(parNum.eq.1) .or. parId .eq. 164) then ! CC !added by mc to make it consistent with new gridchek.f90
-        isec1(6)=164         ! indicatorOfParameter
-      elseif ((parCat.eq.1).and.(parNum.eq.9) .or. parId .eq. 142) then ! LSP !added by mc to make it consistent with new gridchek.f90
-        isec1(6)=142         ! indicatorOfParameter
-      elseif ((parCat.eq.1).and.(parNum.eq.10)) then ! CP
-        isec1(6)=143         ! indicatorOfParameter
-      elseif ((parCat.eq.0).and.(parNum.eq.11).and.(typSurf.eq.1)) then ! SHF
-        isec1(6)=146         ! indicatorOfParameter
-      elseif ((parCat.eq.4).and.(parNum.eq.9).and.(typSurf.eq.1)) then ! SR
-        isec1(6)=176         ! indicatorOfParameter
-      elseif ((parCat.eq.2).and.(parNum.eq.17) .or. parId .eq. 180) then ! EWSS !added by mc to make it consistent with new gridchek.f90
-        isec1(6)=180         ! indicatorOfParameter
-      elseif ((parCat.eq.2).and.(parNum.eq.18) .or. parId .eq. 181) then ! NSSS !added by mc to make it consistent with new gridchek.f90
-        isec1(6)=181         ! indicatorOfParameter
-      elseif ((parCat.eq.3).and.(parNum.eq.4)) then ! ORO
-        isec1(6)=129         ! indicatorOfParameter
-      elseif ((parCat.eq.3).and.(parNum.eq.7) .or. parId .eq. 160) then ! SDO !added by mc to make it consistent with new gridchek.f90
-        isec1(6)=160         ! indicatorOfParameter
-      elseif ((discipl.eq.2).and.(parCat.eq.0).and.(parNum.eq.0).and. &
-           (typSurf.eq.1)) then ! LSM
-        isec1(6)=172         ! indicatorOfParameter
+        !print*,isec1(6),isec1(8)
+
       else
-        print*,'***ERROR: undefined GRiB2 message found!',discipl, &
-             parCat,parNum,typSurf
+
+        !print*,'GRiB Edition 2'
+        !read the grib2 identifiers
+        call grib_get_int(igrib,'discipline',discipl,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_int(igrib,'parameterCategory',parCat,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_int(igrib,'parameterNumber',parNum,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_int(igrib,'typeOfFirstFixedSurface',typSurf,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_int(igrib,'level',valSurf,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_int(igrib,'paramId',parId,iret) !added by mc to make it consisitent with new grid_check.f90
+        call grib_check(iret,gribFunction,gribErrorMsg) !added by mc to make it consisitent with new  grid_check.f90
+
+        !print*,discipl,parCat,parNum,typSurf,valSurf
+
+        !convert to grib1 identifiers
+        isec1(6)=-1
+        isec1(7)=-1
+        isec1(8)=-1
+        isec1(8)=valSurf     ! level
+        if ((parCat.eq.0).and.(parNum.eq.0).and.(typSurf.eq.105)) then ! T
+          isec1(6)=130         ! indicatorOfParameter
+        elseif ((parCat.eq.2).and.(parNum.eq.2).and.(typSurf.eq.105)) then ! U
+          isec1(6)=131         ! indicatorOfParameter
+        elseif ((parCat.eq.2).and.(parNum.eq.3).and.(typSurf.eq.105)) then ! V
+          isec1(6)=132         ! indicatorOfParameter
+        elseif ((parCat.eq.1).and.(parNum.eq.0).and.(typSurf.eq.105)) then ! Q
+          isec1(6)=133         ! indicatorOfParameter
+        elseif ((parCat.eq.1).and.(parNum.eq.83).and.(typSurf.eq.105)) then ! clwc
+          isec1(6)=246         ! indicatorOfParameter
+        elseif ((parCat.eq.1).and.(parNum.eq.84).and.(typSurf.eq.105)) then ! ciwc
+          isec1(6)=247         ! indicatorOfParameter
+        !ZHG end
+        ! ESO qc(=clwc+ciwc)
+        elseif ((parCat.eq.201).and.(parNum.eq.31).and.(typSurf.eq.105)) then ! qc
+          isec1(6)=201031      ! indicatorOfParameter
+        elseif ((parCat.eq.3).and.(parNum.eq.0).and.(typSurf.eq.1)) then !SP
+          isec1(6)=134         ! indicatorOfParameter
+        elseif ((parCat.eq.2).and.(parNum.eq.32)) then ! W, actually eta dot
+          isec1(6)=135         ! indicatorOfParameter
+        elseif ((parCat.eq.128).and.(parNum.eq.77)) then ! W, actually eta dot !added bymc to make it consistent with new gridcheck.f90
+          isec1(6)=135         ! indicatorOfParameter    !
+        elseif ((parCat.eq.3).and.(parNum.eq.0).and.(typSurf.eq.101)) then !SLP
+          isec1(6)=151         ! indicatorOfParameter
+        elseif ((parCat.eq.2).and.(parNum.eq.2).and.(typSurf.eq.103)) then ! 10U
+          isec1(6)=165         ! indicatorOfParameter
+        elseif ((parCat.eq.2).and.(parNum.eq.3).and.(typSurf.eq.103)) then ! 10V
+          isec1(6)=166         ! indicatorOfParameter
+        elseif ((parCat.eq.0).and.(parNum.eq.0).and.(typSurf.eq.103)) then ! 2T
+          isec1(6)=167         ! indicatorOfParameter
+        elseif ((parCat.eq.0).and.(parNum.eq.6).and.(typSurf.eq.103)) then ! 2D
+          isec1(6)=168         ! indicatorOfParameter
+        elseif ((parCat.eq.1).and.(parNum.eq.11).and.(typSurf.eq.1)) then ! SD
+          isec1(6)=141         ! indicatorOfParameter
+        elseif ((parCat.eq.6).and.(parNum.eq.1) .or. parId .eq. 164) then ! CC !added by mc to make it consistent with new gridchek.f90
+          isec1(6)=164         ! indicatorOfParameter
+        elseif ((parCat.eq.1).and.(parNum.eq.9) .or. parId .eq. 142) then ! LSP !added by mc to make it consistent with new gridchek.f90
+          isec1(6)=142         ! indicatorOfParameter
+        elseif ((parCat.eq.1).and.(parNum.eq.10)) then ! CP
+          isec1(6)=143         ! indicatorOfParameter
+        elseif ((parCat.eq.0).and.(parNum.eq.11).and.(typSurf.eq.1)) then ! SHF
+          isec1(6)=146         ! indicatorOfParameter
+        elseif ((parCat.eq.4).and.(parNum.eq.9).and.(typSurf.eq.1)) then ! SR
+          isec1(6)=176         ! indicatorOfParameter
+        elseif ((parCat.eq.2).and.(parNum.eq.17) .or. parId .eq. 180) then ! EWSS !added by mc to make it consistent with new gridchek.f90
+          isec1(6)=180         ! indicatorOfParameter
+        elseif ((parCat.eq.2).and.(parNum.eq.18) .or. parId .eq. 181) then ! NSSS !added by mc to make it consistent with new gridchek.f90
+          isec1(6)=181         ! indicatorOfParameter
+        elseif ((parCat.eq.3).and.(parNum.eq.4)) then ! ORO
+          isec1(6)=129         ! indicatorOfParameter
+        elseif ((parCat.eq.3).and.(parNum.eq.7) .or. parId .eq. 160) then ! SDO !added by mc to make it consistent with new gridchek.f90
+          isec1(6)=160         ! indicatorOfParameter
+        elseif ((discipl.eq.2).and.(parCat.eq.0).and.(parNum.eq.0).and. &
+             (typSurf.eq.1)) then ! LSM
+          isec1(6)=172         ! indicatorOfParameter
+        else
+          print*,'***ERROR: undefined GRiB2 message found!',discipl, &
+               parCat,parNum,typSurf
+        endif
+        if(parId .ne. isec1(6) .and. parId .ne. 77) then !added by mc to make it consistent with new gridchek.f90
+          write(*,*) 'parId',parId, 'isec1(6)',isec1(6)
+        !    stop
+        endif
+
       endif
-      if(parId .ne. isec1(6) .and. parId .ne. 77) then !added by mc to make it consistent with new gridchek.f90
-        write(*,*) 'parId',parId, 'isec1(6)',isec1(6)
-      !    stop
+
+      !HSO  get the required fields from section 2 in a gribex compatible manner
+      if (ifield.eq.1) then
+        call grib_get_int(igrib,'numberOfPointsAlongAParallel', &
+             isec2(2),iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_int(igrib,'numberOfPointsAlongAMeridian', &
+             isec2(3),iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_int(igrib,'numberOfVerticalCoordinateValues', &
+             isec2(12),iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+
+        nxn(l)=isec2(2)
+        nyn(l)=isec2(3)
+        nlev_ecn=isec2(12)/2-1
+
+        if (nxn(l).gt.nxmaxn) nxmaxn=nxn(l)
+        if (nyn(l).gt.nymaxn) nymaxn=nyn(l)
+        allocate( zsec2(60+2*nlev_ecn), stat=stat)
+        if (stat.ne.0) error stop "Could not allocate zsec2"
+        allocate( zsec4(16*nxmaxn*nymaxn), stat=stat)
+        if (stat.ne.0) error stop "Could not allocate zsec4"
+
+        !HSO    get the size and data of the vertical coordinate array
+        call grib_get_real4_array(igrib,'pv',zsec2,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+
+        call alloc_fixedfields_nest
+        write(*,*) 'Dimensions nest:',nxmaxn,nymaxn,nlev_ecn
+      endif ! ifield
+
+      !get the size and data of the values array
+      if (isec1(6).ne.-1) then
+        call grib_get_real4_array(igrib,'values',zsec4,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
       endif
 
-    endif
+      if (nxn(l).gt.nxmaxn) then
+        write(*,*) 'FLEXPART error: Too many grid points in x direction.'
+        write(*,*) 'Reduce resolution of wind fields (file GRIDSPEC)'
+        write(*,*) 'for nesting level ',l
+        write(*,*) 'Or change parameter settings in file par_mod.'
+        write(*,*) nxn(l),nxmaxn
+        error stop
+      endif
 
-    !get the size and data of the values array
-    if (isec1(6).ne.-1) then
-      call grib_get_real4_array(igrib,'values',zsec4,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-    endif
+      if (nyn(l).gt.nymaxn) then
+        write(*,*) 'FLEXPART error: Too many grid points in y direction.'
+        write(*,*) 'Reduce resolution of wind fields (file GRIDSPEC)'
+        write(*,*) 'for nesting level ',l
+        write(*,*) 'Or change parameter settings in file par_mod.'
+        write(*,*) nyn(l),nymaxn
+        error stop
+      endif
 
-    !HSO  get the required fields from section 2 in a gribex compatible manner
-    if (ifield.eq.1) then
-      call grib_get_int(igrib,'numberOfPointsAlongAParallel', &
-           isec2(2),iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_int(igrib,'numberOfPointsAlongAMeridian', &
-           isec2(3),iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_int(igrib,'numberOfVerticalCoordinateValues', &
-           isec2(12),iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-    !HSO    get the size and data of the vertical coordinate array
-      call grib_get_real4_array(igrib,'pv',zsec2,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
+      !HSO  get the second part of the grid dimensions only from GRiB1 messages
+      if (isec1(6) .eq. 167 .and. (gotGrib.eq.0)) then !added by mc to make it consistent with new gridchek.f90 note that gotGrid must be changed in gotGrib!!
+        call grib_get_real8(igrib,'longitudeOfFirstGridPointInDegrees', & !comment by mc: note that this was in the (if (ifield.eq.1) ..end above in gridchek.f90 see line 257
+             xaux1in,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_real8(igrib,'longitudeOfLastGridPointInDegrees', &
+             xaux2in,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_real8(igrib,'latitudeOfLastGridPointInDegrees', &
+             yaux1in,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_real8(igrib,'latitudeOfFirstGridPointInDegrees', &
+             yaux2in,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        xaux1=real(xaux1in)
+        xaux2=real(xaux2in)
+        yaux1=real(yaux1in)
+        yaux2=real(yaux2in)
+        if(xaux1.gt.180.) xaux1=xaux1-360.0
+        if(xaux2.gt.180.) xaux2=xaux2-360.0
+        if(xaux1.lt.-180.) xaux1=xaux1+360.0
+        if(xaux2.lt.-180.) xaux2=xaux2+360.0
+        if (xaux2.lt.xaux1) xaux2=xaux2+360.0
+        xlon0n(l)=xaux1
+        ylat0n(l)=yaux1
+        dxn(l)=(xaux2-xaux1)/real(nxn(l)-1)
+        dyn(l)=(yaux2-yaux1)/real(nyn(l)-1)
+        gotGrib=1 !commetn by mc note tahthere gotGRIB is used instead of gotGrid!!!
+      endif ! ifield.eq.1
 
-      nxn(l)=isec2(2)
-      nyn(l)=isec2(3)
-      nlev_ecn=isec2(12)/2-1
-    endif ! ifield
+      k=isec1(8)
+      if(isec1(6).eq.131) iumax=max(iumax,nlev_ec-k+1)
+      if(isec1(6).eq.135) iwmax=max(iwmax,nlev_ec-k+1)
 
-    if (nxn(l).gt.nxmaxn) then
-      write(*,*) 'FLEXPART error: Too many grid points in x direction.'
-      write(*,*) 'Reduce resolution of wind fields (file GRIDSPEC)'
-      write(*,*) 'for nesting level ',l
-      write(*,*) 'Or change parameter settings in file par_mod.'
-      write(*,*) nxn(l),nxmaxn
-      stop
-    endif
-
-    if (nyn(l).gt.nymaxn) then
-      write(*,*) 'FLEXPART error: Too many grid points in y direction.'
-      write(*,*) 'Reduce resolution of wind fields (file GRIDSPEC)'
-      write(*,*) 'for nesting level ',l
-      write(*,*) 'Or change parameter settings in file par_mod.'
-      write(*,*) nyn(l),nymaxn
-      stop
-    endif
-
-    !HSO  get the second part of the grid dimensions only from GRiB1 messages
-    if (isec1(6) .eq. 167 .and. (gotGrib.eq.0)) then !added by mc to make it consistent with new gridchek.f90 note that gotGrid must be changed in gotGrib!!
-      call grib_get_real8(igrib,'longitudeOfFirstGridPointInDegrees', & !comment by mc: note that this was in the (if (ifield.eq.1) ..end above in gridchek.f90 see line 257
-           xaux1in,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_real8(igrib,'longitudeOfLastGridPointInDegrees', &
-           xaux2in,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_real8(igrib,'latitudeOfLastGridPointInDegrees', &
-           yaux1in,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_real8(igrib,'latitudeOfFirstGridPointInDegrees', &
-           yaux2in,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      xaux1=xaux1in
-      xaux2=xaux2in
-      yaux1=yaux1in
-      yaux2=yaux2in
-      if(xaux1.gt.180.) xaux1=xaux1-360.0
-      if(xaux2.gt.180.) xaux2=xaux2-360.0
-      if(xaux1.lt.-180.) xaux1=xaux1+360.0
-      if(xaux2.lt.-180.) xaux2=xaux2+360.0
-      if (xaux2.lt.xaux1) xaux2=xaux2+360.0
-      xlon0n(l)=xaux1
-      ylat0n(l)=yaux1
-      dxn(l)=(xaux2-xaux1)/real(nxn(l)-1)
-      dyn(l)=(yaux2-yaux1)/real(nyn(l)-1)
-      gotGrib=1 !commetn by mc note tahthere gotGRIB is used instead of gotGrid!!!
-    endif ! ifield.eq.1
-
-    k=isec1(8)
-    if(isec1(6).eq.131) iumax=max(iumax,nlev_ec-k+1)
-    if(isec1(6).eq.135) iwmax=max(iwmax,nlev_ec-k+1)
-
-    if(isec1(6).eq.129) then
-      do j=0,nyn(l)-1
-        do i=0,nxn(l)-1
-          oron(i,j,l)=zsec4(nxn(l)*(nyn(l)-j-1)+i+1)/ga
+      if(isec1(6).eq.129) then
+        do j=0,nyn(l)-1
+          do i=0,nxn(l)-1
+            oron(i,j,l)=zsec4(nxn(l)*(nyn(l)-j-1)+i+1)/ga
+          end do
         end do
-      end do
-    endif
-    if(isec1(6).eq.172) then
-      do j=0,nyn(l)-1
-        do i=0,nxn(l)-1
-          lsmn(i,j,l)=zsec4(nxn(l)*(nyn(l)-j-1)+i+1)/ga
+      endif
+      if(isec1(6).eq.172) then
+        do j=0,nyn(l)-1
+          do i=0,nxn(l)-1
+            lsmn(i,j,l)=zsec4(nxn(l)*(nyn(l)-j-1)+i+1)/ga
+          end do
         end do
-      end do
-    endif
-    if(isec1(6).eq.160) then
-      do j=0,nyn(l)-1
-        do i=0,nxn(l)-1
-          excessoron(i,j,l)=zsec4(nxn(l)*(nyn(l)-j-1)+i+1)/ga
+      endif
+      if(isec1(6).eq.160) then
+        do j=0,nyn(l)-1
+          do i=0,nxn(l)-1
+            excessoron(i,j,l)=zsec4(nxn(l)*(nyn(l)-j-1)+i+1)/ga
+          end do
         end do
-      end do
+      endif
+
+      call grib_release(igrib)
+    end do                 !! READ NEXT LEVEL OR PARAMETER
+    !
+    ! CLOSING OF INPUT DATA FILE
+    !
+
+    call grib_close_file(ifile)
+
+    !error message if no fields found with correct first longitude in it
+    if (gotGrib.eq.0) then
+      print*,'***ERROR: input file needs to contain GRiB1 formatted'// &
+           'messages'
+      error stop
     endif
 
-    call grib_release(igrib)
-  end do                 !! READ NEXT LEVEL OR PARAMETER
-  !
-  ! CLOSING OF INPUT DATA FILE
-  !
+    nuvzn=iumax
+    nwzn=iwmax
+    if(nuvzn.eq.nlev_ec) nwzn=nlev_ecn+1
 
-  call grib_close_file(ifile)
-
-  !error message if no fields found with correct first longitude in it
-  if (gotGrib.eq.0) then
-    print*,'***ERROR: input file needs to contain GRiB1 formatted'// &
-         'messages'
-    stop
-  endif
-
-  nuvzn=iumax
-  nwzn=iwmax
-  if(nuvzn.eq.nlev_ec) nwzn=nlev_ecn+1
-
-  if ((nuvzn.gt.nuvzmax).or.(nwzn.gt.nwzmax)) then
-    write(*,*) 'FLEXPART error: Nested wind fields have too many'// &
-         'vertical levels.'
-    write(*,*) 'Problem was encountered for nesting level ',l
-    stop
-  endif
+    if ((nuvzn.gt.nuvzmax).or.(nwzn.gt.nwzmax)) then
+      write(*,*) 'FLEXPART error: Nested wind fields have too many '// &
+           'vertical levels.'
+      write(*,*) 'Problem was encountered for nesting level ',l
+      error stop
+    endif
 
 
-  ! Output of grid info
-  !********************
+    ! Output of grid info
+    !********************
 
-  write(*,'(a,i2,a)') ' Nested domain ',l,':'
-  write(*,'(a,f10.5,a,f10.5,a,f10.5)') '  Longitude range: ', &
-       xlon0n(l),' to ',xlon0n(l)+(nxn(l)-1)*dxn(l), &
-       '   Grid distance: ',dxn(l)
-  write(*,'(a,f10.5,a,f10.5,a,f10.5)') '  Latitude range : ', &
-       ylat0n(l),' to ',ylat0n(l)+(nyn(l)-1)*dyn(l), &
-       '   Grid distance: ',dyn(l)
-  write(*,*)
+    write(*,'(a,i2,a)') ' Nested domain ',l,':'
+    write(*,'(a,f10.5,a,f10.5,a,f10.5)') '  Longitude range: ', &
+         xlon0n(l),' to ',xlon0n(l)+(nxn(l)-1)*dxn(l), &
+         '   Grid distance: ',dxn(l)
+    write(*,'(a,f10.5,a,f10.5,a,f10.5)') '  Latitude range : ', &
+         ylat0n(l),' to ',ylat0n(l)+(nyn(l)-1)*dyn(l), &
+         '   Grid distance: ',dyn(l)
+    write(*,*)
 
-  ! Determine, how much the resolutions in the nests are enhanced as
-  ! compared to the mother grid
-  !*****************************************************************
+    ! Determine, how much the resolutions in the nests are enhanced as
+    ! compared to the mother grid
+    !*****************************************************************
 
-  xresoln(l)=dx/dxn(l)
-  yresoln(l)=dy/dyn(l)
+    xresoln(l)=dx/dxn(l)
+    yresoln(l)=dy/dyn(l)
 
-  ! Determine the mother grid coordinates of the corner points of the
-  ! nested grids
-  ! Convert first to geographical coordinates, then to grid coordinates
-  !********************************************************************
+    ! Determine the mother grid coordinates of the corner points of the
+    ! nested grids
+    ! Convert first to geographical coordinates, then to grid coordinates
+    !********************************************************************
 
-  xaux1=xlon0n(l)
-  xaux2=xlon0n(l)+real(nxn(l)-1)*dxn(l)
-  yaux1=ylat0n(l)
-  yaux2=ylat0n(l)+real(nyn(l)-1)*dyn(l)
+    xaux1=xlon0n(l)
+    xaux2=xlon0n(l)+real(nxn(l)-1)*dxn(l)
+    yaux1=ylat0n(l)
+    yaux2=ylat0n(l)+real(nyn(l)-1)*dyn(l)
 
-  xln(l)=(xaux1-xlon0)/dx
-  xrn(l)=(xaux2-xlon0)/dx
-  yln(l)=(yaux1-ylat0)/dy
-  yrn(l)=(yaux2-ylat0)/dy
-
-
-  if ((xln(l).lt.0.).or.(yln(l).lt.0.).or. &
-       (xrn(l).gt.real(nxmin1)).or.(yrn(l).gt.real(nymin1))) then
-    write(*,*) 'Nested domain does not fit into mother domain'
-    write(*,*) 'For global mother domain fields, you can shift'
-    write(*,*) 'shift the mother domain into x-direction'
-    write(*,*) 'by setting nxshift (file par_mod) to a'
-    write(*,*) 'positive value. Execution is terminated.'
-    stop
-  endif
+    xln(l)=(xaux1-xlon0)/dx
+    xrn(l)=(xaux2-xlon0)/dx
+    yln(l)=(yaux1-ylat0)/dy
+    yrn(l)=(yaux2-ylat0)/dy
 
 
-  ! CALCULATE VERTICAL DISCRETIZATION OF ECMWF MODEL
-  ! PARAMETER akm,bkm DESCRIBE THE HYBRID "ETA" COORDINATE SYSTEM
+    if ((xln(l).lt.0.).or.(yln(l).lt.0.).or. &
+         (xrn(l).gt.real(nxmin1)).or.(yrn(l).gt.real(nymin1))) then
+      write(*,*) 'Nested domain does not fit into mother domain'
+      write(*,*) 'For global mother domain fields, you can shift'
+      write(*,*) 'shift the mother domain into x-direction'
+      write(*,*) 'by setting nxshift (file par_mod) to a'
+      write(*,*) 'positive value. Execution is terminated.'
+      error stop
+    endif
 
-  numskip=nlev_ecn-nuvzn ! number of ecmwf model layers not used by FLEXPART
-  do i=1,nwzn
-    j=numskip+i
-    k=nlev_ecn+1+numskip+i
-    akmn(nwzn-i+1)=zsec2(j)
-    bkmn(nwzn-i+1)=zsec2(k)
-  end do
+    ! CALCULATE VERTICAL DISCRETIZATION OF ECMWF MODEL
+    ! PARAMETER akm,bkm DESCRIBE THE HYBRID "ETA" COORDINATE SYSTEM
 
-  !
-  ! CALCULATION OF AKZ, BKZ
-  ! AKZ,BKZ: model discretization parameters at the center of each model
-  !     layer
-  !
-  ! Assign the 10 m winds to an artificial model level with akz=0 and bkz=1.0,
-  ! i.e. ground level
-  !*****************************************************************************
+    numskip=nlev_ecn-nuvzn ! number of ecmwf model layers not used by FLEXPART
+    do i=1,nwzn
+      j=numskip+i
+      k=nlev_ecn+1+numskip+i
+      akmn(nwzn-i+1)=zsec2(j)
+      bkmn(nwzn-i+1)=zsec2(k)
+    end do
+
+    !
+    ! CALCULATION OF AKZ, BKZ
+    ! AKZ,BKZ: model discretization parameters at the center of each model
+    !     layer
+    !
+    ! Assign the 10 m winds to an artificial model level with akz=0 and bkz=1.0,
+    ! i.e. ground level
+    !*****************************************************************************
 
     akzn(1)=0.
     bkzn(1)=1.0
@@ -1786,23 +1815,33 @@ subroutine gridcheck_nests
 
     do i=1,nuvz
       if ((akzn(i).ne.akz(i)).or.(bkzn(i).ne.bkz(i))) then
-  write(*,*) 'FLEXPART error: The wind fields of nesting level',l
-  write(*,*) 'are not consistent with the mother domain:'
-  write(*,*) 'Differences in vertical levels detected.'
-        stop
+        write(*,*) 'FLEXPART error: The wind fields of nesting level',l
+        write(*,*) 'are not consistent with the mother domain:'
+        write(*,*) 'Differences in vertical levels detected.'
+        error stop
       endif
     end do
 
     do i=1,nwz
       if ((akmn(i).ne.akm(i)).or.(bkmn(i).ne.bkm(i))) then
-  write(*,*) 'FLEXPART error: The wind fields of nesting level',l
-  write(*,*) 'are not consistent with the mother domain:'
-  write(*,*) 'Differences in vertical levels detected.'
-        stop
+        write(*,*) 'FLEXPART error: The wind fields of nesting level',l
+        write(*,*) 'are not consistent with the mother domain:'
+        write(*,*) 'Differences in vertical levels detected.'
+        error stop
       endif
     end do
 
+    deallocate( zsec2,zsec4 )
   end do
+
+  ! Allocate memory for windfields using nxmax, nymaxn, numbnest
+  !*************************************************************
+  if (numbnests.ge.1) then
+    ! If nested wind fields are used, allocate arrays
+    !************************************************
+    call alloc_windfields_nest
+  endif
+
 
   return
 
@@ -1814,9 +1853,9 @@ subroutine gridcheck_nests
   write(*,*) ' FOR NESTING LEVEL ',k
   write(*,*) ' ###########################################'// &
        '###### '
-  stop
+  error stop
 
-end subroutine gridcheck_nests
+end subroutine gridcheck_nest
 
 subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
 
@@ -1884,7 +1923,6 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
   real(kind=4) :: vvh(0:nxmax-1,0:nymax-1,nuvzmax)
   real(kind=4) :: wwh(0:nxmax-1,0:nymax-1,nwzmax)
   integer :: indj,i,j,k,n,levdiff2,iumax,iwmax!,ifield
-  integer :: kz
 
   ! VARIABLES AND ARRAYS NEEDED FOR GRIB DECODING
 
@@ -1894,9 +1932,9 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
   ! dimension of zsec2 at least (10+nn), where nn is the number of vertical
   ! coordinate parameters
 
-  integer :: isec1(56),isec2(22+nxmax+nymax)
-  real(kind=4), allocatable, dimension(:) :: zsec4
-  !  real(kind=4) :: zsec4(jpunp)
+  integer :: isec1(56)
+  integer,allocatable,dimension(:) :: isec2
+  real(kind=4),allocatable,dimension(:) :: zsec4
   real(kind=4) :: xaux,yaux,xaux0,yaux0
   real(kind=8) :: xauxin,yauxin
   real,parameter :: eps=1.e-4
@@ -1932,7 +1970,7 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
 
   ! allocate memory for grib handles
   allocate(igrib(nfield), stat=stat)
-  if (stat.ne.0) stop "Could not allocate igrib"
+  if (stat.ne.0) error stop "Could not allocate igrib"
   ! initialise
   igrib(:) = -1
 
@@ -1951,7 +1989,7 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
 !$OMP SHARED (nfield, igrib, gribFunction, nxfield, ny, nlev_ec, dx, xlon0, ylat0, &
 !$OMP   n, tth, uuh, vvh, iumax, qvh, ps, wwh, iwmax, sd, msl, tcc, u10, v10, tt2, &
 !$OMP   td2, lsprec, convprec, sshf, hflswitch, ssr, ewss, nsss, strswitch, oro,   &
-!$OMP   excessoro, lsm, nymin1,ciwch,clwch,readclouds,sumclouds, nxshift) & 
+!$OMP   excessoro, lsm, nymin1,ciwch,clwch,readclouds,sumclouds, nxshift,nxmax,nymax) & 
 !$OMP PRIVATE(ii, gribVer, iret, isec1, discipl, parCat, parNum, parId,typSurf, valSurf, &
 !$OMP   zsec4, isec2, gribErrorMsg, xauxin, yauxin, xaux, yaux, xaux0,  &
 !$OMP   yaux0, k, arsize, stat, conversion_factor)  &
@@ -1959,9 +1997,8 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
   !
   ! GET NEXT FIELDS
   !
-  ! allocate memory for reading from grib
-  allocate(zsec4(nxfield*ny), stat=stat)
-  if (stat.ne.0) stop "Could not allocate zsec4"
+  allocate( isec2(22+nxmax+nymax),zsec4( 16*nxmax*nymax ),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate isec2 or zsec4'
 
 !$OMP DO SCHEDULE(static)
 
@@ -2099,10 +2136,10 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
     call grib_get_int(igrib(ii),'numberOfVerticalCoordinateValues',isec2(12))
     call grib_check(iret,gribFunction,gribErrorMsg)
   ! CHECK GRID SPECIFICATIONS
-    if(isec2(2).ne.nxfield) stop 'READWIND: NX NOT CONSISTENT'
-    if(isec2(3).ne.ny) stop 'READWIND: NY NOT CONSISTENT'
+    if(isec2(2).ne.nxfield) error stop 'READWIND: NX NOT CONSISTENT'
+    if(isec2(3).ne.ny) error stop 'READWIND: NY NOT CONSISTENT'
     if(isec2(12)/2-1.ne.nlev_ec) &
-         stop 'READWIND: VERTICAL DISCRETIZATION NOT CONSISTENT'
+      error stop 'READWIND: VERTICAL DISCRETIZATION NOT CONSISTENT'
   endif ! ifield
 
 !$OMP CRITICAL
@@ -2117,13 +2154,13 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
     if (xauxin.gt.180.) xauxin=xauxin-360.0
     if (xauxin.lt.-180.) xauxin=xauxin+360.0
 
-    xaux=xauxin+real(nxshift)*dx
-    yaux=yauxin
+    xaux=real(xauxin)+real(nxshift)*dx
+    yaux=real(yauxin)
     if (xaux.gt.180.) xaux=xaux-360.0
     if(abs(xaux-xlon0).gt.eps) &
-         stop 'READWIND: LOWER LEFT LONGITUDE NOT CONSISTENT'
+      error stop 'READWIND: LOWER LEFT LONGITUDE NOT CONSISTENT'
     if(abs(yaux-ylat0).gt.eps) &
-         stop 'READWIND: LOWER LEFT LATITUDE NOT CONSISTENT'
+      error stop 'READWIND: LOWER LEFT LATITUDE NOT CONSISTENT'
     gotGrid=1
   endif ! gotGrid
 !$OMP END CRITICAL
@@ -2345,7 +2382,8 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
 
   end do fieldloop
 !$OMP END DO
-  deallocate(zsec4)
+
+  deallocate( zsec4,isec2 )
 !$OMP END PARALLEL
 
   deallocate(igrib)
@@ -2359,7 +2397,7 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
   if (gotGrid.eq.0) then
     print*,'***ERROR: input file needs to contain GRiB1 formatted'// &
          'messages'
-    stop
+    error stop
   endif
 
   if(levdiff2.eq.0) then
@@ -2439,7 +2477,7 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
           nsss(i,j)=(nsss(i+1,j-1)+nsss(i+1,j)+nsss(i-1,j)+nsss(i,j-1)+nsss(i-1,j-1))/5.
         endif
       endif
-      surfstr(i,j,1,n)=sqrt(ewss(i,j)**2+nsss(i,j)**2)
+      sfcstress(i,j,1,n)=sqrt(ewss(i,j)**2+nsss(i,j)**2)
     end do
   end do
 
@@ -2464,7 +2502,7 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
         fflev1=sqrt(uuh(i,j,3)**2+vvh(i,j,3)**2)
         call pbl_profile(ps(i,j,1,n),td2(i,j,1,n),hlev1, &
              tt2(i,j,1,n),tth(i,j,3,n),ff10m,fflev1, &
-             surfstr(i,j,1,n),sshf(i,j,1,n))
+             sfcstress(i,j,1,n),sshf(i,j,1,n))
         if(sshf(i,j,1,n).gt.200.) sshf(i,j,1,n)=200.
         if(sshf(i,j,1,n).lt.-400.) sshf(i,j,1,n)=-400.
       end do
@@ -2487,15 +2525,15 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
     end do
   end do
 
-  if(iumax.ne.nuvz-1) stop 'READWIND: NUVZ NOT CONSISTENT'
-  if(iwmax.ne.nwz)    stop 'READWIND: NWZ NOT CONSISTENT'
+  if(iumax.ne.nuvz-1) error stop 'READWIND: NUVZ NOT CONSISTENT'
+  if(iwmax.ne.nwz)    error stop 'READWIND: NWZ NOT CONSISTENT'
 
   return
 
 888 write(*,*) ' #### FLEXPART MODEL ERROR! WINDFIELD         #### '
   write(*,*) ' #### ',wfname(indj),'                    #### '
   write(*,*) ' #### IS NOT GRIB FORMAT !!!                  #### '
-  stop 'Execution terminated'
+  error stop 'Execution terminated'
 
 end subroutine readwind_ecmwf
 
@@ -2574,7 +2612,7 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
   !HSO kept isec1, isec2 and zsec4 for consistency with gribex GRIB input
 
   integer :: isec1(8),isec2(3)
-  real(kind=4) :: zsec4(jpunp)
+  real(kind=4) :: zsec4(16*nxmax*nymax)
   real(kind=4) :: xaux,yaux,xaux0,yaux0
   real(kind=8) :: xauxin,yauxin
   real,parameter :: eps=1.e-4
@@ -2585,7 +2623,7 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
 
   !HSO  for grib api error messages
   character(len=24) :: gribErrorMsg = 'Error reading grib file'
-  character(len=20) :: gribFunction = 'readwind_gfs'
+  ! character(len=20) :: gribFunction = 'readwind_gfs'
   character(len=20) :: shortname
 
 
@@ -2773,13 +2811,13 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
     call grib_get_real8(igrib,'latitudeOfLastGridPointInDegrees', &
          yauxin,iret)
     !  call grib_check(iret,gribFunction,gribErrorMsg)
-    xaux=xauxin+real(nxshift)*dx
-    yaux=yauxin
+    xaux=real(xauxin)+real(nxshift)*dx
+    yaux=real(yauxin)
 
     ! CHECK GRID SPECIFICATIONS
 
-      if(isec2(2).ne.nxfield) stop 'READWIND: NX NOT CONSISTENT'
-      if(isec2(3).ne.ny) stop 'READWIND: NY NOT CONSISTENT'
+      if(isec2(2).ne.nxfield) error stop 'READWIND: NX NOT CONSISTENT'
+      if(isec2(3).ne.ny) error stop 'READWIND: NY NOT CONSISTENT'
       if(xaux.eq.0.) xaux=-179.0     ! NCEP DATA
       xaux0=xlon0
       yaux0=ylat0
@@ -2788,9 +2826,9 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
       if(xaux0.lt.0.) xaux0=xaux0+360.
       if(yaux0.lt.0.) yaux0=yaux0+360.
       if(abs(xaux-xaux0).gt.eps) &
-           stop 'READWIND: LOWER LEFT LONGITUDE NOT CONSISTENT'
+           error stop 'READWIND: LOWER LEFT LONGITUDE NOT CONSISTENT'
       if(abs(yaux-yaux0).gt.eps) &
-           stop 'READWIND: LOWER LEFT LATITUDE NOT CONSISTENT'
+           error stop 'READWIND: LOWER LEFT LATITUDE NOT CONSISTENT'
     endif
     !HSO end of edits
 
@@ -3191,7 +3229,7 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
   ! Convert precip. from mm/s -> mm/hour
       convprec(i,j,1,n)=convprec(i,j,1,n)*3600.
       lsprec(i,j,1,n)=lsprec(i,j,1,n)*3600.
-      surfstr(i,j,1,n)=sqrt(ewss(i,j)**2+nsss(i,j)**2)
+      sfcstress(i,j,1,n)=sqrt(ewss(i,j)**2+nsss(i,j)**2)
     end do
   end do
 
@@ -3209,29 +3247,25 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
         fflev1=sqrt(ulev1(i,j)**2+vlev1(i,j)**2)
         call pbl_profile(ps(i,j,1,n),td2(i,j,1,n),hlev1, &
              tt2(i,j,1,n),tlev1(i,j),ff10m,fflev1, &
-             surfstr(i,j,1,n),sshf(i,j,1,n))
+             sfcstress(i,j,1,n),sshf(i,j,1,n))
         if(sshf(i,j,1,n).gt.200.) sshf(i,j,1,n)=200.
         if(sshf(i,j,1,n).lt.-400.) sshf(i,j,1,n)=-400.
       end do
     end do
   endif
 
-  if(iumax.ne.nuvz) stop 'READWIND: NUVZ NOT CONSISTENT'
-  if(iumax.ne.nwz)    stop 'READWIND: NWZ NOT CONSISTENT'
+  if(iumax.ne.nuvz) error stop 'READWIND: NUVZ NOT CONSISTENT'
+  if(iumax.ne.nwz) error stop 'READWIND: NWZ NOT CONSISTENT'
 
   return
 888   write(*,*) ' #### FLEXPART MODEL ERROR! WINDFIELD         #### '
   write(*,*) ' #### ',wfname(indj),'                    #### '
   write(*,*) ' #### IS NOT GRIB FORMAT !!!                  #### '
-  stop 'Execution terminated'
-999   write(*,*) ' #### FLEXPART MODEL ERROR! WINDFIELD         #### '
-  write(*,*) ' #### ',wfname(indj),'                    #### '
-  write(*,*) ' #### CANNOT BE OPENED !!!                    #### '
-  stop 'Execution terminated'
+  error stop 'Execution terminated'
 
 end subroutine readwind_gfs
 
-subroutine readwind_nests(indj,n,uuhn,vvhn,wwhn)
+subroutine readwind_nest(indj,n,uuhn,vvhn,wwhn)
   !                           i   i  o    o    o
   !*****************************************************************************
   !                                                                            *
@@ -3264,9 +3298,9 @@ subroutine readwind_nests(indj,n,uuhn,vvhn,wwhn)
   integer :: gotGrid
   !HSO  end
 
-  real :: uuhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,maxnests)
-  real :: vvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,maxnests)
-  real :: wwhn(0:nxmaxn-1,0:nymaxn-1,nwzmax,maxnests)
+  real :: uuhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numbnests)
+  real :: vvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numbnests)
+  real :: wwhn(0:nxmaxn-1,0:nymaxn-1,nwzmax,numbnests)
   integer :: indj,i,j,k,n,levdiff2,ifield,iumax,iwmax,l
 
   ! VARIABLES AND ARRAYS NEEDED FOR GRIB DECODING
@@ -3278,7 +3312,7 @@ subroutine readwind_nests(indj,n,uuhn,vvhn,wwhn)
   ! coordinate parameters
 
   integer :: isec1(56),isec2(22+nxmaxn+nymaxn)
-  real(kind=4) :: zsec4(jpunp)
+  real(kind=4) :: zsec4(16*nxmaxn*nymaxn)
   real(kind=4) :: xaux,yaux
   real(kind=8) :: xauxin,yauxin
   real,parameter :: eps=1.e-4
@@ -3290,7 +3324,7 @@ subroutine readwind_nests(indj,n,uuhn,vvhn,wwhn)
 
   !HSO  grib api error messages
   character(len=24) :: gribErrorMsg = 'Error reading grib file'
-  character(len=20) :: gribFunction = 'readwind_nests'
+  character(len=20) :: gribFunction = 'readwind_nest'
 
   do l=1,numbnests
     hflswitch=.false.
@@ -3307,7 +3341,7 @@ subroutine readwind_nests(indj,n,uuhn,vvhn,wwhn)
   ! OPENING OF DATA FILE (GRIB CODE)
   !
 
-5   call grib_open_file(ifile,path(numpath+2*(l-1)+1) &
+    call grib_open_file(ifile,path(numpath+2*(l-1)+1) &
          (1:length(numpath+2*(l-1)+1))//trim(wfnamen(l,indj)),'r')
     if (iret.ne.GRIB_SUCCESS) then
       goto 888   ! ERROR DETECTED
@@ -3463,11 +3497,11 @@ subroutine readwind_nests(indj,n,uuhn,vvhn,wwhn)
            isec2(12))
       call grib_check(iret,gribFunction,gribErrorMsg)
       ! CHECK GRID SPECIFICATIONS
-      if(isec2(2).ne.nxn(l)) stop &
+      if(isec2(2).ne.nxn(l)) error stop &
       'READWIND: NX NOT CONSISTENT FOR A NESTING LEVEL'
-      if(isec2(3).ne.nyn(l)) stop &
+      if(isec2(3).ne.nyn(l)) error stop &
       'READWIND: NY NOT CONSISTENT FOR A NESTING LEVEL'
-      if(isec2(12)/2-1.ne.nlev_ec) stop 'READWIND: VERTICAL DISCRET&
+      if(isec2(12)/2-1.ne.nlev_ec) error stop 'READWIND: VERTICAL DISCRET&
            &IZATION NOT CONSISTENT FOR A NESTING LEVEL'
       endif ! ifield
 
@@ -3482,12 +3516,12 @@ subroutine readwind_nests(indj,n,uuhn,vvhn,wwhn)
         if (xauxin.gt.180.) xauxin=xauxin-360.0
         if (xauxin.lt.-180.) xauxin=xauxin+360.0
 
-        xaux=xauxin
-        yaux=yauxin
+        xaux=real(xauxin)
+        yaux=real(yauxin)
         if (abs(xaux-xlon0n(l)).gt.eps) &
-        stop 'READWIND: LOWER LEFT LONGITUDE NOT CONSISTENT FOR A NESTING LEVEL'
+        error stop 'READWIND: LOWER LEFT LONGITUDE NOT CONSISTENT FOR A NESTING LEVEL'
         if (abs(yaux-ylat0n(l)).gt.eps) &
-        stop 'READWIND: LOWER LEFT LATITUDE NOT CONSISTENT FOR A NESTING LEVEL'
+        error stop 'READWIND: LOWER LEFT LATITUDE NOT CONSISTENT FOR A NESTING LEVEL'
         gotGrid=1
       endif
 
@@ -3590,7 +3624,7 @@ subroutine readwind_nests(indj,n,uuhn,vvhn,wwhn)
     if (gotGrid.eq.0) then
       print*,'***ERROR: input file needs to contain GRiB1 formatted'// &
            'messages'
-      stop
+      error stop
     endif
 
     if(levdiff2.eq.0) then
@@ -3604,7 +3638,7 @@ subroutine readwind_nests(indj,n,uuhn,vvhn,wwhn)
 
     do i=0,nxn(l)-1
       do j=0,nyn(l)-1
-        surfstrn(i,j,1,n,l)=sqrt(ewss(i,j)**2+nsss(i,j)**2)
+        sfcstressn(i,j,1,n,l)=sqrt(ewss(i,j)**2+nsss(i,j)**2)
       end do
     end do
 
@@ -3629,7 +3663,7 @@ subroutine readwind_nests(indj,n,uuhn,vvhn,wwhn)
           fflev1=sqrt(uuhn(i,j,3,l)**2+vvhn(i,j,3,l)**2)
           call pbl_profile(psn(i,j,1,n,l),td2n(i,j,1,n,l),hlev1, &
                tt2n(i,j,1,n,l),tthn(i,j,3,n,l),ff10m,fflev1, &
-               surfstrn(i,j,1,n,l),sshfn(i,j,1,n,l))
+               sfcstressn(i,j,1,n,l),sshfn(i,j,1,n,l))
           if(sshfn(i,j,1,n,l).gt.200.) sshfn(i,j,1,n,l)=200.
           if(sshfn(i,j,1,n,l).lt.-400.) sshfn(i,j,1,n,l)=-400.
         end do
@@ -3652,9 +3686,9 @@ subroutine readwind_nests(indj,n,uuhn,vvhn,wwhn)
       end do
     end do
 
-    if(iumax.ne.nuvz-1) stop &
+    if(iumax.ne.nuvz-1) error stop &
          'READWIND: NUVZ NOT CONSISTENT FOR A NESTING LEVEL'
-    if(iwmax.ne.nwz) stop &
+    if(iwmax.ne.nwz) error stop &
          'READWIND: NWZ NOT CONSISTENT FOR A NESTING LEVEL'
 
   end do
@@ -3663,14 +3697,14 @@ subroutine readwind_nests(indj,n,uuhn,vvhn,wwhn)
 888   write(*,*) ' #### FLEXPART MODEL ERROR! WINDFIELD         #### '
   write(*,*) ' #### ',wfnamen(l,indj),' FOR NESTING LEVEL  #### '
   write(*,*) ' #### ',l,' IS NOT GRIB FORMAT !!!           #### '
-  stop 'Execution terminated'
+  error stop 'Execution terminated'
 
 
 999   write(*,*) ' #### FLEXPART MODEL ERROR! WINDFIELD         #### '
   write(*,*) ' #### ',wfnamen(l,indj),'                    #### '
   write(*,*) ' #### CANNOT BE OPENED FOR NESTING LEVEL ',l,'####'
 
-end subroutine readwind_nests
+end subroutine readwind_nest
 
 subroutine shift_field_0(field,nxf,nyf)
   !                          i/o   i   i
@@ -3784,95 +3818,168 @@ subroutine shift_field(field,nxf,nyf,nzfmax,nzf,nmax,n)
   end do
 end subroutine shift_field
 
-subroutine fixedfields_allocate
+subroutine alloc_fixedfields
   implicit none
-  allocate(oro(0:nxmax-1,0:nymax-1))
-  allocate(excessoro(0:nxmax-1,0:nymax-1))
-  allocate(lsm(0:nxmax-1,0:nymax-1))
-  allocate(pv(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-end subroutine fixedfields_allocate
+  integer :: stat
 
-subroutine windfields_allocate
+  allocate(oro(0:nxmax-1,0:nymax-1),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate oro"
+  allocate(excessoro(0:nxmax-1,0:nymax-1),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate excessoro"
+  allocate(lsm(0:nxmax-1,0:nymax-1),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate lsm"
+  allocate(pv(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate pv"
+end subroutine alloc_fixedfields
+
+subroutine alloc_fixedfields_nest
+  implicit none 
+  integer :: stat
+
+  allocate(oron(0:nxmaxn-1,0:nymaxn-1,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate oron"
+  allocate(excessoron(0:nxmaxn-1,0:nymaxn-1,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate excessoron"
+  allocate(lsmn(0:nxmaxn-1,0:nymaxn-1,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate lsmn"
+end subroutine alloc_fixedfields_nest
+
+subroutine alloc_windfields
   implicit none
-
+  integer :: stat
   ! Eta coordinates
   !****************
-  allocate(uueta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(vveta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(wweta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(uupoleta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(vvpoleta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(tteta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(pveta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(prseta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(rhoeta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(drhodzeta(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  !allocate(tvirtual(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(etauvheight(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem))
-  allocate(etawheight(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem))
+#ifdef ETA
+  allocate(uueta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate uueta"
+  allocate(vveta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate vveta"
+  allocate(wweta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate wweta"
+  allocate(uupoleta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate uupoleta"
+  allocate(vvpoleta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate vvpoleta"
+  allocate(tteta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate tteta"
+  allocate(pveta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate pveta"
+  allocate(prseta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate prseta"
+  allocate(rhoeta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate rhoeta"
+  allocate(drhodzeta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate drhodzeta"
+#endif
+  allocate(etauvheight(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate etauvheight"
+  allocate(etawheight(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate etawheight"
 
   ! Intrinsic coordinates
   !**********************
-  allocate(uu(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(vv(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(ww(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(uupol(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(vvpol(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(tt(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(tth(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem))
-  allocate(qv(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(qvh(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem))
-  allocate(rho(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(drhodz(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(pplev(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem))
-  allocate(prs(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(rho_dry(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+  allocate(uu(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate uu"
+  allocate(vv(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate vv"
+  allocate(ww(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ww"
+  allocate(uupol(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate uupol"
+  allocate(vvpol(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate vvpol"
+  allocate(tt(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate tt"
+  allocate(tth(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate tth"
+  allocate(qv(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate qv"
+  allocate(qvh(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate qvh"
+  allocate(rho(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate rho"
+  allocate(drhodz(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate drhodz"
+  allocate(pplev(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate pplev"
+  allocate(prs(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate prs"
+  allocate(rho_dry(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate rho_dry"
 
   ! Cloud data
   !***********
-  allocate(clwc(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(ciwc(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(clw(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
-  allocate(clwch(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem))
-  allocate(ciwch(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem))
+  allocate(clwc(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate clwc"
+  allocate(ciwc(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ciwc"
+  allocate(clw(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate clw"
+  allocate(clwch(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate clwch"
+  allocate(ciwch(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ciwch"
   clwc=0.0
   ciwc=0.0
   clw=0.0
   clwch=0.0
   ciwch=0.0
-  allocate(ctwc(0:nxmax-1,0:nymax-1,numwfmem))
-  allocate(cloudsh(0:nxmax-1,0:nymax-1,numwfmem))
-  allocate(clouds(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+  allocate(ctwc(0:nxmax-1,0:nymax-1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ctwc"
+  allocate(cloudsh(0:nxmax-1,0:nymax-1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate cloudsh"
+  allocate(clouds(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate clouds"
 
   ! 2d fields
   !**********
-  allocate(ps(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(sd(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(msl(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(tcc(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(u10(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(v10(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(tt2(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(td2(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(lsprec(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(convprec(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(sshf(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(ssr(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(surfstr(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(ustar(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(wstar(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(hmix(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(tropopause(0:nxmax-1,0:nymax-1,1,numwfmem))
-  allocate(oli(0:nxmax-1,0:nymax-1,1,numwfmem))
+  allocate(ps(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ps"
+  allocate(sd(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate sd"
+  allocate(msl(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate msl"
+  allocate(tcc(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate tcc"
+  allocate(u10(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate u10"
+  allocate(v10(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate v10"
+  allocate(tt2(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate tt2"
+  allocate(td2(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate td2"
+  allocate(lsprec(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate lsprec"
+  allocate(convprec(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate convprec"
+  allocate(sshf(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate sshf"
+  allocate(ssr(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ssr"
+  allocate(sfcstress(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate sfcstress"
+  allocate(ustar(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ustar"
+  allocate(wstar(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate wstar"
+  allocate(hmix(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate hmix"
+  allocate(tropopause(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate tropopause"
+  allocate(oli(0:nxmax-1,0:nymax-1,1,numwfmem),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate oli"
 
   ! Vertical descritisation arrays
   !*******************************
-  allocate(height(nzmax),wheight(nzmax),uvheight(nzmax))
+  allocate(height(nzmax),wheight(nzmax),uvheight(nzmax),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate height arrays"
   allocate(akm(nwzmax),bkm(nwzmax),akz(nuvzmax),bkz(nuvzmax), &
-    aknew(nzmax),bknew(nzmax))
-end subroutine windfields_allocate
+    aknew(nzmax),bknew(nzmax),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate model level parameters"
+end subroutine alloc_windfields
 
-subroutine windfields_nest_allocate
+subroutine alloc_windfields_nest
   !*******************************************************************************    
   ! Dynamic allocation of arrays
   !
@@ -3880,83 +3987,112 @@ subroutine windfields_nest_allocate
   ! 
   !*******************************************************************************
   implicit none 
+  integer :: stat
 
-  allocate(wfnamen(maxnests,maxwf))
-  allocate(wfspecn(maxnests,maxwf))
-
-  allocate(nxn(maxnests))
-  allocate(nyn(maxnests))
-  allocate(dxn(maxnests))
-  allocate(dyn(maxnests))
-  allocate(xlon0n(maxnests))
-  allocate(ylat0n(maxnests))
-
-  allocate(oron(0:nxmaxn-1,0:nymaxn-1,maxnests))
-  allocate(excessoron(0:nxmaxn-1,0:nymaxn-1,maxnests))
-  allocate(lsmn(0:nxmaxn-1,0:nymaxn-1,maxnests))
-
-  allocate(uun(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(vvn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(wwn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(ttn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(qvn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(pvn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(clwcn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(ciwcn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(clwn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
+  allocate(uun(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate uun"
+  allocate(vvn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate vvn"
+  allocate(wwn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate wwn"
+  allocate(ttn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ttn"
+  allocate(qvn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate qvn"
+  allocate(pvn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate pvn"
+  allocate(clwcn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate clwcn"
+  allocate(ciwcn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ciwcn"
+  allocate(clwn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate clwn"
 
   ! ETA equivalents
-  allocate(uuetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(vvetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(wwetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(ttetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(pvetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests)) 
-  allocate(prsetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))  
-  allocate(rhoetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(drhodzetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  ! allocate(tvirtualn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(etauvheightn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests))
-  allocate(etawheightn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests))
+#ifdef ETA
+  allocate(uuetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate uuetan"
+  allocate(vvetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate vvetan"
+  allocate(wwetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate wwetan"
+  allocate(ttetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ttetan"
+  allocate(pvetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate pvetan"
+  allocate(prsetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests) ,stat=stat)
+  if (stat.ne.0) error stop "Could not allocate prsetan"
+  allocate(rhoetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate rhoetan"
+  allocate(drhodzetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate drhodzetan"
+#endif
+  allocate(etauvheightn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate etauvheightn"
+  allocate(etawheightn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate etawheightn"
 
-  allocate(cloudsn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(cloudshn(0:nxmaxn-1,0:nymaxn-1,numwfmem,numbnests))
-  allocate(prsn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(rhon(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(drhodzn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests))
-  allocate(tthn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests))
-  allocate(qvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests))
-  allocate(clwchn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests))
-  allocate(ciwchn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests))
-  allocate(ctwcn(0:nxmaxn-1,0:nymaxn-1,numwfmem,numbnests))
+  allocate(cloudsn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate cloudsn"
+  allocate(cloudshn(0:nxmaxn-1,0:nymaxn-1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate cloudshn"
+  allocate(prsn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate prsn"
+  allocate(rhon(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate rhon"
+  allocate(drhodzn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate drhodzn"
+  allocate(tthn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate tthn"
+  allocate(qvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate qvhn"
+  allocate(clwchn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate clwchn"
+  allocate(ciwchn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ciwchn"
+  allocate(ctwcn(0:nxmaxn-1,0:nymaxn-1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ctwcn"
 
   ! 2d fields
   !***********
-  allocate(psn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(sdn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(msln(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(tccn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(u10n(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(v10n(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(tt2n(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(td2n(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(lsprecn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(convprecn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(sshfn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(ssrn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(surfstrn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(ustarn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(wstarn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(hmixn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(tropopausen(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(olin(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,maxnests))
-  allocate(vdepn(0:nxmaxn-1,0:nymaxn-1,maxspec,numwfmem,maxnests))
-
-  allocate(xresoln(0:maxnests))
-  allocate(yresoln(0:maxnests))
-  allocate(xln(maxnests))
-  allocate(yln(maxnests))
-  allocate(xrn(maxnests))
-  allocate(yrn(maxnests))
+  allocate(psn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate psn"
+  allocate(sdn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate sdn"
+  allocate(msln(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate msln"
+  allocate(tccn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate tccn"
+  allocate(u10n(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate u10n"
+  allocate(v10n(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate v10n"
+  allocate(tt2n(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate tt2n"
+  allocate(td2n(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate td2n"
+  allocate(lsprecn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate lsprecn"
+  allocate(convprecn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate convprecn"
+  allocate(sshfn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate sshfn"
+  allocate(ssrn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ssrn"
+  allocate(sfcstressn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate sfcstressn"
+  allocate(ustarn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ustarn"
+  allocate(wstarn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate wstarn"
+  allocate(hmixn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate hmixn"
+  allocate(tropopausen(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate tropopausen"
+  allocate(olin(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate olin"
+  allocate(vdepn(0:nxmaxn-1,0:nymaxn-1,maxspec,numwfmem,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate vdepn"
 
   ! Initialise
   !************  
@@ -3964,11 +4100,42 @@ subroutine windfields_nest_allocate
   ciwcn(:,:,:,:,:)=0.
   clwchn(:,:,:,:,:)=0.
   ciwchn(:,:,:,:,:)=0.
-end subroutine windfields_nest_allocate
+end subroutine alloc_windfields_nest
 
-subroutine windfields_nest_deallocate
+subroutine alloc_nest_properties
+  implicit none 
+  integer :: stat
+
+  allocate(nxn(numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate nxn"
+  allocate(nyn(numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate nyn"
+  allocate(dxn(numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate dxn"
+  allocate(dyn(numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate dyn"
+  allocate(xlon0n(numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate xlon0n"
+  allocate(ylat0n(numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ylat0n"
+
+  allocate(xresoln(0:numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate xresoln"
+  allocate(yresoln(0:numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate yresoln"
+  allocate(xln(numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate xln"
+  allocate(yln(numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate yln"
+  allocate(xrn(numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate xrn"
+  allocate(yrn(numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate yrn"
+end subroutine alloc_nest_properties
+
+subroutine dealloc_windfields_nest
   
-  deallocate(wfnamen,wfspecn)
+  deallocate(wfnamen)
 
   deallocate(nxn,nyn,dxn,dyn,xlon0n,ylat0n)
 
@@ -3977,31 +4144,38 @@ subroutine windfields_nest_deallocate
   deallocate(uun,vvn,wwn,ttn,qvn,pvn,clwcn,ciwcn,clwn,cloudsn, &
     cloudshn,rhon,prsn,drhodzn,tthn,qvhn,clwchn,ciwchn,ctwcn)
 
+#ifdef ETA
   deallocate(uuetan,vvetan,wwetan,ttetan,pvetan,prsetan,rhoetan, &
     drhodzetan,etauvheightn,etawheightn)
+#endif
 
   deallocate(psn,sdn,msln,tccn,u10n,v10n,tt2n,td2n,lsprecn,convprecn, &
-    sshfn,ssrn,surfstrn,ustarn,wstarn,hmixn,tropopausen,olin,vdepn)
+    sshfn,ssrn,sfcstressn,ustarn,wstarn,hmixn,tropopausen,olin,vdepn)
 
   deallocate(xresoln,yresoln,xln,yln,xrn,yrn)
-end subroutine windfields_nest_deallocate
+end subroutine dealloc_windfields_nest
 
-subroutine windfields_deallocate
+subroutine dealloc_windfields
   implicit none
 
+  deallocate(wftime,wfname)
   deallocate(oro,excessoro,lsm)
 
+#ifdef ETA
   deallocate(uueta,vveta,wweta,uupoleta,vvpoleta,tteta,pveta, &
-    prseta,rhoeta,drhodzeta,etauvheight,etawheight)
+    prseta,rhoeta,drhodzeta)
+#endif
 
+  deallocate(etauvheight,etawheight)
+  
   deallocate(uu,vv,ww,uupol,vvpol,tt,tth,qv,qvh,pv,rho,drhodz,pplev,prs,rho_dry)
 
   deallocate(clwc,ciwc,clw,clwch,ciwch,ctwc,cloudsh,clouds)
 
-  deallocate(ps,sd,msl,tcc,u10,v10,tt2,td2,lsprec,convprec,sshf,ssr,surfstr, &
+  deallocate(ps,sd,msl,tcc,u10,v10,tt2,td2,lsprec,convprec,sshf,ssr,sfcstress, &
     ustar,wstar,hmix,tropopause,oli)
 
   deallocate(height,wheight,uvheight,akm,bkm,akz,bkz,aknew,bknew)
-end subroutine windfields_deallocate
+end subroutine dealloc_windfields
 
 end module windfields_mod

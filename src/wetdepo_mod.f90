@@ -59,12 +59,12 @@ subroutine wetdepo(itime,ltsample,loutnext)
 
   implicit none
 
-  integer :: jpart,itime,ltsample,loutnext,ldeltat
+  integer :: i,jpart,itime,ltsample,loutnext,ldeltat
   integer :: itage,nage,inage,ithread,thread
-  integer :: ks, kp
+  integer :: ks, kp,stat
   integer(selected_int_kind(16)), dimension(nspec) :: blc_count, inc_count
-  real :: grfraction(3),wetscav
-  real :: wetdeposit(maxspec),restmass
+  real :: grfraction(3),wetscav,restmass
+  real,allocatable,dimension(:) :: wetdeposit
   real,parameter :: smallnum = tiny(0.0) ! smallest number that can be handled
 
   ! Compute interval since radioactive decay of deposited mass was computed
@@ -86,21 +86,20 @@ subroutine wetdepo(itime,ltsample,loutnext)
 #endif
 !$OMP PARALLEL PRIVATE(jpart,itage,nage,inage,ks,kp,thread,wetscav,wetdeposit, &
 !$OMP restmass, grfraction) REDUCTION(+:blc_count,inc_count)
-
+  
 #if (defined _OPENMP)
     thread = OMP_GET_THREAD_NUM() ! Starts with 0
 #else
     thread = 0
 #endif
 
+  allocate( wetdeposit(nspec),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate wetdeposit inside of OMP loop'
+
 !$OMP DO 
-  do jpart=1,numpart
+  do i=1,count%alive
 
-    ! Check if memory has been deallocated
-    if (.not. is_particle_allocated(jpart)) cycle
-
-    ! Check if particle is still allive
-    if (.not. part(jpart)%alive) cycle
+    jpart=count%ialive(i)
 
   ! Determine age class of the particle - nage is used for the kernel
   !******************************************************************
@@ -177,6 +176,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
   end do ! all particles
 
 !$OMP END DO
+  deallocate(wetdeposit)
 !$OMP END PARALLEL
 
 #ifdef _OPENMP
@@ -247,7 +247,9 @@ subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc
 
   use interpol_mod
   use windfields_mod
-  use coordinates_ecmwf_mod
+#ifdef ETA
+  use coord_ecmwf_mod
+#endif
 
   implicit none
 
@@ -307,30 +309,30 @@ subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc
     if (yts.ge.real(ny-1)) yts=real(ny-1)-0.00001
   endif
 
-  call determine_grid_coordinates(xts,yts)
+  call find_grid_indices(xts,yts)
   call find_grid_distances(xts,yts)
 
   if (ngrid.le.0) then
     ! No temporal interpolation to stay consistent with clouds
-    call horizontal_interpolation(lsprec,lsp,1,n,1) ! large scale total precipitation
-    call horizontal_interpolation(convprec,convp,1,n,1) ! convective precipitation
-    call horizontal_interpolation(tcc,cc,1,n,1) ! total cloud cover
+    call hor_interpol(lsprec,lsp,1,n,1) ! large scale total precipitation
+    call hor_interpol(convprec,convp,1,n,1) ! convective precipitation
+    call hor_interpol(tcc,cc,1,n,1) ! total cloud cover
   else
-    call horizontal_interpolation_nests(lsprecn,lsp,1,n,1) ! large scale total precipitation
-    call horizontal_interpolation_nests(convprecn,convp,1,n,1) ! convective precipitation
-    call horizontal_interpolation_nests(tccn,cc,1,n,1) ! total cloud cover
+    call hor_interpol_nest(lsprecn,lsp,1,n,1) ! large scale total precipitation
+    call hor_interpol_nest(convprecn,convp,1,n,1) ! convective precipitation
+    call hor_interpol_nest(tccn,cc,1,n,1) ! total cloud cover
   endif
 
   !  If total precipitation is less than 0.01 mm/h - no scavenging occurs
   if ((lsp.lt.0.01).and.(convp.lt.0.01)) return
 
-  if (wind_coord_type.eq.'ETA') then
-    call find_z_level_eta_uv(real(part(jpart)%zeta))
-    hz=induv
-  else
-    call find_z_level_meters(real(part(jpart)%z))
-    hz=indz
-  endif
+#ifdef ETA
+  call find_z_level_eta_uv(real(part(jpart)%zeta))
+  hz=induv
+#else
+  call find_z_level_meters(real(part(jpart)%z))
+  hz=indz
+#endif
 
   if (ngrid.le.0) then
     clouds_v=clouds(ix,jy,hz,n)
@@ -391,17 +393,17 @@ subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc
   !**********************************************************
 
   if (ngrid.gt.0) then
-    if (wind_coord_type.eq.'ETA') then
-      act_temp=ttetan(ix,jy,hz,n,ngrid)
-    else
-      act_temp=ttn(ix,jy,hz,n,ngrid)
-    endif
+#ifdef ETA
+    act_temp=ttetan(ix,jy,hz,n,ngrid)
+#else
+    act_temp=ttn(ix,jy,hz,n,ngrid)
+#endif
   else
-    if (wind_coord_type.eq.'ETA') then
-      act_temp=tteta(ix,jy,hz,n)
-    else
-      act_temp=tt(ix,jy,hz,n)
-    endif
+#ifdef ETA
+    act_temp=tteta(ix,jy,hz,n)
+#else
+    act_temp=tt(ix,jy,hz,n)
+#endif
   endif
 
   !***********************
@@ -832,7 +834,7 @@ subroutine writeprecip(itime,imem)
   write(*,*) ' #### CANNOT BE OPENED. IF A FILE WITH THIS    #### '
   write(*,*) ' #### NAME ALREADY EXISTS, DELETE IT AND START #### '
   write(*,*) ' #### THE PROGRAM AGAIN.                       #### '
-  stop
+  error stop
 end subroutine writeprecip
 
 end module wetdepo_mod

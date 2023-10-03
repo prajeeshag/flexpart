@@ -23,26 +23,35 @@ module drydepo_mod
    ! nested area fractions in percent [0-1]
   real,allocatable,dimension(:,:,:,:) :: vdep ! deposition velocity [m/s]
 
+  ! roughness length
+  real,allocatable,dimension(:,:) :: z0_drydep
+  ! roughtness lenght nested area
+  real,allocatable,dimension(:,:,:) :: z0_drydepn
+
 contains
 
-subroutine drydepo_allocate
+subroutine alloc_drydepo
 
   implicit none
+  integer:: stat
 
   if (.not. drydep) return
   write(*,*) 'allocate drydepo fields'
   allocate(xlanduse(0:nxmax-1,0:nymax-1,numclass),      &
-           xlandusen(0:nxmaxn-1,0:nymaxn-1,numclass,maxnests), &
-           vdep(0:nxmax-1,0:nymax-1,maxspec,numwfmem))
+           xlandusen(0:nxmaxn-1,0:nymaxn-1,numclass,numbnests), &
+           vdep(0:nxmax-1,0:nymax-1,maxspec,numwfmem), &
+           z0_drydep(0:nxmax-1,0:nymax-1), &
+           z0_drydepn(0:nxmax-1,0:nymax-1,numbnests), stat=stat)
+  if (stat.ne.0) error stop "Could not allocate drydepo fields"
            
-end subroutine drydepo_allocate
+end subroutine alloc_drydepo
 
-subroutine drydepo_deallocate
+subroutine dealloc_drydepo
 
   if (.not. drydep) return
-  deallocate(xlanduse,xlandusen,vdep)
+  deallocate(xlanduse,xlandusen,vdep,z0_drydep,z0_drydepn)
 
-end subroutine drydepo_deallocate
+end subroutine dealloc_drydepo
 
 subroutine assignland
 
@@ -139,7 +148,7 @@ subroutine assignland
            if (xi.lt.0) then
               write (*,*) 'problem with landuseinv sampling: ', &
                    xlon,xlon0lu,ix,iix,xlon0,dx,nxmax
-              stop
+              error stop
            endif
            do k=1,numclass
               xlanduse(ix,jy,k)= &
@@ -708,7 +717,7 @@ subroutine part0(dquer,dsigma,density,ni,fract,schmi,cun,vsh)
   !stop 'part0' 
 end subroutine part0
 
-subroutine get_vdep_prob(itime,xt,yt,zt,prob)
+subroutine get_vdep_prob(itime,xt,yt,zt,prob,ithread)
   !                    i     i  i  i  o
   !*****************************************************************************
   !                                                                            *
@@ -739,17 +748,18 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
 
   implicit none
 
-  real :: xt,yt,zt
-  integer :: itime,i,j,k,memindnext
-  integer :: ks,m!nix,njy,
-  real :: prob(maxspec),vdepo(maxspec),vdeptemp(2)
+  real,intent(in) :: xt,yt,zt
+  integer,intent(in) :: itime,ithread !ithread starting at 1
+  real,intent(out) :: prob(maxspec)
+  integer :: ks,m,memindnext!nix,njy,
+  real :: vdepo(maxspec),vdeptemp(2)
   real :: eps
 
   eps=nxmax/3.e5
 
   if (DRYDEP) then    ! reset probability for deposition
     do ks=1,nspec
-      depoindicator(ks)=.true.
+      depoindicator(ks,ithread)=.true.
       prob(ks)=0.
     end do
   endif
@@ -773,7 +783,7 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
 
   ! Determine nested grid coordinates
   !**********************************
-  call determine_grid_coordinates(xt,yt)
+  call find_grid_indices(xt,yt)
 
   ! Determine probability of deposition
   !************************************
@@ -781,14 +791,14 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
   if ((DRYDEP).and.(real(zt).lt.2.*href)) then
     do ks=1,nspec
       if (DRYDEPSPEC(ks)) then
-        if (depoindicator(ks)) then
+        if (depoindicator(ks,ithread)) then
           if (ngrid.le.0) then
             do m=1,2
-              call horizontal_interpolation(vdep,vdeptemp(m),ks,memind(m),maxspec)
+              call hor_interpol(vdep,vdeptemp(m),ks,memind(m),maxspec)
             end do
           else
             do m=1,2
-              call horizontal_interpolation_nests(vdepn,vdeptemp(m),ks,memind(m),maxspec)
+              call hor_interpol_nest(vdepn,vdeptemp(m),ks,memind(m),maxspec)
             end do
           endif
           call temporal_interpolation(vdeptemp(1),vdeptemp(2),vdepo(ks))
@@ -804,13 +814,14 @@ subroutine get_vdep_prob(itime,xt,yt,zt,prob)
   endif
 end subroutine get_vdep_prob
 
-subroutine drydepo_probability(prob,dt,zts,vdepo)
+subroutine drydepo_probability(prob,dt,zts,vdepo,ithread)
   use par_mod
   use com_mod
   use interpol_mod
 
   implicit none
 
+  integer,intent(in) :: ithread ! OMP thread starting at 1
   real,intent(inout) :: prob(maxspec)
   real,intent(inout) :: vdepo(maxspec)  ! deposition velocities for all species
   real,intent(in) :: dt,zts             ! real(ldt), real(zt)
@@ -820,14 +831,14 @@ subroutine drydepo_probability(prob,dt,zts,vdepo)
   if ((DRYDEP).and.(zts.lt.2.*href)) then
     do ns=1,nspec
       if (DRYDEPSPEC(ns)) then
-        if (depoindicator(ns)) then
+        if (depoindicator(ns,ithread)) then
           if (ngrid.le.0) then
             do m=1,2
-              call horizontal_interpolation(vdep,vdeptemp(m),ns,memind(m),maxspec)
+              call hor_interpol(vdep,vdeptemp(m),ns,memind(m),maxspec)
             end do
           else
             do m=1,2
-              call horizontal_interpolation_nests(vdepn,vdeptemp(m),ns,memind(m),maxspec)
+              call hor_interpol_nest(vdepn,vdeptemp(m),ns,memind(m),maxspec)
             end do
           endif
           call temporal_interpolation(vdeptemp(1),vdeptemp(2),vdepo(ns))
@@ -975,8 +986,11 @@ subroutine getvdep(n,ix,jy,ust,temp,pa,L,gr,rh,rr,snow,vdepo)
 
   ! 2. Calculate aerodynamic resistance ra
   !***************************************
-
-      ra=raerod(L,ust,z0(j))
+      if (DRYDEP.and.(j.eq.7)) then
+        ra=raerod(L,ust,z0_drydep(ix,jy))
+      else
+        ra=raerod(L,ust,z0(j))
+      endif
       raquer=raquer+ra*slanduse(j)
 
   ! 3. Calculate surface resistance for gases
@@ -1025,7 +1039,7 @@ subroutine getvdep(n,ix,jy,ust,temp,pa,L,gr,rh,rr,snow,vdepo)
   end do
 end subroutine getvdep
 
-subroutine getvdep_nests(n,ix,jy,ust,temp,pa, &
+subroutine getvdep_nest(n,ix,jy,ust,temp,pa, &
        L,gr,rh,rr,snow,vdepo,lnest)
   !                   i i  i   i   i   i  i i  i  i    i o i
   !*****************************************************************************
@@ -1157,8 +1171,11 @@ subroutine getvdep_nests(n,ix,jy,ust,temp,pa, &
 
   ! 2. Calculate aerodynamic resistance ra
   !***************************************
-
-      ra=raerod(L,ust,z0(j))
+      if (DRYDEP.and.(j.eq.7)) then
+        ra=raerod(L,ust,z0_drydepn(ix,jy,lnest))
+      else
+        ra=raerod(L,ust,z0(j))
+      endif
       raquer=raquer+ra*slanduse(j)
 
   ! 3. Calculate surface resistance for gases
@@ -1203,9 +1220,9 @@ subroutine getvdep_nests(n,ix,jy,ust,temp,pa, &
       vdepo(i)=dryvel(i)
     endif
   end do
-end subroutine getvdep_nests
+end subroutine getvdep_nest
 
-subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
+subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep_tmp)
   !                   i     i      i     i    i   i    i    i  i, i, i/o
   !*****************************************************************************
   !                                                                            *
@@ -1245,7 +1262,7 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
   ! schmi(nc,ni)         Schmidt number**2/3 of each diameter interval         *
   ! stokes               Stokes number                                         *
   ! ustar [m/s]          friction velocity                                     *
-  ! vdep(nc) [m/s]       deposition velocities of all components               *
+  ! vdep_tmp(nc) [m/s]       deposition velocities of all components               *
   ! vdepj [m/s]          help, deposition velocity of 1 interval               *
   ! vset(nc,ni)          gravitational settling velocity of each interval      *
   !                                                                            *
@@ -1267,12 +1284,12 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
     density(maxspec),       & ! density of the particle
     fract(maxspec,maxndia)    ! mass fraction of each diameter interval
   real, intent(inout) ::    &
-    vdep(maxspec)
+    vdep_tmp(maxspec)
   real :: schmi(maxspec,maxndia)
   real :: stokes,vdepj,rdp,alpha
   real :: & ! Variables related to shape
-    dfdr, alpha1, alpha2, beta1, beta2, ks, kn, c_d, &
-    settling, settling_old, reynolds, ks1, ks2, kn1, kn2
+    dfdr, alpha1, beta1, ks, kn, c_d, &
+    settling, settling_old, reynolds, kn1
 
   real,parameter :: eps=1.e-5
   integer :: ic,j,nc,i
@@ -1282,7 +1299,7 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
     if (density(ic).gt.0.) then
       do j=1,ndia(ic)         ! loop over all diameter intervals
         if (ustar.gt.eps) then          
-          if (shape(ic).eq.0) then
+          if (ishape(ic).eq.0) then
                   
             ! Stokes number for each diameter interval
             !*****************************************
@@ -1303,7 +1320,6 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
 
           else ! Daria Tatsii: Drag coefficient scheme by Bagheri & Bonadonna 2016
                ! Settling velocities of other shapes
-            dfdr=density(ic)/rhoa
 
             reynolds=dquer(ic)/1.e6*vset(ic,j)/nyl
             settling_old=-1.0*vset(ic,j)
@@ -1312,28 +1328,25 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
             !*************************
             if (orient(ic).eq.0) then
               ! Horizontal orientation
-              alpha2=0.77 ! B&B: eq. 32
-              beta2=0.63
-              ks=0.5*((Fs(ic)**0.05)+(Fs(ic)**(-0.36)))  ! B&B Figure 12 k_(s,max)
-              kn=10.**(alpha2*(-log10(Fn(ic)))**beta2)
+              ks=ks2(ic)  ! B&B Figure 12 k_(s,max)
+              kn=kn2(ic)
             else if (orient(ic).eq.1) then 
               ! Random orientation
+              dfdr=density(ic)/rhoa
+
               alpha1=0.45+10.0/(exp(2.5*log10(dfdr))+30.0)
               beta1=1.-37.0/(exp(3.0*log10(dfdr))+100.0)
-              ks=(Fs(ic)**(1./3.) + Fs(ic)**(-1./3))/2.
+              ks=ks1(ic)
               kn=10.**(alpha1*(-log10(Fn(ic)))**beta1)
             else
               ! The average of random and horizontal orientation
+              dfdr=density(ic)/rhoa
+
               alpha1=0.45+10.0/(exp(2.5*log10(dfdr))+30.0)
               beta1=1.-37.0/(exp(3.0*log10(dfdr))+100.0)
-              alpha2=0.77 ! B&B: eq. 32
-              beta2=0.63
-              ks1=(Fs(ic)**(1./3.) + Fs(ic)**(-1./3))/2.
               kn1=10.**(alpha1*(-log10(Fn(ic)))**beta1)
-              ks2=0.5*((Fs(ic)**0.05)+(Fs(ic)**(-0.36)))  ! B&B Figure 12 k_(s,max)
-              kn2=10.**(alpha2*(-log10(Fn(ic)))**beta2)
-              ks=(ks1+ks2)/2.
-              kn=(kn1+kn2)/2.
+              ks=(ks1(ic)+ks2(ic))/2.
+              kn=(kn1+kn2(ic))/2.
             endif
 
             do i=1,20
@@ -1378,7 +1391,7 @@ subroutine partdep(nc,density,fract,schmi,vset,ra,ustar,nyl,rhoa,vdep)
         ! deposition velocities of each interval are weighted with mass fraction
         !***********************************************************************
 
-        vdep(ic)=vdep(ic)+vdepj*fract(ic,j)
+        vdep_tmp(ic)=vdep_tmp(ic)+vdepj*fract(ic,j)
           
       end do
     endif

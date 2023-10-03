@@ -21,17 +21,22 @@ module random_mod
 
 contains
   
-  subroutine allocate_random(num_threads)
+  subroutine alloc_random(num_threads)
 
     implicit none
 
-    integer :: num_threads, i
+    integer :: num_threads, i,stat
 
-    allocate(ran1_iv(ran1_ntab,0:num_threads-1),ran1_iy(0:num_threads-1))
-    allocate(gasdev_iset(0:num_threads-1),gasdev_gset(0:num_threads-1))
-    allocate(ran3_iff(0:num_threads-1),ran3_inext(0:num_threads-1),ran3_inextp(0:num_threads-1))
-    allocate(ma(55,0:num_threads-1))
-    allocate(iseed1(0:num_threads-1),iseed2(0:num_threads-1))
+    allocate(ran1_iv(ran1_ntab,0:num_threads-1),ran1_iy(0:num_threads-1), stat=stat)
+    if (stat.ne.0) error stop "Could not allocate ran1_iv"
+    allocate(gasdev_iset(0:num_threads-1),gasdev_gset(0:num_threads-1), stat=stat)
+    if (stat.ne.0) error stop "Could not allocate gasdev_iset"
+    allocate(ran3_iff(0:num_threads-1),ran3_inext(0:num_threads-1),ran3_inextp(0:num_threads-1), stat=stat)
+    if (stat.ne.0) error stop "Could not allocate ran3_iff"
+    allocate(ma(55,0:num_threads-1), stat=stat)
+    if (stat.ne.0) error stop "Could not allocate ma"
+    allocate(iseed1(0:num_threads-1),iseed2(0:num_threads-1), stat=stat)
+    if (stat.ne.0) error stop "Could not allocate iseed1"
 
     do i=0,num_threads-1
       iseed1(i) = -7-i
@@ -42,16 +47,16 @@ contains
     ran1_iy(0:num_threads-1)=0
     gasdev_iset(0:num_threads-1)=0
     gasdev_gset(0:num_threads-1)=0
-  end subroutine allocate_random
+  end subroutine alloc_random
 
-  subroutine deallocate_random()
+  subroutine dealloc_random()
 
     deallocate(ran1_iv,ran1_iy)
     deallocate(gasdev_iset,gasdev_gset)
     deallocate(ran3_iff,ran3_inext,ran3_inextp)
     deallocate(ma)
     deallocate(iseed1,iseed2)
-  end subroutine deallocate_random
+  end subroutine dealloc_random
 
   function ran1(idum,ithread)
 
@@ -139,7 +144,7 @@ contains
 
     integer,parameter :: mbig=1000000000, mseed=161803398, mz=0
     real,parameter    :: fac=1./mbig
-    integer :: i,ii,inext,inextp,k
+    integer :: i,ii,k
     integer :: mj,mk
 
     if(idum.lt.0 .or. ran3_iff(ithread).eq.0)then

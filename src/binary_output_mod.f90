@@ -6,9 +6,9 @@
   ! This module contains routines that output gridded data to binary files.    *
   !                                                                            *
   ! Not all routines that should have a netcdf equivalent, have one yet:       *
-  ! writeheader_binary_nest_surf,writeheader_binary_surf,concoutput_surf,      *
-  ! concoutput_surf_nest,initial_cond_output,initial_cond_output_inversion,    *
-  ! concoutput_inversion_nest                                                  *
+  ! writeheader_bin_sfc_nest,writeheader_bin_sfc,concoutput_sfc,               *
+  ! concoutput_sfc_nest,initcond_output,initcond_output_inv,                   *
+  ! concoutput_inv_nest                                                        *
   !                                                                            *
   !   L. Bakels 2022                                                           *
   !                                                                            *
@@ -17,7 +17,7 @@
 module binary_output_mod
 
   use point_mod
-  use outg_mod
+  use outgrid_mod
   use par_mod
   use com_mod
   use date_mod
@@ -27,7 +27,7 @@ module binary_output_mod
 
 contains
 
-subroutine writeheader_binary
+subroutine writeheader_bin
 
   !*****************************************************************************
   !                                                                            *
@@ -162,11 +162,11 @@ subroutine writeheader_binary
   write(*,*) ' #### CANNOT BE OPENED. IF A FILE WITH THIS    #### '
   write(*,*) ' #### NAME ALREADY EXISTS, DELETE IT AND START #### '
   write(*,*) ' #### THE PROGRAM AGAIN.                       #### '
-  stop
+  error stop
 
-end subroutine writeheader_binary
+end subroutine writeheader_bin
 
-subroutine writeheader_binary_nest
+subroutine writeheader_bin_nest
 
   !*****************************************************************************
   !                                                                            *
@@ -301,11 +301,11 @@ subroutine writeheader_binary_nest
   write(*,*) ' #### CANNOT BE OPENED. IF A FILE WITH THIS    #### '
   write(*,*) ' #### NAME ALREADY EXISTS, DELETE IT AND START #### '
   write(*,*) ' #### THE PROGRAM AGAIN.                       #### '
-  stop
+  error stop
 
-end subroutine writeheader_binary_nest
+end subroutine writeheader_bin_nest
 
-subroutine writeheader_binary_nest_surf
+subroutine writeheader_bin_sfc_nest
 
   !*****************************************************************************
   !                                                                            *
@@ -440,11 +440,11 @@ subroutine writeheader_binary_nest_surf
   write(*,*) ' #### CANNOT BE OPENED. IF A FILE WITH THIS    #### '
   write(*,*) ' #### NAME ALREADY EXISTS, DELETE IT AND START #### '
   write(*,*) ' #### THE PROGRAM AGAIN.                       #### '
-  stop
+  error stop
 
-end subroutine writeheader_binary_nest_surf
+end subroutine writeheader_bin_sfc_nest
 
-subroutine writeheader_binary_surf
+subroutine writeheader_bin_sfc
 
   !*****************************************************************************
   !                                                                            *
@@ -579,9 +579,9 @@ subroutine writeheader_binary_surf
   write(*,*) ' #### CANNOT BE OPENED. IF A FILE WITH THIS    #### '
   write(*,*) ' #### NAME ALREADY EXISTS, DELETE IT AND START #### '
   write(*,*) ' #### THE PROGRAM AGAIN.                       #### '
-  stop
+  error stop
 
-end subroutine writeheader_binary_surf
+end subroutine writeheader_bin_sfc
 
 subroutine openreceptors
 
@@ -619,22 +619,32 @@ subroutine openreceptors
   !*********************
 
     if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
-      open(unitoutrecept,file=path(2)(1:length(2))//'receptor_conc', &
-           form='unformatted',err=997)
-      write(unitoutrecept) (receptorname(j),j=1,numreceptor)
-      write(unitoutrecept) (xreceptor(j)*dx+xlon0, &
-           yreceptor(j)*dy+ylat0,j=1,numreceptor)
+      if ((ipin.eq.1).or.(ipin.eq.4)) then
+        open(unitoutrecept,file=path(2)(1:length(2))//'receptor_conc', &
+           access='APPEND',status='OLD',err=997)
+      else
+        open(unitoutrecept,file=path(2)(1:length(2))//'receptor_conc', &
+             form='unformatted',err=997)
+        write(unitoutrecept) (receptorname(j),j=1,numreceptor)
+        write(unitoutrecept) (xreceptor(j)*dx+xlon0, &
+             yreceptor(j)*dy+ylat0,j=1,numreceptor)
+      endif
     endif
 
   ! Mixing ratio output
   !********************
 
     if ((iout.eq.2).or.(iout.eq.3)) then
-      open(unitoutreceptppt,file=path(2)(1:length(2))//'receptor_pptv', &
-           form='unformatted',err=998)
-      write(unitoutreceptppt) (receptorname(j),j=1,numreceptor)
-      write(unitoutreceptppt) (xreceptor(j)*dx+xlon0, &
-           yreceptor(j)*dy+ylat0,j=1,numreceptor)
+      if ((ipin.eq.1).or.(ipin.eq.4)) then
+        open(unitoutreceptppt,file=path(2)(1:length(2))//'receptor_pptv', &
+           access='APPEND',status='OLD',err=997)
+      else
+        open(unitoutreceptppt,file=path(2)(1:length(2))//'receptor_pptv', &
+             form='unformatted',err=998)
+        write(unitoutreceptppt) (receptorname(j),j=1,numreceptor)
+        write(unitoutreceptppt) (xreceptor(j)*dx+xlon0, &
+             yreceptor(j)*dy+ylat0,j=1,numreceptor)
+      endif
     endif
   endif
 
@@ -642,12 +652,12 @@ subroutine openreceptors
 997   write(*,*) ' #### FLEXPART MODEL ERROR! THE FILE           #### '
   write(*,*) ' ####              receptor_conc               #### '
   write(*,*) ' #### CANNOT BE OPENED.                        #### '
-  stop
+  error stop
 
 998   write(*,*) ' #### FLEXPART MODEL ERROR! THE FILE           #### '
   write(*,*) ' ####              receptor_pptv               #### '
   write(*,*) ' #### CANNOT BE OPENED.                        #### '
-  stop
+  error stop
 end subroutine openreceptors
 
 subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
@@ -697,10 +707,10 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
   integer :: itime,i,ix,jy,kz,ks,kp,l,iix,jjy,kzz,nage,jjjjmmdd,ihmmss
   integer :: sp_count_i,sp_count_r
   real :: sp_fact
-  real :: outnum,densityoutrecept(maxreceptor),xl,yl
+  real :: outnum,densityoutrecept(numreceptor),xl,yl
   ! RLT
-  real :: densitydryrecept(maxreceptor)
-  real :: factor_dryrecept(maxreceptor)
+  real :: densitydryrecept(numreceptor)
+  real :: factor_dryrecept(numreceptor)
 
   real(dep_prec) :: auxgrid(nclassunc)
   real(sp) :: gridtotal,gridsigmatotal,gridtotalunc
@@ -730,6 +740,12 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
 
   ! Overwrite existing dates file on first call, later append to it
   ! This fixes a bug where the dates file kept growing across multiple runs
+
+  ! Restarting a run:
+  if ((ipin.eq.1).or.(ipin.eq.4)) then
+    file_stat='OLD'
+    init=.false.
+  endif
 
   ! If 'dates' file exists in output directory, make a backup
   inquire(file=path(2)(1:length(2))//'dates', exist=ldates_file)
@@ -796,9 +812,9 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
     endif
     do kzz=2,nz
       if ((height(kzz-1).lt.halfheight).and. &
-           (height(kzz).gt.halfheight)) goto 46
+           (height(kzz).gt.halfheight)) exit
     end do
-46  kzz=max(min(kzz,nz),2)
+    kzz=max(min(kzz,nz),2)
     dz1=halfheight-height(kzz-1)
     dz2=height(kzz)-halfheight
     dz=dz1+dz2
@@ -990,7 +1006,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   endif
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
-                       sp_fact*1.e12*wetgrid(ix,jy)/area(ix,jy)
+                       sp_fact*1.e12*real(wetgrid(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -1023,7 +1039,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
                        sp_fact* &
-                       1.e12*drygrid(ix,jy)/area(ix,jy)
+                       1.e12*real(drygrid(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -1107,7 +1123,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
                        sp_fact* &
-                       1.e12*wetgrid(ix,jy)/area(ix,jy)
+                       1.e12*real(wetgrid(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -1142,7 +1158,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
                        sp_fact* &
-                       1.e12*drygrid(ix,jy)/area(ix,jy)
+                       1.e12*real(drygrid(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -1336,10 +1352,10 @@ subroutine concoutput_nest(itime,outnum)
   integer :: itime,i,ix,jy,kz,ks,kp,l,iix,jjy,kzz,nage,jjjjmmdd,ihmmss
   integer :: sp_count_i,sp_count_r
   real :: sp_fact
-  real :: outnum,densityoutrecept(maxreceptor),xl,yl
+  real :: outnum,densityoutrecept(numreceptor),xl,yl
   ! RLT
-  real :: densitydryrecept(maxreceptor)
-  real :: factor_dryrecept(maxreceptor)
+  real :: densitydryrecept(numreceptor)
+  real :: factor_dryrecept(numreceptor)
 
   !real densityoutgrid(0:numxgrid-1,0:numygrid-1,numzgrid),
   !    +grid(0:numxgrid-1,0:numygrid-1,numzgrid,maxspec,maxpointspec_act,
@@ -1597,7 +1613,7 @@ subroutine concoutput_nest(itime,outnum)
                  endif
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
-                      sp_fact*1.e12*wetgrid(ix,jy)/arean(ix,jy)
+                      sp_fact*1.e12*real(wetgrid(ix,jy))/arean(ix,jy)
   !                sparse_dump_u(sp_count_r)=
   !+                1.e12*wetgridsigma(ix,jy,ks,kp,nage)/area(ix,jy)
               else ! concentration is zero
@@ -1634,7 +1650,7 @@ subroutine concoutput_nest(itime,outnum)
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
                       sp_fact* &
-                      1.e12*drygrid(ix,jy)/arean(ix,jy)
+                      1.e12*real(drygrid(ix,jy))/arean(ix,jy)
   !                sparse_dump_u(sp_count_r)=
   !+                1.e12*drygridsigma(ix,jy,ks,kp,nage)/area(ix,jy)
               else ! concentration is zero
@@ -1722,7 +1738,7 @@ subroutine concoutput_nest(itime,outnum)
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
                       sp_fact* &
-                      1.e12*wetgrid(ix,jy)/arean(ix,jy)
+                      1.e12*real(wetgrid(ix,jy))/arean(ix,jy)
   !                sparse_dump_u(sp_count_r)=
   !    +            ,1.e12*wetgridsigma(ix,jy,ks,kp,nage)/area(ix,jy)
               else ! concentration is zero
@@ -1761,7 +1777,7 @@ subroutine concoutput_nest(itime,outnum)
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
                       sp_fact* &
-                      1.e12*drygrid(ix,jy)/arean(ix,jy)
+                      1.e12*real(drygrid(ix,jy))/arean(ix,jy)
   !                sparse_dump_u(sp_count_r)=
   !    +            ,1.e12*drygridsigma(ix,jy,ks,kp,nage)/area(ix,jy)
               else ! concentration is zero
@@ -1925,10 +1941,10 @@ subroutine concoutput_inversion(itime,outnum,gridtotalunc,wetgridtotalunc, &
   integer :: itime,i,ix,jy,kz,ks,kp,l,iix,jjy,kzz,nage,jjjjmmdd,ihmmss
   integer :: sp_count_i,sp_count_r
   real :: sp_fact
-  real :: outnum,densityoutrecept(maxreceptor),xl,yl
+  real :: outnum,densityoutrecept(numreceptor),xl,yl
   ! RLT
-  real :: densitydryrecept(maxreceptor)
-  real :: factor_dryrecept(maxreceptor)
+  real :: densitydryrecept(numreceptor)
+  real :: factor_dryrecept(numreceptor)
 
 
   real(dep_prec) :: auxgrid(nclassunc)
@@ -2274,7 +2290,7 @@ subroutine concoutput_inversion(itime,outnum,gridtotalunc,wetgridtotalunc, &
 
   ! Concentrations
 
-  ! surf_only write only 1st layer 
+  ! sfc_only write only 1st layer 
 
           sp_count_i=0
           sp_count_r=0
@@ -2320,7 +2336,7 @@ subroutine concoutput_inversion(itime,outnum,gridtotalunc,wetgridtotalunc, &
 
   ! Mixing ratios
 
-  ! surf_only write only 1st layer 
+  ! sfc_only write only 1st layer 
 
           sp_count_i=0
           sp_count_r=0
@@ -2532,10 +2548,10 @@ subroutine concoutput_inversion_nest(itime,outnum)
   integer :: itime,i,ix,jy,kz,ks,kp,l,iix,jjy,kzz,nage,jjjjmmdd,ihmmss
   integer :: sp_count_i,sp_count_r
   real :: sp_fact
-  real :: outnum,densityoutrecept(maxreceptor),xl,yl
+  real :: outnum,densityoutrecept(numreceptor),xl,yl
   ! RLT
-  real :: densitydryrecept(maxreceptor)
-  real :: factor_dryrecept(maxreceptor)
+  real :: densitydryrecept(numreceptor)
+  real :: factor_dryrecept(numreceptor)
 
   real(dep_prec) :: auxgrid(nclassunc)
   real :: halfheight,dz,dz1,dz2,tot_mu(maxspec,maxpointspec_act)
@@ -2780,7 +2796,7 @@ subroutine concoutput_inversion_nest(itime,outnum)
 
   ! Concentrations
 
-  ! surf_only write only 1st layer 
+  ! sfc_only write only 1st layer 
 
          sp_count_i=0
          sp_count_r=0
@@ -2828,7 +2844,7 @@ subroutine concoutput_inversion_nest(itime,outnum)
 
   ! Mixing ratios
 
-    ! surf_only write only 1st layer 
+    ! sfc_only write only 1st layer 
 
          sp_count_i=0
          sp_count_r=0
@@ -2951,7 +2967,7 @@ subroutine concoutput_inversion_nest(itime,outnum)
   end do
 end subroutine concoutput_inversion_nest
 
-subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
+subroutine concoutput_sfc(itime,outnum,gridtotalunc,wetgridtotalunc, &
      drygridtotalunc)
   !                        i     i          o             o
   !       o
@@ -2998,10 +3014,10 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
   integer :: itime,i,ix,jy,kz,ks,kp,l,iix,jjy,kzz,nage,jjjjmmdd,ihmmss
   integer :: sp_count_i,sp_count_r
   real :: sp_fact
-  real :: outnum,densityoutrecept(maxreceptor),xl,yl
+  real :: outnum,densityoutrecept(numreceptor),xl,yl
   ! RLT
-  real :: densitydryrecept(maxreceptor)
-  real :: factor_dryrecept(maxreceptor)
+  real :: densitydryrecept(numreceptor)
+  real :: factor_dryrecept(numreceptor)
 
   real(dep_prec) :: auxgrid(nclassunc)
   real(sp) :: gridtotal,gridsigmatotal,gridtotalunc
@@ -3017,7 +3033,7 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
 
 
   if (verbosity.eq.1) then
-    print*,'inside concoutput_surf '
+    print*,'inside concoutput_sfc '
     CALL SYSTEM_CLOCK(count_clock)
     WRITE(*,*) 'SYSTEM_CLOCK',count_clock - count_clock0   
   endif
@@ -3056,7 +3072,7 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
 
 
   if (verbosity.eq.1) then
-    print*,'concoutput_surf 2'
+    print*,'concoutput_sfc 2'
     CALL SYSTEM_CLOCK(count_clock)
     WRITE(*,*) 'SYSTEM_CLOCK',count_clock - count_clock0   
   endif
@@ -3133,7 +3149,7 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
   !*********************************************************************
 
   if (verbosity.eq.1) then
-    print*,'concoutput_surf 3 (sd)'
+    print*,'concoutput_sfc 3 (sd)'
     CALL SYSTEM_CLOCK(count_clock)
     WRITE(*,*) 'SYSTEM_CLOCK',count_clock - count_clock0   
   endif
@@ -3208,7 +3224,7 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
               drygridsigma(ix,jy)= &
                    drygridsigma(ix,jy)* &
                    sqrt(real(nclassunc))
-125           drygridsigmatotal=drygridsigmatotal+ &
+              drygridsigmatotal=drygridsigmatotal+ &
                    drygridsigma(ix,jy)
             endif
 
@@ -3243,7 +3259,7 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
   !*******************************************************************
 
         if (verbosity.eq.1) then
-          print*,'concoutput_surf 4 (output)'
+          print*,'concoutput_sfc 4 (output)'
           CALL SYSTEM_CLOCK(count_clock)
           WRITE(*,*) 'SYSTEM_CLOCK',count_clock - count_clock0   
         endif
@@ -3254,7 +3270,7 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
         if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
 
           if (verbosity.eq.1) then
-            print*,'concoutput_surf (Wet deposition)'
+            print*,'concoutput_sfc (Wet deposition)'
             CALL SYSTEM_CLOCK(count_clock)
             WRITE(*,*) 'SYSTEM_CLOCK',count_clock - count_clock0   
           endif
@@ -3277,9 +3293,9 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   endif
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
-                       sp_fact*1.e12*wetgrid(ix,jy)/area(ix,jy)
+                       sp_fact*1.e12*real(wetgrid(ix,jy))/area(ix,jy)
                   sparse_dump_u(sp_count_r)= &
-                       1.e12*wetgridsigma(ix,jy)/area(ix,jy)
+                       1.e12*real(wetgridsigma(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -3295,7 +3311,7 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
           write(unitoutgrid) (sparse_dump_r(i),i=1,sp_count_r)
 
           if (verbosity.eq.1) then
-            print*,'concoutput_surf (Dry deposition)'
+            print*,'concoutput_sfc (Dry deposition)'
             CALL SYSTEM_CLOCK(count_clock)
             WRITE(*,*) 'SYSTEM_CLOCK',count_clock - count_clock0   
           endif
@@ -3317,9 +3333,9 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
                        sp_fact* &
-                       1.e12*drygrid(ix,jy)/area(ix,jy)
+                       1.e12*real(drygrid(ix,jy))/area(ix,jy)
                   sparse_dump_u(sp_count_r)= &
-                       1.e12*drygridsigma(ix,jy)/area(ix,jy)
+                       1.e12*real(drygridsigma(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -3335,14 +3351,14 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
           write(unitoutgrid) (sparse_dump_r(i),i=1,sp_count_r)
 
           if (verbosity.eq.1) then
-            print*,'concoutput_surf (Concentrations)'
+            print*,'concoutput_sfc (Concentrations)'
             CALL SYSTEM_CLOCK(count_clock)
             WRITE(*,*) 'SYSTEM_CLOCK',count_clock - count_clock0   
           endif
 
   ! Concentrations
 
-  ! surf_only write only 1st layer 
+  ! sfc_only write only 1st layer 
 
           sp_count_i=0
           sp_count_r=0
@@ -3403,9 +3419,9 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
                        sp_fact* &
-                       1.e12*wetgrid(ix,jy)/area(ix,jy)
+                       1.e12*real(wetgrid(ix,jy))/area(ix,jy)
                   sparse_dump_u(sp_count_r)= &
-                       1.e12*wetgridsigma(ix,jy)/area(ix,jy)
+                       1.e12*real(wetgridsigma(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -3439,9 +3455,9 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
                   sp_count_r=sp_count_r+1
                   sparse_dump_r(sp_count_r)= &
                        sp_fact* &
-                       1.e12*drygrid(ix,jy)/area(ix,jy)
+                       1.e12*real(drygrid(ix,jy))/area(ix,jy)
                   sparse_dump_u(sp_count_r)= &
-                       1.e12*drygridsigma(ix,jy)/area(ix,jy)
+                       1.e12*real(drygridsigma(ix,jy))/area(ix,jy)
                 else ! concentration is zero
                   sp_zer=.true.
                 endif
@@ -3458,7 +3474,7 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
 
   ! Mixing ratios
 
-  ! surf_only write only 1st layer 
+  ! sfc_only write only 1st layer 
 
           sp_count_i=0
           sp_count_r=0
@@ -3613,9 +3629,9 @@ subroutine concoutput_surf(itime,outnum,gridtotalunc,wetgridtotalunc, &
       end do
     end do
   end do
-end subroutine concoutput_surf
+end subroutine concoutput_sfc
 
-subroutine concoutput_surf_nest(itime,outnum)
+subroutine concoutput_sfc_nest(itime,outnum)
   !                        i     i
   !*****************************************************************************
   !                                                                            *
@@ -3660,10 +3676,10 @@ subroutine concoutput_surf_nest(itime,outnum)
   integer :: itime,i,ix,jy,kz,ks,kp,l,iix,jjy,kzz,nage,jjjjmmdd,ihmmss
   integer :: sp_count_i,sp_count_r
   real :: sp_fact
-  real :: outnum,densityoutrecept(maxreceptor),xl,yl
+  real :: outnum,densityoutrecept(numreceptor),xl,yl
   ! RLT
-  real :: densitydryrecept(maxreceptor)
-  real :: factor_dryrecept(maxreceptor)
+  real :: densitydryrecept(numreceptor)
+  real :: factor_dryrecept(numreceptor)
 
   real(dep_prec) :: auxgrid(nclassunc)
   real :: halfheight,dz,dz1,dz2,tot_mu(maxspec,maxpointspec_act)
@@ -3886,9 +3902,9 @@ subroutine concoutput_surf_nest(itime,outnum)
                  endif
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
-                      sp_fact*1.e12*wetgrid(ix,jy)/arean(ix,jy)
+                      sp_fact*1.e12*real(wetgrid(ix,jy))/arean(ix,jy)
                  sparse_dump_u(sp_count_r)= &
-                      1.e12*wetgridsigma(ix,jy)/area(ix,jy)
+                      1.e12*real(wetgridsigma(ix,jy))/area(ix,jy)
               else ! concentration is zero
                   sp_zer=.true.
               endif
@@ -3920,9 +3936,9 @@ subroutine concoutput_surf_nest(itime,outnum)
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
                       sp_fact* &
-                      1.e12*drygrid(ix,jy)/arean(ix,jy)
+                      1.e12*real(drygrid(ix,jy))/arean(ix,jy)
                  sparse_dump_u(sp_count_r)= &
-                      1.e12*drygridsigma(ix,jy)/area(ix,jy)
+                      1.e12*real(drygridsigma(ix,jy))/area(ix,jy)
               else ! concentration is zero
                   sp_zer=.true.
               endif
@@ -3939,9 +3955,9 @@ subroutine concoutput_surf_nest(itime,outnum)
 
   ! Concentrations
 
-  ! if surf_only write only 1st layer 
+  ! if sfc_only write only 1st layer 
 
-         if(surf_only.eq.1) then
+         if(sfc_only.eq.1) then
          sp_count_i=0
          sp_count_r=0
          sp_fact=-1.
@@ -4014,7 +4030,7 @@ subroutine concoutput_surf_nest(itime,outnum)
          write(unitoutgrid) (sparse_dump_i(i),i=1,sp_count_i)
          write(unitoutgrid) sp_count_r
          write(unitoutgrid) (sparse_dump_r(i),i=1,sp_count_r)
-         endif ! surf_only
+         endif ! sfc_only
 
 
     endif !  concentration output
@@ -4043,9 +4059,9 @@ subroutine concoutput_surf_nest(itime,outnum)
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
                       sp_fact* &
-                      1.e12*wetgrid(ix,jy)/arean(ix,jy)
+                      1.e12*real(wetgrid(ix,jy))/arean(ix,jy)
                  sparse_dump_u(sp_count_r)= &
-                      1.e12*wetgridsigma(ix,jy)/area(ix,jy)
+                      1.e12*real(wetgridsigma(ix,jy))/area(ix,jy)
               else ! concentration is zero
                   sp_zer=.true.
               endif
@@ -4079,9 +4095,9 @@ subroutine concoutput_surf_nest(itime,outnum)
                  sp_count_r=sp_count_r+1
                  sparse_dump_r(sp_count_r)= &
                       sp_fact* &
-                      1.e12*drygrid(ix,jy)/arean(ix,jy)
+                      1.e12*real(drygrid(ix,jy))/arean(ix,jy)
                  sparse_dump_u(sp_count_r)= &
-                      1.e12*drygridsigma(ix,jy)/area(ix,jy)
+                      1.e12*real(drygridsigma(ix,jy))/area(ix,jy)
               else ! concentration is zero
                   sp_zer=.true.
               endif
@@ -4098,9 +4114,9 @@ subroutine concoutput_surf_nest(itime,outnum)
 
   ! Mixing ratios
 
-    ! if surf_only write only 1st layer 
+    ! if sfc_only write only 1st layer 
 
-         if(surf_only.eq.1) then
+         if(sfc_only.eq.1) then
          sp_count_i=0
          sp_count_r=0
          sp_fact=-1.
@@ -4175,7 +4191,7 @@ subroutine concoutput_surf_nest(itime,outnum)
          write(unitoutgridppt) (sparse_dump_i(i),i=1,sp_count_i)
          write(unitoutgridppt) sp_count_r
          write(unitoutgridppt) (sparse_dump_r(i),i=1,sp_count_r)
-         endif ! surf_only
+         endif ! sfc_only
 
       endif ! output for ppt
 
@@ -4252,9 +4268,9 @@ subroutine concoutput_surf_nest(itime,outnum)
     end do
   end do
   end do
-end subroutine concoutput_surf_nest
+end subroutine concoutput_sfc_nest
 
-subroutine initial_cond_output(itime)
+subroutine initcond_output(itime)
   !                                 i
   !*****************************************************************************
   !                                                                            *
@@ -4377,9 +4393,9 @@ subroutine initial_cond_output(itime)
     close(97)
 
   end do
-end subroutine initial_cond_output
+end subroutine initcond_output
 
-subroutine initial_cond_output_inversion(itime)
+subroutine initcond_output_inv(itime)
   !                                 i
   !*****************************************************************************
   !                                                                            *
@@ -4533,6 +4549,7 @@ subroutine initial_cond_output_inversion(itime)
   if (listart) then
     listart=.false.
   endif
-end subroutine initial_cond_output_inversion
+
+end subroutine initcond_output_inv
 
 end module binary_output_mod

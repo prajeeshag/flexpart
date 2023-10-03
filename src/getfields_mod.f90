@@ -43,33 +43,46 @@ module getfields_mod
     vlev,                                 & !
     zlev                                    !
 
-  private :: obukhov,richardson,scalev,calcpar,calcpar_nests,calcpv,calcpv_nests
+  private :: obukhov,richardson,scalev,calcpar,calcpar_nest,calcpv,calcpv_nest
 
   public :: getfields
 contains
 
-subroutine getfields_allocate
+subroutine alloc_getfields
   implicit none
-  allocate(uuh(0:nxmax-1,0:nymax-1,nuvzmax),      &
-    vvh(0:nxmax-1,0:nymax-1,nuvzmax),             &
-    pvh(0:nxmax-1,0:nymax-1,nuvzmax),             &
-    wwh(0:nxmax-1,0:nymax-1,nwzmax),              &
-    uuhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,maxnests), &
-    vvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,maxnests), &
-    pvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,maxnests), &
-    wwhn(0:nxmaxn-1,0:nymaxn-1,nwzmax,maxnests),  &
-    pwater(0:nxmax-1,0:nymax-1,nzmax,numwfmem))
+  integer :: stat
 
-  allocate(ppml(0:nxmax-1,0:nymax-1,nuvzmax),ppmk(0:nxmax-1,0:nymax-1,nuvzmax))
-  allocate(ttlev(nuvzmax),qvlev(nuvzmax),ulev(nuvzmax),vlev(nuvzmax),zlev(nuvzmax))
-end subroutine getfields_allocate
+  allocate(uuh(0:nxmax-1,0:nymax-1,nuvzmax),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate uuh'
+  allocate(vvh(0:nxmax-1,0:nymax-1,nuvzmax),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate vvh'
+  allocate(pvh(0:nxmax-1,0:nymax-1,nuvzmax),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate pvh'
+  allocate(wwh(0:nxmax-1,0:nymax-1,nwzmax),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate wwh'
+  allocate(uuhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numbnests),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate uuhn'
+  allocate(vvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numbnests),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate vvhn'
+  allocate(pvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numbnests),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate pvhn'
+  allocate(wwhn(0:nxmaxn-1,0:nymaxn-1,nwzmax,numbnests),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate wwhn'
+  allocate(pwater(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate pwater'
 
-subroutine getfields_deallocate
+  allocate(ppml(0:nxmax-1,0:nymax-1,nuvzmax),ppmk(0:nxmax-1,0:nymax-1,nuvzmax),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate ppml,ppmk'
+  allocate(ttlev(nuvzmax),qvlev(nuvzmax),ulev(nuvzmax),vlev(nuvzmax),zlev(nuvzmax),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate ttlev,qvlev,ulev,vlev,zlev'
+end subroutine alloc_getfields
+
+subroutine dealloc_getfields
   implicit none
   deallocate(uuh,vvh,pvh,wwh,uuhn,vvhn,pvhn,wwhn,pwater)
   deallocate(ppml,ppmk)
   deallocate(ttlev,qvlev,ulev,vlev,zlev)
-end subroutine getfields_deallocate
+end subroutine dealloc_getfields
 
 subroutine getfields(itime,nstop)
   !                       i     o
@@ -121,15 +134,13 @@ subroutine getfields(itime,nstop)
   !                                                                            *
   !*****************************************************************************
 
-  use class_gribfile
+  use class_gribfile_mod
   use wetdepo_mod
 
   implicit none
 
   integer :: indj,itime,nstop,memaux
-  integer :: kz, ix
-  character(len=100) :: rowfmt
-
+  integer :: kz,ix,jy
   integer :: indmin = 1
 
   ! Check, if wind fields are available for the current time step
@@ -180,15 +191,15 @@ subroutine getfields(itime,nstop)
         else
           call readwind_gfs(indj+1,memind(2),uuh,vvh,wwh)
         end if
-        call readwind_nests(indj+1,memind(2),uuhn,vvhn,wwhn)
+        call readwind_nest(indj+1,memind(2),uuhn,vvhn,wwhn)
         call calcpar(memind(2))
-        call calcpar_nests(memind(2))
+        call calcpar_nest(memind(2))
         if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
           call verttransform_ecmwf(memind(2),uuh,vvh,wwh,pvh)
         else
           call verttransform_gfs(memind(2),uuh,vvh,wwh,pvh)
         end if
-        call verttransform_nests(memind(2),uuhn,vvhn,wwhn,pvhn)
+        call verttransform_nest(memind(2),uuhn,vvhn,wwhn,pvhn)
         memtime(2)=wftime(indj+1)
         nstop = 1
         exit
@@ -196,10 +207,33 @@ subroutine getfields(itime,nstop)
     end do
     indmin=indj
 
-    if ((WETBKDEP).and.(ipin.ne.3).and.(ipin.ne.4)) then
+    if (WETBKDEP) then
       call writeprecip(itime,memind(1))
     endif
 
+    if ((DRYDEP).or.(lnetcdfout.eq.0)) then
+!$OMP PARALLEL PRIVATE(ix,jy,kz)
+!$OMP DO
+  ! RLT calculate dry air density
+      do kz=1,nuvz
+        do jy=0,nymin1
+          do ix=0,nxmin1
+            pwater(ix,jy,kz,memind(1))=qv(ix,jy,kz,memind(1))*prs(ix,jy,kz,memind(1))/ &
+              ((r_air/r_water)*(1.-qv(ix,jy,kz,memind(1)))+qv(ix,jy,kz,memind(1)))
+            pwater(ix,jy,kz,memind(2))=qv(ix,jy,kz,memind(2))*prs(ix,jy,kz,memind(2))/ &
+              ((r_air/r_water)*(1.-qv(ix,jy,kz,memind(2)))+qv(ix,jy,kz,memind(2)))
+            rho_dry(ix,jy,kz,memind(1))=(prs(ix,jy,kz,memind(1))-pwater(ix,jy,kz,memind(1)))/ &
+              (r_air*tt(ix,jy,kz,memind(1)))
+            rho_dry(ix,jy,kz,memind(2))=(prs(ix,jy,kz,memind(2))-pwater(ix,jy,kz,memind(2)))/ &
+              (r_air*tt(ix,jy,kz,memind(2)))
+          end do 
+        end do
+      end do
+      ! pwater=qv*prs/((r_air/r_water)*(1.-qv)+qv)
+      ! rho_dry=(prs-pwater)/(r_air*tt)
+!$OMP END DO
+!$OMP END PARALLEL
+    endif
   else
 
   ! No wind fields, which can be used, are currently in memory
@@ -219,15 +253,15 @@ subroutine getfields(itime,nstop)
         else
           call readwind_gfs(indj,memind(1),uuh,vvh,wwh)
         end if
-        call readwind_nests(indj,memind(1),uuhn,vvhn,wwhn)
+        call readwind_nest(indj,memind(1),uuhn,vvhn,wwhn)
         call calcpar(memind(1))
-        call calcpar_nests(memind(1))
+        call calcpar_nest(memind(1))
         if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
           call verttransform_ecmwf(memind(1),uuh,vvh,wwh,pvh)
         else
           call verttransform_gfs(memind(1),uuh,vvh,wwh,pvh)
         end if
-        call verttransform_nests(memind(1),uuhn,vvhn,wwhn,pvhn)
+        call verttransform_nest(memind(1),uuhn,vvhn,wwhn,pvhn)
         memtime(1)=wftime(indj)
         memind(2)=2
         if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
@@ -239,15 +273,15 @@ subroutine getfields(itime,nstop)
         else
           call readwind_gfs(indj+1,memind(2),uuh,vvh,wwh)
         end if
-        call readwind_nests(indj+1,memind(2),uuhn,vvhn,wwhn)
+        call readwind_nest(indj+1,memind(2),uuhn,vvhn,wwhn)
         call calcpar(memind(2))
-        call calcpar_nests(memind(2))
+        call calcpar_nest(memind(2))
         if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
           call verttransform_ecmwf(memind(2),uuh,vvh,wwh,pvh)
         else
           call verttransform_gfs(memind(2),uuh,vvh,wwh,pvh)
         end if
-        call verttransform_nests(memind(2),uuhn,vvhn,wwhn,pvhn)
+        call verttransform_nest(memind(2),uuhn,vvhn,wwhn,pvhn)
         memtime(2)=wftime(indj+1)
         nstop = 1
         exit
@@ -255,21 +289,34 @@ subroutine getfields(itime,nstop)
     end do
     indmin=indj
 
-    if ((WETBKDEP).and.(ipin.ne.3).and.(ipin.ne.4)) then
+    if (WETBKDEP) then
       call writeprecip(itime,memind(1))
     endif
 
+    if ((DRYDEP).or.(lnetcdfout.eq.0)) then
+!$OMP PARALLEL PRIVATE(ix,jy,kz)
+!$OMP DO
+    ! RLT calculate dry air density
+      do kz=1,nuvz
+        do jy=0,nymin1
+          do ix=0,nxmin1
+            pwater(ix,jy,kz,memind(1))=qv(ix,jy,kz,memind(1))*prs(ix,jy,kz,memind(1))/ &
+              ((r_air/r_water)*(1.-qv(ix,jy,kz,memind(1)))+qv(ix,jy,kz,memind(1)))
+            pwater(ix,jy,kz,memind(2))=qv(ix,jy,kz,memind(2))*prs(ix,jy,kz,memind(2))/ &
+              ((r_air/r_water)*(1.-qv(ix,jy,kz,memind(2)))+qv(ix,jy,kz,memind(2)))
+            rho_dry(ix,jy,kz,memind(1))=(prs(ix,jy,kz,memind(1))-pwater(ix,jy,kz,memind(1)))/ &
+              (r_air*tt(ix,jy,kz,memind(1)))
+            rho_dry(ix,jy,kz,memind(2))=(prs(ix,jy,kz,memind(2))-pwater(ix,jy,kz,memind(2)))/ &
+              (r_air*tt(ix,jy,kz,memind(2)))
+          end do 
+        end do
+      end do
+      ! pwater=qv*prs/((r_air/r_water)*(1.-qv)+qv)
+      ! rho_dry=(prs-pwater)/(r_air*tt)
+!$OMP END DO
+!$OMP END PARALLEL
+    endif
   end if
-
-  ! RLT calculate dry air density
-  if (DRYDEP) then
-    pwater=qv*prs/((r_air/r_water)*(1.-qv)+qv)
-    rho_dry=(prs-pwater)/(r_air*tt)
-  endif
-#ifndef USE_NCF
-  pwater=qv*prs/((r_air/r_water)*(1.-qv)+qv)
-  rho_dry=(prs-pwater)/(r_air*tt)
-#endif
 
   lwindinterv=abs(memtime(2)-memtime(1))
 
@@ -579,7 +626,7 @@ subroutine calcpv(n)
   end if
 end subroutine calcpv
 
-subroutine calcpv_nests(l,n)
+subroutine calcpv_nest(l,n)
   !                     i i  i    i    o
   !*****************************************************************************
   !                                                                            *
@@ -819,7 +866,7 @@ subroutine calcpv_nests(l,n)
       end do
     end do
   end do
-end subroutine calcpv_nests
+end subroutine calcpv_nest
 
 subroutine calcpar(n)
   !                   i  i   i   o
@@ -864,17 +911,17 @@ subroutine calcpar(n)
   !                                                                            *
   !*****************************************************************************
 
-  use class_gribfile
+  use class_gribfile_mod
   use drydepo_mod
   use qvsat_mod
 
   implicit none
 
-  integer :: n,ix,jy,i,kz,lz,kzmin,llev,loop_start,ierr
+  integer :: n,ix,jy,i,kz,lz,kzmin,llev,loop_start,ierr,stat
   real :: ol,hmixplus
   real :: rh,subsceff,ylat
   real :: altmin,tvold,pold,zold,pint,tv,hmixdummy,akzdummy
-  real :: vd(maxspec)
+  real,allocatable,dimension(:) :: vd
   real :: z0_tmp(numclass) ! temporary variable for z0 (shared between OMP threads)
   real,parameter :: const=r_air/ga
 
@@ -890,17 +937,15 @@ subroutine calcpar(n)
 
   ! Loop over entire grid
   !**********************
+!$OMP PARALLEL PRIVATE(jy,ix,ulev,vlev,ttlev,qvlev,llev,ylat,ol,i,hmixplus, &
+!$OMP subsceff,vd,kz,lz,zlev,rh,kzmin,pold,zold,tvold,pint,tv,loop_start,ierr, &
+!$OMP altmin)
 
-  ! openmp change
-  z0_tmp = z0
-  !$OMP PARALLEL PRIVATE(jy,ix,ulev,vlev,ttlev,qvlev,llev,ylat,ol,i,hmixplus, &
-  !$OMP subsceff,vd,kz,lz,zlev,rh,kzmin,pold,zold,tvold,pint,tv,loop_start,ierr, &
-  !$OMP altmin)
-  z0 = z0_tmp
+  allocate( vd(maxspec),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate vd inside of OMP loop'
 
-  !$OMP DO
+!$OMP DO
   do jy=0,nymin1
-
   ! Set minimum height for tropopause
   !**********************************
 
@@ -923,7 +968,7 @@ subroutine calcpar(n)
   !************************************
 
       ustar(ix,jy,1,n)=scalev(ps(ix,jy,1,n),tt2(ix,jy,1,n), &
-           td2(ix,jy,1,n),surfstr(ix,jy,1,n))
+           td2(ix,jy,1,n),sfcstress(ix,jy,1,n))
       if (ustar(ix,jy,1,n).le.1.e-8) ustar(ix,jy,1,n)=1.e-8
 
   ! 2) Calculation of inverse Obukhov length scale
@@ -979,7 +1024,7 @@ subroutine calcpar(n)
 
       if (ierr.lt.0) then
         write(*,9500) 'failure', ix, jy
-        stop
+        error stop 'calcpar: richardson computation failed'
       endif
 9500      format( 'calcpar - richardson ', a, ' - ix,jy=', 2i5 )
       
@@ -1001,7 +1046,7 @@ subroutine calcpar(n)
       if (DRYDEP) then
   ! Sabine Eckhardt, Dec 06: use new index for z0 for water depending on
   ! windspeed
-        z0(7)=0.016*ustar(ix,jy,1,n)*ustar(ix,jy,1,n)/ga
+        z0_drydep(ix,jy)=0.016*ustar(ix,jy,1,n)*ustar(ix,jy,1,n)/ga
 
   ! Calculate relative humidity at surface
   !***************************************
@@ -1060,6 +1105,7 @@ subroutine calcpar(n)
         loop_start=llev
       end if
 
+      kzmin=nuvz
       do kz=loop_start,nuvz
         if (zlev(kz).ge.altmin) then
           kzmin=kz
@@ -1086,17 +1132,16 @@ subroutine calcpar(n)
 
     end do
   end do
-  !$OMP END DO
-  !$OMP END PARALLEL
-  ! openmp change end
-
+!$OMP END DO
+  deallocate(vd)
+!$OMP END PARALLEL
   ! Calculation of potential vorticity on 3-d grid
   !***********************************************
 
   call calcpv(n)
 end subroutine calcpar
 
-subroutine calcpar_nests(n)
+subroutine calcpar_nest(n)
   !                         i  i    i    o
   !*****************************************************************************
   !                                                                            *
@@ -1140,11 +1185,11 @@ subroutine calcpar_nests(n)
 
   implicit none
 
-  integer :: n,ix,jy,i,l,kz,lz,kzmin,ierr
+  integer :: n,ix,jy,i,l,kz,lz,kzmin,ierr,stat
   real :: ol,hmixplus,dummyakzllev
   real :: rh,subsceff,ylat
   real :: altmin,tvold,pold,zold,pint,tv
-  real :: vd(maxspec)
+  real,allocatable,dimension(:) :: vd
   real :: z0_tmp(numclass) ! temporary variable for z0 (shared between OMP threads)
   real,parameter :: const=r_air/ga
 
@@ -1156,12 +1201,13 @@ subroutine calcpar_nests(n)
 
   ! Loop over entire grid
   !**********************
-  z0_tmp = z0
 !$OMP PARALLEL DEFAULT(SHARED) &
 !$OMP PRIVATE(i,ix,jy,kz,lz,kzmin,tvold,pold,zold,zlev,tv,pint, &
 !$OMP rh,ierr,subsceff,ulev,vlev,ttlev,qvlev,ol,altmin,ylat,hmixplus, &
-!$OMP dummyakzllev,vd )
-  z0 = z0_tmp
+!$OMP dummyakzllev,stat,vd )
+
+  allocate( vd(maxspec),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate vd inside of OMP loop'
 
 !$OMP DO
   do jy=0,nyn(l)-1
@@ -1188,7 +1234,7 @@ subroutine calcpar_nests(n)
   !************************************
 
       ustarn(ix,jy,1,n,l)=scalev(psn(ix,jy,1,n,l),tt2n(ix,jy,1,n,l), &
-           td2n(ix,jy,1,n,l),surfstrn(ix,jy,1,n,l))
+           td2n(ix,jy,1,n,l),sfcstressn(ix,jy,1,n,l))
       if (ustarn(ix,jy,1,n,l).le.1.e-8) ustarn(ix,jy,1,n,l)=1.e-8
 
   ! 2) Calculation of inverse Obukhov length scale
@@ -1220,7 +1266,7 @@ subroutine calcpar_nests(n)
            wstarn(ix,jy,1,n,l),hmixplus,ierr)
       if (ierr.lt.0) then
         write(*,9500) 'failure', ix, jy, l
-        stop
+        error stop 'calcpar_nest: richardson computation failed'
       endif
 9500      format( 'calcparn - richardson ', a, ' - ix,jy=', 2i5 )
 
@@ -1243,13 +1289,13 @@ subroutine calcpar_nests(n)
       if (DRYDEP) then
         ! z0(4)=0.016*ustarn(ix,jy,1,n,l)*ustarn(ix,jy,1,n,l)/ga
         ! z0(9)=0.016*ustarn(ix,jy,1,n,l)*ustarn(ix,jy,1,n,l)/ga
-        z0(7)=0.016*ustarn(ix,jy,1,n,l)*ustarn(ix,jy,1,n,l)/ga
+        z0_drydepn(ix,jy,l)=0.016*ustarn(ix,jy,1,n,l)*ustarn(ix,jy,1,n,l)/ga
 
   ! Calculate relative humidity at surface
   !***************************************
         rh=ew(td2n(ix,jy,1,n,l),psn(ix,jy,1,n,l))/ew(tt2n(ix,jy,1,n,l),psn(ix,jy,1,n,l))
 
-        call getvdep_nests(n,ix,jy,ustarn(ix,jy,1,n,l), &
+        call getvdep_nest(n,ix,jy,ustarn(ix,jy,1,n,l), &
              tt2n(ix,jy,1,n,l),psn(ix,jy,1,n,l),1./olin(ix,jy,1,n,l), &
              ssrn(ix,jy,1,n,l),rh,lsprecn(ix,jy,1,n,l)+ &
              convprecn(ix,jy,1,n,l),sdn(ix,jy,1,n,l),vd,l)
@@ -1289,7 +1335,7 @@ subroutine calcpar_nests(n)
   !    searched for. This is to avoid inversions in the lower troposphere
   !    to be identified as the tropopause
   !************************************************************************
-
+      kzmin=1
       do kz=1,nuvz
         if (zlev(kz).ge.altmin) then
           kzmin=kz
@@ -1318,17 +1364,19 @@ subroutine calcpar_nests(n)
   end do
 
 !$OMP END DO
+
+  deallocate(vd)
 !$OMP END PARALLEL
 
   ! Calculation of potential vorticity on 3-d grid
   !***********************************************
 
-  call calcpv_nests(l,n)
+  call calcpv_nest(l,n)
 
   end do
-end subroutine calcpar_nests
+end subroutine calcpar_nest
 
-real function obukhov(ps,tsurf,tdsurf,tlev,ustar,hf,akm,bkm,plev)
+real function obukhov(ps,tsfc,tdsfc,tlev,ustar,hf,akm,bkm,plev)
 
   !********************************************************************
   !                                                                   *
@@ -1354,8 +1402,8 @@ real function obukhov(ps,tsurf,tdsurf,tlev,ustar,hf,akm,bkm,plev)
   !     INPUT:                                                        *
   !                                                                   *
   !     ps      surface pressure [Pa]                                 *
-  !     tsurf   surface temperature [K]                               *
-  !     tdsurf  surface dew point [K]                                 *
+  !     tsfc   surface temperature [K]                               *
+  !     tdsfc  surface dew point [K]                                 *
   !     tlev    temperature first model level [K]                     *
   !     ustar   scale velocity [m/s]                                  *
   !     hf      surface sensible heat flux [W/m2]                     *
@@ -1366,18 +1414,18 @@ real function obukhov(ps,tsurf,tdsurf,tlev,ustar,hf,akm,bkm,plev)
   !                                                                   *
   !********************************************************************
 
-  use class_gribfile
+  use class_gribfile_mod
   use qvsat_mod
 
   implicit none
 
   real,dimension(:) :: akm,bkm
-  real :: ps,tsurf,tdsurf,tlev,ustar,hf,e,tv,rhoa,plev
+  real :: ps,tsfc,tdsfc,tlev,ustar,hf,e,tv,rhoa,plev
   real :: ak1,bk1,theta,thetastar
 
 
-  e=ew(tdsurf,ps)                           ! vapor pressure
-  tv=tsurf*(1.+0.378*e/ps)               ! virtual temperature
+  e=ew(tdsfc,ps)                           ! vapor pressure
+  tv=tsfc*(1.+0.378*e/ps)               ! virtual temperature
   rhoa=ps/(r_air*tv)                      ! air density
   if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
   ak1=(akm(1)+akm(2))/2.
@@ -1396,7 +1444,7 @@ real function obukhov(ps,tsurf,tdsurf,tlev,ustar,hf,akm,bkm,plev)
   if (obukhov.lt.-9999.) obukhov=-9999.
 end function obukhov
 
-subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
+subroutine richardson(psfc,ust,ttlev,qvlev,ulev,vlev,nuvz, &
        akz,bkz,hf,tt2,td2,h,wst,hmixplus,ierr)
   !                        i    i    i     i    i    i    i
   ! i   i  i   i   i  o  o     o
@@ -1437,7 +1485,7 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
   ! Variables:                                                                *
   ! h                          mixing height [m]                              *
   ! hf                         sensible heat flux                             *
-  ! psurf                      surface pressure at point (xt,yt) [Pa]         *
+  ! psfc                      surface pressure at point (xt,yt) [Pa]         *
   ! tv                         virtual temperature                            *
   ! wst                        convective velocity scale                      *
   ! metdata_format             format of metdata (ecmwf/gfs)                  *
@@ -1447,7 +1495,7 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
   !                                                                           *
   !****************************************************************************
 
-  use class_gribfile
+  use class_gribfile_mod
   use qvsat_mod
 
   implicit none
@@ -1461,7 +1509,7 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
   integer,intent(in)  ::            &
     nuvz                              ! Upper vertical level
   real,intent(in) ::                &
-    psurf,                          & ! surface pressure at point (xt,yt) [Pa] 
+    psfc,                           & ! surface pressure at point (xt,yt) [Pa] 
     ust,                            & ! Scale velocity
     hf,                             & ! Surface sensible heat flux
     tt2,td2                           ! Temperature
@@ -1472,7 +1520,7 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
     vlev,                           &
     akz,bkz
   integer ::                        &
-    i,k,iter,llev,loop_start          ! Loop variables
+    i,k,iter,llev,loop_start,kcheck   ! Loop variables
   real ::                           &
     tv,tvold,                       & ! Virtual temperature
     zref,z,zold,zl,zl1,zl2,         & ! Heights
@@ -1498,7 +1546,7 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
 
      llev = 0
      do i=1,nuvz
-       if (psurf.lt.akz(i)) llev=i
+       if (psfc.lt.akz(i)) llev=i
      end do
      llev = llev+1
     ! sec llev should not be 1!
@@ -1514,11 +1562,12 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
 
   do iter=1,itmax,1
 
-    pold=psurf
-    tvold=tt2*(1.+0.378*ew(td2,psurf)/psurf)
+    pold=psfc
+    tvold=tt2*(1.+0.378*ew(td2,psfc)/psfc)
     zold=2.0
     zref=zold
-    rhold=ew(td2,psurf)/ew(tt2,psurf)
+    rhold=ew(td2,psfc)/ew(tt2,psfc)
+
 
     thetaref=tvold*(100000./pold)**(r_air/cpa)+excess
     thetaold=thetaref
@@ -1531,8 +1580,10 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
     else
       loop_start=llev
     end if
+    kcheck=loop_start
     do k=loop_start,nuvz
-      pint=akz(k)+bkz(k)*psurf  ! pressure on model layers
+      kcheck=k
+      pint=akz(k)+bkz(k)*psfc  ! pressure on model layers
       tv=ttlev(k)*(1.+0.608*qvlev(k))
 
       if (abs(tv-tvold).gt.0.2) then
@@ -1542,7 +1593,7 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
       endif
 
       theta=tv*(100000./pint)**(r_air/cpa)
-    ! Petra
+    ! PS
       rh = qvlev(k) / f_qvsat( pint, ttlev(k) )
 
 
@@ -1563,8 +1614,8 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
       zold=z
     end do
     ! Check opied from FLEXPART-WRF, 2022 LB
-    if (k.ge.nuvz) then
-      write(*,*) 'richardson not working -- k = nuvz'
+    if (kcheck.ge.nuvz) then
+      write(*,*) 'richardson not working, no stable layer -- k = nuvz'
       ierr = -10
       goto 7000
     endif
@@ -1577,8 +1628,8 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
     theta1=thetaold
     do i=1,20
       zl=zold+real(i)/20.*(z-zold)
-      ul=ulev(k-1)+real(i)/20.*(ulev(k)-ulev(k-1))
-      vl=vlev(k-1)+real(i)/20.*(vlev(k)-vlev(k-1))
+      ul=ulev(kcheck-1)+real(i)/20.*(ulev(kcheck)-ulev(kcheck-1))
+      vl=vlev(kcheck-1)+real(i)/20.*(vlev(kcheck)-vlev(kcheck-1))
       thetal=thetaold+real(i)/20.*(theta-thetaold)
       rhl=rhold+real(i)/20.*(rh-rhold)
       ril=ga/thetaref*(thetal-thetaref)*(zl-zref)/ &
@@ -1587,12 +1638,12 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
       theta2=thetal
       if (ril.gt.ric) exit
       if (i.eq.20) then
-        write(*,*) 'WARNING: NO RICHARDSON NUMBER GREATER THAN 0.25 FOUND', k,ril,ri
+        write(*,*) 'WARNING: NO RICHARDSON NUMBER GREATER THAN 0.25 FOUND', kcheck,nuvz,ril,ri
         exit
       endif
       zl1=zl
       theta1=thetal
-      !if (i.eq.20) stop 'RICHARDSON: NO RICHARDSON NUMBER GREATER THAN 0.25 FOUND'
+      if (i.eq.20) error stop 'RICHARDSON: NO RICHARDSON NUMBER GREATER THAN 0.25 FOUND'
     end do
 
     h=zl
@@ -1632,18 +1683,8 @@ subroutine richardson(psurf,ust,ttlev,qvlev,ulev,vlev,nuvz, &
 7000  continue
   write(*,'(a         )') 'nuvz'
   write(*,'(i5        )')  nuvz
-  write(*,'(a         )') 'psurf,ust,hf,tt2,td2,h,wst,hmixplus'
-  write(*,'(1p,4e18.10)')  psurf,ust,hf,tt2,td2,h,wst,hmixplus
-  write(*,'(a         )') 'ttlev'
-  write(*,'(1p,4e18.10)')  ttlev
-  write(*,'(a         )') 'qvlev'
-  write(*,'(1p,4e18.10)')  qvlev
-  write(*,'(a         )') 'ulev'
-  write(*,'(1p,4e18.10)')  ulev
-  write(*,'(a         )') 'vlev'
-  write(*,'(1p,4e18.10)')  vlev
-  write(*,'(a         )') 'pplev'
-  write(*,'(1p,4e18.10)')  pplev
+  write(*,'(a         )') 'psfc,ust,hf,tt2,td2,h,wst,hmixplus'
+  write(*,'(1p,4e18.10)')  psfc,ust,hf,tt2,td2,h,wst,hmixplus
   return
 end subroutine richardson
 

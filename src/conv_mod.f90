@@ -11,41 +11,37 @@
 !          - Array operations in convect subroutine
 !          - OpenMP parallelisation in convmix and redist
 !          - Moved all subroutines related to the convection to this module
-!       2022 M. Duetsch:
-!          - Removed goto statements in sort2 subroutine
 !*******************************************************************************
 
 module conv_mod
 
-  use par_mod, only: nxmaxn, nymaxn, maxnests,nxmax,nymax,nconvlevmax,na,nuvzmax
-  use com_mod, only: lconvection
+  use com_mod, only: lconvection, numthreads,nxmaxn, nymaxn,numbnests
   use windfields_mod, only: metdata_format,akz,bkz,akm,bkm,nuvz, &
     uvheight,ps,tt2,td2,tth,qvh,pplev,tt,qv,nx,ny,tt2n,td2n,psn,tthn,qvhn, &
-    yln,yrn,xln,xrn,yresoln,xresoln,nxn,nyn,dxn,dyn
+    yln,yrn,xln,xrn,yresoln,xresoln,nxn,nyn,dxn,dyn, &
+    nxmax,nymax,nconvlevmax,na,nuvzmax
+  use sort_mod
   implicit none
 
   !integer,parameter :: nconvlevmax = nuvzmax-1, &
   !                     na = nconvlevmax+1
   !these parameters are defined in par_mod now!
-  ! I do not know how to allocate each array for each thread, not automaticaly done...
-  real :: &!,allocatable,dimension(:) ::     &
-    pconv(nconvlevmax),                & ! 
-    phconv(na),                        & !
-    dpr(nconvlevmax),                  & !
-    pconv_hpa(nconvlevmax),            & !
-    phconv_hpa(na),                    & !
-    ft(nconvlevmax),                   & !
-    fq(nconvlevmax),                   & !
-    sub(nconvlevmax),                  & ! subsidence
-    tconv(na),                         & !
-    qconv(na),                         & !
-    qsconv(na)                            
-  real :: &!,allocatable,dimension(:,:) ::    & !
-    fmass(nconvlevmax,nconvlevmax),     & !
-    fmassfrac(nconvlevmax,nconvlevmax), & !
-    cbaseflux(0:nxmax-1,0:nymax-1)                         
-  real :: &!,allocatable,dimension(:,:,:) :: &
-    cbasefluxn(0:nxmaxn-1,0:nymaxn-1,maxnests)
+  real,allocatable,dimension(:,:) :: &
+    pconv,                           & ! 
+    phconv,                          & !
+    dpr,                             & !
+    pconv_hpa,                       & !
+    phconv_hpa,                      & !
+    sub,                             & ! subsidence
+    tconv,                           & !
+    qconv,                           & !
+    qsconv                            
+  real,allocatable,dimension(:,:,:) :: & !
+    fmass,                           & !
+    fmassfrac,                       & !
+    cbaseflux                         
+  real,allocatable,dimension(:,:,:,:) :: &
+    cbasefluxn
   ! integer,dimension(na) :: &
   !   NENT
   ! real,dimension(na,na) :: &
@@ -55,18 +51,21 @@ module conv_mod
   !   WATER,QP,EP,TH,WT,     &
   !   EVAP,CLW,SIGP,TP,CPN,  &
   !   LV,LVCP,H,HP,GZ,HM
-  real,dimension(na) ::    &
-    uvzlev(nuvzmax),wsub(nuvzmax)
+  real,allocatable,dimension(:,:) ::    &
+    uvzlev,wsub
   real :: psconv,tt2conv,td2conv
   
-  integer :: nconvlev,nconvtop
+  integer :: nconvlev ! global variable set at start in FLEXPART.f90
+  integer :: nconvtop ! needs to be private, set in convect
 
   save :: uvzlev
 
-!$OMP THREADPRIVATE( ft, fq, fmass, sub, fmassfrac, &
-!$OMP pconv, phconv, dpr, pconv_hpa, phconv_hpa, &
-!$OMP tconv, qconv, qsconv, psconv, tt2conv, td2conv, &
-!$OMP nconvtop,uvzlev,wsub,cbaseflux,cbasefluxn)
+! $OMP THREADPRIVATE( fmass, sub, fmassfrac, &
+! $OMP pconv, phconv, dpr, pconv_hpa, phconv_hpa, &
+! $OMP tconv, qconv, qsconv, psconv, tt2conv, td2conv, &
+! $OMP nconvtop,uvzlev,wsub,cbaseflux,cbasefluxn)
+
+!$OMP THREADPRIVATE( psconv, tt2conv, td2conv,nconvtop)
 ! , &
 ! !$OMP fup,fdown,MENT,NENT,M,MP,QENT,ELIJ,SIJ,TVP,TV, &
 ! !$OMP WATER,QP,EP,TH,WT,EVAP,CLW,SIGP,TP,CPN,LV,LVCP, &
@@ -74,45 +73,50 @@ module conv_mod
 
 contains
 
-subroutine convection_allocate
+subroutine alloc_convect
   implicit none
+  integer :: stat
   if (.not.lconvection.eq.1) return
-  ! ! nconvlevmax=nuvzmax-1
-  ! ! na=nconvlevmax+1
-  ! allocate(pconv(nconvlevmax),phconv(na),dpr(nconvlevmax), &
-  !   pconv_hpa(nconvlevmax),phconv_hpa(na),ft(nconvlevmax), &
-  !   fq(nconvlevmax),fmass(nconvlevmax,nconvlevmax),        &
-  !   sub(nconvlevmax),fmassfrac(nconvlevmax,nconvlevmax),   &
-  !   cbaseflux(0:nxmax-1,0:nymax-1),                        &
-  !   cbasefluxn(0:nxmaxn-1,0:nymaxn-1,maxnests),            &
-  !   tconv(na),qconv(na),qsconv(na))
+  ! nconvlevmax=nuvzmax-1
+  ! na=nconvlevmax+1
+  allocate( pconv(nconvlevmax,numthreads),phconv(na,numthreads), &
+    dpr(nconvlevmax,numthreads), &
+    pconv_hpa(nconvlevmax,numthreads),phconv_hpa(na,numthreads), &
+    fmass(nconvlevmax,nconvlevmax,numthreads),        &
+    sub(nconvlevmax,numthreads), &
+    fmassfrac(nconvlevmax,nconvlevmax,numthreads),   &
+    cbaseflux(0:nxmax-1,0:nymax-1,numthreads),                        &
+    cbasefluxn(0:nxmaxn-1,0:nymaxn-1,numbnests,numthreads),            &
+    tconv(na,numthreads),qconv(na,numthreads),qsconv(na,numthreads),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate convection arrays"
 
-  ! allocate(uvzlev(nuvzmax),wsub(nuvzmax))
+  allocate( uvzlev(nuvzmax,numthreads),wsub(nuvzmax,numthreads),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate uvzlev or wsub"
 
-  ! allocate(FUP(NA),FDOWN(NA),NENT(NA),                     &
+  ! allocate(FUP(NA),FT(NA),FQ(NA),FDOWN(NA),NENT(NA),       &
   !   M(NA),MP(NA),MENT(NA,NA),QENT(NA,NA),ELIJ(NA,NA),      &
   !   SIJ(NA,NA),TVP(NA),TV(NA),WATER(NA),                   &
   !   QP(NA),EP(NA),TH(NA),WT(NA),EVAP(NA),CLW(NA),          &
   !   SIGP(NA),TP(NA),CPN(NA),                               &
   !   LV(NA),LVCP(NA),H(NA),HP(NA),GZ(NA),HM(NA))
-end subroutine convection_allocate
 
-subroutine convection_deallocate
+end subroutine alloc_convect
+
+subroutine dealloc_convect
   implicit none
   if (.not.lconvection.eq.1) return
-  ! deallocate(pconv,phconv,dpr,pconv_hpa,phconv_hpa,ft,fq,sub, &
-  !   tconv,qconv,qsconv,fmass,fmassfrac,cbaseflux,cbasefluxn)
-  ! deallocate(uvzlev,wsub)
-  ! deallocate(fup,fdown,ment,M,MP,QENT,ELIJ,SIJ,TVP,TV, &
+  deallocate(pconv,phconv,dpr,pconv_hpa,phconv_hpa,sub,      &
+    tconv,qconv,qsconv,fmass,fmassfrac,cbaseflux,cbasefluxn)
+  deallocate(uvzlev,wsub)
+  ! deallocate(fup,fdown,ment,ft,fq,M,MP,QENT,ELIJ,SIJ,TVP,TV, &
   !   WATER,QP,EP,TH,WT,EVAP,CLW,SIGP,TP,CPN,LV,LVCP, &
   !   H,HP,GZ,HM)
-end subroutine convection_deallocate
+end subroutine dealloc_convect
 
-subroutine set_upperlevel_convect()
-  ! Determine the uppermost level for which the convection scheme shall be applied
-  ! by assuming that there is no convection above 50 hPa (for standard SLP)
-  !*****************************************************************************  
-  implicit none
+subroutine set_conv_top()
+! Determine the uppermost level for which the convection scheme shall be applied
+! by assuming that there is no convection above 50 hPa (for standard SLP)
+!*****************************************************************************  
 
   integer :: i
   real :: pint
@@ -124,10 +128,11 @@ subroutine set_upperlevel_convect()
   nconvlev=i
   if (nconvlev.gt.nconvlevmax-1) then
     nconvlev=nconvlevmax-1
-    write(*,*) 'Attention, convection only calculated up to ', &
+    write(*,*) 'INFORMATION: Convection only calculated up to ', &
          akz(nconvlev)+bkz(nconvlev)*1013.25,' hPa'
   endif  
-end subroutine set_upperlevel_convect
+
+end subroutine set_conv_top
 
 subroutine convmix(itime)
   !                     i
@@ -155,13 +160,13 @@ subroutine convmix(itime)
   use flux_mod
   use par_mod
   use com_mod
-  use class_gribfile
+  use class_gribfile_mod
   use particle_mod
 
   implicit none
 
-  integer :: igr,igrold, ipart, itime, ix, j, inest
-  integer :: ipconv,thread,ithread
+  integer :: igr,igrold, ipart, itime, ix, i, j, inest
+  integer :: ipconv,ithread,stat
   integer :: jy, kpart, ktop, ngrid,kz
   integer,allocatable :: igrid(:), ipoint(:), igridn(:,:)
 
@@ -182,7 +187,7 @@ subroutine convmix(itime)
   integer,allocatable,dimension(:) :: frst
   double precision :: tmarray(2)
 
-  integer :: totpart,alivepart
+  integer :: alivepart
   real:: eps
   eps=nxmax/3.e5
   ! Calculate auxiliary variables for time interpolation
@@ -199,13 +204,16 @@ subroutine convmix(itime)
 
   ! if no particles are present return after initialization
   !********************************************************
-  call get_alive_part_num(alivepart)
+  call get_alivepart_num(alivepart)
   if (alivepart.le.0 ) return
 
-  call get_total_part_num(totpart)
-  allocate( igrid(totpart) )
-  allocate( ipoint(totpart) )
-  allocate( igridn(totpart,maxnests) )
+  !call get_totalpart_num(totpart)
+  allocate( igrid(alivepart),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate igrid"
+  allocate( ipoint(alivepart),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate ipoint"
+  allocate( igridn(alivepart,numbnests),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate igridn"
 
   ! Assign igrid and igridn, which are pseudo grid numbers indicating particles
   ! that are outside the part of the grid under consideration
@@ -214,18 +222,21 @@ subroutine convmix(itime)
   ! igrid shall be -1
   ! Also, initialize index vector ipoint
   !************************************************************************
-!$OMP PARALLEL PRIVATE(ipart, j, x, y, ngrid, xtn, ytn, ix, jy)
+  igrid(:) = -1
+  do j=numbnests,1,-1
+    igridn(:,j)=-1
+  end do
+
+!$OMP PARALLEL PRIVATE(ipart, i, j, x, y, ngrid, xtn, ytn, ix, jy)
 !$OMP DO
-  do ipart=1,numpart
-    igrid(ipart)=-1
-    do j=numbnests,1,-1
-      igridn(ipart,j)=-1
-    end do
-    ipoint(ipart)=ipart
-  ! do not consider particles that are not (yet) part of simulation
-    if (.not. part(ipart)%alive) cycle
-    x = part(ipart)%xlon
-    y = part(ipart)%ylat
+  do i=1,alivepart
+    ! do not consider particles that are not (yet) part of simulation
+    ipart=count%ialive(i)
+
+    ipoint(i)=ipart
+
+    x = real(part(ipart)%xlon)
+    y = real(part(ipart)%ylat)
 
   ! Determine which nesting level to be used
   !**********************************************************
@@ -261,13 +272,13 @@ subroutine convmix(itime)
       ix=nint(xtn)
       jy=nint(ytn)
       ! igridn(ipart,ngrid) = 1 + jy*nxn(ngrid) + ix
-      igridn(ipart,ngrid) = 1 + ix*nyn(ngrid) + jy
+      igridn(i,ngrid) = 1 + ix*nyn(ngrid) + jy
     else if(ngrid.eq.0) then
   ! mother grid
       ix=nint(x)
       jy=nint(y)
       !igrid(ipart) = 1 + jy*nx + ix
-      igrid(ipart) = 1 + ix*ny + jy
+      igrid(i) = 1 + ix*ny + jy
     endif
   end do
 !$OMP END DO
@@ -286,37 +297,38 @@ subroutine convmix(itime)
 
   ! sort particles according to horizontal position and calculate index vector IPOINT
 
-  call sort2(numpart,igrid,ipoint)
+  call sort2(alivepart,igrid,ipoint)
 
   ! Now visit all grid columns where particles are present
   ! by going through the sorted particles
 
   !LB changes following the CTM version
-  allocate(frst(nx*(ny+1)+1))
+  allocate( frst(nx*(ny+1)+1),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate frst"
   frst(1) = 1
   cnt = 2
   igrold = igrid(1)
   ! Looping over all particles and counting how many in each igrid reside.
   ! This is saved in frst. The number of consecutive particles in igrid is saved in frst(i)
-  do kpart=1,numpart
+  do kpart=1,alivepart
     if (igrold.ne.igrid(kpart)) then
       frst(cnt) = kpart
       igrold=igrid(kpart)
       cnt=cnt+1
     endif
   end do 
-  frst(cnt) = numpart+1
+  frst(cnt) = alivepart+1
 
 !$OMP PARALLEL PRIVATE(kk,jy,ix,tmarray,j,kz,ktop,lconv,kpart,ipart,&
-!$OMP ztold,nage,ipconv,itage,thread)
+!$OMP ztold,nage,ipconv,itage,ithread)
 
 #if (defined _OPENMP)
-    thread = OMP_GET_THREAD_NUM() ! Starts at 0
+    ithread = OMP_GET_THREAD_NUM()+1 ! Starts at 1
 #else
-    thread = 0
+    ithread = 1
 #endif
 
-!$OMP DO SCHEDULE(static)
+!$OMP DO SCHEDULE(dynamic)
   do kk=1,cnt-1
     ! Only consider grids that have particles inside
     if (igrid(frst(kk)).eq.-1) cycle
@@ -334,24 +346,24 @@ subroutine convmix(itime)
 
     if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
       do kz=1,nuvz-1           !bugfix
-        tconv(kz)=(tth(ix,jy,kz+1,mind1)*dt2+ &
+        tconv(kz,ithread)=(tth(ix,jy,kz+1,mind1)*dt2+ &
              tth(ix,jy,kz+1,mind2)*dt1)*dtt
-        qconv(kz)=(qvh(ix,jy,kz+1,mind1)*dt2+ &
+        qconv(kz,ithread)=(qvh(ix,jy,kz+1,mind1)*dt2+ &
              qvh(ix,jy,kz+1,mind2)*dt1)*dtt
       end do
     else
       do kz=1,nuvz-1           !bugfix
-        pconv(kz)=(pplev(ix,jy,kz,mind1)*dt2+ &
+        pconv(kz,ithread)=(pplev(ix,jy,kz,mind1)*dt2+ &
             pplev(ix,jy,kz,mind2)*dt1)*dtt
-        tconv(kz)=(tt(ix,jy,kz,mind1)*dt2+ &
+        tconv(kz,ithread)=(tt(ix,jy,kz,mind1)*dt2+ &
             tt(ix,jy,kz,mind2)*dt1)*dtt
-        qconv(kz)=(qv(ix,jy,kz,mind1)*dt2+ &
+        qconv(kz,ithread)=(qv(ix,jy,kz,mind1)*dt2+ &
             qv(ix,jy,kz,mind2)*dt1)*dtt
       end do
     end if
 
   ! Calculate translocation matrix
-    call calcmatrix(lconv,delt,cbaseflux(ix,jy))
+    call calcmatrix(lconv,delt,cbaseflux(ix,jy,ithread),ithread)
     
   ! treat particle only if column has convection
     if (lconv .eqv. .true.) then
@@ -360,7 +372,7 @@ subroutine convmix(itime)
       do kpart=frst(kk), frst(kk+1)-1
         ipart = ipoint(kpart)
         ztold=real(part(ipart)%z)
-        call redist(itime,ipart,ktop,ipconv)
+        call redist(itime,ipart,ktop,ipconv,ithread)
   !    if (ipconv.le.0) sumconv = sumconv+1
 
   ! Calculate the gross fluxes across layer interfaces
@@ -376,7 +388,7 @@ subroutine convmix(itime)
 
           if (nage.le.nageclass) &
             call calcfluxes(itime,nage,ipart,real(part(ipart)%xlon), &
-               real(part(ipart)%ylat),ztold,thread+1)
+               real(part(ipart)%ylat),ztold,ithread)
         endif
       enddo
 
@@ -402,19 +414,24 @@ subroutine convmix(itime)
 
   ! sort particles according to horizontal position and calculate index vector IPOINT
   do inest=1,numbnests
-    do ipart=1,numpart
-      ipoint(ipart)=ipart
-      igrid(ipart) = igridn(ipart,inest)
+    do i=1,alivepart
+      ipoint(i)=count%ialive(i)
+      igrid(i) = igridn(i,inest)
     enddo
-    call sort2(numpart,igrid,ipoint)
+    call sort2(alivepart,igrid,ipoint)
 
   ! Now visit all grid columns where particles are present
   ! by going through the sorted particles
 !$OMP PARALLEL PRIVATE (igrold,kpart,ipart,igr,jy,ix,kz,lconv, &
 !$OMP ktop,ztold,nage,ipconv,itage)
     igrold = -1
-!$OMP DO
-    do kpart=1,numpart
+#if (defined _OPENMP)
+    ithread = OMP_GET_THREAD_NUM()+1 ! Starts at 1
+#else
+    ithread = 1
+#endif
+!$OMP DO SCHEDULE(dynamic)
+    do kpart=1,alivepart
       igr = igrid(kpart)
       if (igr .eq. -1) cycle
       ipart = ipoint(kpart)
@@ -433,15 +450,15 @@ subroutine convmix(itime)
              td2n(ix,jy,1,mind2,inest)*dt1)*dtt
 !!$        do kz=1,nconvlev+1    !old
         do kz=1,nuvz-1           !bugfix
-          tconv(kz)=(tthn(ix,jy,kz+1,mind1,inest)*dt2+ &
+          tconv(kz,ithread)=(tthn(ix,jy,kz+1,mind1,inest)*dt2+ &
                tthn(ix,jy,kz+1,mind2,inest)*dt1)*dtt
-          qconv(kz)=(qvhn(ix,jy,kz+1,mind1,inest)*dt2+ &
+          qconv(kz,ithread)=(qvhn(ix,jy,kz+1,mind1,inest)*dt2+ &
                qvhn(ix,jy,kz+1,mind2,inest)*dt1)*dtt
         end do
 
   ! calculate translocation matrix
   !*******************************
-        call calcmatrix(lconv,delt,cbasefluxn(ix,jy,inest))
+        call calcmatrix(lconv,delt,cbasefluxn(ix,jy,inest,ithread),ithread)
         igrold = igr
         ktop = 0
       endif
@@ -449,8 +466,8 @@ subroutine convmix(itime)
   ! treat particle only if column has convection
       if (lconv .eqv. .true.) then
   ! assign new vertical position to particle
-        ztold=part(ipart)%z
-        call redist(itime,ipart,ktop,ipconv)
+        ztold=real(part(ipart)%z)
+        call redist(itime,ipart,ktop,ipconv,ithread)
   !      if (ipconv.le.0) sumconv = sumconv+1
 
   ! Calculate the gross fluxes across layer interfaces
@@ -502,7 +519,7 @@ subroutine convmix(itime)
   return
 end subroutine convmix
 
-subroutine calcmatrix(lconv,delt,cbmf)
+subroutine calcmatrix(lconv,delt,cbmf,ithread)
   !                        o    i    o
   !*****************************************************************************
   !                                                                            *
@@ -533,14 +550,15 @@ subroutine calcmatrix(lconv,delt,cbmf)
 
   use par_mod
   use com_mod
-  use class_gribfile
+  use class_gribfile_mod
   use qvsat_mod
 
   implicit none
 
+  integer,intent(in) :: ithread !OMP thread starting at 1
   real :: rlevmass,summe
 
-  integer :: iflag, k, kk, kuvz
+  integer :: iflag, k, kk
 
   !1-d variables for convection
   !variables for redistribution matrix
@@ -565,7 +583,7 @@ subroutine calcmatrix(lconv,delt,cbmf)
   ! not given
 
 
-  phconv(1) = psconv
+  phconv(1,ithread) = psconv
   ! Emanuel subroutine needs pressure in hPa, therefore convert all pressures
   ! do kuvz = 2,nuvz
   !   k = kuvz-1
@@ -585,16 +603,16 @@ subroutine calcmatrix(lconv,delt,cbmf)
   ! end do
   ! LB 04.05.2021, replace above with array operations
   if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-    pconv(1:nuvz-1) = (akz(2:nuvz) + bkz(2:nuvz)*psconv)
-    phconv(2:nuvz) = (akm(2:nuvz) + bkm(2:nuvz)*psconv)
+    pconv(1:nuvz-1,ithread) = (akz(2:nuvz) + bkz(2:nuvz)*psconv)
+    phconv(2:nuvz,ithread) = (akm(2:nuvz) + bkm(2:nuvz)*psconv)
   else
-    phconv(2:nuvz) =  0.5*(pconv(2:nuvz)+pconv(1:nuvz-1))
+    phconv(2:nuvz,ithread) =  0.5*(pconv(2:nuvz,ithread)+pconv(1:nuvz-1,ithread))
   endif
-  dpr(1:nuvz-1) = phconv(1:nuvz-1) - phconv(2:nuvz)
+  dpr(1:nuvz-1,ithread) = phconv(1:nuvz-1,ithread) - phconv(2:nuvz,ithread)
   do k = 1,nuvz-1
-    qsconv(k) = f_qvsat( pconv(k), tconv(k) )
+    qsconv(k,ithread) = f_qvsat( pconv(k,ithread), tconv(k,ithread) )
   end do
-  fmassfrac(1:nuvz-1,1:nconvlev)=0.
+  fmassfrac(1:nuvz-1,1:nconvlev,ithread)=0.
   ! LB end
 
   !note that Emanuel says it is important
@@ -614,12 +632,12 @@ subroutine calcmatrix(lconv,delt,cbmf)
   ! end do
   ! phconv_hpa(nconvlev+1)=phconv(nconvlev+1)/100.
   ! LB 04.05.2021, replace above with array operations
-  pconv_hpa(1:nconvlev+1)=pconv(1:nconvlev+1)/100.
-  phconv_hpa(1:nconvlev+1)=phconv(1:nconvlev+1)/100.
+  pconv_hpa(1:nconvlev+1,ithread)=pconv(1:nconvlev+1,ithread)/100.
+  phconv_hpa(1:nconvlev+1,ithread)=phconv(1:nconvlev+1,ithread)/100.
   ! LB end
     
   call convect(nconvlevmax, nconvlev, delt, iflag, &
-       precip, wd, tprime, qprime, cbmf)
+       precip, wd, tprime, qprime, cbmf, ithread)
 
   ! do not update fmassfrac and cloudbase massflux
   ! if no convection takes place or
@@ -642,13 +660,13 @@ subroutine calcmatrix(lconv,delt,cbmf)
 
   lconv = .true.
   do k=1,nconvtop
-    rlevmass = dpr(k)/ga
+    rlevmass = dpr(k,ithread)/ga
     summe = 0.
     do kk=1,nconvtop
-      fmassfrac(k,kk) = delt*fmass(k,kk)
-      summe = summe + fmassfrac(k,kk)
+      fmassfrac(k,kk,ithread) = delt*fmass(k,kk,ithread)
+      summe = summe + fmassfrac(k,kk,ithread)
     end do
-    fmassfrac(k,k)=fmassfrac(k,k) + rlevmass - summe
+    fmassfrac(k,k,ithread)=fmassfrac(k,k,ithread) + rlevmass - summe
   end do
   ! LB 04.05.2021, replace above with array operations (not the problem)
   ! fmassfrac(1:nconvtop,1:nconvtop) = delt*fmass(1:nconvtop,1:nconvtop)
@@ -658,7 +676,7 @@ subroutine calcmatrix(lconv,delt,cbmf)
   ! LB end
 end subroutine calcmatrix
 
-subroutine redist(itime,ipart,ktop,ipconv)
+subroutine redist(itime,ipart,ktop,ipconv,ithread)
 
   !**************************************************************************
   ! Do the redistribution of particles due to convection
@@ -677,15 +695,18 @@ subroutine redist(itime,ipart,ktop,ipconv)
   use random_mod
   use omp_lib
   use interpol_mod
-  use coordinates_ecmwf_mod
+#ifdef ETA
+  use coord_ecmwf_mod
+#endif
   use particle_mod
   use qvsat_mod
 
   implicit none
 
+  integer,intent(in) :: ithread ! OMP thread starting at 1
   real,parameter :: const=r_air/ga
   integer :: ipart, ktop,ipconv,itime
-  integer :: k, kz, levnew, levold,ithread
+  integer :: k, kz, levnew, levold
 
   real :: totlevmass, wsubpart
   real :: temp_levold,temp_levold1
@@ -693,12 +714,6 @@ subroutine redist(itime,ipart,ktop,ipconv)
   real :: pint, pold, rn, tv, tvold, dlevfrac
   real :: ztold,ffraction
   real :: tv1, tv2, dlogp, dz, dz1, dz2
-  
-#ifdef _OPENMP
-  ithread = OMP_GET_THREAD_NUM() ! Starts at 0
-#else
-  ithread=0
-#endif
 
   ! ipart   ... number of particle to be treated
 
@@ -706,99 +721,94 @@ subroutine redist(itime,ipart,ktop,ipconv)
 
   ! !  determine vertical grid position of particle in the eta system
   ! !****************************************************************
-  select case (wind_coord_type)
+#ifdef ETA
+  ztold = real(part(abs(ipart))%zeta)
+  ! find old particle grid position
+  levold = nconvtop
+  do kz = 2, nconvtop
+    if (wheight(kz) .le. ztold ) then
+      levold = kz-1
+      exit
+    endif
+  end do
+#else
 
-    case ('ETA')
-      ztold = real(part(abs(ipart))%zeta)
-      ! find old particle grid position
-      levold = nconvtop
-      do kz = 2, nconvtop
-        if (wheight(kz) .le. ztold ) then
-          levold = kz-1
-          exit
-        endif
-      end do
+  ! determine height of the eta half-levels (uvzlev)
+  ! do that only once for each grid column
+  ! i.e. when ktop.eq.1
+  !**************************************************************
 
-    case ('METER')
+  if (ktop .le. 1) then
 
-      ! determine height of the eta half-levels (uvzlev)
-      ! do that only once for each grid column
-      ! i.e. when ktop.eq.1
-      !**************************************************************
+    tvold=tt2conv*(1.+0.378*ew(td2conv,psconv)/psconv)
+    pold=psconv
+    uvzlev(1,ithread)=0.
 
-      if (ktop .le. 1) then
+    pint = phconv(2,ithread)
+  !  determine next virtual temperatures
+    tv1 = tconv(1,ithread)*(1.+0.608*qconv(1,ithread))
+    tv2 = tconv(2,ithread)*(1.+0.608*qconv(2,ithread))
+  !  interpolate virtual temperature to half-level
+    tv = tv1 + (tv2-tv1)*(pconv(1,ithread)-phconv(2,ithread))/ &
+      (pconv(1,ithread)-pconv(2,ithread))
+    tv = tv1 + (tv2-tv1)*(pconv(1,ithread)-phconv(2,ithread))/ &
+      (pconv(1,ithread)-pconv(2,ithread))
+    if (abs(tv-tvold).gt.0.2) then
+      uvzlev(2,ithread) = uvzlev(1,ithread) + &
+           const*log(pold/pint)* &
+           (tv-tvold)/log(tv/tvold)
+    else
+      uvzlev(2,ithread) = uvzlev(1,ithread)+ &
+           const*log(pold/pint)*tv
+    endif
+    tvold=tv
+    tv1=tv2
+    pold=pint
 
-        tvold=tt2conv*(1.+0.378*ew(td2conv,psconv)/psconv)
-        pold=psconv
-        uvzlev(1)=0.
-
-        pint = phconv(2)
-      !  determine next virtual temperatures
-        tv1 = tconv(1)*(1.+0.608*qconv(1))
-        tv2 = tconv(2)*(1.+0.608*qconv(2))
-      !  interpolate virtual temperature to half-level
-        tv = tv1 + (tv2-tv1)*(pconv(1)-phconv(2))/(pconv(1)-pconv(2))
-        tv = tv1 + (tv2-tv1)*(pconv(1)-phconv(2))/(pconv(1)-pconv(2))
-        if (abs(tv-tvold).gt.0.2) then
-          uvzlev(2) = uvzlev(1) + &
-               const*log(pold/pint)* &
-               (tv-tvold)/log(tv/tvold)
-        else
-          uvzlev(2) = uvzlev(1)+ &
-               const*log(pold/pint)*tv
-        endif
-        tvold=tv
-        tv1=tv2
-        pold=pint
-
-      ! integrate profile (calculation of height agl of eta layers) as required
-        do kz = 3, nconvtop+1
-      !    note that variables defined in calcmatrix.f (pconv,tconv,qconv)
-      !    start at the first real ECMWF model level whereas kz and
-      !    thus uvzlev(kz) starts at the surface. uvzlev is defined at the
-      !    half-levels (between the tconv, qconv etc. values !)
-      !    Thus, uvzlev(kz) is the lower boundary of the tconv(kz) cell.
-          pint = phconv(kz)
-      !    determine next virtual temperatures
-          tv2 = tconv(kz)*(1.+0.608*qconv(kz))
-      !    interpolate virtual temperature to half-level
-          tv = tv1 + (tv2-tv1)*(pconv(kz-1)-phconv(kz))/ &
-               (pconv(kz-1)-pconv(kz))
-          tv = tv1 + (tv2-tv1)*(pconv(kz-1)-phconv(kz))/ &
-               (pconv(kz-1)-pconv(kz))
-          if (abs(tv-tvold).gt.0.2) then
-            uvzlev(kz) = uvzlev(kz-1) + &
-                 const*log(pold/pint)* &
-                 (tv-tvold)/log(tv/tvold)
-          else
-            uvzlev(kz) = uvzlev(kz-1)+ &
-                 const*log(pold/pint)*tv
-          endif
-          tvold=tv
-          tv1=tv2
-          pold=pint
-
-
-        end do
-
-        ktop = 2
-
+  ! integrate profile (calculation of height agl of eta layers) as required
+    do kz = 3, nconvtop+1
+  !    note that variables defined in calcmatrix.f (pconv,tconv,qconv)
+  !    start at the first real ECMWF model level whereas kz and
+  !    thus uvzlev(kz) starts at the surface. uvzlev is defined at the
+  !    half-levels (between the tconv, qconv etc. values !)
+  !    Thus, uvzlev(kz) is the lower boundary of the tconv(kz) cell.
+      pint = phconv(kz,ithread)
+  !    determine next virtual temperatures
+      tv2 = tconv(kz,ithread)*(1.+0.608*qconv(kz,ithread))
+  !    interpolate virtual temperature to half-level
+      tv = tv1 + (tv2-tv1)*(pconv(kz-1,ithread)-phconv(kz,ithread))/ &
+           (pconv(kz-1,ithread)-pconv(kz,ithread))
+      tv = tv1 + (tv2-tv1)*(pconv(kz-1,ithread)-phconv(kz,ithread))/ &
+           (pconv(kz-1,ithread)-pconv(kz,ithread))
+      if (abs(tv-tvold).gt.0.2) then
+        uvzlev(kz,ithread) = uvzlev(kz-1,ithread) + &
+             const*log(pold/pint)* &
+             (tv-tvold)/log(tv/tvold)
+      else
+        uvzlev(kz,ithread) = uvzlev(kz-1,ithread)+ &
+             const*log(pold/pint)*tv
       endif
-      
-      ztold = real(part(abs(ipart))%z)
-      ! find old particle grid position
-      levold = nconvtop
-      do kz = 2, nconvtop
-        if (uvzlev(kz) .ge. ztold ) then
-          levold = kz-1
-          exit
-        endif
-      end do
-    case default
-      write(*,*) 'The wind_coord_type is not defined in redist.f90'
-      stop
+      tvold=tv
+      tv1=tv2
+      pold=pint
 
-  end select
+
+    end do
+
+    ktop = 2
+
+  endif
+  
+  ztold = real(part(abs(ipart))%z)
+  ! find old particle grid position
+  levold = nconvtop
+  do kz = 2, nconvtop
+    if (uvzlev(kz,ithread) .ge. ztold ) then
+      levold = kz-1
+      exit
+    endif
+  end do
+#endif
 
   ! If the particle is above the potentially convective domain, it will be skipped
   if (levold.ne.nconvtop) then
@@ -809,21 +819,21 @@ subroutine redist(itime,ipart,ktop,ipconv)
     !  Choose a random number and find corresponding level of destination
     !  Random numbers to be evenly distributed in [0,1]
 
-    rn = ran3(iseed2(ithread),ithread)
+    rn = ran3(iseed2(ithread-1),ithread-1)
 
     ! initialize levnew
 
     levnew = levold
 
     ffraction = 0.
-    totlevmass=dpr(levold)/ga
+    totlevmass=dpr(levold,ithread)/ga
     loop1: do k = 1,nconvtop
     ! for backward runs use the transposed matrix
      if (ldirect.eq.1) then
-       ffraction=ffraction+fmassfrac(levold,k) &
+       ffraction=ffraction+fmassfrac(levold,k,ithread) &
             /totlevmass
      else
-       ffraction=ffraction+fmassfrac(k,levold) &
+       ffraction=ffraction+fmassfrac(k,levold,ithread) &
             /totlevmass
      endif
      if (rn.le.ffraction) then
@@ -833,9 +843,9 @@ subroutine redist(itime,ipart,ktop,ipconv)
     ! particle is assigned to the center of the grid cell
        if (ffraction.gt.1.e-20) then
         if (ldirect.eq.1) then
-          dlevfrac = (ffraction-rn) / fmassfrac(levold,k) * totlevmass
+          dlevfrac = (ffraction-rn) / fmassfrac(levold,k,ithread) * totlevmass
         else
-          dlevfrac = (ffraction-rn) / fmassfrac(k,levold) * totlevmass
+          dlevfrac = (ffraction-rn) / fmassfrac(k,levold,ithread) * totlevmass
         endif
        else
          dlevfrac = 0.5
@@ -845,35 +855,26 @@ subroutine redist(itime,ipart,ktop,ipconv)
     end do loop1
 
     ! now assign new position to particle
-    select case (wind_coord_type)
-
-      case ('ETA')
-        if ((levnew.le.nconvtop).and.(levnew.ne.levold)) then
-          dlogp = (1.-dlevfrac) * (wheight(levnew+1)-wheight(levnew))
-          call set_zeta(ipart,wheight(levnew)+dlogp)
-          if (part(abs(ipart))%zeta.ge.1.) call set_zeta(ipart,1.-(part(abs(ipart))%zeta-1.))
-          if (part(abs(ipart))%zeta.eq.1.) call update_zeta(ipart,-1.e-4)
-          if (ipconv.gt.0) ipconv=-1
-        endif
-
-      case ('METER')
-        if ((levnew.le.nconvtop).and.(levnew.ne.levold)) then
-          dlogp = (1.-dlevfrac)* (log(phconv(levnew+1))-log(phconv(levnew)))
-          pint = log(phconv(levnew))+dlogp
-          dz1 = pint - log(phconv(levnew))
-          dz2 = log(phconv(levnew+1)) - pint
-          dz = dz1 + dz2
-          call set_z(ipart,(uvzlev(levnew)*dz2+uvzlev(levnew+1)*dz1)/dz)
-          if (part(abs(ipart))%z.lt.0.) call set_z(ipart,-1.*part(abs(ipart))%z)
-          if (ipconv.gt.0) ipconv=-1
-        endif
-
-      case default
-        write(*,*) 'The chosen wind_coord_type is not defined in redist.f90'
-        stop
-
-    end select
-
+#ifdef ETA
+    if ((levnew.le.nconvtop).and.(levnew.ne.levold)) then
+      dlogp = (1.-dlevfrac) * (wheight(levnew+1)-wheight(levnew))
+      call set_zeta(ipart,wheight(levnew)+dlogp)
+      if (part(abs(ipart))%zeta.ge.1.) call set_zeta(ipart,1.-(part(abs(ipart))%zeta-1.))
+      if (part(abs(ipart))%zeta.eq.1.) call update_zeta(ipart,-1.e-4)
+      if (ipconv.gt.0) ipconv=-1
+    endif
+#else
+    if ((levnew.le.nconvtop).and.(levnew.ne.levold)) then
+      dlogp = (1.-dlevfrac)* (log(phconv(levnew+1,ithread))-log(phconv(levnew,ithread)))
+      pint = log(phconv(levnew,ithread))+dlogp
+      dz1 = pint - log(phconv(levnew,ithread))
+      dz2 = log(phconv(levnew+1,ithread)) - pint
+      dz = dz1 + dz2
+      call set_z(ipart,(uvzlev(levnew,ithread)*dz2+uvzlev(levnew+1,ithread)*dz1)/dz)
+      if (part(abs(ipart))%z.lt.0.) call set_z(ipart,-1.*part(abs(ipart))%z)
+      if (ipconv.gt.0) ipconv=-1
+    endif
+#endif
     ! displace particle according to compensating subsidence
     ! this is done to those particles, that were not redistributed
     ! by the matrix
@@ -887,80 +888,72 @@ subroutine redist(itime,ipart,ktop,ipconv)
       ! is displaced by convection to this level
 
       if (levold.gt.1) then
-        temp_levold = tconv(levold-1) + &
-            (tconv(levold)-tconv(levold-1)) &
-            *(pconv(levold-1)-phconv(levold))/ &
-            (pconv(levold-1)-pconv(levold))
+        temp_levold = tconv(levold-1,ithread) + &
+            (tconv(levold,ithread)-tconv(levold-1,ithread)) &
+            *(pconv(levold-1,ithread)-phconv(levold,ithread))/ &
+            (pconv(levold-1,ithread)-pconv(levold,ithread))
         ! Bug fix: Added lsynctime to make units correct
-        sub_levold = sub(levold)/(1.-ga*sub(levold)*lsynctime/dpr(levold))
-        wsub(levold)=-1.*sub_levold*r_air*temp_levold/(phconv(levold))
+        sub_levold = sub(levold,ithread)/(1.-ga*sub(levold,ithread)*lsynctime/dpr(levold,ithread))
+        wsub(levold,ithread)=-1.*sub_levold*r_air*temp_levold/(phconv(levold,ithread))
       else
-        wsub(levold)=0.
+        wsub(levold,ithread)=0.
       endif
 
-      temp_levold1 = tconv(levold) + &
-          (tconv(levold+1)-tconv(levold)) &
-          *(pconv(levold)-phconv(levold+1))/ &
-          (pconv(levold)-pconv(levold+1))
+      temp_levold1 = tconv(levold,ithread) + &
+          (tconv(levold+1,ithread)-tconv(levold,ithread)) &
+          *(pconv(levold,ithread)-phconv(levold+1,ithread))/ &
+          (pconv(levold,ithread)-pconv(levold+1,ithread))
       ! Bug fix: Added lsynctime to make units correct
-      sub_levold1 = sub(levold+1)/(1.-ga*sub(levold+1)*lsynctime/dpr(levold+1))
-      wsub(levold+1)=-1.*sub_levold1*r_air*temp_levold1/ &
-          (phconv(levold+1))
+      sub_levold1 = sub(levold+1,ithread)/(1.-ga*sub(levold+1,ithread)*lsynctime/dpr(levold+1,ithread))
+      wsub(levold+1,ithread)=-1.*sub_levold1*r_air*temp_levold1/ &
+          (phconv(levold+1,ithread))
 
       ! interpolate wsub to the vertical particle position
-      select case (wind_coord_type)
-        case ('ETA')
-          ztold = real(part(abs(ipart))%zeta)
-          dz1 = ztold - wheight(levold)
-          dz2 = wheight(levold+1) - ztold
-          dz = dz1 + dz2
+#ifdef ETA
+      ztold = real(part(abs(ipart))%zeta)
+      dz1 = ztold - wheight(levold)
+      dz2 = wheight(levold+1) - ztold
+      dz = dz1 + dz2
 
-          ! Convert z(eta) to z(m) in order to add subsidence
-          call update_zeta_to_z(itime, ipart)
-          ! call zeta_to_z(itime,part(abs(ipart))%xlon,part(abs(ipart))%ylat, &
-          !   part(abs(ipart))%zeta,part(abs(ipart))%z)
+      ! Convert z(eta) to z(m) in order to add subsidence
+      call update_zeta_to_z(itime, ipart)
+      ! call zeta_to_z(itime,part(abs(ipart))%xlon,part(abs(ipart))%ylat, &
+      !   part(abs(ipart))%zeta,part(abs(ipart))%z)
 
-          wsubpart = (dz2*wsub(levold)+dz1*wsub(levold+1))/dz
+      wsubpart = (dz2*wsub(levold,ithread)+dz1*wsub(levold+1,ithread))/dz
 
-          call update_z(ipart,wsubpart*real(lsynctime))
+      call update_z(ipart,wsubpart*real(lsynctime))
 
-          if (part(abs(ipart))%z.lt.0.) call set_z(ipart,-1.*part(abs(ipart))%z)
+      if (part(abs(ipart))%z.lt.0.) call set_z(ipart,-1.*part(abs(ipart))%z)
 
-          ! Convert new z(m) back to z(eta)
-          call update_z_to_zeta(itime, ipart)
+      ! Convert new z(m) back to z(eta)
+      call update_z_to_zeta(itime, ipart)
           
-        case ('METER')
-          ztold = real(part(abs(ipart))%z)
-          dz1 = ztold - uvzlev(levold)
-          dz2 = uvzlev(levold+1) - ztold
-          dz = dz1 + dz2
+#else
+      ztold = real(part(abs(ipart))%z)
+      dz1 = ztold - uvzlev(levold,ithread)
+      dz2 = uvzlev(levold+1,ithread) - ztold
+      dz = dz1 + dz2
 
-          wsubpart = (dz2*wsub(levold)+dz1*wsub(levold+1))/dz
+      wsubpart = (dz2*wsub(levold,ithread)+dz1*wsub(levold+1,ithread))/dz
 
-          call update_z(ipart,wsubpart*real(lsynctime))
+      call update_z(ipart,wsubpart*real(lsynctime))
 
-          if (part(abs(ipart))%z.lt.0.) call set_z(ipart,-1.*part(abs(ipart))%z)
+      if (part(abs(ipart))%z.lt.0.) call set_z(ipart,-1.*part(abs(ipart))%z)
 
-        case default
-          write(*,*) 'The wind_coord_type is not defined in redist.f90'
-          stop
-      end select
+#endif
     endif      !(levnew.le.nconvtop.and.levnew.eq.levold)
   endif
   ! Maximum altitude .5 meter below uppermost model level
   !*******************************************************
 
-  select case (wind_coord_type)
-    case ('ETA')
-      if (part(abs(ipart))%zeta .lt. uvheight(nz)) call set_zeta(ipart,uvheight(nz)+1.e-4)
-      if (part(abs(ipart))%zeta.ge.1.) call set_zeta(ipart,1.-(part(abs(ipart))%zeta-1.))
-      if (part(abs(ipart))%zeta.eq.1.) call update_zeta(ipart,-1.e-4)
-    case ('METER')
-      if (part(abs(ipart))%z .gt. height(nz)-0.5) call set_z(ipart,height(nz)-0.5)
-    case default
-      write(*,*) 'The wind_coord_type is not defined in redist.f90'
-      stop
-  end select
+#ifdef ETA
+    if (part(abs(ipart))%zeta .lt. uvheight(nz)) call set_zeta(ipart,uvheight(nz)+1.e-4)
+    if (part(abs(ipart))%zeta.ge.1.) call set_zeta(ipart,1.-(part(abs(ipart))%zeta-1.))
+    if (part(abs(ipart))%zeta.eq.1.) call update_zeta(ipart,-1.e-4)
+#else
+    if (part(abs(ipart))%z .gt. height(nz)-0.5) call set_z(ipart,height(nz)-0.5)
+#endif
 
 end subroutine redist
 
@@ -973,7 +966,7 @@ end subroutine redist
 !
   SUBROUTINE CONVECT &
          (ND,  NL,   DELT, IFLAG, &
-         PRECIP, WD,   TPRIME, QPRIME, CBMF    )
+         PRECIP, WD,   TPRIME, QPRIME, CBMF, ithread  )
   !
   !-cv *************************************************************************
   !-cv C. Forster, November 2003 - May 2004:
@@ -1123,6 +1116,7 @@ end subroutine redist
   !
   !Argument variables
   !
+  integer, intent(in) :: ithread ! OMP thread starting at 1
   integer :: iflag, nd, nl
   !
   real :: cbmf, delt, precip, qprime, tprime, wd
@@ -1135,12 +1129,12 @@ end subroutine redist
   real :: ad, afac, ahmax, ahmin, alt, altem
   real :: am, amp1, anum, asij, awat, b6, bf2, bsum, by
   real :: byp, c6, cape, capem, cbmfold, chi, coeff
-  real :: cpinv, cwat, damps, dbo, dbosum
+  real :: cpinv, cwat, damps
   real :: defrac, dei, delm, delp, delt0, delti, denom, dhdp
   real :: dpinv, dtma, dtmin, dtpbl, elacrit, ents
   real :: epmax, fac, fqold, frac, ftold
   real :: plcl, qp1, qsm, qstm, qti, rat
-  real :: rdcp, revap, rh, scrit, sigt, sjmax
+  real :: revap, rh, scrit, sigt, sjmax
   real :: sjmin, smid, smin, stemp, tca
   real :: tvaplcl, tvpplcl, tvx, tvy, wdtrain
 
@@ -1148,14 +1142,14 @@ end subroutine redist
   !real alvnew,a2,ahm,alv,rm,sum,qnew,dphinv,tc,thbar,tnew,x
   !REAL TOLD(NA)
 
-  real :: FUP(NA),FDOWN(NA)
+  real :: FUP(NA),FDOWN(NA),FT(NA),FQ(NA)
   !
   !-cv====>End Module   CONVECT    File convect.f
 
   INTEGER :: NENT(NA)
   REAL :: M(NA),MP(NA),MENT(NA,NA),QENT(NA,NA),ELIJ(NA,NA)
   REAL :: SIJ(NA,NA),TVP(NA),TV(NA),WATER(NA)
-  REAL :: QP(NA),EP(NA),TH(NA),WT(NA),EVAP(NA),CLW(NA)
+  REAL :: QP(NA),EP(NA),WT(NA),EVAP(NA),CLW(NA)
   REAL :: SIGP(NA),TP(NA),CPN(NA)
   REAL :: LV(NA),LVCP(NA),H(NA),HP(NA),GZ(NA),HM(NA)
   !
@@ -1252,20 +1246,13 @@ end subroutine redist
   FT(:NL+1)=0.0
   FQ(:NL+1)=0.0
   FDOWN(:NL+1)=0.0
-  SUB(:NL+1)=0.0
+  sub(:NL+1,ithread)=0.0
   FUP(:NL+1)=0.0
   M(:NL+1)=0.0
   MP(:NL+1)=0.0
-  FMASS(:NL+1,:NL+1)=0.0
+  fmass(:NL+1,:NL+1,ithread)=0.0
   MENT(:NL+1,:NL+1)=0.0
-  ! DO I=1,NL+1
-  !   RDCP=(RD*(1.-QCONV(I))+QCONV(I)*RV)/ &
-  !       (CPD*(1.-QCONV(I))+QCONV(I)*CPV)
-  !   TH(I)=TCONV(I)*(1000.0/PCONV_HPA(I))**RDCP
-  ! END DO
-  ! LB 04.05.2021, below is not mentioned anywhere, so I commented it
-  ! TH(:NL+1)=TCONV(:NL+1)*(1000.0/PCONV_HPA(:NL+1))** &
-  !     (RD*(1.-QCONV(:NL+1))+QCONV(:NL+1)*RV)/ (CPD*(1.-QCONV(:NL+1))+QCONV(:NL+1)*CPV)
+
   PRECIP=0.0
   WD=0.0
   TPRIME=0.0
@@ -1279,11 +1266,11 @@ end subroutine redist
   !  JC=0
   !  DO 30 I=NL-1,1,-1
   !   JN=0
-  !    SUM=TH(I)*(1.+QCONV(I)*EPSI-QCONV(I))
+  !    SUM=TH(I)*(1.+qconv(I)*EPSI-qconv(I))
   !   DO 10 J=I+1,NL
-  !    SUM=SUM+TH(J)*(1.+QCONV(J)*EPSI-QCONV(J))
+  !    SUM=SUM+TH(J)*(1.+qconv(J)*EPSI-qconv(J))
   !    THBAR=SUM/REAL(J+1-I)
-  !    IF((TH(J)*(1.+QCONV(J)*EPSI-QCONV(J))).LT.THBAR)JN=J
+  !    IF((TH(J)*(1.+qconv(J)*EPSI-qconv(J))).LT.THBAR)JN=J
   !  10    CONTINUE
   !   IF(I.EQ.1)JN=MAX(JN,2)
   !   IF(JN.EQ.0)GOTO 30
@@ -1291,36 +1278,36 @@ end subroutine redist
   !   AHM=0.0
   !   RM=0.0
   !   DO 15 J=I,JN
-  !    AHM=AHM+(CPD*(1.-QCONV(J))+QCONV(J)*CPV)*TCONV(J)*
-  !    +   (PHCONV_HPA(J)-PHCONV_HPA(J+1))
-  !    RM=RM+QCONV(J)*(PHCONV_HPA(J)-PHCONV_HPA(J+1))
+  !    AHM=AHM+(CPD*(1.-qconv(J))+qconv(J)*CPV)*tconv(J)*
+  !    +   (phconv_hpa(J)-phconv_hpa(J+1))
+  !    RM=RM+qconv(J)*(phconv_hpa(J)-phconv_hpa(J+1))
   !  15    CONTINUE
-  !   DPHINV=1./(PHCONV_HPA(I)-PHCONV_HPA(JN+1))
+  !   DPHINV=1./(phconv_hpa(I)-phconv_hpa(JN+1))
   !   RM=RM*DPHINV
   !   A2=0.0
   !   DO 20 J=I,JN
-  !    QCONV(J)=RM
-  !    RDCP=(RD*(1.-QCONV(J))+QCONV(J)*RV)/
-  !    1     (CPD*(1.-QCONV(J))+QCONV(J)*CPV)
-  !    X=(0.001*PCONV_HPA(J))**RDCP
-  !    TOLD(J)=TCONV(J)
-  !    TCONV(J)=X
-  !    A2=A2+(CPD*(1.-QCONV(J))+QCONV(J)*CPV)*X*
-  !    1    (PHCONV_HPA(J)-PHCONV_HPA(J+1))
+  !    qconv(J)=RM
+  !    RDCP=(RD*(1.-qconv(J))+qconv(J)*RV)/
+  !    1     (CPD*(1.-qconv(J))+qconv(J)*CPV)
+  !    X=(0.001*pconv_hpa(J))**RDCP
+  !    TOLD(J)=tconv(J)
+  !    tconv(J)=X
+  !    A2=A2+(CPD*(1.-qconv(J))+qconv(J)*CPV)*X*
+  !    1    (phconv_hpa(J)-phconv_hpa(J+1))
   !  20    CONTINUE
   !   DO 25 J=I,JN
   !    TH(J)=AHM/A2
-  !    TCONV(J)=TCONV(J)*TH(J)
+  !    tconv(J)=tconv(J)*TH(J)
   !    TC=TOLD(J)-273.15
   !    ALV=LV0-CPVMCL*TC
-  !    QSCONV(J)=QSCONV(J)+QSCONV(J)*(1.+QSCONV(J)*(EPSI-1.))*ALV*
-  !    1    (TCONV(J)- TOLD(J))/(RV*TOLD(J)*TOLD(J))
+  !    qsconv(J)=qsconv(J)+qsconv(J)*(1.+qsconv(J)*(EPSI-1.))*ALV*
+  !    1    (tconv(J)- TOLD(J))/(RV*TOLD(J)*TOLD(J))
   ! if (qslev(j) .lt. 0.) then
   !   write(*,*) 'qslev.lt.0 ',j,qslev
   ! endif
   !  25    CONTINUE
-  !   IF((TH(JN+1)*(1.+QCONV(JN+1)*EPSI-QCONV(JN+1))).LT.
-  !    1    (TH(JN)*(1.+QCONV(JN)*EPSI-QCONV(JN))))THEN
+  !   IF((TH(JN+1)*(1.+qconv(JN+1)*EPSI-qconv(JN+1))).LT.
+  !    1    (TH(JN)*(1.+qconv(JN)*EPSI-qconv(JN))))THEN
   !    JN=JN+1
   !    GOTO 12
   !   END IF
@@ -1331,18 +1318,18 @@ end subroutine redist
   !
   !IF(JC.GT.1)THEN
   ! DO 38 J=1,JC
-  !    IF(QSCONV(J).LT.QCONV(J))THEN
-  !     ALV=LV0-CPVMCL*(TCONV(J)-273.15)
-  !     TNEW=TCONV(J)+ALV*(QCONV(J)-QSCONV(J))/(CPD*(1.-QCONV(J))+
-  !    1      CL*QCONV(J)+QSCONV(J)*(CPV-CL+ALV*ALV/(RV*TCONV(J)*TCONV(J))))
+  !    IF(qsconv(J).LT.qconv(J))THEN
+  !     ALV=LV0-CPVMCL*(tconv(J)-273.15)
+  !     TNEW=tconv(J)+ALV*(qconv(J)-qsconv(J))/(CPD*(1.-qconv(J))+
+  !    1      CL*qconv(J)+qsconv(J)*(CPV-CL+ALV*ALV/(RV*tconv(J)*tconv(J))))
   !     ALVNEW=LV0-CPVMCL*(TNEW-273.15)
-  !     QNEW=(ALV*QCONV(J)-(TNEW-TCONV(J))*(CPD*(1.-QCONV(J))
-  !    1     +CL*QCONV(J)))/ALVNEW
-  !     PRECIP=PRECIP+24.*3600.*1.0E5*(PHCONV_HPA(J)-PHCONV_HPA(J+1))*
-  !    1      (QCONV(J)-QNEW)/(G*DELT*ROWL)
-  !     TCONV(J)=TNEW
-  !     QCONV(J)=QNEW
-  !     QSCONV(J)=QNEW
+  !     QNEW=(ALV*qconv(J)-(TNEW-tconv(J))*(CPD*(1.-qconv(J))
+  !    1     +CL*qconv(J)))/ALVNEW
+  !     PRECIP=PRECIP+24.*3600.*1.0E5*(phconv_hpa(J)-phconv_hpa(J+1))*
+  !    1      (qconv(J)-QNEW)/(G*DELT*ROWL)
+  !     tconv(J)=TNEW
+  !     qconv(J)=QNEW
+  !     qsconv(J)=QNEW
   !    END IF
   !  38  CONTINUE
   !END IF
@@ -1352,25 +1339,25 @@ end subroutine redist
   !  *** CALCULATE ARRAYS OF GEOPOTENTIAL, HEAT CAPACITY AND STATIC ENERGY
   !
   GZ(1)=0.0
-  CPN(1)=CPD*(1.-QCONV(1))+QCONV(1)*CPV
-  H(1)=TCONV(1)*CPN(1)
-  LV(1)=LV0-CPVMCL*(TCONV(1)-273.15)
-  HM(1)=LV(1)*QCONV(1)
-  TV(1)=TCONV(1)*(1.+QCONV(1)*EPSI-QCONV(1))
+  CPN(1)=CPD*(1.-qconv(1,ithread))+qconv(1,ithread)*CPV
+  H(1)=tconv(1,ithread)*CPN(1)
+  LV(1)=LV0-CPVMCL*(tconv(1,ithread)-273.15)
+  HM(1)=LV(1)*qconv(1,ithread)
+  TV(1)=tconv(1,ithread)*(1.+qconv(1,ithread)*EPSI-qconv(1,ithread))
   AHMIN=1.0E12
   IHMIN=NL
 
   DO I=2,NL+1
-    TVX=TCONV(I)*(1.+QCONV(I)*EPSI-QCONV(I))
-    TVY=TCONV(I-1)*(1.+QCONV(I-1)*EPSI-QCONV(I-1))
-    GZ(I)=GZ(I-1)+0.5*RD*(TVX+TVY)*(PCONV_HPA(I-1)-PCONV_HPA(I))/ &
-         PHCONV_HPA(I)
-    CPN(I)=CPD*(1.-QCONV(I))+CPV*QCONV(I)
-    H(I)=TCONV(I)*CPN(I)+GZ(I)
-    LV(I)=LV0-CPVMCL*(TCONV(I)-273.15)
-    HM(I)=(CPD*(1.-QCONV(I))+CL*QCONV(I))*(TCONV(I)-TCONV(1))+ &
-         LV(I)*QCONV(I)+GZ(I)
-    TV(I)=TCONV(I)*(1.+QCONV(I)*EPSI-QCONV(I))
+    TVX=tconv(I,ithread)*(1.+qconv(I,ithread)*EPSI-qconv(I,ithread))
+    TVY=tconv(I-1,ithread)*(1.+qconv(I-1,ithread)*EPSI-qconv(I-1,ithread))
+    GZ(I)=GZ(I-1)+0.5*RD*(TVX+TVY)*(pconv_hpa(I-1,ithread)-pconv_hpa(I,ithread))/ &
+         phconv_hpa(I,ithread)
+    CPN(I)=CPD*(1.-qconv(I,ithread))+CPV*qconv(I,ithread)
+    H(I)=tconv(I,ithread)*CPN(I)+GZ(I)
+    LV(I)=LV0-CPVMCL*(tconv(I,ithread)-273.15)
+    HM(I)=(CPD*(1.-qconv(I,ithread))+CL*qconv(I,ithread))*(tconv(I,ithread)- &
+      tconv(1,ithread)) + LV(I)*qconv(I,ithread)+GZ(I)
+    TV(I)=tconv(I,ithread)*(1.+qconv(I,ithread)*EPSI-qconv(I,ithread))
 !
 !  ***  Find level of minimum moist static energy    ***
 !
@@ -1402,7 +1389,7 @@ end subroutine redist
   !  ***                          ARE REASONABLE                         ***
   !  ***      Skip convection if HM increases monotonically upward       ***
   !
-  IF(TCONV(NK).LT.250.0.OR.QCONV(NK).LE.0.0.OR.IHMIN.EQ.(NL-1)) THEN
+  IF(tconv(NK,ithread).LT.250.0.OR.qconv(NK,ithread).LE.0.0.OR.IHMIN.EQ.(NL-1)) THEN
     IFLAG=0
     CBMF=0.0
     RETURN
@@ -1411,9 +1398,9 @@ end subroutine redist
   !   ***  CALCULATE LIFTED CONDENSATION LEVEL OF AIR AT PARCEL ORIGIN LEVEL ***
   !   ***       (WITHIN 0.2% OF FORMULA OF BOLTON, MON. WEA. REV.,1980)      ***
   !
-  RH=QCONV(NK)/QSCONV(NK)
-  CHI=TCONV(NK)/(1669.0-122.0*RH-TCONV(NK))
-  PLCL=PCONV_HPA(NK)*(RH**CHI)
+  RH=qconv(NK,ithread)/qsconv(NK,ithread)
+  CHI=tconv(NK,ithread)/(1669.0-122.0*RH-tconv(NK,ithread))
+  PLCL=pconv_hpa(NK,ithread)*(RH**CHI)
   IF(PLCL.LT.200.0.OR.PLCL.GE.2000.0)THEN
     IFLAG=2
     CBMF=0.0
@@ -1424,7 +1411,7 @@ end subroutine redist
   !
   ICB=NL-1
   DO I=NK+1,NL
-    IF(PCONV_HPA(I).LT.PLCL)THEN
+    IF(pconv_hpa(I,ithread).LT.PLCL)THEN
       ICB=MIN(ICB,I)
     END IF
   END DO
@@ -1440,8 +1427,8 @@ end subroutine redist
   !   ***  TEMPERATURE, THE ACTUAL TEMPERATURE AND THE ADIABATIC             ***
   !   ***                   LIQUID WATER CONTENT                             ***
   !
-  CALL TLIFT(GZ,ICB,NK,TVP,TP,CLW,ND,NL,1)
-  TVP(NK:ICB)=TVP(NK:ICB)-TP(NK:ICB)*QCONV(NK)
+  CALL TLIFT(GZ,ICB,NK,TVP,TP,CLW,ND,NL,1,ithread)
+  TVP(NK:ICB)=TVP(NK:ICB)-TP(NK:ICB)*qconv(NK,ithread)
   !
   !   ***  If there was no convection at last time step and parcel    ***
   !   ***       is stable at ICB then skip rest of calculation        ***
@@ -1457,11 +1444,11 @@ end subroutine redist
   !
   !   ***  FIND THE REST OF THE LIFTED PARCEL TEMPERATURES          ***
   !
-  CALL TLIFT(GZ,ICB,NK,TVP,TP,CLW,ND,NL,2)
+  CALL TLIFT(GZ,ICB,NK,TVP,TP,CLW,ND,NL,2,ithread)
   !
   !   ***  SET THE PRECIPITATION EFFICIENCIES AND THE FRACTION OF   ***
   !   ***          PRECIPITATION FALLING OUTSIDE OF CLOUD           ***
-  !   ***      THESE MAY BE FUNCTIONS OF TP(I), PCONV_HPA(I) AND CLW(I)     ***
+  !   ***      THESE MAY BE FUNCTIONS OF TP(I), pconv_hpa(I) AND CLW(I)     ***
   !
   EP(1:NK)=0.0
   SIGP(1:NL)=SIGS
@@ -1499,7 +1486,7 @@ end subroutine redist
   !   ***       CALCULATE VIRTUAL TEMPERATURE AND LIFTED PARCEL     ***
   !   ***                    VIRTUAL TEMPERATURE                    ***
   ! !
-  TVP(ICB+1:NL)=TVP(ICB+1:NL)-TP(ICB+1:NL)*QCONV(NK)
+  TVP(ICB+1:NL)=TVP(ICB+1:NL)-TP(ICB+1:NL)*qconv(NK,ithread)
   TVP(NL+1)=TVP(NL)-(GZ(NL+1)-GZ(NL))/CPD
   !
   !   ***        NOW INITIALIZE VARIOUS ARRAYS USED IN THE COMPUTATIONS       ***
@@ -1513,10 +1500,10 @@ end subroutine redist
   ELIJ(:NL+1,:NL+1)=0.0
   SIJ(:NL+1,:NL+1)=0.0
   DO I=1,NL+1
-    QENT(I,:NL+1)=QCONV(:NL+1)
+    QENT(I,:NL+1)=qconv(:NL+1,ithread)
   END DO  
-  QP(1)=QCONV(1)
-  QP(2:NL+1)=QCONV(:NL)
+  QP(1)=qconv(1,ithread)
+  QP(2:NL+1)=qconv(:NL,ithread)
 
   !
   !  ***  FIND THE FIRST MODEL LEVEL (INB1) ABOVE THE PARCEL'S      ***
@@ -1529,13 +1516,14 @@ end subroutine redist
   INB1=INB
   BYP=0.0
   DO I=ICB+1,NL-1
-    BY=(TVP(I)-TV(I))*(PHCONV_HPA(I)-PHCONV_HPA(I+1))/PCONV_HPA(I)
+    BY=(TVP(I)-TV(I))*(phconv_hpa(I,ithread)-phconv_hpa(I+1,ithread))/ &
+      pconv_hpa(I,ithread)
     CAPE=CAPE+BY
     IF(BY.GE.0.0)INB1=I+1
     IF(CAPE.GT.0.0)THEN
       INB=I+1
-      BYP=(TVP(I+1)-TV(I+1))*(PHCONV_HPA(I+1)-PHCONV_HPA(I+2))/ &
-           PCONV_HPA(I+1)
+      BYP=(TVP(I+1)-TV(I+1))*(phconv_hpa(I+1,ithread)-phconv_hpa(I+2,ithread))/ &
+           pconv_hpa(I+1,ithread)
       CAPEM=CAPE
     END IF
   END DO
@@ -1549,7 +1537,8 @@ end subroutine redist
   !
   !   ***   CALCULATE LIQUID WATER STATIC ENERGY OF LIFTED PARCEL   ***
   !
-  HP(ICB:INB)=H(NK)+(LV(ICB:INB)+(CPD-CPV)*TCONV(ICB:INB))*EP(ICB:INB)*CLW(ICB:INB)
+  HP(ICB:INB)=H(NK)+(LV(ICB:INB)+(CPD-CPV)*tconv(ICB:INB,ithread))* &
+    EP(ICB:INB)*CLW(ICB:INB)
   !
   !   ***  CALCULATE CLOUD BASE MASS FLUX AND RATES OF MIXING, M(I),  ***
   !   ***                   AT EACH MODEL LEVEL                       ***
@@ -1559,14 +1548,15 @@ end subroutine redist
   !   ***     INTERPOLATE DIFFERENCE BETWEEN LIFTED PARCEL AND      ***
   !   ***  ENVIRONMENTAL TEMPERATURES TO LIFTED CONDENSATION LEVEL  ***
   !
-  TVPPLCL=TVP(ICB-1)-RD*TVP(ICB-1)*(PCONV_HPA(ICB-1)-PLCL)/ &
-       (CPN(ICB-1)*PCONV_HPA(ICB-1))
-  TVAPLCL=TV(ICB)+(TVP(ICB)-TVP(ICB+1))*(PLCL-PCONV_HPA(ICB))/ &
-       (PCONV_HPA(ICB)-PCONV_HPA(ICB+1))
+  TVPPLCL=TVP(ICB-1)-RD*TVP(ICB-1)*(pconv_hpa(ICB-1,ithread)-PLCL)/ &
+       (CPN(ICB-1)*pconv_hpa(ICB-1,ithread))
+  TVAPLCL=TV(ICB)+(TVP(ICB)-TVP(ICB+1))*(PLCL-pconv_hpa(ICB,ithread))/ &
+       (pconv_hpa(ICB,ithread)-pconv_hpa(ICB+1,ithread))
   DTPBL=0.0
 
-  DTPBL=sum((TVP(NK:ICB-1)-TV(NK:ICB-1))*(PHCONV_HPA(NK:ICB-1)-PHCONV_HPA(NK+1:ICB)))/ &
-        (PHCONV_HPA(NK)-PHCONV_HPA(ICB))
+  DTPBL=sum((TVP(NK:ICB-1)-TV(NK:ICB-1))*(phconv_hpa(NK:ICB-1,ithread)- &
+    phconv_hpa(NK+1:ICB,ithread)))/ &
+    (phconv_hpa(NK,ithread)-phconv_hpa(ICB,ithread))
   DTMIN=TVPPLCL-TVAPLCL+DTMAX+DTPBL
   DTMA=DTMIN
   !
@@ -1589,9 +1579,9 @@ end subroutine redist
   !   ***   CALCULATE RATES OF MIXING,  M(I)   ***
   M(ICB)=0.0
   M(ICB+1:INB1)=ABS(TV(ICB+1:INB1)-TVP(ICB+1:INB1))+ &
-        ENTP*0.02*(PHCONV_HPA(ICB+1:INB1)-PHCONV_HPA(ICB+2:INB1+1))
+        ENTP*0.02*(phconv_hpa(ICB+1:INB1,ithread)-phconv_hpa(ICB+2:INB1+1,ithread))
   M(INB1:INB)=ABS(TV(INB1)-TVP(INB1))+ &
-        ENTP*0.02*(PHCONV_HPA(INB1)-PHCONV_HPA(INB1+1))
+        ENTP*0.02*(phconv_hpa(INB1,ithread)-phconv_hpa(INB1+1,ithread))
   M(ICB+1:INB)=CBMF*M(ICB+1:INB)/sum(M(ICB+1:INB))
 
   !
@@ -1600,30 +1590,30 @@ end subroutine redist
   !   ***                        FRACTION (SIJ)                          ***
   !
   DO I=ICB+1,INB
-    QTI=QCONV(NK)-EP(I)*CLW(I)
+    QTI=qconv(NK,ithread)-EP(I)*CLW(I)
     DO J=ICB,INB
-      BF2=1.+LV(J)*LV(J)*QSCONV(J)/(RV*TCONV(J)*TCONV(J)*CPD)
-      ANUM=H(J)-HP(I)+(CPV-CPD)*TCONV(J)*(QTI-QCONV(J))
-      DENOM=H(I)-HP(I)+(CPD-CPV)*(QCONV(I)-QTI)*TCONV(J)
+      BF2=1.+LV(J)*LV(J)*qsconv(J,ithread)/(RV*tconv(J,ithread)*tconv(J,ithread)*CPD)
+      ANUM=H(J)-HP(I)+(CPV-CPD)*tconv(J,ithread)*(QTI-qconv(J,ithread))
+      DENOM=H(I)-HP(I)+(CPD-CPV)*(qconv(I,ithread)-QTI)*tconv(J,ithread)
       DEI=DENOM
       IF(ABS(DEI).LT.0.01)DEI=0.01
       SIJ(I,J)=ANUM/DEI
       SIJ(I,I)=1.0
-      ALTEM=SIJ(I,J)*QCONV(I)+(1.-SIJ(I,J))*QTI-QSCONV(J)
+      ALTEM=SIJ(I,J)*qconv(I,ithread)+(1.-SIJ(I,J))*QTI-qsconv(J,ithread)
       ALTEM=ALTEM/BF2
       CWAT=CLW(J)*(1.-EP(J))
       STEMP=SIJ(I,J)
       IF((STEMP.LT.0.0.OR.STEMP.GT.1.0.OR. &
             ALTEM.GT.CWAT).AND.J.GT.I)THEN
-        ANUM=ANUM-LV(J)*(QTI-QSCONV(J)-CWAT*BF2)
-        DENOM=DENOM+LV(J)*(QCONV(I)-QTI)
+        ANUM=ANUM-LV(J)*(QTI-qsconv(J,ithread)-CWAT*BF2)
+        DENOM=DENOM+LV(J)*(qconv(I,ithread)-QTI)
         IF(ABS(DENOM).LT.0.01)DENOM=0.01
         SIJ(I,J)=ANUM/DENOM
-        ALTEM=SIJ(I,J)*QCONV(I)+(1.-SIJ(I,J))*QTI-QSCONV(J)
+        ALTEM=SIJ(I,J)*qconv(I,ithread)+(1.-SIJ(I,J))*QTI-qsconv(J,ithread)
         ALTEM=ALTEM-(BF2-1.)*CWAT
       END IF
       IF(SIJ(I,J).GT.0.0.AND.SIJ(I,J).LT.0.9)THEN
-        QENT(I,J)=SIJ(I,J)*QCONV(I)+(1.-SIJ(I,J))*QTI
+        QENT(I,J)=SIJ(I,J)*qconv(I,ithread)+(1.-SIJ(I,J))*QTI
         ELIJ(I,J)=ALTEM
         ELIJ(I,J)=MAX(0.0,ELIJ(I,J))
         MENT(I,J)=M(I)/(1.-SIJ(I,J))
@@ -1638,7 +1628,7 @@ end subroutine redist
   !
     IF(NENT(I).EQ.0)THEN
       MENT(I,I)=M(I)
-      QENT(I,I)=QCONV(NK)-EP(I)*CLW(I)
+      QENT(I,I)=qconv(NK,ithread)-EP(I)*CLW(I)
       ELIJ(I,I)=CLW(I)
       SIJ(I,I)=1.0
     END IF
@@ -1646,12 +1636,12 @@ end subroutine redist
   SIJ(INB,INB)=1.0
   ! LB 04.05.2021, Attempt to array the loop above: PROBLEM 2 is here
   ! DO J=ICB,INB
-  !   BF2=1.+LV(J)*LV(J)*QSCONV(J)/(RV*TCONV(J)*TCONV(J)*CPD)
+  !   BF2=1.+LV(J)*LV(J)*qsconv(J)/(RV*tconv(J)*tconv(J)*CPD)
   !   CWAT=CLW(J)*(1.-EP(J))
   !   DO I=ICB+1,INB
-  !     QTI=QCONV(NK)-EP(I)*CLW(I)
-  !     ANUM=H(J)-HP(I)+(CPV-CPD)*TCONV(J)*(QTI-QCONV(J))
-  !     DENOM=H(I)-HP(I)+(CPD-CPV)*(QCONV(I)-QTI)*TCONV(J)
+  !     QTI=qconv(NK)-EP(I)*CLW(I)
+  !     ANUM=H(J)-HP(I)+(CPV-CPD)*tconv(J)*(QTI-qconv(J))
+  !     DENOM=H(I)-HP(I)+(CPD-CPV)*(qconv(I)-QTI)*tconv(J)
   !     DEI=DENOM
   !     IF(I.EQ.J)THEN
   !       SIJ(I,I)=1.0
@@ -1660,18 +1650,18 @@ end subroutine redist
   !     ELSE
   !       SIJ(I,J)=ANUM/DENOM
   !     END IF
-  !     ALTEM=(SIJ(I,J)*QCONV(I)+(1.-SIJ(I,J))*QTI-QSCONV(J))/BF2
+  !     ALTEM=(SIJ(I,J)*qconv(I)+(1.-SIJ(I,J))*QTI-qsconv(J))/BF2
   !     IF((SIJ(I,J).LT.0.0.OR.SIJ(I,J).GT.1.0.OR. &
   !           ALTEM.GT.CWAT).AND.J.GT.I)THEN
-  !       ANUM=ANUM-LV(J)*(QTI-QSCONV(J)-CWAT*BF2)
-  !       DENOM=DENOM+LV(J)*(QCONV(I)-QTI)
+  !       ANUM=ANUM-LV(J)*(QTI-qsconv(J)-CWAT*BF2)
+  !       DENOM=DENOM+LV(J)*(qconv(I)-QTI)
   !       IF(ABS(DENOM).LT.0.01)DENOM=0.01
   !       SIJ(I,J)=ANUM/DENOM
-  !       ALTEM=SIJ(I,J)*QCONV(I)+(1.-SIJ(I,J))*QTI-QSCONV(J)
+  !       ALTEM=SIJ(I,J)*qconv(I)+(1.-SIJ(I,J))*QTI-qsconv(J)
   !       ALTEM=ALTEM-(BF2-1.)*CWAT
   !     END IF
   !     IF(SIJ(I,J).GT.0.0.AND.SIJ(I,J).LT.0.9)THEN
-  !       QENT(I,J)=SIJ(I,J)*QCONV(I)+(1.-SIJ(I,J))*QTI
+  !       QENT(I,J)=SIJ(I,J)*qconv(I)+(1.-SIJ(I,J))*QTI
   !       ELIJ(I,J)=ALTEM
   !       ELIJ(I,J)=MAX(0.0,ELIJ(I,J))
   !       MENT(I,J)=M(I)/(1.-SIJ(I,J))
@@ -1688,7 +1678,7 @@ end subroutine redist
   ! do I=ICB+1,INB
   !   IF(NENT(I).EQ.0)THEN
   !     MENT(I,I)=M(I)
-  !     QENT(I,I)=QCONV(NK)-EP(I)*CLW(I)
+  !     QENT(I,I)=qconv(NK)-EP(I)*CLW(I)
   !     ELIJ(I,I)=CLW(I)
   !     SIJ(I,I)=1.0
   !   END IF
@@ -1704,12 +1694,12 @@ end subroutine redist
   ! speed it up...
   DO I=ICB+1,INB
     IF(NENT(I).NE.0)THEN
-      QP1=QCONV(NK)-EP(I)*CLW(I)
-      ANUM=H(I)-HP(I)-LV(I)*(QP1-QSCONV(I))
-      DENOM=H(I)-HP(I)+LV(I)*(QCONV(I)-QP1)
+      QP1=qconv(NK,ithread)-EP(I)*CLW(I)
+      ANUM=H(I)-HP(I)-LV(I)*(QP1-qsconv(I,ithread))
+      DENOM=H(I)-HP(I)+LV(I)*(qconv(I,ithread)-QP1)
       IF(ABS(DENOM).LT.0.01)DENOM=0.01
       SCRIT=ANUM/DENOM
-      ALT=QP1-QSCONV(I)+SCRIT*(QCONV(I)-QP1)
+      ALT=QP1-qsconv(I,ithread)+SCRIT*(qconv(I,ithread)-QP1)
       IF(ALT.LT.0.0)SCRIT=1.0
       SCRIT=MAX(SCRIT,0.0)
       ASIJ=0.0
@@ -1735,9 +1725,9 @@ end subroutine redist
           END IF
           DELP=ABS(SJMAX-SMID)
           DELM=ABS(SJMIN-SMID)
-          ASIJ=ASIJ+(DELP+DELM)*(PHCONV_HPA(J)-PHCONV_HPA(J+1))
+          ASIJ=ASIJ+(DELP+DELM)*(phconv_hpa(J,ithread)-phconv_hpa(J+1,ithread))
           MENT(I,J)=MENT(I,J)*(DELP+DELM)* &
-               (PHCONV_HPA(J)-PHCONV_HPA(J+1))
+               (phconv_hpa(J,ithread)-phconv_hpa(J+1,ithread))
         END IF
       END DO
       ASIJ=MAX(1.0E-21,ASIJ)
@@ -1752,7 +1742,7 @@ end subroutine redist
       IF(BSUM.LT.1.0E-18)THEN
         NENT(I)=0
         MENT(I,I)=M(I)
-        QENT(I,I)=QCONV(NK)-EP(I)*CLW(I)
+        QENT(I,I)=qconv(NK,ithread)-EP(I)*CLW(I)
         ELIJ(I,I)=CLW(I)
         SIJ(I,I)=1.0
       END IF
@@ -1796,18 +1786,18 @@ end subroutine redist
     !
     !  ***  Value of terminal velocity and coefficient of evaporation for rain   ***
     !
-      IF(TCONV(I).GT.273.0)THEN
+      IF(tconv(I,ithread).GT.273.0)THEN
         COEFF=COEFFR
         WT(I)=OMTRAIN
       END IF
-      QSM=0.5*(QCONV(I)+QP(I+1))
-      AFAC=COEFF*PHCONV_HPA(I)*(QSCONV(I)-QSM)/ &
-           (1.0E4+2.0E3*PHCONV_HPA(I)*QSCONV(I))
+      QSM=0.5*(qconv(I,ithread)+QP(I+1))
+      AFAC=COEFF*phconv_hpa(I,ithread)*(qsconv(I,ithread)-QSM)/ &
+           (1.0E4+2.0E3*phconv_hpa(I,ithread)*qsconv(I,ithread))
       AFAC=MAX(AFAC,0.0)
       SIGT=SIGP(I)
       SIGT=MAX(0.0,SIGT)
       SIGT=MIN(1.0,SIGT)
-      B6=100.*(PHCONV_HPA(I)-PHCONV_HPA(I+1))*SIGT*AFAC/WT(I)
+      B6=100.*(phconv_hpa(I,ithread)-phconv_hpa(I+1,ithread))*SIGT*AFAC/WT(I)
       C6=(WATER(I+1)*WT(I+1)+WDTRAIN/SIGD)/WT(I)
       REVAP=0.5*(-B6+SQRT(B6*B6+4.*C6))
       EVAP(I)=SIGT*AFAC*REVAP
@@ -1817,23 +1807,23 @@ end subroutine redist
     !    ***              HYDROSTATIC APPROXIMATION                 ***
     !
       if (.not. I.eq.1) then
-        DHDP=(H(I)-H(I-1))/(PCONV_HPA(I-1)-PCONV_HPA(I))
+        DHDP=(H(I)-H(I-1))/(pconv_hpa(I-1,ithread)-pconv_hpa(I,ithread))
         DHDP=MAX(DHDP,10.0)
         MP(I)=100.*GINV*LV(I)*SIGD*EVAP(I)/DHDP
         MP(I)=MAX(MP(I),0.0)
       !
       !   ***   ADD SMALL AMOUNT OF INERTIA TO DOWNDRAFT              ***
       !
-        FAC=20.0/(PHCONV_HPA(I-1)-PHCONV_HPA(I))
+        FAC=20.0/(phconv_hpa(I-1,ithread)-phconv_hpa(I,ithread))
         MP(I)=(FAC*MP(I+1)+MP(I))/(1.+FAC)
       !
       !    ***      FORCE MP TO DECREASE LINEARLY TO ZERO                 ***
       !    ***      BETWEEN ABOUT 950 MB AND THE SURFACE                  ***
       !
-        IF(PCONV_HPA(I).GT.(0.949*PCONV_HPA(1)))THEN
+        IF(pconv_hpa(I,ithread).GT.(0.949*pconv_hpa(1,ithread)))THEN
           JTT=MAX(JTT,I)
-          MP(I)=MP(JTT)*(PCONV_HPA(1)-PCONV_HPA(I))/(PCONV_HPA(1)- &
-              PCONV_HPA(JTT))
+          MP(I)=MP(JTT)*(pconv_hpa(1,ithread)-pconv_hpa(I,ithread))/(pconv_hpa(1,ithread)- &
+              pconv_hpa(JTT,ithread))
         END IF
       endif
     !
@@ -1841,18 +1831,19 @@ end subroutine redist
     !
       if (.not. I.eq.INB) then
         IF(I.EQ.1)THEN
-          QSTM=QSCONV(1)
+          QSTM=qsconv(1,ithread)
         ELSE
-          QSTM=QSCONV(I-1)
+          QSTM=qsconv(I-1,ithread)
         END IF
         IF(MP(I).GT.MP(I+1))THEN
           RAT=MP(I+1)/MP(I)
-          QP(I)=QP(I+1)*RAT+QCONV(I)*(1.0-RAT)+100.*GINV* &
-               SIGD*(PHCONV_HPA(I)-PHCONV_HPA(I+1))*(EVAP(I)/MP(I))
+          QP(I)=QP(I+1)*RAT+qconv(I,ithread)*(1.0-RAT)+100.*GINV* &
+               SIGD*(phconv_hpa(I,ithread)-phconv_hpa(I+1,ithread))*(EVAP(I)/MP(I))
          ELSE
           IF(MP(I+1).GT.0.0)THEN
-            QP(I)=(GZ(I+1)-GZ(I)+QP(I+1)*(LV(I+1)+TCONV(I+1)*(CL-CPD))+ &
-                 CPD*(TCONV(I+1)-TCONV(I)))/(LV(I)+TCONV(I)*(CL-CPD))
+            QP(I)=(GZ(I+1)-GZ(I)+QP(I+1)*(LV(I+1)+tconv(I+1,ithread)*(CL-CPD))+ &
+              CPD*(tconv(I+1,ithread)-tconv(I,ithread)))/ &
+              (LV(I)+tconv(I,ithread)*(CL-CPD))
           END IF
         END IF
         QP(I)=MIN(QP(I),QSTM)
@@ -1869,15 +1860,15 @@ end subroutine redist
   !   ***  CALCULATE DOWNDRAFT VELOCITY SCALE AND SURFACE TEMPERATURE AND  ***
   !   ***                    WATER VAPOR FLUCTUATIONS                      ***
   !
-  WD=BETA*ABS(MP(ICB))*0.01*RD*TCONV(ICB)/(SIGD*PCONV_HPA(ICB))
-  QPRIME=0.5*(QP(1)-QCONV(1))
+  WD=BETA*ABS(MP(ICB))*0.01*RD*tconv(ICB,ithread)/(SIGD*pconv_hpa(ICB,ithread))
+  QPRIME=0.5*(QP(1)-qconv(1,ithread))
   TPRIME=LV0*QPRIME/CPD
   !
   !   ***  CALCULATE TENDENCIES OF LOWEST LEVEL POTENTIAL TEMPERATURE  ***
   !   ***                      AND MIXING RATIO                        ***
   !
 
-  DPINV=0.01/(PHCONV_HPA(1)-PHCONV_HPA(2))
+  DPINV=0.01/(phconv_hpa(1,ithread)-phconv_hpa(2,ithread))
   AM=0.0
   IF(NK.EQ.1)THEN
     AM = sum(M(2:INB))
@@ -1885,15 +1876,15 @@ end subroutine redist
   ! save saturated upward mass flux for first level
   FUP(1)=AM
   IF((2.*G*DPINV*AM).GE.DELTI)IFLAG=4
-  FT(1)=FT(1)+G*DPINV*AM*(TCONV(2)-TCONV(1)+(GZ(2)-GZ(1))/CPN(1))
+  FT(1)=FT(1)+G*DPINV*AM*(tconv(2,ithread)-tconv(1,ithread)+(GZ(2)-GZ(1))/CPN(1))
   FT(1)=FT(1)-LVCP(1)*SIGD*EVAP(1)
-  FT(1)=FT(1)+SIGD*WT(2)*(CL-CPD)*WATER(2)*(TCONV(2)- &
-       TCONV(1))*DPINV/CPN(1)
-  FQ(1)=FQ(1)+G*MP(2)*(QP(2)-QCONV(1))* &
+  FT(1)=FT(1)+SIGD*WT(2)*(CL-CPD)*WATER(2)*(tconv(2,ithread)- &
+       tconv(1,ithread))*DPINV/CPN(1)
+  FQ(1)=FQ(1)+G*MP(2)*(QP(2)-qconv(1,ithread))* &
        DPINV+SIGD*EVAP(1)
-  FQ(1)=FQ(1)+G*AM*(QCONV(2)-QCONV(1))*DPINV
+  FQ(1)=FQ(1)+G*AM*(qconv(2,ithread)-qconv(1,ithread))*DPINV
 
-  FQ(1)=FQ(1)+G*DPINV*sum(MENT(2:INB,1)*(QENT(2:INB,1)-QCONV(1)))
+  FQ(1)=FQ(1)+G*DPINV*sum(MENT(2:INB,1)*(QENT(2:INB,1)-qconv(1,ithread)))
   !
   !   ***  CALCULATE TENDENCIES OF POTENTIAL TEMPERATURE AND MIXING RATIO  ***
   !   ***               AT LEVELS ABOVE THE LOWEST LEVEL                   ***
@@ -1902,7 +1893,7 @@ end subroutine redist
   !   ***                      THROUGH EACH LEVEL                          ***
   !
   DO I=2,INB
-    DPINV=0.01/(PHCONV_HPA(I)-PHCONV_HPA(I+1))
+    DPINV=0.01/(phconv_hpa(I,ithread)-phconv_hpa(I+1,ithread))
     CPINV=1.0/CPN(I)
     AMP1=0.0
     AD=0.0
@@ -1917,24 +1908,24 @@ end subroutine redist
     AD = sum(MENT(I:INB,1:I-1))
   ! save saturated downward mass flux
     FDOWN(I)=AD
-    FT(I)=FT(I)+G*DPINV*(AMP1*(TCONV(I+1)-TCONV(I)+(GZ(I+1)-GZ(I))* &
-         CPINV)-AD*(TCONV(I)-TCONV(I-1)+(GZ(I)-GZ(I-1))*CPINV)) &
+    FT(I)=FT(I)+G*DPINV*(AMP1*(tconv(I+1,ithread)-tconv(I,ithread)+(GZ(I+1)-GZ(I))* &
+         CPINV)-AD*(tconv(I,ithread)-tconv(I-1,ithread)+(GZ(I)-GZ(I-1))*CPINV)) &
          -SIGD*LVCP(I)*EVAP(I)
     FT(I)=FT(I)+G*DPINV*MENT(I,I)*(HP(I)-H(I)+ &
-         TCONV(I)*(CPV-CPD)*(QCONV(I)-QENT(I,I)))*CPINV
+         tconv(I,ithread)*(CPV-CPD)*(qconv(I,ithread)-QENT(I,I)))*CPINV
     FT(I)=FT(I)+SIGD*WT(I+1)*(CL-CPD)*WATER(I+1)* &
-         (TCONV(I+1)-TCONV(I))*DPINV*CPINV
-    FQ(I)=FQ(I)+G*DPINV*(AMP1*(QCONV(I+1)-QCONV(I))- &
-         AD*(QCONV(I)-QCONV(I-1)))
+         (tconv(I+1,ithread)-tconv(I,ithread))*DPINV*CPINV
+    FQ(I)=FQ(I)+G*DPINV*(AMP1*(qconv(I+1,ithread)-qconv(I,ithread))- &
+         AD*(qconv(I,ithread)-qconv(I-1,ithread)))
     DO K=1,I-1
       AWAT=ELIJ(K,I)-(1.-EP(I))*CLW(I)
       AWAT=MAX(AWAT,0.0)
-      FQ(I)=FQ(I)+G*DPINV*MENT(K,I)*(QENT(K,I)-AWAT-QCONV(I))
+      FQ(I)=FQ(I)+G*DPINV*MENT(K,I)*(QENT(K,I)-AWAT-qconv(I,ithread))
     END DO
 
-    FQ(I)=FQ(I)+G*DPINV*sum(MENT(I:INB,I)*(QENT(I:INB,I)-QCONV(I)))
+    FQ(I)=FQ(I)+G*DPINV*sum(MENT(I:INB,I)*(QENT(I:INB,I)-qconv(I,ithread)))
     FQ(I)=FQ(I)+SIGD*EVAP(I)+G*(MP(I+1)* &
-         (QP(I+1)-QCONV(I))-MP(I)*(QP(I)-QCONV(I-1)))*DPINV
+         (QP(I+1)-qconv(I,ithread))-MP(I)*(QP(I)-qconv(I-1,ithread)))*DPINV
   END DO
   !
   !   *** Adjust tendencies at top of convection layer to reflect  ***
@@ -1942,14 +1933,14 @@ end subroutine redist
   !
   FQOLD=FQ(INB)
   FQ(INB)=FQ(INB)*(1.-FRAC)
-  FQ(INB-1)=FQ(INB-1)+FRAC*FQOLD*((PHCONV_HPA(INB)- &
-       PHCONV_HPA(INB+1))/ &
-       (PHCONV_HPA(INB-1)-PHCONV_HPA(INB)))*LV(INB)/LV(INB-1)
+  FQ(INB-1)=FQ(INB-1)+FRAC*FQOLD*((phconv_hpa(INB,ithread)- &
+       phconv_hpa(INB+1,ithread))/ &
+       (phconv_hpa(INB-1,ithread)-phconv_hpa(INB,ithread)))*LV(INB)/LV(INB-1)
   FTOLD=FT(INB)
   FT(INB)=FT(INB)*(1.-FRAC)
-  FT(INB-1)=FT(INB-1)+FRAC*FTOLD*((PHCONV_HPA(INB)- &
-       PHCONV_HPA(INB+1))/ &
-       (PHCONV_HPA(INB-1)-PHCONV_HPA(INB)))*CPN(INB)/CPN(INB-1)
+  FT(INB-1)=FT(INB-1)+FRAC*FTOLD*((phconv_hpa(INB,ithread)- &
+       phconv_hpa(INB+1,ithread))/ &
+       (phconv_hpa(INB-1,ithread)-phconv_hpa(INB,ithread)))*CPN(INB)/CPN(INB-1)
 !
 !   ***   Very slightly adjust tendencies to force exact   ***
 !   ***     enthalpy, momentum and tracer conservation     ***
@@ -1957,9 +1948,9 @@ end subroutine redist
   ENTS=0.0
 
   ENTS = sum((CPN(1:INB)*FT(1:INB)+LV(1:INB)*FQ(1:INB))* &
-        (PHCONV_HPA(1:INB)-PHCONV_HPA(2:INB+1)))
+        (phconv_hpa(1:INB,ithread)-phconv_hpa(2:INB+1,ithread)))
 
-  ENTS=ENTS/(PHCONV_HPA(1)-PHCONV_HPA(INB+1))
+  ENTS=ENTS/(phconv_hpa(1,ithread)-phconv_hpa(INB+1,ithread))
 
   FT(1:INB)=FT(1:INB) - ENTS/CPN(1:INB)
 
@@ -1974,27 +1965,27 @@ end subroutine redist
   ! balanced by  compensating subsidence (SUB(I))
   ! FDOWN(I) and SUB(I) defined positive downwards
 
-  ! NCONVTOP IS THE TOP LEVEL AT WHICH CONVECTIVE MASS FLUXES ARE DIAGNOSED
+  ! nconvtop IS THE TOP LEVEL AT WHICH CONVECTIVE MASS FLUXES ARE DIAGNOSED
   ! EPSILON IS A SMALL NUMBER
 
-  FMASS(NK, :INB+1) = FMASS(NK,:INB+1)+M(:INB+1)
-  FMASS(:INB+1,:INB+1) = FMASS(:INB+1,:INB+1)+MENT(:INB+1,:INB+1)
-  SUB(1) = 0.
-  SUB(2:INB+1) = FUP(1:INB) - FDOWN(2:INB+1)
-  NCONVTOP=1
+  fmass(NK, :INB+1,ithread) = fmass(NK,:INB+1,ithread)+M(:INB+1)
+  fmass(:INB+1,:INB+1,ithread) = fmass(:INB+1,:INB+1,ithread)+MENT(:INB+1,:INB+1)
+  sub(1,ithread) = 0.
+  sub(2:INB+1,ithread) = FUP(1:INB) - FDOWN(2:INB+1)
+  nconvtop=1
   do i=1,INB+1
     do j=1,INB+1
-      if (FMASS(j,i).gt.EPSILON) NCONVTOP=MAX(NCONVTOP,i,j)
+      if (fmass(j,i,ithread).gt.EPSILON) nconvtop=MAX(nconvtop,i,j)
     end do
   end do
-  NCONVTOP=NCONVTOP+1
+  nconvtop=nconvtop+1
   RETURN
   !
 END SUBROUTINE CONVECT
 !
 ! ---------------------------------------------------------------------------
 !
-SUBROUTINE TLIFT(GZ,ICB,NK,TVP,TPK,CLW,ND,NL,KK)
+SUBROUTINE TLIFT(GZ,ICB,NK,TVP,TPK,CLW,ND,NL,KK, ithread)
   !
   !-cv
   use par_mod
@@ -2005,6 +1996,7 @@ SUBROUTINE TLIFT(GZ,ICB,NK,TVP,TPK,CLW,ND,NL,KK)
   !
   !Argument variables
   !
+  integer, intent(in) :: ithread
   integer :: icb, kk, nd, nk, nl
   !
   !Local variables
@@ -2034,10 +2026,9 @@ SUBROUTINE TLIFT(GZ,ICB,NK,TVP,TPK,CLW,ND,NL,KK)
   !
   !   ***  CALCULATE CERTAIN PARCEL QUANTITIES, INCLUDING STATIC ENERGY   ***
   !
-  AH0=(CPD*(1.-QCONV(NK))+CL*QCONV(NK))*TCONV(NK)+QCONV(NK)* &
-       (LV0-CPVMCL*( &
-       TCONV(NK)-273.15))+GZ(NK)
-  CPP=CPD*(1.-QCONV(NK))+QCONV(NK)*CPV
+  AH0=(CPD*(1.-qconv(NK,ithread))+CL*qconv(NK,ithread))*tconv(NK,ithread)+ &
+    qconv(NK,ithread)*(LV0-CPVMCL*(tconv(NK,ithread)-273.15))+GZ(NK)
+  CPP=CPD*(1.-qconv(NK,ithread))+qconv(NK,ithread)*CPV
   CPINV=1./CPP
   !
   IF(KK.EQ.1)THEN
@@ -2045,8 +2036,8 @@ SUBROUTINE TLIFT(GZ,ICB,NK,TVP,TPK,CLW,ND,NL,KK)
   !   ***   CALCULATE LIFTED PARCEL QUANTITIES BELOW CLOUD BASE   ***
   !
     CLW(1:ICB-1) = 0.0
-    TPK(NK:ICB-1)=TCONV(NK)-(GZ(NK:ICB-1)-GZ(NK))*CPINV
-    TVP(NK:ICB-1)=TPK(NK:ICB-1)*(1.+QCONV(NK)*EPSI)
+    TPK(NK:ICB-1)=tconv(NK,ithread)-(GZ(NK:ICB-1)-GZ(NK))*CPINV
+    TVP(NK:ICB-1)=TPK(NK:ICB-1)*(1.+qconv(NK,ithread)*EPSI)
   END IF
   !
   !    ***  FIND LIFTED PARCEL QUANTITIES ABOVE CLOUD BASE    ***
@@ -2058,13 +2049,13 @@ SUBROUTINE TLIFT(GZ,ICB,NK,TVP,TPK,CLW,ND,NL,KK)
     NSB=ICB+1
   END IF
   DO I=NSB,NST
-    TG=TCONV(I)
-    QG=QSCONV(I)
-    ALV=LV0-CPVMCL*(TCONV(I)-273.15)
+    TG=tconv(I,ithread)
+    QG=qsconv(I,ithread)
+    ALV=LV0-CPVMCL*(tconv(I,ithread)-273.15)
     DO J=1,2
-      S=CPD+ALV*ALV*QG/(RV*TCONV(I)*TCONV(I))
+      S=CPD+ALV*ALV*QG/(RV*tconv(I,ithread)*tconv(I,ithread))
       S=1./S
-      AHG=CPD*TG+(CL-CPD)*QCONV(NK)*TCONV(I)+ALV*QG+GZ(I)
+      AHG=CPD*TG+(CL-CPD)*qconv(NK,ithread)*tconv(I,ithread)+ALV*QG+GZ(I)
       TG=TG+S*(AH0-AHG)
       TG=MAX(TG,35.0)
       TC=TG-273.15
@@ -2074,124 +2065,16 @@ SUBROUTINE TLIFT(GZ,ICB,NK,TVP,TPK,CLW,ND,NL,KK)
       ELSE
         ES=EXP(23.33086-6111.72784/TG+0.15215*LOG(TG))
       END IF
-      QG=EPS0*ES/(PCONV_HPA(I)-ES*(1.-EPS0))
+      QG=EPS0*ES/(pconv_hpa(I,ithread)-ES*(1.-EPS0))
     END DO
-    ALV=LV0-CPVMCL*(TCONV(I)-273.15)
-    TPK(I)=(AH0-(CL-CPD)*QCONV(NK)*TCONV(I)-GZ(I)-ALV*QG)/CPD
-    CLW(I)=QCONV(NK)-QG
+    ALV=LV0-CPVMCL*(tconv(I,ithread)-273.15)
+    TPK(I)=(AH0-(CL-CPD)*qconv(NK,ithread)*tconv(I,ithread)-GZ(I)-ALV*QG)/CPD
+    CLW(I)=qconv(NK,ithread)-QG
     CLW(I)=MAX(0.0,CLW(I))
-    RG=QG/(1.-QCONV(NK))
+    RG=QG/(1.-qconv(NK,ithread))
     TVP(I)=TPK(I)*(1.+RG*EPSI)
   END DO
   RETURN
 END SUBROUTINE TLIFT
-
-subroutine sort2(n,arr,brr)
-  ! From numerical recipes
-  ! Change by A. Stohl: Use of integer instead of real values
-  implicit none
-
-  integer, intent(in) :: n
-  integer, intent(inout) :: arr(n),brr(n)
-  integer,parameter :: m=7,nstack=50
-  integer :: i,ir,j,jstack,k,l,istack(nstack)
-  integer :: a,b,temp
-  jstack=0
-  l=1
-  ir=n
-  do
-    if(ir-l.lt.m)then
-      do j=l+1,ir
-        a=arr(j)
-        b=brr(j)
-        i=j-1
-        do while(i.gt.0)
-          if (arr(i).le.a) exit
-          arr(i+1)=arr(i)
-          brr(i+1)=brr(i)
-          i=i-1
-        end do
-        arr(i+1)=a
-        brr(i+1)=b
-      end do
-      if(jstack.eq.0)return
-      ir=istack(jstack)
-      l=istack(jstack-1)
-      jstack=jstack-2
-    else
-      k=(l+ir)/2
-      temp=arr(k)
-      arr(k)=arr(l+1)
-      arr(l+1)=temp
-      temp=brr(k)
-      brr(k)=brr(l+1)
-      brr(l+1)=temp
-      if(arr(l+1).gt.arr(ir))then
-        temp=arr(l+1)
-        arr(l+1)=arr(ir)
-        arr(ir)=temp
-        temp=brr(l+1)
-        brr(l+1)=brr(ir)
-        brr(ir)=temp
-      endif
-      if(arr(l).gt.arr(ir))then
-        temp=arr(l)
-        arr(l)=arr(ir)
-        arr(ir)=temp
-        temp=brr(l)
-        brr(l)=brr(ir)
-        brr(ir)=temp
-      endif
-      if(arr(l+1).gt.arr(l))then
-        temp=arr(l+1)
-        arr(l+1)=arr(l)
-        arr(l)=temp
-        temp=brr(l+1)
-        brr(l+1)=brr(l)
-        brr(l)=temp
-      endif
-      i=l+1
-      j=ir
-      a=arr(l)
-      b=brr(l)
-      do
-        do
-          i=i+1
-          if(arr(i).ge.a) exit
-        end do
-        do
-          j=j-1
-          if(arr(j).le.a) exit
-        end do
-        if(j.lt.i) exit
-        temp=arr(i)
-        arr(i)=arr(j)
-        arr(j)=temp
-        temp=brr(i)
-        brr(i)=brr(j)
-        brr(j)=temp
-      end do
-      arr(l)=arr(j)
-      arr(j)=a
-      brr(l)=brr(j)
-      brr(j)=b
-      jstack=jstack+2
-      if(jstack.gt.nstack) then
-         print*, 'nstack too small in sort2'
-         stop
-      end if
-      if(ir-i+1.ge.j-l)then
-        istack(jstack)=ir
-        istack(jstack-1)=i
-        ir=j-1
-      else
-        istack(jstack)=j-1
-        istack(jstack-1)=l
-        l=i
-      endif
-    endif
-  end do
-!  (C) Copr. 1986-92 Numerical Recipes Software us.
-end subroutine sort2
 
 end module conv_mod

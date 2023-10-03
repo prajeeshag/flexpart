@@ -84,11 +84,13 @@ subroutine timemanager
   use point_mod
   use xmass_mod
   use flux_mod
-  use outg_mod
-  use oh_mod
+  use outgrid_mod
+  use ohr_mod
   use par_mod
   use com_mod
-  use coordinates_ecmwf_mod
+#ifdef ETA
+  use coord_ecmwf_mod
+#endif
   use particle_mod
   use conv_mod
   use windfields_mod
@@ -100,27 +102,24 @@ subroutine timemanager
   use getfields_mod
   use output_mod
   use restart_mod
-  use interpol_mod, only: interpol_allocate,interpol_deallocate
+  use interpol_mod, only: alloc_interpol,dealloc_interpol
 
   implicit none
   real, parameter ::        &
     e_inv = 1.0/exp(1.0)  
   integer ::                &
-    j,i,                    & ! loop variable
+    j,i,k,                  & ! loop variables
     ks,                     & ! loop variable species
     kp,                     & ! loop variable for maxpointspec_act
-    l,                      & ! loop variable over nclassunc
-    n,                      & ! loop variable over particles
     itime=0,                & ! time index
     nstop1,                 & ! windfield existence flag
     loutnext,               & ! following timestep
     loutstart,loutend,      & ! concentration calculation starting and ending time
-    ix,jy,                  & ! gridcell indices
     ldeltat,                & ! radioactive decay time
     itage,nage,inage,       & ! related to age classes
-    idummy,                 & ! used for the random routines
     i_nan=0,ii_nan,total_nan_intl=0, &  !added by mc to check instability in CBL scheme 
-    thread                    ! openmp change (not sure if necessary)
+    stat,                   & ! Check if allocation was successful
+    thread                    ! openmp thread number
   ! logical ::                &
   !   active_per_rel(maxpoint)  ! are there particles active in each release
   real ::                   &
@@ -132,14 +131,10 @@ subroutine timemanager
   real ::                   &
     outnum,                 & ! concentration calculation sample number
     prob_rec(maxspec),      & ! dry deposition related
-    decfact,                & ! radioactive decay factor
-    wetscav,                & ! wet scavenging
-    xmassfract,             & ! dry deposition related
-    grfraction(3)             ! wet deposition related
-  real(dep_prec) ::         &
-    drydeposit(maxspec)       ! dry deposition related
-  real(kind=dp) :: zhier,zetahier
-  integer :: npart_alive=0,alive_tmp,spawned_tmp,terminated_tmp
+    xmassfract                ! dry deposition related
+  real(dep_prec),allocatable,dimension(:) ::         &
+    drydeposit       ! dry deposition related
+  integer :: alive_tmp,spawned_tmp
 
   ! First output for time 0
   !************************
@@ -167,10 +162,6 @@ subroutine timemanager
 
   filesize=0.
   ! active_per_rel=.false.
-
-  ! ! Allocate memory for windfields
-  ! !*******************************
-  ! call windfields_allocate
   
   do itime=itime_init,ideltas,lsynctime
 
@@ -191,7 +182,7 @@ subroutine timemanager
   ! of the size of these files.
   !*********************************************************************
     
-    write(*,*) 'Time: ', itime, 'seconds.'
+    write(*,*) 'Time: ', itime, 'seconds. Total spawned:',count%spawned, 'alive:',count%alive, 'terminated:',count%terminated
 
     if (itime.eq.itime_init) then
       call SYSTEM_CLOCK(count_clock, count_rate, count_max)
@@ -204,39 +195,39 @@ subroutine timemanager
       call output_restart(itime,loutnext,outnum)
     endif
 
-    if (itime.ne.0) write(*,*) part(1)%xlon,part(1)%ylat,part(1)%z,part(1)%zeta
-    call initialise_output(itime,filesize)
-    
+    ! if ((itime.ne.0).and.(count%alive.gt.0)) then
+    !   if (part(1)%alive) write(*,*) 'xlon,ylat,z,zeta', part(1)%xlon,part(1)%ylat,part(1)%z,part(1)%zeta
+    ! endif
+    call init_output(itime,filesize)
+
   ! Get necessary wind fields if not available
   !*******************************************
     call getfields(itime,nstop1) !OMP on verttransform_ecmwf and readwind_ecmwf, getfields_mod.f90
-    if (nstop1.gt.1) stop 'NO METEO FIELDS AVAILABLE'
+    if (nstop1.gt.1) error stop 'NO METEO FIELDS AVAILABLE'
 
-  ! In case of ETA coordinates being read from file, convert the z positions
-  !*************************************************************************
-    if (((ipin.eq.1).or.(ipin.eq.4)).and.(itime.eq.itime_init).and.(wind_coord_type.eq.'ETA')) then 
-      if (numpart.le.0) stop 'Something is going wrong reading the old particle file!'
+  ! In case of ETA coordinates being read from file, convert the z positions to zeta
+  !*********************************************************************************
+#ifdef ETA
+    if ((itime.eq.itime_init).and.((ipin.eq.1).or.(ipin.eq.3).or.(ipin.eq.4))) then 
+      
+      if (numpart.le.0) error stop 'Something is going wrong reading the old particle file! &
+        &No particles found.'
 !$OMP PARALLEL PRIVATE(i)
 !$OMP DO
-      do i=1,numpart
+      do i=1,count%allocated ! Also includes particles that are not spawned yet
         call update_z_to_zeta(itime, i)
       end do
 !$OMP END DO
 !$OMP END PARALLEL
     endif
-
-    if ((ipin.eq.3).and.(itime.eq.itime_init).and.(wind_coord_type.eq.'ETA')) then
-      do i=1,count%allocated
-        call update_z_to_zeta(itime, i)
-      end do
-    endif
+#endif
 
     if (WETDEP .and. (itime.ne.0) .and. (numpart.gt.0)) then
-      call wetdepo(itime,lsynctime,loutnext) !OMP, wetdepo_mod.f90 (needs test)
+      call wetdepo(itime,lsynctime,loutnext)
     endif
 
     if (OHREA .and. (itime.ne.0) .and. (numpart.gt.0)) &
-      call ohreaction(itime,lsynctime,loutnext) !OMP, oh_mod.f90 (needs test)
+      call ohreaction(itime,lsynctime,loutnext)
 
   ! compute convection for backward runs
   !*************************************
@@ -248,48 +239,47 @@ subroutine timemanager
   ! Get hourly OH fields if not available 
   !****************************************************
     if (OHREA) then
-      call gethourlyOH(itime) !OMP, oh_mod.f90 (needs test)
+      call gethourlyOH(itime)
     endif
         
   ! Release particles
   !******************
     if (mdomainfill.ge.1) then
       if (itime.eq.itime_init) then   
-        call init_domainfill !OMP, initialise_mod.f90 (needs test)
+        call init_domainfill
       else 
-        call boundcond_domainfill(itime,loutend) !OMP, initialise_mod.f90 (needs test)
+        call boundcond_domainfill(itime,loutend)
       endif
     else if ((ipin.eq.3).or.(ipin.eq.4)) then
       ! If reading from user defined initial conditions, check which particles are 
       ! to be activated
-      if (count%allocated.le.0) stop 'Something is going wrong reading the part_ic.nc file!'
+      if (count%allocated.le.0) error stop 'Something is going wrong reading the part_ic.nc file!'
 
-      alive_tmp=count%alive
-      spawned_tmp=count%spawned
-!$OMP PARALLEL PRIVATE(i) REDUCTION(+:alive_tmp,spawned_tmp)
-!$OMP DO
       do i=1,count%allocated
         if (.not. part(i)%alive) then
           if (ldirect.lt.0) then
             if ((part(i)%tstart.le.itime).and.(part(i)%tstart.gt.itime+lsynctime)) then
               call spawn_particle(itime,i)
-              call update_z_to_zeta(itime,i)
-              alive_tmp=alive_tmp+1
-              spawned_tmp=spawned_tmp+1
             endif
           else if ((part(i)%tstart.ge.itime).and.(part(i)%tstart.lt.itime+lsynctime)) then
             call spawn_particle(itime,i)
-            call update_z_to_zeta(itime,i)
-            alive_tmp=alive_tmp+1
-            spawned_tmp=spawned_tmp+1
           endif
         endif
       end do
+
+#ifdef ETA
+!$OMP PARALLEL PRIVATE(i)
+!$OMP DO
+      do i=1,count%alive
+        j=count%ialive(i)
+        if (part(j)%tstart.eq.itime) then
+          call update_z_to_zeta(itime,j)
+        end if
+      end do
 !$OMP END DO
 !$OMP END PARALLEL
-      count%alive=alive_tmp
-      count%spawned=spawned_tmp
-      call get_total_part_num(numpart)
+#endif
+      call get_totalpart_num(numpart)
     else
       call releaseparticles(itime)
     endif
@@ -304,7 +294,7 @@ subroutine timemanager
   ! If middle of averaging period of output fields is reached, accumulated
   ! deposited mass radioactively decays
   !***********************************************************************
-    if (DEP.and.(itime.eq.loutnext).and.(ldirect.gt.0)) call radioactive_decay() !OMP, unc_mod.f90 (needs test)
+    if (DEP.and.(itime.eq.loutnext).and.(ldirect.gt.0)) call deposit_decay() !OMP, unc_mod.f90 (needs test)
 
 
   ! Is the time within the computation interval, if not, skip
@@ -327,7 +317,7 @@ subroutine timemanager
       endif
       ! Check whether concentrations are to be calculated and outputted
       !****************************************************************
-      call output_concentrations(itime,loutstart,loutend,loutnext,outnum)
+      call output_conc(itime,loutstart,loutend,loutnext,outnum)
       call SYSTEM_CLOCK(count_clock, count_rate, count_max)
       s_writepart = s_writepart + ((count_clock - count_clock0)/real(count_rate)-s_temp)
     endif
@@ -358,7 +348,7 @@ subroutine timemanager
   ! openmp change
   ! LB, openmp following CTM version, need to be very careful due to big differences
   ! between the openmp loop in this and the CTM version
-!$OMP PARALLEL PRIVATE(prob_rec,inage,nage,itage,ks,kp,thread,j,xmassfract,drydeposit)
+!$OMP PARALLEL PRIVATE(prob_rec,inage,nage,itage,ks,kp,thread,j,i,xmassfract)
 
 #if (defined _OPENMP)
     thread = OMP_GET_THREAD_NUM() ! Starts with 0
@@ -369,12 +359,12 @@ subroutine timemanager
 !$OMP DO 
 ! SCHEDULE(dynamic, max(1,numpart/1000))
 !max(1,int(real(numpart)/numthreads/20.)))
-    do j=1,numpart
+    do i=1,count%alive
+
+      j=count%ialive(i)
 
   ! If integration step is due, do it
   !**********************************
-      if (.not. part(j)%alive) cycle
-
   ! Determine age class of the particle
   !************************************
       itage=abs(itime-part(j)%tstart)
@@ -387,8 +377,10 @@ subroutine timemanager
   ! Initialize newly released particle
   !***********************************
       if ((part(j)%tstart.eq.itime).or.(itime.eq.0)) then
+#ifdef ETA
         call update_zeta_to_z(itime, j)
-        call initialize_particle(itime,j)
+#endif
+        call init_particle(itime,j,thread)
       endif
 
   ! Memorize particle positions
@@ -396,7 +388,9 @@ subroutine timemanager
       part(j)%xlon_prev=part(j)%xlon
       part(j)%ylat_prev=part(j)%ylat
       part(j)%z_prev=part(j)%z
+#ifdef ETA
       part(j)%zeta_prev=part(j)%zeta
+#endif
 
   ! RECEPTOR: dry/wet depovel
   !****************************
@@ -407,9 +401,11 @@ subroutine timemanager
       if  (DRYBKDEP) then
         do ks=1,nspec
           if  ((xscav_frac1(j,ks).lt.0)) then
+#ifdef ETA
             call update_zeta_to_z(itime,j)
+#endif
             call get_vdep_prob(itime,real(part(j)%xlon),real(part(j)%ylat), &
-              real(part(j)%z),prob_rec)
+              real(part(j)%z),prob_rec,thread+1)
             if (DRYDEPSPEC(ks)) then        ! dry deposition
               xscav_frac1(j,ks)=prob_rec(ks)
             else
@@ -426,7 +422,7 @@ subroutine timemanager
       call advance(itime,j,thread)
 
       if (part(j)%nstop.eqv..true.) cycle
-      if (n_average.gt.0) call partpos_average(itime,j)
+      if (n_average.gt.0) call partpos_avg(itime,j)
 
   ! Calculate the gross fluxes across layer interfaces
   !***************************************************
@@ -440,11 +436,15 @@ subroutine timemanager
   call omp_set_num_threads(numthreads_grid)
 #endif
 
-  alive_tmp=count%alive
-  terminated_tmp=count%terminated
+  ! Terminating particles flagged in advance call
+  do i=1,count%allocated
+    if ((part(i)%nstop).and.(part(i)%alive)) then
+      call terminate_particle(i,itime)
+    endif
+  end do
 
-!$OMP PARALLEL PRIVATE(prob_rec,nage,inage,itage,ks,kp,thread,j,xmassfract,drydeposit) &
-!$OMP REDUCTION(+:alive_tmp,terminated_tmp) 
+
+!$OMP PARALLEL PRIVATE(prob_rec,nage,inage,itage,ks,kp,thread,i,j,xmassfract,drydeposit)
 
 !num_threads(numthreads_grid)
 
@@ -453,16 +453,18 @@ subroutine timemanager
 #else
     thread = 0
 #endif
+  allocate( drydeposit(maxspec),stat=stat )
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate drydeposit inside of OMP loop'
 
 !$OMP DO 
 ! SCHEDULE(dynamic, max(1,numpart/1000))
 !max(1,int(real(numpart)/numthreads/20.)))
-    do j=1,numpart
+    do i=1,count%alive
+
+      j=count%ialive(i)
 
   ! If integration step is due, do it
   !**********************************
-      if (.not. part(j)%alive) cycle
-
   ! Determine age class of the particle
   !************************************
       itage=abs(itime-part(j)%tstart)
@@ -472,47 +474,44 @@ subroutine timemanager
         if (itage.lt.lage(nage)) exit
       end do
 
-  ! Determine, when next time step is due
-  ! If trajectory is terminated, mark it
-  !**************************************
-      if (part(j)%nstop) then
-        if (linit_cond.ge.1) call initial_cond_calc(itime,j,thread+1)
-        call terminate_particle(j,itime)
-        alive_tmp=alive_tmp-1
-        terminated_tmp=terminated_tmp+1
-      else
-
-  ! Dry deposition and radioactive decay for each species
-  ! Also check maximum (of all species) of initial mass remaining on the particle;
-  ! if it is below a threshold value, terminate particle
-  !*****************************************************************************
+! Dry deposition and radioactive decay for each species
+! Also check maximum (of all species) of initial mass remaining on the particle;
+! if it is below a threshold value, terminate particle
+!*****************************************************************************
 
         xmassfract=0.
         do ks=1,nspec
-          if (DRYDEPSPEC(ks)) then        ! dry deposition (and radioactive decay)
+
+          if (DRYDEPSPEC(ks)) then     ! dry deposition (and radioactive decay)
+
             call drydepo_massloss(j,ks,ldeltat,drydeposit(ks))
-          else if (decay(ks).gt.0.) then  ! no dry deposition, but radioactive decay
-            part(j)%mass(ks)=part(j)%mass(ks)*exp(-real(abs(lsynctime))*decay(ks))
+
+          else if (decay(ks).gt.0.) then  ! no dry depo, but radioactive decay
+
+            part(j)%mass(ks) = part(j)%mass(ks) * &
+              exp( -real(abs(lsynctime)) * decay(ks) )
+
           endif
+
   ! Skip check on mass fraction when npoint represents particle number
           if (mdomainfill.eq.0.and.mquasilag.eq.0) then
-            if ((ipin.eq.3).or.(ipin.eq.4)) then 
-              if (part(j)%mass_init(ks).gt.0) then
-                xmassfract=max(xmassfract,part(j)%mass(ks)/part(j)%mass_init(ks))
-              endif
+            if (ipin.eq.3 .or. ipin.eq.4) then 
+              if (part(j)%mass_init(ks).gt.0) &
+                xmassfract = max( xmassfract, &
+                                  part(j)%mass(ks) / part(j)%mass_init(ks) )
             else if (xmass(part(j)%npoint,ks).gt.0.) then
-              xmassfract=max(xmassfract,real(npart(part(j)%npoint))* &
-                part(j)%mass(ks)/xmass(part(j)%npoint,ks))
+              xmassfract = max( xmassfract, real( npart(part(j)%npoint) ) * &
+                part(j)%mass(ks) /  xmass(part(j)%npoint,ks) )
             endif
           else
             xmassfract=1.0
           end if
+
         end do
         
-        if (xmassfract.le.minmassfrac) then   ! terminate all particles carrying less mass
-          call terminate_particle(j,itime)
-          alive_tmp=alive_tmp-1
-          terminated_tmp=terminated_tmp+1
+        if (xmassfract.le.minmassfrac) then 
+          ! flag all particles carrying less mass for termination after parallel region
+          part(j)%nstop=.true.
         endif
 
 !        Sabine Eckhardt, June 2008
@@ -536,20 +535,23 @@ subroutine timemanager
   !***************************************************************
 
         if ((part(j)%alive).and.(abs(itime-part(j)%tstart).ge.lage(nageclass))) then
-          if (linit_cond.ge.1) call initial_cond_calc(itime+lsynctime,j,thread+1)
-          call terminate_particle(j,itime)
-          alive_tmp=alive_tmp-1
-          terminated_tmp=terminated_tmp+1
+          if (linit_cond.ge.1) call initcond_calc(itime+lsynctime,j,thread+1)
+          ! flag all particles for termination after parallel region
+          part(j)%nstop=.true.
         endif
-      endif
-
     end do !loop over particles
 
 !$OMP END DO
+  deallocate(drydeposit)
 !$OMP END PARALLEL
 
-  count%alive=alive_tmp
-  count%terminated=terminated_tmp
+  ! Terminating particles flagged due to insufficient mass or exceeded max age
+  do i=1,count%allocated
+    if ((part(i)%nstop).and.(part(i)%alive)) then
+      call terminate_particle(i,itime)
+    endif
+  end do
+
 
 #ifdef _OPENMP
   call omp_set_num_threads(numthreads)
@@ -614,26 +616,20 @@ subroutine timemanager
 
   ! De-allocate memory and end
   !***************************
-  call deallocate_all_particles
-  call windfields_deallocate
-  call domainfill_deallocate
-  call drydepo_deallocate
-  call convection_deallocate
-  call getfields_deallocate
-  call interpol_deallocate
-  call deallocate_random
-  if (numbnests.ge.1) call windfields_nest_deallocate
-
-  if (iflux.eq.1) then
-      deallocate(flux)
-  endif
-  if (OHREA) then
-      deallocate(OH_field,OH_hourly,lonOH,latOH,altOH)
-  endif
-
-  if ((ipin.ne.3).and.(ipin.ne.4)) then 
-    deallocate(xpoint1,xpoint2,ypoint1,ypoint2,zpoint1,zpoint2,xmasssave)
-  endif
+  call dealloc_all_particles
+  call dealloc_windfields
+  call dealloc_domainfill
+  call dealloc_drydepo
+  call dealloc_convect
+  call dealloc_getfields
+  call dealloc_interpol
+  call dealloc_random
+  if (numbnests.ge.1) call dealloc_windfields_nest
+  if (iflux.eq.1) deallocate(flux)
+  if (OHREA) deallocate(OH_field,OH_hourly,lonOH,latOH,altOH)
+  if (ipin.ne.3 .and. ipin.ne.4) deallocate(xmasssave)
+  if (lnetcdfout.eq.1) call dealloc_netcdf
+  deallocate(xpoint1,xpoint2,ypoint1,ypoint2,zpoint1,zpoint2)
   deallocate(xmass)
   deallocate(ireleasestart,ireleaseend,npart,kindz)
   deallocate(nan_count)

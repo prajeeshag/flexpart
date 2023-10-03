@@ -12,9 +12,8 @@
 
 module com_mod
 
-  use par_mod, only: dp, numpath, maxnests, maxageclass, maxspec, maxndia, &
-       numclass, maxcolumn, maxwf, nxmaxn, nymaxn, &
-       maxreceptor, maxrand, numwfmem
+  use par_mod, only: dp, numpath, maxnests, &
+       numclass, maxcolumn, maxrand, numwfmem
 
   implicit none
 
@@ -40,6 +39,7 @@ module com_mod
   integer :: length(numpath+2*maxnests)
   character(len=256) :: pathfile, flexversion, flexversion_major, arg1, arg2
   character(len=256) :: ohfields_path
+  character(len=256) :: gitversion
   
   ! path                    path names needed for trajectory model
   ! length                  length of path names needed for trajectory model
@@ -89,7 +89,8 @@ module com_mod
   real :: ctl,fine
   integer :: ifine,iout,ipout,ipin,iflux,mdomainfill,ipoutfac
   integer :: mquasilag,nested_output,ind_source,ind_receptor,nxshift
-  integer :: ind_rel,ind_samp,ioutputforeachrelease,linit_cond,surf_only
+  integer :: ind_rel,ind_samp,ioutputforeachrelease,linit_cond,sfc_only
+  integer :: surf_only ! deprecated
   logical :: turbswitch
   integer :: cblflag !added by mc for cbl
 
@@ -117,7 +118,7 @@ module com_mod
   !     0=no, 1=mass unit, 2=mass mixing ratio unit
   ! mquasilag 0: normal run
   !      1: Particle position output is produced in a condensed format and particles are numbered
-  ! surf_only   switch output in grid_time files for surface only or full vertical resolution
+  ! sfc_only   switch output in grid_time files for surface only or full vertical resolution
   !      0=no (full vertical resolution), 1=yes (surface only)
   ! nested_output: 0 no, 1 yes
   ! turbswitch              determines how the Markov chain is formulated
@@ -135,11 +136,16 @@ module com_mod
   ! mintime                 minimum time step to be used by FLEXPART
   ! itsplit                 time constant for splitting particles
 
-  integer :: lsubgrid,lconvection,lagespectra
+  integer :: lsubgrid,lconvection,lturbulence,lagespectra
 
   ! lsubgrid     1 if subgrid topography parameterization switched on, 2 if not
   ! lconvection  1 if convection parameterization switched on, 0 if not
+  ! lturbulence  1 if turbulence parameterization switched on, 0 if not
   ! lagespectra  1 if age spectra calculation switched on, 2 if not
+
+  ! mesoscale turbulence is found to give issues, so turned off by default
+  !***********************************************************************
+  logical :: lmesoscale_turb=.false.
 
   integer :: lnetcdfout
   ! lnetcdfout   1 for netcdf grid output, 0 if not. Set in COMMAND (namelist input)
@@ -147,7 +153,8 @@ module com_mod
   integer :: linversionout
   ! linversionout 1 for one grid_time output file for each release containing all timesteps
 
-  integer :: nageclass,lage(maxageclass)
+  integer :: nageclass
+  integer,allocatable,dimension(:) :: lage
 
   ! nageclass               number of ageclasses for the age spectra calculation
   ! lage [s]                ageclasses for the age spectra calculation
@@ -168,9 +175,8 @@ module com_mod
   
 
 !NIK 16.02.2015
-  integer(selected_int_kind(16)), dimension(maxspec) :: tot_blc_count=0, &
-       &tot_inc_count=0
-
+  integer(selected_int_kind(16)),allocatable,dimension(:) :: &
+    tot_blc_count,tot_inc_count
 
   !*********************************************************************
   ! Variables defining the release locations, released species and their
@@ -186,32 +192,33 @@ module com_mod
   !real xpoint2(maxpoint),ypoint2(maxpoint)
   !real zpoint1(maxpoint),zpoint2(maxpoint)
   !integer*2 kindz(maxpoint)
-  integer :: specnum(maxspec)
+  integer,allocatable,dimension(:) :: specnum
   !real xmass(maxpoint,maxspec)
-  real :: decay(maxspec)
-  real :: weta_gas(maxspec),wetb_gas(maxspec)
-  real :: crain_aero(maxspec),csnow_aero(maxspec)
+  real,allocatable,dimension(:) :: decay
+  real,allocatable,dimension(:) :: weta_gas,wetb_gas
+  real,allocatable,dimension(:) :: crain_aero,csnow_aero
 ! NIK: 31.01.2013- parameters for in-cloud scavening
-  real :: ccn_aero(maxspec),in_aero(maxspec)
-  real :: reldiff(maxspec),henry(maxspec),f0(maxspec)
-  real :: density(maxspec),dquer(maxspec),dsigma(maxspec)
-  integer :: ndia(maxspec)
-  real :: vsetaver(maxspec),cunningham(maxspec),weightmolar(maxspec)
-  real :: vset(maxspec,maxndia),schmi(maxspec,maxndia),fract(maxspec,maxndia)
-  real :: ri(5,numclass),rac(5,numclass),rcl(maxspec,5,numclass)
-  real :: rgs(maxspec,5,numclass),rlu(maxspec,5,numclass)
-  real :: rm(maxspec),dryvel(maxspec),kao(maxspec)
-  real :: ohcconst(maxspec),ohdconst(maxspec),ohnconst(maxspec)
+  real,allocatable,dimension(:) :: ccn_aero,in_aero
+  real,allocatable,dimension(:) :: reldiff,henry,f0
+  real,allocatable,dimension(:) :: density,dquer,dsigma
+  integer,allocatable,dimension(:) :: ndia
+  real,allocatable,dimension(:) :: vsetaver,cunningham,weightmolar
+  real,allocatable,dimension(:,:) :: vset,schmi,fract
+  real,allocatable,dimension(:,:) :: ri,rac
+  real,allocatable,dimension(:,:,:) :: rcl,rgs,rlu
+  real,allocatable,dimension(:) :: rm,dryvel
+  real,allocatable,dimension(:) :: ohcconst,ohdconst,ohnconst
   ! Daria Tatsii: species shape properties
-  real :: Fn(maxspec),Fs(maxspec) ! Newton and Stokes' regime
-  integer :: shape(maxspec),orient(maxspec)
+  real,allocatable,dimension(:) :: Fn,Fs ! Newton and Stokes' regime
+  real,allocatable,dimension(:) :: ks1,ks2,kn2
+  integer,allocatable,dimension(:) :: ishape,orient
 
-  real :: area_hour(maxspec,24),point_hour(maxspec,24)
-  real :: area_dow(maxspec,7),point_dow(maxspec,7)
+  real,allocatable,dimension(:,:) :: area_hour,point_hour
+  real,allocatable,dimension(:,:) :: area_dow,point_dow
 
   !integer npart(maxpoint)
   integer :: nspec,maxpointspec_act
-  character(len=10) :: species(maxspec)
+  character(len=10),allocatable,dimension(:) :: species
 
 
   ! compoint                comment, also "name" of each starting point
@@ -280,8 +287,10 @@ module com_mod
   ! for the mother domain, except with a 'n' appended at the end
   !********************************************************************
 
-  integer :: numbnests
+  integer :: numbnests, nxmaxn, nymaxn
 
+  ! nxmax,nymax        maximum dimension of wind fields in x and y
+  !                    direction, respectively
   ! numbnests    number of nested grids
 
   !******************************************************
@@ -311,7 +320,7 @@ module com_mod
   integer(kind=1) :: landinvent(1200,600,6)
   real :: z0(numclass)
 
-!$OMP THREADPRIVATE (z0)
+! !$OMP THREADPRIVATE (z0)
 
   ! landinvent         landuse inventory (numclass=11 classes)
   ! z0                  roughness length for the landuse classes
@@ -328,8 +337,8 @@ module com_mod
   real :: dxoutn,dyoutn,outlon0n,outlat0n,xoutshiftn,youtshiftn
   !real outheight(maxzgrid),outheighthalf(maxzgrid)
 
-  logical :: DEP,DRYDEP,DRYDEPSPEC(maxspec),WETDEP,WETDEPSPEC(maxspec),&
-       & OHREA,ASSSPEC
+  logical :: DEP,DRYDEP,WETDEP,OHREA,ASSSPEC
+  logical,allocatable,dimension(:) :: DRYDEPSPEC,WETDEPSPEC
   logical :: DRYBKDEP,WETBKDEP
 
   ! numxgrid,numygrid       number of grid points in x,y-direction
@@ -353,11 +362,9 @@ module com_mod
   ! DRYBKDEP,WETBKDEP        .true., for bkwd runs, where mass deposited and source regions is calculated - either for dry or for wet deposition
   !                    (i.e. transfer of mass between these two occurs
 
-
-
   !  if output for each releasepoint shall be created maxpointspec=number of releasepoints
   !  else maxpointspec is 1 -> moved to unc_mod
-  !  the OUTGRID is moved to the module outg_mod
+  !  the OUTGRID is moved to the module outgrid_mod
   !******************************************************************************
 
   ! gridunc,griduncn        uncertainty of outputted concentrations
@@ -373,18 +380,16 @@ module com_mod
   ! Variables defining receptor points
   !***********************************
 
-  real :: xreceptor(maxreceptor),yreceptor(maxreceptor)
-  real :: receptorarea(maxreceptor)
-  real :: creceptor(maxreceptor,maxspec)
-  real, allocatable, dimension(:,:) :: creceptor0
-  character(len=16) :: receptorname(maxreceptor)
+  real,allocatable,dimension(:) :: xreceptor,yreceptor
+  real,allocatable,dimension(:) :: receptorarea
+  real,allocatable,dimension(:,:) :: creceptor
+  character(len=16),allocatable,dimension(:) :: receptorname
   integer :: numreceptor
 
   ! xreceptor,yreceptor     receptor position
   ! creceptor               concentrations at receptor points
   ! receptorarea            area of 1*1 grid cell at receptor point
-
-
+  ! numreceptor             number of receptor points
 
   !***************************************
   ! Variables characterizing each particle
@@ -392,7 +397,8 @@ module com_mod
 
   integer :: numpart=0
   integer :: numparticlecount
-
+  integer :: maxspec ! Number of chemical species per release
+  integer :: maxndia ! Number of diameter bins
   !real, allocatable, dimension(:,:) :: xscav_frac1
 
   !****************************************************************
@@ -486,11 +492,28 @@ module com_mod
   logical :: lroot=.true. ! true if serial version, or if MPI .and. root process
   
   logical, parameter :: interpolhmix=.false. ! true if the hmix shall be interpolated
-  logical, parameter :: turboff=.false.       ! true if the turbulence shall be switched off
 
   integer :: numthreads,numthreads_grid  ! number of available threads in parallel sections
   !integer :: nclassunc2, nrecclunc, ngriclunc
-  
+
+  ! Set maximum number of threads for doing grid computations in COMMAND
+  ! Recommended to set this to max 16
+  ! High numbers create more overhead and a larger memory footprint
+  !***********************************************************************
+  integer :: maxthreadgrid
+
+  !*******************************************************************************
+  ! Maximum output of each partoutput NetCDF-4 file in Mb 
+  ! before a new one is created
+  !*******************************************************************************
+
+  integer :: maxfilesize
+
+  ! This flag sets all vertical interpolation to logarithmic instead of linear
+  !***************************************************************************
+  integer :: logvertinterp
+  logical :: log_interpol=.false.
+
   !*********************************************************
   !LB 04.05.2021, simple timing of IO and total running time
   !*********************************************************
@@ -499,7 +522,60 @@ module com_mod
 
 
 contains
-  subroutine com_mod_allocate_part(nmpart)
+
+  subroutine alloc_com
+    implicit none
+    integer :: stat
+
+    allocate( tot_blc_count(maxspec),tot_inc_count(maxspec),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate tot_blc_count or tot_inc_count"
+    allocate( specnum(maxspec),decay(maxspec),weta_gas(maxspec), &
+      wetb_gas(maxspec),crain_aero(maxspec),csnow_aero(maxspec), &
+      ccn_aero(maxspec),in_aero(maxspec),ndia(maxspec), &
+      reldiff(maxspec),henry(maxspec),f0(maxspec),density(maxspec), &
+      dquer(maxspec),dsigma(maxspec),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate particle property arrays 1"
+    allocate( vsetaver(maxspec),cunningham(maxspec), &
+      weightmolar(maxspec),ri(5,numclass),rac(5,numclass), &
+      rcl(maxspec,5,numclass),rgs(maxspec,5,numclass), &
+      rlu(maxspec,5,numclass),rm(maxspec),dryvel(maxspec), &
+      ohcconst(maxspec),ohdconst(maxspec),ohnconst(maxspec),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate particle property arrays 2"
+    allocate( Fn(maxspec),Fs(maxspec),ks1(maxspec),ks2(maxspec), &
+      kn2(maxspec),ishape(maxspec),orient(maxspec),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate particle shape arrays"
+    allocate( area_hour(maxspec,24),point_hour(maxspec,24), &
+      area_dow(maxspec,7),point_dow(maxspec,7), &
+      species(maxspec),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate species arrays"
+    allocate( DRYDEPSPEC(maxspec),WETDEPSPEC(maxspec),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate DRYDEPSPEC or WETDEPSPEC"
+    allocate( creceptor(numreceptor,maxspec),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate creceptor"
+    tot_blc_count=0
+    tot_inc_count=0
+  end subroutine alloc_com
+
+  subroutine alloc_com_ndia
+    implicit none
+    integer :: stat
+
+    allocate(vset(maxspec,maxndia),schmi(maxspec,maxndia),fract(maxspec,maxndia),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate vset,schmi or fract"
+  end subroutine alloc_com_ndia
+
+  subroutine dealloc_com
+    deallocate(tot_blc_count,tot_inc_count,specnum,decay,weta_gas,wetb_gas, &
+      crain_aero,csnow_aero,ccn_aero,in_aero,reldiff,henry,f0,density,dquer, &
+      dsigma,ndia,vsetaver,cunningham,weightmolar,vset,schmi,fract,ri,rac,rcl, &
+      rgs,rlu,rm,dryvel,ohcconst,ohdconst,ohnconst,Fn,Fs,ks1,ks2,kn2,ishape, &
+      orient,area_hour,point_hour,area_dow,point_dow,species)
+    deallocate(DRYDEPSPEC,WETDEPSPEC)
+    deallocate(creceptor,xreceptor,yreceptor,receptorarea,receptorname)
+    deallocate(lage)
+  end subroutine dealloc_com
+
+  subroutine mpi_alloc_part(nmpart)
   !*******************************************************************************    
   ! Dynamic allocation of arrays
   !
@@ -521,6 +597,10 @@ contains
       allocate(part_av_uu(nmpart),part_av_vv(nmpart),part_av_energy(nmpart))
     end if
 
-  end subroutine com_mod_allocate_part
+  end subroutine mpi_alloc_part
 
+  subroutine update_gitversion(gitversion_tmp)
+    character(len=256) :: gitversion_tmp
+    gitversion=gitversion_tmp
+  end subroutine
 end module com_mod

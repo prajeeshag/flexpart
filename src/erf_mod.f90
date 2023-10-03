@@ -33,14 +33,15 @@ function gammln(xx)
   implicit none
 
   integer :: j
-  real :: x,tmp,ser,xx,gammln
-  real :: cof(6) = (/ &
+  real :: gammln,xx
+  real(kind=dp) :: ser,x,tmp
+  real(kind=dp) :: cof(6) = (/ &
        76.18009173_dp, -86.50532033_dp, 24.01409822_dp, &
        -1.231739516_dp, .120858003e-2_dp, -.536382e-5_dp    /)
-  real :: stp = 2.50662827465_dp
-  real :: half = 0.5_dp, one = 1.0_dp, fpf = 5.5_dp
+  real(kind=dp) :: stp = 2.50662827465_dp
+  real(kind=dp) :: half = 0.5_dp, one = 1.0_dp, fpf = 5.5_dp
 
-  x=xx-one
+  x=real(xx,kind=dp)-one
   tmp=x+fpf
   tmp=(x+half)*log(tmp)-tmp
   ser=one
@@ -48,7 +49,7 @@ function gammln(xx)
     x=x+one
     ser=ser+cof(j)/x
   end do
-  gammln=tmp+log(stp*ser)
+  gammln=real(tmp+log(stp*ser))
 end function gammln
 
 function gammp(a,x)
@@ -58,8 +59,7 @@ function gammp(a,x)
   real :: a, x, gln, gamser, gammp, gammcf
 
   if(x .lt. 0. .or. a .le. 0.) then
-     print*, 'gammp'
-     stop
+    error stop 'gammp: invalid input'
   end if
   if(x.lt.a+1.)then
     call gser(gamser,a,x,gln)
@@ -77,8 +77,7 @@ function gammq(a,x)
   real :: a, x, gln, gamser, gammq, gammcf
 
   if(x.lt.0..or.a.le.0.) then
-     print*, 'gammq'
-     stop
+    error stop 'gammq: invalid input'
   end if
   if(x.lt.a+1.)then
     call gser(gamser,a,x,gln)
@@ -103,8 +102,7 @@ subroutine gser(gamser,a,x,gln)
   gln=gammln(a)
   if(x.le.0.)then
     if(x.lt.0.) then
-       print*, 'gser'
-       stop
+       error stop 'gser: invalid x input'
     end if
     gamser=0.
     return
@@ -118,8 +116,7 @@ subroutine gser(gamser,a,x,gln)
     summ=summ+del
     if(abs(del).lt.abs(summ)*eps)go to 1
   end do
-  print*, 'gser: a too large, itmax too small'
-  stop
+  error stop 'gser: a too large, itmax too small'
 1   gamser=summ*exp(-x+a*log(x)-gln)
 end subroutine gser
 
@@ -156,8 +153,7 @@ subroutine gcf(gammcf,a,x,gln)
       gold=g
     endif
   end do
-  print*, 'gcf: a too large, itmax too small'
-  stop
+  error stop 'gcf: a too large, itmax too small'
 1   gammcf=exp(-x+a*alog(x)-gln)*g
 end subroutine gcf
 

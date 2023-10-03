@@ -52,12 +52,14 @@ subroutine plumetraj(itime)
   use com_mod
   use mean_mod
   use particle_mod
-  use coordinates_ecmwf_mod
+#ifdef ETA
+  use coord_ecmwf_mod
+#endif
   use windfields_mod
 
   implicit none
 
-  integer :: itime,ix,jy,ixp,jyp,indexh,i,j,k,m,n,il,ind,indz,indzp
+  integer :: ii,itime,ix,jy,ixp,jyp,indexh,i,j,k,m,n,il,ind,indz,indzp
   ! real :: xl(maxpart),yl(maxpart),zl(maxpart) ! moved to particle_mod and now xplum,yplum,zplum
   real :: xcenter,ycenter,zcenter,dist,rmsdist,zrmsdist
 
@@ -91,14 +93,16 @@ subroutine plumetraj(itime)
     zrmsdist=0.
 
     n=0
-    do i=1,numpart
-      if (.not.part(i)%alive) cycle
+    do ii=1,count%alive
+      i=count%ialive(ii)
       if (part(i)%npoint.ne.j) cycle
       n=n+1
-      xplum(n)=xlon0+part(i)%xlon*dx
-      yplum(n)=ylat0+part(i)%ylat*dy
+      xplum(n)=xlon0+real(part(i)%xlon)*dx
+      yplum(n)=ylat0+real(part(i)%ylat)*dy
+#ifdef ETA
       call update_zeta_to_z(itime,i)
-      zplum(n)=part(i)%z
+#endif
+      zplum(n)=real(part(i)%z)
 
   ! Interpolate PBL height, PV, and tropopause height to each
   ! particle position in order to determine fraction of particles
@@ -122,8 +126,8 @@ subroutine plumetraj(itime)
         ixp=ixp-nxmax
       end if
 
-      ddx=part(i)%xlon-real(ix)
-      ddy=part(i)%ylat-real(jy)
+      ddx=real(part(i)%xlon)-real(ix)
+      ddy=real(part(i)%ylat)-real(jy)
       rddx=1.-ddx
       rddy=1.-ddy
       p1=rddx*rddy
@@ -142,7 +146,8 @@ subroutine plumetraj(itime)
 
   ! Potential vorticity
   !********************
-
+      indz=nz-1
+      indzp=nz
       do il=2,nz
         if (height(il).gt.zplum(n)) then
           indz=il-1
@@ -406,6 +411,7 @@ subroutine clustering(n,xclust,yclust,zclust,fclust,rms, &
 
     do i=1,n
       distancemin=10.**10.
+      ncl=1
       do j=1,ncluster
         distances=distance2(yplum(i),xplum(i),yclust(j),xclust(j))
         if (distances.lt.distancemin) then
@@ -680,7 +686,7 @@ subroutine openouttraj
   write(*,*) ' #### CANNOT BE OPENED. IF A FILE WITH THIS    #### '
   write(*,*) ' #### NAME ALREADY EXISTS, DELETE IT AND START #### '
   write(*,*) ' #### THE PROGRAM AGAIN.                       #### '
-  stop
+  error stop
 
 end subroutine openouttraj
 

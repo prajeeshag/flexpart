@@ -141,7 +141,7 @@ real function f_esi( p, t )
   return
 end function f_esi
 
-real function ew(x,p)
+real function ew(x,p) ! p is not used
 
   !****************************************************************
   !SAETTIGUNGSDAMPFDRUCK UEBER WASSER IN PA. X IN KELVIN.
@@ -153,7 +153,7 @@ real function ew(x,p)
   real :: x, y, a, p , c, d
 
   ew=0.
-  if(x.le.0.) stop 'sorry: t not in [k]'
+  if(x.le.0.) error stop 'sorry: t not in [k]'
   ! Formula of Goff and Gratch (after Murray, 1966)
   ! if (x.lt.273.15) then
   ! ! Above ice

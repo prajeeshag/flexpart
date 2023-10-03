@@ -44,11 +44,11 @@ subroutine readageclasses
   integer :: i
 
   ! namelist help variables
-  integer :: readerror
-
+  integer :: ios,stat
   ! namelist declaration
+  namelist /nage/ &
+    nageclass
   namelist /ageclass/ &
-    nageclass, &
     lage
 
   nageclass=-1 ! preset to negative value to identify failed namelist input
@@ -59,6 +59,8 @@ subroutine readageclasses
 
   if (lagespectra.ne.1) then
     nageclass=1
+    allocate( lage(nageclass),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate lage"
     lage(nageclass)=999999999
     return
   endif
@@ -67,48 +69,47 @@ subroutine readageclasses
   ! open the AGECLASSSES file and read user options
   !************************************************
 
-  open(unitageclasses,file=path(1)(1:length(1))//'AGECLASSES',form='formatted',status='old',err=999)
+  open(unitageclasses,file=path(1)(1:length(1))//'AGECLASSES', &
+    form='formatted',status='old',err=999)
 
   ! try to read in as a namelist
-  read(unitageclasses,ageclass,iostat=readerror)
+
+  read(unitageclasses,nage,iostat=ios)
+  allocate( lage(nageclass),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate lage"
+  read(unitageclasses,ageclass,iostat=ios)
   close(unitageclasses)
 
-  if ((nageclass.lt.0).or.(readerror.ne.0)) then
-    open(unitageclasses,file=path(1)(1:length(1))//'AGECLASSES',status='old',err=999)
+  if ((nageclass.lt.0).or.(ios.ne.0)) then
+    open(unitageclasses,file=path(1)(1:length(1))//'AGECLASSES', &
+      status='old',err=999)
     do i=1,13
       read(unitageclasses,*)
     end do
     read(unitageclasses,*) nageclass
+    allocate( lage(nageclass),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate lage"
     read(unitageclasses,*) lage(1)
-    if (nageclass.ge.2) then
-      do i=2,nageclass
-        read(unitageclasses,*) lage(i)
-      end do
-    endif
+    do i=2,nageclass
+      read(unitageclasses,*) lage(i)
+    end do
     close(unitageclasses)
   endif
 
   ! write ageclasses file in namelist format to output directory if requested
   if (nmlout.and.lroot) then
-    open(unitageclasses,file=path(2)(1:length(2))//'AGECLASSES.namelist',err=1000)
+    open(unitageclasses,file=path(2)(1:length(2))//'AGECLASSES.namelist', &
+      err=1000)
+    write(unitageclasses,nml=nage)
     write(unitageclasses,nml=ageclass)
     close(unitageclasses)
-  endif
-
-  if (nageclass.gt.maxageclass) then
-    write(*,*) ' #### FLEXPART MODEL ERROR! NUMBER OF AGE     #### '
-    write(*,*) ' #### CLASSES GREATER THAN MAXIMUM ALLOWED.   #### '
-    write(*,*) ' #### CHANGE SETTINGS IN FILE AGECLASSES OR   #### '
-    write(*,*) ' #### RECOMPILE WITH LARGER MAXAGECLASS IN    #### '
-    write(*,*) ' #### FILE PAR_MOD.                        #### '
-    stop
   endif
 
   if (lage(1).le.0) then
     write(*,*) ' #### FLEXPART MODEL ERROR! AGE OF FIRST      #### '
     write(*,*) ' #### CLASS MUST BE GREATER THAN ZERO. CHANGE #### '
     write(*,*) ' #### SETTINGS IN FILE AGECLASSES.            #### '
-    stop
+    error stop 'First age class must be larger than zero'
   endif
 
   do i=2,nageclass
@@ -116,7 +117,7 @@ subroutine readageclasses
       write(*,*) ' #### FLEXPART MODEL ERROR! AGE CLASSES     #### '
       write(*,*) ' #### MUST BE GIVEN IN TEMPORAL ORDER.      #### '
       write(*,*) ' #### CHANGE SETTINGS IN FILE AGECLASSES.   #### '
-      stop
+      error stop 'Age classes must be in temporal order'
     endif
   end do
 
@@ -125,12 +126,12 @@ subroutine readageclasses
 999   write(*,*) ' #### FLEXPART MODEL ERROR! FILE "AGECLASSES" #### '
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(1)(1:length(1))
-  stop
+  error stop 'AGECLASSES cannot be opened'
 
 1000  write(*,*) ' #### FLEXPART MODEL ERROR! FILE "AGECLASSES" #### '
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(2)(1:length(2))
-  stop
+  error stop 'AGECLASSES cannot be opened'
 end subroutine readageclasses
 
 subroutine readavailable
@@ -150,7 +151,7 @@ subroutine readavailable
   ! Variables:                                                                 *
   ! bdate                beginning date as Julian date                         *
   ! beg                  beginning date for windfields                         *
-  ! endl                  ending date for windfields                            *
+  ! endl                  ending date for windfields                           *
   ! fname                filename of wind field, help variable                 *
   ! ideltas [s]          duration of modelling period                          *
   ! idiff                time difference between 2 wind fields                 *
@@ -158,26 +159,26 @@ subroutine readavailable
   ! idiffmax [s]         maximum allowable time between 2 wind fields          *
   ! jul                  julian date, help variable                            *
   ! numbwf               actual number of wind fields                          *
-  ! wfname(maxwf)        file names of needed wind fields                      *
-  ! wfspec(maxwf)        file specifications of wind fields (e.g., if on disc) *
-  ! wftime(maxwf) [s]times of wind fields relative to beginning time           *
-  ! wfname1,wfspec1,wftime1 = same as above, but only local (help variables)   *
+  ! wfname(numbwf)        file names of needed wind fields                     *
+  ! wftime(numbwf) [s]times of wind fields relative to beginning time          *
+  ! wfname1,wftime1 = same as above, but only local (help variables)           *
   !                                                                            *
   ! Constants:                                                                 *
-  ! maxwf                maximum number of wind fields                         *
   ! unitavailab          unit connected to file AVAILABLE                      *
   !                                                                            *
   !*****************************************************************************
 
   implicit none
 
-  integer :: i,idiff,ldat,ltim,wftime1(maxwf),numbwfn(maxnests),k
-  integer :: wftime1n(maxnests,maxwf),wftimen(maxnests,maxwf)
+  integer :: i,idiff,ldat,ltim,k,stat
+  integer,allocatable,dimension(:) :: wftime1,tmpwftime,numbwfn
+  integer,allocatable,dimension(:,:) :: wftimen,wftime1n,tmpwftimen
   logical :: lwarntd=.true.
   real(kind=dp) :: jul,beg,endl
-  character(len=255) :: fname,spec,wfname1(maxwf),wfspec1(maxwf)
-  character(len=255) :: wfname1n(maxnests,maxwf)
-  character(len=40) :: wfspec1n(maxnests,maxwf)
+  character(len=255) :: fname
+  character(len=255),allocatable,dimension(:) :: wfname1, &
+    tmpwfname
+  character(len=255),allocatable,dimension(:,:) :: wfname1n,tmpwfnamen
 
 
   ! Windfields are only used, if they are within the modelling period.
@@ -208,20 +209,21 @@ subroutine readavailable
 
   numbwf=0
 100   read(unitavailab,'(i8,1x,i6,2(6x,a255))',end=99) &
-           ldat,ltim,fname,spec
+           ldat,ltim,fname
     jul=juldate(ldat,ltim)
     if ((jul.ge.beg).and.(jul.le.endl)) then
       numbwf=numbwf+1
-      if (numbwf.gt.maxwf) then      ! check exceedance of dimension
-       write(*,*) 'Number of wind fields needed is too great.'
-       write(*,*) 'Reduce modelling period (file "COMMAND") or'
-       write(*,*) 'reduce number of wind fields (file "AVAILABLE").'
-       stop
+      allocate( tmpwfname(numbwf),tmpwftime(numbwf),stat=stat)
+      if (stat.ne.0) error stop 'ERROR: could not allocate tmpwfname'
+      if (numbwf.gt.1) then
+        tmpwfname(1:numbwf-1)=wfname1
+        tmpwftime(1:numbwf-1)=wftime1
       endif
+      tmpwfname(numbwf)=fname(1:index(fname,' '))
+      tmpwftime(numbwf)=nint((jul-bdate)*86400._dp)
 
-      wfname1(numbwf)=fname(1:index(fname,' '))
-      wfspec1(numbwf)=spec
-      wftime1(numbwf)=nint((jul-bdate)*86400._dp)
+      call move_alloc(tmpwfname,wfname1)
+      call move_alloc(tmpwftime,wftime1)
     endif
     goto 100       ! next wind field
 
@@ -232,41 +234,45 @@ subroutine readavailable
   ! Open the wind field availability file and read available wind fields
   ! within the modelling period (nested grids)
   !*********************************************************************
+  if (numbnests.gt.0) then
+    allocate( numbwfn(numbnests),stat=stat)
+    if (stat.ne.0) error stop 'ERROR: could not allocate numwfn'
 
-  do k=1,numbnests
-  !print*,length(numpath+2*(k-1)+1),length(numpath+2*(k-1)+2),length(4),length(3)
-  !print*,path(numpath+2*(k-1)+2)(1:length(numpath+2*(k-1)+2))
-    open(unitavailab,file=path(numpath+2*(k-1)+2) &
-         (1:length(numpath+2*(k-1)+2)),status='old',err=998)
+    do k=1,numbnests
+    !print*,length(numpath+2*(k-1)+1),length(numpath+2*(k-1)+2),length(4),length(3)
+    !print*,path(numpath+2*(k-1)+2)(1:length(numpath+2*(k-1)+2))
+      open(unitavailab,file=path(numpath+2*(k-1)+2) &
+           (1:length(numpath+2*(k-1)+2)),status='old',err=998)
 
-    do i=1,3
-      read(unitavailab,*)
-    end do
+      do i=1,3
+        read(unitavailab,*)
+      end do
 
-    numbwfn(k)=0
+      numbwfn(k)=0
 700   read(unitavailab,'(i8,1x,i6,2(6x,a255))',end=699) ldat, &
-           ltim,fname,spec
-      jul=juldate(ldat,ltim)
-      if ((jul.ge.beg).and.(jul.le.endl)) then
-        numbwfn(k)=numbwfn(k)+1
-        if (numbwfn(k).gt.maxwf) then      ! check exceedance of dimension
-       write(*,*) 'Number of nested wind fields is too great.'
-       write(*,*) 'Reduce modelling period (file "COMMAND") or'
-       write(*,*) 'reduce number of wind fields (file "AVAILABLE").'
-          stop
+             ltim,fname
+        jul=juldate(ldat,ltim)
+        if ((jul.ge.beg).and.(jul.le.endl)) then
+          numbwfn(k)=numbwfn(k)+1
+          allocate( tmpwfnamen(numbnests,numbwf),tmpwftimen(numbnests,numbwf), &
+            stat=stat)
+          if (stat.ne.0) error stop 'ERROR: could not allocate tmpwfnamen'
+          if (numbwfn(k).gt.1) then
+            tmpwfnamen(:,1:numbwf-1)=wfname1n
+            tmpwftimen(:,1:numbwf-1)=wftime1n
+          endif
+          tmpwfnamen(k,numbwfn(k))=fname
+          tmpwftimen(k,numbwfn(k))=nint((jul-bdate)*86400._dp)
+          call move_alloc(tmpwfnamen,wfname1n)
+          call move_alloc(tmpwftimen,wftime1n)
         endif
-
-        wfname1n(k,numbwfn(k))=fname
-        wfspec1n(k,numbwfn(k))=spec
-        wftime1n(k,numbwfn(k))=nint((jul-bdate)*86400._dp)
-      endif
-      goto 700       ! next wind field
+        goto 700       ! next wind field
 
 699   continue
 
-    close(unitavailab)
-  end do
-
+      close(unitavailab)
+    end do
+  endif
 
   ! Check wind field times of file AVAILABLE (expected to be in temporal order)
   !****************************************************************************
@@ -274,7 +280,7 @@ subroutine readavailable
   if (numbwf.eq.0) then
     write(*,*) ' #### FLEXPART MODEL ERROR! NO WIND FIELDS    #### '
     write(*,*) ' #### AVAILABLE FOR SELECTED TIME PERIOD.     #### '
-    stop
+    error stop 'No wind fields available for selected time period'
   endif
 
   do i=2,numbwf
@@ -282,7 +288,7 @@ subroutine readavailable
       write(*,*) 'FLEXPART ERROR: FILE AVAILABLE IS CORRUPT.'
       write(*,*) 'THE WIND FIELDS ARE NOT IN TEMPORAL ORDER.'
       write(*,*) 'PLEASE CHECK FIELD ',wfname1(i)
-      stop
+      error stop 'AVAILABLE file error'
     endif
   end do
 
@@ -294,7 +300,7 @@ subroutine readavailable
     if (numbwfn(k).eq.0) then
       write(*,*) '#### FLEXPART MODEL ERROR! NO WIND FIELDS  ####'
       write(*,*) '#### AVAILABLE FOR SELECTED TIME PERIOD.   ####'
-      stop
+      error stop 'No nested wind fields available for selected time period'
     endif
 
     do i=2,numbwfn(k)
@@ -303,39 +309,46 @@ subroutine readavailable
       write(*,*) 'THE NESTED WIND FIELDS ARE NOT IN TEMPORAL ORDER.'
       write(*,*) 'PLEASE CHECK FIELD ',wfname1n(k,i)
       write(*,*) 'AT NESTING LEVEL ',k
-      stop
+      error stop 'nested AVAILABLE file error'
       endif
     end do
 
   end do
 
-
+  ! Allocating global fields storing the windfield names and times
+  !***************************************************************
+  allocate(wfname(numbwf),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate wfname"
+  allocate(wftime(numbwf),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate wftime"
+  if (numbnests.gt.0) then
+    allocate(wfnamen(numbnests,numbwf),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate wfnamen"
+    allocate(wftimen(numbnests,numbwf),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate wftimen"
+  endif
   ! For backward trajectories, reverse the order of the windfields
   !***************************************************************
 
   if (ideltas.ge.0) then
     do i=1,numbwf
       wfname(i)=wfname1(i)
-      wfspec(i)=wfspec1(i)
       wftime(i)=wftime1(i)
     end do
     do k=1,numbnests
       do i=1,numbwfn(k)
         wfnamen(k,i)=wfname1n(k,i)
-        wfspecn(k,i)=wfspec1n(k,i)
         wftimen(k,i)=wftime1n(k,i)
       end do
     end do
   else
     do i=1,numbwf
       wfname(numbwf-i+1)=wfname1(i)
-      wfspec(numbwf-i+1)=wfspec1(i)
       wftime(numbwf-i+1)=wftime1(i)
     end do
     do k=1,numbnests
       do i=1,numbwfn(k)
         wfnamen(k,numbwfn(k)-i+1)=wfname1n(k,i)
-        wfspecn(k,numbwfn(k)-i+1)=wfspec1n(k,i)
         wftimen(k,numbwfn(k)-i+1)=wftime1n(k,i)
       end do
     end do
@@ -366,7 +379,7 @@ subroutine readavailable
       write(*,*) 'NESTED WIND FIELDS ARE NOT CONSISTENT WITH'
       write(*,*) 'THE AVAILABLE FILE OF THE MOTHER DOMAIN.  '
       write(*,*) 'ERROR AT NEST LEVEL: ',k
-      stop
+      error stop 'Not the same number of nested wind field files as mother domain'
     endif
     do i=1,numbwf
       if (wftimen(k,i).ne.wftime(i)) then
@@ -374,7 +387,7 @@ subroutine readavailable
         write(*,*) 'NESTED WIND FIELDS ARE NOT CONSISTENT WITH'
         write(*,*) 'THE AVAILABLE FILE OF THE MOTHER DOMAIN.  '
         write(*,*) 'ERROR AT NEST LEVEL: ',k
-        stop
+        error stop 'Not the same time period of nested wind field files as mother domain'
       endif
     end do
   end do
@@ -386,19 +399,20 @@ subroutine readavailable
     memind(i)=i
     memtime(i)=999999999
   end do
-
+  deallocate( wftime1,wfname1)
+  if (numbnests.gt.0) deallocate(wftime1n,wftimen,wfname1n,numbwfn)
   return
 
 998   write(*,*) ' #### FLEXPART MODEL ERROR! AVAILABLE FILE   #### '
   write(*,'(a)') '     '//path(numpath+2*(k-1)+2) &
        (1:length(numpath+2*(k-1)+2))
   write(*,*) ' #### CANNOT BE OPENED             #### '
-  stop
+  error stop 'Nested AVAILABLE file cannot be opened'
 
 999   write(*,*) ' #### FLEXPART MODEL ERROR! AVAILABLE FILE #### '
   write(*,'(a)') '     '//path(4)(1:length(4))
   write(*,*) ' #### CANNOT BE OPENED           #### '
-  stop
+  error stop 'AVAILABLE file cannot be opened'
 end subroutine readavailable
 
 subroutine readcommand
@@ -461,8 +475,8 @@ subroutine readcommand
   implicit none
 
   character(len=50) :: line
-  logical :: old
-  integer :: readerror
+  integer :: ios
+  integer :: lturbulence_meso
 
   namelist /command/ &
   ldirect, &
@@ -480,6 +494,8 @@ subroutine readcommand
   ipoutfac, &
   lsubgrid, &
   lconvection, &
+  lturbulence, &
+  lturbulence_meso, &
   lagespectra, &
   ipin, &
   ioutputforeachrelease, &
@@ -491,13 +507,17 @@ subroutine readcommand
   nested_output, &
   linit_cond, &
   lnetcdfout, &
+  sfc_only, &
   surf_only, &
   cblflag, &
   linversionout, &
   ohfields_path, &
   d_trop, &
   d_strat, &
-  nxshift
+  nxshift, &
+  maxthreadgrid, &
+  maxfilesize, &
+  logvertinterp
 
   ! Presetting namelist command
   ldirect=0
@@ -517,6 +537,8 @@ subroutine readcommand
   ipoutfac=1
   lsubgrid=1
   lconvection=1
+  lturbulence=1
+  lturbulence_meso=0
   lagespectra=0
   ipin=0
   ioutputforeachrelease=1
@@ -527,12 +549,16 @@ subroutine readcommand
   mquasilag=0
   nested_output=0
   linit_cond=0
-  lnetcdfout=0
-  surf_only=0 
+  lnetcdfout=1
+  sfc_only=0
+  surf_only=-1
   cblflag=0 ! if using old-style COMMAND file, set to 1 here to use mc cbl routine
   linversionout=0
   ohfields_path="../../flexin/"
   nxshift=-9999
+  maxthreadgrid=1
+  maxfilesize=10000
+  logvertinterp=0
 
   !Af set release-switch
   WETBKDEP=.false.
@@ -541,11 +567,12 @@ subroutine readcommand
   ! Open the command file and read user options
   ! Namelist input first: try to read as namelist file
   !**************************************************************************
-  open(unitcommand,file=path(1)(1:length(1))//'COMMAND',status='old',form='formatted',err=999)
+  open(unitcommand,file=path(1)(1:length(1))//'COMMAND',status='old', &
+    form='formatted',err=999)
 
   ! try namelist input (default)
-  read(unitcommand,command,iostat=readerror)
-  if (readerror.ne.0) then
+  read(unitcommand,command,iostat=ios)
+  if (ios.ne.0) then
         backspace(unitcommand)
         read(unitcommand,fmt='(A)') line
         if (lroot) write(*,*) &
@@ -554,11 +581,19 @@ subroutine readcommand
   
   close(unitcommand)
 
+  if (lturbulence_meso.ne.0) lmesoscale_turb=.true.
+  if (logvertinterp.ne.0) log_interpol=.true.
+
+  if (surf_only.ne.-1) then
+    write(*,*) 'WARNING: SURF_ONLY in COMMAND will be deprecated and renamed SFC_ONLY'
+    write(*,*) 'Continuing with SURF_ONLY...'
+    sfc_only=surf_only
+  endif
   ! distinguish namelist from fixed text input
-  if ((readerror.ne.0).or.(ldirect.eq.0)) then ! parse as text file format
+  if ((ios.ne.0).or.(ldirect.eq.0)) then ! parse as text file format
     if (lroot) write(*,*) 'COMMAND either having unrecognised entries, &
       &or in old format, please update to namelist format.'
-      stop
+      error stop 'COMMAND has unrecognised entries or is not a namelist'
   endif ! input format
 
   ! write command file in namelist format to output directory if requested
@@ -572,9 +607,9 @@ subroutine readcommand
 
   ! Determine how Markov chain is formulated (for w or for w/sigw)
   !***************************************************************
-  if (cblflag.eq.1) then !---- added by mc to properly set parameters for CBL simulations 
+  if (cblflag.eq.1) then ! added by mc to properly set parameters for CBL simulations 
     turbswitch=.true.
-    if (lsynctime>maxtl) lsynctime=maxtl  !maxtl defined in com_mod.f90
+    if (lsynctime .gt. maxtl) lsynctime=maxtl  !maxtl defined in com_mod.f90
     if (ctl.lt.5) then
       print *,'WARNING: CBL flag active the ratio of TLu/dt has been set to 5'
       ctl=5.
@@ -582,7 +617,8 @@ subroutine readcommand
     if (ifine*ctl.lt.50) then
       ifine=int(50./ctl)+1
 
-      print *,'WARNING: CBL flag active the ratio of TLW/dt was < 50, ifine has been re-set to',ifine
+      print *,'WARNING: CBL flag active the ratio of TLW/dt was < 50, &
+        &ifine has been re-set to',ifine
   !pause
     endif
     print *,'WARNING: CBL flag active the ratio of TLW/dt is ',ctl*ifine
@@ -678,7 +714,7 @@ subroutine readcommand
   if ((linit_cond.lt.0).or.(linit_cond.gt.2)) then
     write(*,*) ' #### FLEXPART MODEL ERROR! INVALID OPTION    #### '
     write(*,*) ' #### FOR LINIT_COND IN FILE "COMMAND".       #### '
-    stop
+    error stop 'LINIT_COND in COMMAND is invalid'
   endif
 
   ! Check input dates
@@ -689,37 +725,37 @@ subroutine readcommand
     write(*,*) ' #### IS LARGER THAN ENDING DATE. CHANGE      #### '
     write(*,*) ' #### EITHER POINT 2 OR POINT 3 IN FILE       #### '
     write(*,*) ' #### "COMMAND".                              #### '
-    stop
+    error stop 'COMMAND: beginning date is larger than ending date'
   else if (iedate.eq.ibdate) then
     if (ietime.lt.ibtime) then
     write(*,*) ' #### FLEXPART MODEL ERROR! BEGINNING TIME    #### '
     write(*,*) ' #### IS LARGER THAN ENDING TIME. CHANGE      #### '
     write(*,*) ' #### EITHER POINT 2 OR POINT 3 IN FILE       #### '
     write(*,*) ' #### "COMMAND".                              #### '
-    stop
+    error stop 'COMMAND: beginning time is larger than ending time'
     endif
   endif
 
-#ifndef USE_NCF
-  if ((loutrestart.ne.-1).or.(ipin.ne.0)) then
-    write(*,*) ' WARNING: restart option set with intervals'
-    write(*,*) ' LOUTRESTART', loutrestart
-    write(*,*) ' not possible when using binary gridded output'
-    write(*,*) ' ==> RESTART FUNCTION SWITCHED OFF!'
-  endif
-  if (ipin.ne.0) then 
-    write(*,*) ' ERROR: restart option not possible using binary'
-    write(*,*) ' output.'
-    write(*,*) ' Please only use IPIN>0 when compiling and running using'
-    write(*,*) ' netcdf output. '
-  endif
-#else
-  if ((surf_only.eq.1).or.(linversionout.eq.1)) then
-    write(*,*) ' ERROR: NetCDF output for surface only or for inversions'
-    write(*,*) ' is not yet implemented. Please compile without NetCDF.'
-    stop
-  endif
-#endif
+! #ifndef USE_NCF
+!   if ((loutrestart.ne.-1).or.(ipin.ne.0)) then
+!     write(*,*) ' WARNING: restart option set with intervals'
+!     write(*,*) ' LOUTRESTART', loutrestart
+!     write(*,*) ' not possible when using binary gridded output'
+!     write(*,*) ' ==> RESTART FUNCTION SWITCHED OFF!'
+!   endif
+!   if (ipin.ne.0) then 
+!     write(*,*) ' ERROR: restart option not possible using binary'
+!     write(*,*) ' output.'
+!     write(*,*) ' Please only use IPIN>0 when compiling and running using'
+!     write(*,*) ' netcdf output. '
+!   endif
+! #else
+!   if ((surf_only.eq.1).or.(linversionout.eq.1)) then
+!     write(*,*) ' ERROR: NetCDF output for surface only or for inversions'
+!     write(*,*) ' is not yet implemented. Please compile without NetCDF.'
+!     error stop 'Surface only option is not supported for NetCDF'
+!   endif
+! #endif
 
   ! Determine kind of dispersion method
   !************************************
@@ -734,23 +770,38 @@ subroutine readcommand
 
   ! Check for netcdf output switch
   !*******************************
-#ifdef USE_NCF
-  lnetcdfout = 1
-#endif
-  if (iout.ge.8) then
-     lnetcdfout = 1
-     iout = iout - 8
+  if (iout.gt.8) then
+    lnetcdfout=1
+    iout = iout -8
+  endif
+  if (lnetcdfout.eq.1) then
 #ifndef USE_NCF
-     write(*,*) 'ERROR: netcdf output not activated during compile time but used in COMMAND file!'
-     write(*,*) 'Please recompile with netcdf library (`make [...] ncf=yes`) or use standard output format.'
-     stop
+    write(*,*) 'WARNING: netcdf output not activated during compile time &
+      &but switched on in COMMAND or set to default value 1.'
+    write(*,*) 'Please recompile with netcdf library (`make [...] ncf=yes`) &
+      &when requiring NetCDF output.'
+    write(*,*) 'LNETCDFOUT set to 0.'
+    lnetcdfout = 0
+#endif
+  else
+#ifdef USE_NCF
+    write(*,*) 'WARNING: Executable compiled using NetCDF libraries, but &
+      &BINARY output is requested. If this was unintended, please add 8 &
+      &to IOUT or set LOUTNETCDF=1 in the COMMAND file.'
 #endif
   endif
+
+  if ((lnetcdfout.eq.1).and.((sfc_only.eq.1).or.(linversionout.eq.1))) then
+    write(*,*) ' WARNING: NetCDF output for surface only or for inversions'
+    write(*,*) ' is not yet implemented. LNETCDFOUT set to 0.'
+    lnetcdfout=0
+  endif
+
 #ifndef USE_NCF
   if (ipout.ne.0) then
     write(*,*) 'ERROR: NETCDF missing! Please recompile with the netcdf'
     write(*,*) 'library if you want the particle dump or set IPOUT=0.'
-    stop    
+    error stop 'FLEXPART not compiled with NetCDF'
   endif
 #endif
 
@@ -758,13 +809,14 @@ subroutine readcommand
   !**********************************************************************
 
   if (iout.eq.0) then
-    write(*,*) 'WARNING: IOUT set to zero, no gridded information will be written to file'
+    write(*,*) 'WARNING: IOUT set to zero, no gridded information will be &
+      &written to file'
   else if ((iout.lt.0).or.(iout.gt.5)) then
     write(*,*) ' #### FLEXPART MODEL ERROR! FILE COMMAND:     #### '
     write(*,*) ' #### IOUT MUST BE 1, 2, 3, 4 OR 5 FOR        #### '
     write(*,*) ' #### STANDARD FLEXPART OUTPUT OR  9 - 13     #### '
     write(*,*) ' #### FOR NETCDF OUTPUT                       #### '
-    stop
+    error stop
   endif
 
   !AF check consistency between units and volume mixing ratio
@@ -773,7 +825,7 @@ subroutine readcommand
     write(*,*) ' #### FLEXPART MODEL ERROR! FILE COMMAND:     #### '
     write(*,*) ' #### VOLUME MIXING RATIO ONLY SUPPORTED      #### '
     write(*,*) ' #### FOR MASS UNITS (at the moment)          #### '
-    stop
+    error stop
   endif
 
 
@@ -784,7 +836,7 @@ subroutine readcommand
       write(*,*) '#### FLEXPART MODEL ERROR! FILE COMMAND:     ####'
       write(*,*) '#### OUTPUTFOREACHRELEASE AND QUASILAGRANGIAN####'
       write(*,*) '#### MODE IS NOT POSSIBLE   !                ####'
-      stop
+      error stop
   endif
 
 
@@ -795,7 +847,7 @@ subroutine readcommand
       write(*,*) '#### FLEXPART MODEL ERROR! FILE COMMAND:     ####'
       write(*,*) '#### FOR BACKWARD RUNS, QUASILAGRANGIAN MODE ####'
       write(*,*) '#### IS NOT POSSIBLE   !                     ####'
-      stop
+      error stop
   endif
 
 
@@ -807,7 +859,7 @@ subroutine readcommand
       write(*,*) '#### FLEXPART MODEL ERROR! FILE COMMAND:     ####'
       write(*,*) '#### FOR BACKWARD RUNS, IOUTPUTFOREACHRLEASE ####'
       write(*,*) '#### MUST BE SET TO ONE!                     ####'
-      stop
+      error stop
   endif
 
 
@@ -819,7 +871,7 @@ subroutine readcommand
       write(*,*) '#### FLEXPART MODEL ERROR! FILE COMMAND:     ####'
       write(*,*) '#### FOR DOMAIN FILLING RUNS OUTPUT FOR      ####'
       write(*,*) '#### EACH RELEASE IS FORBIDDEN !             ####'
-      stop
+      error stop
   endif
 
   ! Inversion output format only for backward runs
@@ -829,7 +881,7 @@ subroutine readcommand
       write(*,*) '#### FLEXPART MODEL ERROR! FILE COMMAND:     ####'
       write(*,*) '#### INVERSION OUTPUT FORMAT ONLY FOR        ####'
       write(*,*) '#### BACKWARD RUNS                           ####'
-      stop
+      error stop
   endif
 
 
@@ -842,7 +894,7 @@ subroutine readcommand
     if ((iout.eq.2).or.(iout.eq.3)) then
       write(*,*) '#### FLEXPART MODEL ERROR! FILE COMMAND:     ####'
       write(*,*) '#### FOR BACKWARD RUNS, IOUT MUST BE 1,4,OR 5####'
-      stop
+      error stop
     endif
   endif
 
@@ -856,7 +908,7 @@ subroutine readcommand
       write(*,*) '#### FLEXPART MODEL ERROR! FILE COMMAND:     ####'
       write(*,*) '#### FOR DOMAIN-FILLING TRAJECTORY OPTION,   ####'
       write(*,*) '#### IOUT MUST NOT BE SET TO 4 OR 5.         ####'
-      stop
+      error stop
     endif
   endif
 
@@ -866,17 +918,17 @@ subroutine readcommand
   if ((ipout.ne.0).and.(ipout.ne.1).and.(ipout.ne.2).and.(ipout.ne.3)) then
     write(*,*) ' #### FLEXPART MODEL ERROR! FILE COMMAND:     #### '
     write(*,*) ' #### IPOUT MUST BE 0, 1, 2 OR 3!             #### '
-    stop
+    error stop
   endif
 
   ! Check whether input and output settings don't contradict
   !*********************************************************
-  if (((iout.eq.4).or.(iout.eq.5)).and.((ipin.eq.3).or.(ipin.eq.4))) then
-    write(*,*) ' #### FLEXPART MODEL ERROR! FILE COMMAND:     #### '
-    write(*,*) ' #### IOUT CANNOT BE 4 or 5 (plume) WHEN      #### '
-    write(*,*) ' #### READING FROM part_ic.nc (ipin=4/5)      #### '
-    stop
-  endif    
+  ! if (((iout.eq.4).or.(iout.eq.5)).and.((ipin.eq.3).or.(ipin.eq.4))) then
+  !   write(*,*) ' #### FLEXPART MODEL ERROR! FILE COMMAND:     #### '
+  !   write(*,*) ' #### IOUT CANNOT BE 4 or 5 (plume) WHEN      #### '
+  !   write(*,*) ' #### READING FROM part_ic.nc (ipin=4/5)      #### '
+  !   error stop
+  ! endif    
 
   if(lsubgrid.ne.1.and.verbosity.eq.0) then
     write(*,*) '             ----------------               '
@@ -892,7 +944,7 @@ subroutine readcommand
   if ((lconvection.ne.0).and.(lconvection.ne.1)) then
     write(*,*) ' #### FLEXPART MODEL ERROR! FILE COMMAND:     #### '
     write(*,*) ' #### LCONVECTION MUST BE SET TO EITHER 1 OR 0#### '
-    stop
+    error stop
   endif
 
 
@@ -903,7 +955,7 @@ subroutine readcommand
     write(*,*) ' #### FLEXPART MODEL ERROR! SYNCHRONISATION   #### '
     write(*,*) ' #### TIME IS TOO LONG. MAKE IT SHORTER.      #### '
     write(*,*) ' #### MINIMUM HAS TO BE: ', idiffnorm/2
-    stop
+    error stop
   endif
 
 
@@ -915,7 +967,7 @@ subroutine readcommand
     write(*,*) ' #### CONCENTRATION FIELD OUTPUT MUST NOT BE  #### '
     write(*,*) ' #### ZERO.                                   #### '
     write(*,*) ' #### CHANGE INPUT IN FILE COMMAND.           #### '
-    stop
+    error stop
   endif
 
   if (loutaver.gt.loutstep) then
@@ -923,7 +975,7 @@ subroutine readcommand
     write(*,*) ' #### CONCENTRATION FIELD OUTPUT MUST NOT BE  #### '
     write(*,*) ' #### GREATER THAN INTERVAL OF OUTPUT.        #### '
     write(*,*) ' #### CHANGE INPUT IN FILE COMMAND.           #### '
-    stop
+    error stop
   endif
 
   if (loutsample.gt.loutaver) then
@@ -931,49 +983,49 @@ subroutine readcommand
     write(*,*) ' #### CONCENTRATION FIELD OUTPUT MUST NOT BE  #### '
     write(*,*) ' #### GREATER THAN TIME AVERAGE OF OUTPUT.    #### '
     write(*,*) ' #### CHANGE INPUT IN FILE COMMAND.           #### '
-    stop
+    error stop
   endif
 
   if (mod(loutaver,lsynctime).ne.0) then
     write(*,*) ' #### FLEXPART MODEL ERROR! AVERAGING TIME OF #### '
     write(*,*) ' #### CONCENTRATION FIELD MUST BE A MULTIPLE  #### '
     write(*,*) ' #### OF THE SYNCHRONISATION INTERVAL         #### '
-    stop
+    error stop
   endif
 
   if ((loutaver/lsynctime).lt.2) then
     write(*,*) ' #### FLEXPART MODEL ERROR! AVERAGING TIME OF #### '
     write(*,*) ' #### CONCENTRATION FIELD MUST BE AT LEAST    #### '
     write(*,*) ' #### TWICE THE SYNCHRONISATION INTERVAL      #### '
-    stop
+    error stop
   endif
 
   if (mod(loutstep,lsynctime).ne.0) then
     write(*,*) ' #### FLEXPART MODEL ERROR! INTERVAL BETWEEN  #### '
     write(*,*) ' #### CONCENTRATION FIELDS MUST BE A MULTIPLE #### '
     write(*,*) ' #### OF THE SYNCHRONISATION INTERVAL         #### '
-    stop
+    error stop
   endif
 
   if ((loutstep/lsynctime).lt.2) then
     write(*,*) ' #### FLEXPART MODEL ERROR! INTERVAL BETWEEN  #### '
     write(*,*) ' #### CONCENTRATION FIELDS MUST BE AT LEAST   #### '
     write(*,*) ' #### TWICE THE SYNCHRONISATION INTERVAL      #### '
-    stop
+    error stop
   endif
 
   if (mod(loutsample,lsynctime).ne.0) then
     write(*,*) ' #### FLEXPART MODEL ERROR! SAMPLING TIME OF  #### '
     write(*,*) ' #### CONCENTRATION FIELD MUST BE A MULTIPLE  #### '
     write(*,*) ' #### OF THE SYNCHRONISATION INTERVAL         #### '
-    stop
+    error stop
   endif
 
   if ((mquasilag.eq.1).and.(iout.ge.4)) then
     write(*,*) ' #### FLEXPART MODEL ERROR! CONFLICTING       #### '
     write(*,*) ' #### OPTIONS: IF MQUASILAG=1, PLUME          #### '
     write(*,*) ' #### TRAJECTORY OUTPUT IS IMPOSSIBLE.        #### '
-    stop
+    error stop
   endif
 
   ! Compute modeling time in seconds and beginning date in Julian date
@@ -995,7 +1047,7 @@ subroutine readcommand
   else
     write(*,*) ' #### FLEXPART MODEL ERROR! DIRECTION IN      #### '
     write(*,*) ' #### FILE "COMMAND" MUST BE EITHER -1 OR 1.  #### '
-    stop
+    error stop
   endif
 
   return
@@ -1003,12 +1055,12 @@ subroutine readcommand
 999   write(*,*) ' #### FLEXPART MODEL ERROR! FILE "COMMAND"    #### '
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(1)(1:length(1))
-  stop
+  error stop
 
 1000   write(*,*) ' #### FLEXPART MODEL ERROR! FILE "COMMAND"    #### '
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(2)(1:length(2))
-  stop
+  error stop
 end subroutine readcommand
 
 subroutine readdepo
@@ -1045,11 +1097,24 @@ subroutine readdepo
   real :: rluh(5,numclass),rgssh(5,numclass),rgsoh(5,numclass)
   real :: rclsh(5,numclass),rcloh(5,numclass)
   integer :: i,j,ic
+  logical :: ios, ios2
+  character(12) :: file_sfcdepo
 
 
   ! Read deposition constants related with landuse and seasonal category
   !*********************************************************************
-  open(unitwesely,file=path(1)(1:length(1))//'surfdepo.t', &
+  file_sfcdepo='sfcdepo.t'
+  inquire(file=path(1)(1:length(1))//trim(file_sfcdepo),exist=ios)
+  if (.not. ios) then
+    file_sfcdepo='surfdepo.t'
+    inquire(file=path(1)(1:length(1))//trim(file_sfcdepo),exist=ios2)
+    if (ios2) then
+      write(*,*) 'WARNING: surfdepo.t should be renamed to sfcdepo.t'
+      write(*,*) 'Continuing with surfdepo.t'
+    endif
+  endif
+
+  open(unitwesely,file=path(1)(1:length(1))//trim(file_sfcdepo), &
        status='old',err=999)
 
   do i=1,16
@@ -1127,8 +1192,8 @@ subroutine readdepo
   return
 
 999   write(*,*) '### FLEXPART ERROR! FILE              ###'
-  write(*,*) '### surfdepo.t DOES NOT EXIST.        ###'
-  stop
+  write(*,*) '### sfcdepo.t DOES NOT EXIST.        ###'
+  error stop
 end subroutine readdepo
 
 subroutine readOHfield
@@ -1155,11 +1220,11 @@ subroutine readOHfield
   !                                                                            *
   !*****************************************************************************
 
-  use oh_mod
+  use ohr_mod
 
   implicit none
 
-  integer :: i,j,k,l,ierr
+  integer :: i,j,k,l,ierr,stat
   real, dimension(:), allocatable :: etaOH
 
   !  real, parameter :: gasct=8.314   ! gas constant
@@ -1174,8 +1239,9 @@ subroutine readOHfield
        form='UNFORMATTED', iostat=ierr, convert='little_endian')
 
   if(ierr.ne.0) then
-    write(*,*) 'Cannot read binary OH fields in ',trim(ohfields_path)//'OH_FIELDS/OH_variables.bin'
-    stop
+    write(*,*) 'Cannot read binary OH fields in ', &
+      trim(ohfields_path)//'OH_FIELDS/OH_variables.bin'
+    error stop
   endif
 
   read(unitOH) nxOH
@@ -1184,12 +1250,18 @@ subroutine readOHfield
   write(*,*) nxOH,nyOH,nzOH
 
   ! allocate variables
-  allocate(lonOH(nxOH))
-  allocate(latOH(nyOH))
-  allocate(etaOH(nzOH))
-  allocate(altOH(nzOH))
-  allocate(OH_field(nxOH,nyOH,nzOH,12))
-  allocate(OH_hourly(nxOH,nyOH,nzOH,2))
+  allocate(lonOH(nxOH),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate lonOH"
+  allocate(latOH(nyOH),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate latOH"
+  allocate(etaOH(nzOH),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate etaOH"
+  allocate(altOH(nzOH),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate altOH"
+  allocate(OH_field(nxOH,nyOH,nzOH,12),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate OH_field"
+  allocate(OH_hourly(nxOH,nyOH,nzOH,2),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate OH_hourly"
 
   read(unitOH) (lonjr(i),i=1,360)
   read(unitOH) (latjr(i),i=1,180)
@@ -1232,15 +1304,15 @@ subroutine readlanduse
   ! LANDUSE CATEGORIES:                                                        *
   !                                                                            *
   ! 1   Urban land                                                             *
-  ! 2   Agricultural land                                  *
-  ! 3   Range land                                         *
-  ! 4   Deciduous forest                                           *
-  ! 5   Coniferous forest                                              *
+  ! 2   Agricultural land                                                      *
+  ! 3   Range land                                                             *
+  ! 4   Deciduous forest                                                       *
+  ! 5   Coniferous forest                                                      *
   ! 6   Mixed forest including wetland                                         *
   ! 7   water, both salt and fresh                                             *
   ! 8   barren land mostly desert                                              *
-  ! 9   nonforested wetland                                                *
-  ! 10  mixed agricultural and range land                              *
+  ! 9   nonforested wetland                                                    *
+  ! 10  mixed agricultural and range land                                      *
   ! 11  rocky open areas with low growing shrubs                               *
   ! 12  ice                                                                    *
   ! 13  rainforest                                                             *
@@ -1256,6 +1328,8 @@ subroutine readlanduse
   integer(kind=1) :: ilr_buffer(2160000)
   integer :: il,irecread
   real :: rlr, r2lr
+  logical :: ios,ios2
+  character(12) :: file_sfcdata
 
 
   ! Read landuse inventory
@@ -1270,11 +1344,8 @@ subroutine readlanduse
   ! 2 1  percentage 2 = 2*6.25 => 13% landuse class 1
   ! 1 12 percentage 1 = 1*6.26 => 6.25% landuse class 12
 
-  open(unitland,file=path(1)(1:length(1)) &
-       //'IGBP_int1.dat',status='old', &
-  !    +form='UNFORMATTED', err=998)
-       form='UNFORMATTED', err=998, convert='little_endian')
-  !  print*,unitland
+  open(unitland,file=path(1)(1:length(1))//'IGBP_int1.dat',status='old', &
+    form='UNFORMATTED', err=998, convert='little_endian')
   read (unitland) (ilr_buffer(i),i=1,2160000)
   close(unitland)
 
@@ -1304,40 +1375,51 @@ subroutine readlanduse
   ! get only the right half of the byte
         r2lr=rlr-int(rlr)
   ! shift left by 4
-        lu_perc=r2lr*16.
+        lu_perc=int(r2lr*16.)
         landinvent(ix,jy,k)=lu_cat
         landinvent(ix,jy,k+3)=lu_perc
-  !       if ((jy.lt.10).and.(ix.lt.10)) write(*,*) 'reading: ' , ix, jy, lu_cat, lu_perc
+  ! if ((jy.lt.10).and.(ix.lt.10)) write(*,*) 'reading: ',ix,jy,lu_cat,lu_perc
       end do
     end do
   end do
 
   ! Read relation landuse,z0
   !*****************************
+  file_sfcdata='sfcdata.t'
+  inquire(file=path(1)(1:length(1))//trim(file_sfcdata),exist=ios)
+  if (.not. ios) then
+    file_sfcdata='surfdata.t'
+    inquire(file=path(1)(1:length(1))//trim(file_sfcdata),exist=ios2)
+    if (ios2) then
+      write(*,*) 'WARNING: surfdata.t should be renamed to sfcdata.t'
+      write(*,*) 'Continuing with surfdata.t'
+    endif
+  endif
 
-  open(unitsurfdata,file=path(1)(1:length(1))//'surfdata.t', &
-       status='old',err=999)
+  open(unitsfcdata,file=path(1)(1:length(1))//trim(file_sfcdata), &
+            status='old',err=999)
 
   do i=1,4
-    read(unitsurfdata,*)
+    read(unitsfcdata,*)
   end do
   do i=1,numclass
-    read(unitsurfdata,'(45x,f15.3)') z0(i)
+    read(unitsfcdata,'(45x,f15.3)') z0(i)
   end do
-  close(unitsurfdata)
+  close(unitsfcdata)
 
   return
 
   ! Issue error messages
   !*********************
+998 write(*,*) ' #### FLEXPART ERROR! FILE                     ####'
+  write(*,*)   ' #### ', path(1)(1:length(1))//'IGBP_int1.dat'
+  write(*,*)   " #### (LANDUSE INVENTORY) COULD NOT BE OPENED  ####"
+  error stop
 
-998   write(*,*) ' #### FLEXPART ERROR! FILE CONTAINING          ####'
-  write(*,*) ' #### LANDUSE INVENTORY DOES NOT EXIST         ####'
-  stop
-
-999   write(*,*) ' #### FLEXPART ERROR! FILE CONTAINING          ####'
-  write(*,*) ' #### RELATION LANDUSE,z0 DOES NOT EXIST       ####'
-  stop
+999 write(*,*) ' #### FLEXPART ERROR! FILE              ####'
+  write(*,*)   ' #### ', path(1)(1:length(1))//'sfcdata.t'
+  write(*,*)   ' #### DOES NOT EXIST.                   ####'
+  error stop
 end subroutine readlanduse
 
 subroutine readoutgrid
@@ -1365,7 +1447,7 @@ subroutine readoutgrid
   !                                                                            *
   !*****************************************************************************
 
-  use outg_mod
+  use outgrid_mod
 
   implicit none
 
@@ -1375,7 +1457,7 @@ subroutine readoutgrid
 
   ! namelist variables
   integer, parameter :: maxoutlev=500
-  integer :: readerror
+  integer :: ios
   real,allocatable, dimension (:) :: outheights
 
   ! declare namelist
@@ -1396,15 +1478,16 @@ subroutine readoutgrid
   ! Open the OUTGRID file and read output grid specifications
   !**********************************************************
 
-  open(unitoutgrid,file=path(1)(1:length(1))//'OUTGRID',status='old',form='formatted',err=999)
+  open(unitoutgrid,file=path(1)(1:length(1))//'OUTGRID',status='old', &
+    form='formatted',err=999)
 
   ! try namelist input
-  read(unitoutgrid,outgrid,iostat=readerror)
+  read(unitoutgrid,outgrid,iostat=ios)
   close(unitoutgrid)
 
-  if ((dxout.le.0).or.(readerror.ne.0)) then
+  if ((dxout.le.0).or.(ios.ne.0)) then
 
-    readerror=1
+    ios=1
 
     open(unitoutgrid,file=path(1)(1:length(1))//'OUTGRID',status='old',err=999)
 
@@ -1443,13 +1526,13 @@ subroutine readoutgrid
     write(*,*) ' #### GRID IS OUTSIDE MODEL DOMAIN. CHANGE    ####'
     write(*,*) ' #### FILE OUTGRID IN DIRECTORY               ####'
     write(*,'(a)') path(1)(1:length(1))
-    stop
+    error stop
   endif
 
   ! 2. Count Vertical levels of output grid
   !****************************************
 
-  if (readerror.ne.0) then
+  if (ios.ne.0) then
     j=0
 100 j=j+1
     do i=1,3
@@ -1474,7 +1557,7 @@ subroutine readoutgrid
   ! 2. Vertical levels of output grid
   !**********************************
 
-  if (readerror.ne.0) then
+  if (ios.ne.0) then
 
     rewind(unitoutgrid)
     call skplin(29,unitoutgrid)
@@ -1551,12 +1634,12 @@ subroutine readoutgrid
 999 write(*,*) ' #### FLEXPART MODEL ERROR! FILE "OUTGRID"    #### '
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(1)(1:length(1))
-  stop
+  error stop
 
 1000 write(*,*) ' #### FLEXPART MODEL ERROR! FILE "OUTGRID"    #### '
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(2)(1:length(2))
-  stop
+  error stop
 end subroutine readoutgrid
 
 subroutine readoutgrid_nest
@@ -1582,7 +1665,7 @@ subroutine readoutgrid_nest
   !                                                                            *
   !*****************************************************************************
 
-  use outg_mod
+  use outgrid_mod
 
   implicit none
 
@@ -1590,7 +1673,7 @@ subroutine readoutgrid_nest
   real :: xr,xr1,yr,yr1
   real,parameter :: eps=1.e-4
 
-  integer :: readerror
+  integer :: ios
 
   ! declare namelist
   namelist /outgridn/ &
@@ -1607,10 +1690,10 @@ subroutine readoutgrid_nest
   open(unitoutgrid,file=path(1)(1:length(1))//'OUTGRID_NEST',form='formatted',status='old',err=999)
 
   ! try namelist input
-  read(unitoutgrid,outgridn,iostat=readerror)
+  read(unitoutgrid,outgridn,iostat=ios)
   close(unitoutgrid)
 
-  if ((dxoutn.le.0).or.(readerror.ne.0)) then
+  if ((dxoutn.le.0).or.(ios.ne.0)) then
 
     open(unitoutgrid,file=path(1)(1:length(1))//'OUTGRID_NEST',status='old',err=999)
     call skplin(5,unitoutgrid)
@@ -1661,7 +1744,7 @@ subroutine readoutgrid_nest
     write(*,*) ' #### NEST IS OUTSIDE MODEL DOMAIN. CHANGE    ####'
     write(*,*) ' #### FILE OUTGRID IN DIRECTORY               ####'
     write(*,'(a)') path(1)(1:length(1))
-    stop
+    error stop
   endif
 
   xoutshiftn=xlon0-outlon0n
@@ -1671,12 +1754,12 @@ subroutine readoutgrid_nest
 999 write(*,*) ' #### FLEXPART MODEL ERROR! FILE "OUTGRID"    #### '
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(1)(1:length(1))
-  stop
+  error stop
 
 1000 write(*,*) ' #### FLEXPART MODEL ERROR! FILE "OUTGRID"    #### '
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(2)(1:length(2))
-  stop
+  error stop
 end subroutine readoutgrid_nest
 
 subroutine readpaths
@@ -1751,21 +1834,20 @@ subroutine readpaths
   ! Determine number of available nested domains
   !*********************************************
 
-30   numbnests=i-1
+30  numbnests=i-1
 
   close(unitpath)
   return
 
 998   write(*,*) ' #### TRAJECTORY MODEL ERROR! ERROR WHILE     #### '
   write(*,*) ' #### READING FILE PATHNAMES.                 #### '
-  stop
+  error stop
 
 999   write(*,*) ' #### TRAJECTORY MODEL ERROR! FILE "pathnames"#### '
   write(*,*) ' #### CANNOT BE OPENED IN THE CURRENT WORKING #### '
   write(*,*) ' #### DIRECTORY.                              #### '
-  stop
+  error stop
 end subroutine readpaths
-
 
 subroutine readreceptors
 
@@ -1784,8 +1866,8 @@ subroutine readreceptors
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *
-  ! receptorarea(maxreceptor)  area of dx*dy at location of receptor           *
-  ! receptorname(maxreceptor)  names of receptors                              *
+  ! receptorarea   area of dx*dy at location of receptor                       *
+  ! receptorname   names of receptors                                          *
   ! xreceptor,yreceptor  coordinates of receptor points                        *
   !                                                                            *
   ! Constants:                                                                 *
@@ -1796,15 +1878,17 @@ subroutine readreceptors
   implicit none
 
   integer :: j
-  real :: x,y,xm,ym
+  real :: xm,ym
   character(len=16) :: receptor
 
-  integer :: ios
-  real :: xlon,ylat   ! for namelist input, lon/lat are used instead of x,y
-
+  integer :: ios,stat
+  real :: lon,lat   ! for namelist input, lon/lat are used instead of x,y
+  real,allocatable,dimension(:) :: tmpxrec,tmpyrec,tmprecarea
+  character(len=16),allocatable,dimension(:) :: tmprecname
   ! declare namelist
-  namelist /nml_receptors/ receptor, xlon, ylat
+  namelist /receptors/ receptor, lon, lat
 
+  numreceptor=0 ! Initialise numreceptor
 !CPS I comment this out - why should we not have receptor output in bwd runs? 
   ! For backward runs, do not allow receptor output. Thus, set number of
   ! receptors to zero
@@ -1820,18 +1904,72 @@ subroutine readreceptors
   open (unitreceptor,file=trim(path(1))//'RECEPTORS',form='formatted', &
     status='old',err=999)
 
+  lon = -999.
+  lat = -999.
+
   ! try namelist input
-  read(unitreceptor,nml_receptors,iostat=ios)
+  read(unitreceptor,receptors,iostat=ios)
+  close (unitreceptor)
 
   ! prepare namelist output if requested
   if (nmlout) open(unitreceptorout,file=trim(path(2))// &
-    'RECEPTORS.namelist',status='new',err=1000)
+    'RECEPTORS.namelist',err=1000)
+
 
   if (ios .ne. 0) then ! read as regular text file
 
-    close(unitreceptor)
+    goto 991 ! wrong variable name in namelist
+
+  elseif (ios .eq. 0) then ! read as namelist
+
+    if (nint(lon) .eq. -999 .or. nint(lat) .eq. -999) goto 993
+
+    ! PS: reopen file otherwise first receptor is skipped!
     open (unitreceptor,file=trim(path(1))//'RECEPTORS',status='old',err=999)
 
+    ! Read the names and coordinates of the receptors
+    !************************************************
+    j=0
+    do while (ios .eq. 0)
+      j=j+1
+      read(unitreceptor,receptors,iostat=ios)
+      if (ios .eq. 0) then
+        numreceptor = j
+        allocate( tmprecname(j),tmpxrec(j),tmpyrec(j),tmprecarea(j),stat=stat)
+        if (stat.ne.0) error stop 'ERROR: could not allocate tmp arrays in readrec'
+        if (j.gt.1) then
+          tmprecname(1:j-1)=receptorname
+          tmpxrec(1:j-1)=xreceptor
+          tmpyrec(1:j-1)=yreceptor
+          tmprecarea(1:j-1)=receptorarea
+        endif
+        tmprecname(j)=receptor
+        tmpxrec(j)=(lon-xlon0)/dx       ! transform to grid coordinates
+        tmpyrec(j)=(lat-ylat0)/dy
+        xm=r_earth*cos(lat*pi/180.)*dx/180.*pi
+        ym=r_earth*dy/180.*pi
+        tmprecarea(j)=xm*ym
+
+        call move_alloc(tmprecname,receptorname)
+        call move_alloc(tmpxrec,xreceptor)
+        call move_alloc(tmpyrec,yreceptor)
+        call move_alloc(tmprecarea,receptorarea)
+
+      ! write receptors in namelist format to output directory if requested
+        if (nmlout) write(unitreceptorout,nml=receptors)
+!        if (nmlout) write(unitreceptorout,nml=nml_receptors)
+      elseif (ios .gt. 0) then
+        write(*,*) ' ### FLEXPART MODEL ERROR! Error in RECEPTORS namelist ###'
+        error stop 'Error in RECEPTORS namelist'
+      ! else
+      !   write (*,*) 'receptor read in nml format, ios<0', ios
+      !   write (*,receptors)
+      endif
+    end do ! end nml receptors reading loop
+
+  else ! ios<0 = EOF, read as conventional input file
+
+    open (unitreceptor,file=trim(path(1))//'RECEPTORS',status='old',err=999)
     call skplin(5,unitreceptor)
 
     ! Read the names and coordinates of the receptors
@@ -1844,70 +1982,64 @@ subroutine readreceptors
       read(unitreceptor,*,end=99)
       read(unitreceptor,'(4x,a16)',end=99) receptor
       call skplin(3,unitreceptor)
-      read(unitreceptor,'(4x,f11.4)',end=99) xlon
+      read(unitreceptor,'(4x,f11.4)',end=99) lon
       call skplin(3,unitreceptor)
-      read(unitreceptor,'(4x,f11.4)',end=99) ylat
-      if (xlon.eq.0. .and. ylat.eq.0. .and. &
+      read(unitreceptor,'(4x,f11.4)',end=99) lat
+      if (lon.eq.0. .and. lat.eq.0. .and. &
          (receptor .eq. '                ')) then
         write(*,*) 'WARNING: looks like empty receptor at south pole;'// &
           ' will be skipped'
         j=j-1
         goto 100
       endif
-      if (j .gt. maxreceptor) then
-        write(*,*) ' #### FLEXPART MODEL ERROR! TOO MANY RECEPTOR #### '
-        write(*,*) ' #### POINTS ARE GIVEN.                       #### '
-        write(*,*) ' #### MAXIMUM NUMBER IS ',maxreceptor,'       #### '
-        write(*,*) ' #### PLEASE MAKE CHANGES IN FILE RECEPTORS   #### '
+
+      numreceptor = j
+      allocate( tmprecname(j),tmpxrec(j),tmpyrec(j),tmprecarea(j),stat=stat)
+      if (stat.ne.0) write(*,*)'ERROR: could not allocate tmp arrays in readrec'
+      if (j.gt.1) then
+        tmprecname(1:j-1)=receptorname
+        tmpxrec(1:j-1)=xreceptor
+        tmpyrec(1:j-1)=yreceptor
+        tmprecarea(1:j-1)=receptorarea
       endif
-      receptorname(j)=receptor
-      xreceptor(j)=(xlon-xlon0)/dx       ! transform to grid coordinates
-      yreceptor(j)=(ylat-ylat0)/dy
-      xm=r_earth*cos(ylat*pi/180.)*dx/180.*pi
+      tmprecname(j)=receptor
+      tmpxrec(j)=(lon-xlon0)/dx       ! transform to grid coordinates
+      tmpyrec(j)=(lat-ylat0)/dy
+      xm=r_earth*cos(lat*pi/180.)*dx/180.*pi
       ym=r_earth*dy/180.*pi
-      receptorarea(j)=xm*ym
+      tmprecarea(j)=xm*ym
+
+      call move_alloc(tmprecname,receptorname)
+      call move_alloc(tmpxrec,xreceptor)
+      call move_alloc(tmpyrec,yreceptor)
+      call move_alloc(tmprecarea,receptorarea)
       ! write receptors file in namelist format to output directory if requested
-      if (nmlout) write(unitreceptorout,nml=nml_receptors)
+      if (nmlout) write(unitreceptorout,nml=receptors)
+!      if (nmlout) write(unitreceptorout,nml=nml_receptors)
     goto 100
 
-99  numreceptor=j-1
-
-  else ! continue with namelist input
-
-    j=0
-    do while (ios .eq. 0)
-      j=j+1
-      read(unitreceptor,nml_receptors,iostat=ios)
-      if (ios .eq. 0) then
-        if (j .gt. maxreceptor) then
-          write(*,*) ' #### FLEXPART MODEL ERROR! TOO MANY RECEPTOR #### '
-          write(*,*) ' #### POINTS ARE GIVEN.                       #### '
-          write(*,*) ' #### MAXIMUM NUMBER IS ',maxreceptor,'       #### '
-          write(*,*) ' #### PLEASE MAKE CHANGES IN FILE RECEPTORS   #### '
-        endif
-        receptorname(j)=receptor
-        xreceptor(j)=(xlon-xlon0)/dx       ! transform to grid coordinates
-        yreceptor(j)=(ylat-ylat0)/dy
-        xm=r_earth*cos(ylat*pi/180.)*dx/180.*pi
-        ym=r_earth*dy/180.*pi
-        receptorarea(j)=xm*ym
-      ! write receptors in namelist format to output directory if requested
-        if (nmlout) write(unitreceptorout,nml=nml_receptors)
-      elseif (ios .gt. 0) then
-        write(*,*) ' ### FLEXPART MODEL ERROR! Error in RECEPTORS namelist ###'
-        stop 'Error in RECEPTORS namelist'
-      endif
-    end do ! end nml receptors reading loop
-
-    numreceptor=j-1
+99  continue
 
   endif ! end no-nml / nml bloc
 
   close (unitreceptor)
   if (nmlout) close (unitreceptorout)
 
+  write(*,*) 'Number of receptors: ',numreceptor
   return
 
+991 continue
+  write(*,*) '#### FLEXPART ERROR: wrong variable names present'
+  write(*,*) '#### in namelist in file RECEPTORS'
+  write(*,*) '#### note that in v11+ coordinate names are lon and lat'
+
+  error stop
+
+993 continue
+  write(*,*) '#### FLEXPART ERROR: namelist in file RECEPTORS'
+  write(*,*) '#### first receptor point did not contain lon and/or lat'
+  write(*,*) '#### Check your namelist!'
+  error stop
 
 999 write(*,*) 'INFORMATION: input file RECEPTORS cannot be opened'
     write(*,*) 'in directory '//trim(path(1))
@@ -1916,13 +2048,15 @@ subroutine readreceptors
   numreceptor=0
   return
 
-1000 write(*,*) ' #### FLEXPART MODEL ERROR! File "RECEPTORS" #### '
-  write(*,*)    ' #### cannot be opened in the directory      #### '
+1000 write(*,*) ' #### FLEXPART MODEL ERROR! File "RECEPTORS"      #### '
+  write(*,*)    ' #### cannot be opened in the output directory    #### '
   write(*,'(a)') ' #### '//trim(path(2))
+  write(*,*)    ' #### either write perm missing or old file exists ###'
 
-  stop
+  error stop
 
 end subroutine readreceptors
+
 
 subroutine readreleases
 
@@ -1977,16 +2111,15 @@ subroutine readreleases
 
   implicit none
 
-  integer :: numpartmax,i,j,id1,it1,id2,it2,idum,stat,irel,ispc,nsettle
+  integer :: numpartmax,i,j,id1,it1,id2,it2,stat,irel,ispc,nsettle
   integer,parameter :: num_min_discrete=100
-  real :: releaserate,xdum,cun
+  real :: releaserate,cun
   real(kind=dp) :: jul1,jul2,julm
   real,parameter :: eps2=1.e-9
   character(len=50) :: line
-  logical :: old
 
   ! help variables for namelist reading
-  integer :: numpoints, parts, readerror
+  integer :: numpoints, parts, ios, nspec_init
   integer*2 :: zkind
   integer :: idate1, itime1, idate2, itime2
   real :: lon1,lon2,lat1,lat2,z1,z2
@@ -2013,11 +2146,10 @@ subroutine readreleases
        comment
 
   numpoint=0
+  nspec_init=50 ! necessary to allocate specnum_rel, would be cleaner to change RELEASES 
+                ! in one extra namelist
 
-  ! allocate with maxspec for first input loop
-  allocate(mass(maxspec),stat=stat)
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate mass'
-  allocate(specnum_rel(maxspec),stat=stat)
+  allocate(specnum_rel(nspec_init),stat=stat)
   if (stat.ne.0) write(*,*)'ERROR: could not allocate specnum_rel'
 
   ! presetting namelist releases_ctrl
@@ -2025,11 +2157,25 @@ subroutine readreleases
   specnum_rel = 0
 
   !sec, read release to find how many releasepoints should be allocated
-  open(unitreleases,file=path(1)(1:length(1))//'RELEASES',status='old',form='formatted',err=999)
+  open(unitreleases,file=path(1)(1:length(1))//'RELEASES',status='old', &
+    form='formatted',err=999)
 
   ! check if namelist input provided
-  read(unitreleases,releases_ctrl,iostat=readerror)
-  if (readerror.ne.0) then
+  read(unitreleases,releases_ctrl,iostat=ios)
+
+  if (nspec.gt.nspec_init) then
+    write(*,*) 'Requested number of species:',nspec
+    error stop 'More than 50 species at a time is not possible when using &
+     & RELEASES. You can do this with the part_ic.nc option (IPIN=3).'
+  end if
+  ! Allocate fields with maxspec
+  maxspec=nspec
+  call alloc_com()
+  ! allocate with maxspec for first input loop
+  allocate(mass(maxspec),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate mass'
+
+  if (ios.ne.0) then
         backspace(unitreleases)
         read(unitreleases,fmt='(A)') line
         if (lroot) write(*,*) &
@@ -2040,26 +2186,27 @@ subroutine readreleases
     
   ! prepare namelist output if requested
   if (nmlout.and.lroot) then
-    open(unitreleasesout,file=path(2)(1:length(2))//'RELEASES.namelist',access='append',status='replace',err=1000)
+    open(unitreleasesout,file=path(2)(1:length(2))//'RELEASES.namelist', &
+      access='append',status='replace',err=1000)
   endif
 
-  if ((readerror.ne.0).or.(nspec.lt.0)) then
+  if ((ios.ne.0).or.(nspec.lt.0)) then
     if (lroot) write(*,*) 'RELEASE either having unrecognised entries, &
       &or in old format, please update to namelist format.'
-      stop
+      error stop
   else
     if ((ipin.ne.3).and.(ipin.ne.4)) then ! Not necessary to read releases when using part_ic.nc
-      readerror=0
-      do while (readerror.eq.0) 
+      ios=0
+      do while (ios.eq.0) 
         idate1=-1
-        read(unitreleases,release,iostat=readerror)
-        if ((idate1.lt.0).or.(readerror.ne.0)) then
-          readerror=1
+        read(unitreleases,release,iostat=ios)
+        if ((idate1.lt.0).or.(ios.ne.0)) then
+          ios=1
         else
           numpoint=numpoint+1
         endif
       end do
-      readerror=0
+      ios=0
     else
       numpoint=1
     endif
@@ -2135,11 +2282,17 @@ subroutine readreleases
 
   do i=1,nspec
     call readspecies(specnum_rel(i),i)
+  end do
 
+  ! Allocate fields that depend on ndia
+  call alloc_com_ndia
+
+  do i=1,nspec
 
   ! Allocate temporary memory necessary for the different diameter bins
   !********************************************************************
-    allocate(vsh(ndia(i)),fracth(ndia(i)),schmih(ndia(i)))
+    allocate( vsh(ndia(i)),fracth(ndia(i)),schmih(ndia(i)),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate vsh,fracth,schmih"
 
   ! Molecular weight
   !*****************
@@ -2149,7 +2302,7 @@ subroutine readreleases
       write(*,*) 'must be specified for all simulated species.'
       write(*,*) 'Check table SPECIES or choose concentration'
       write(*,*) 'output instead if molar weight is not known.'
-      stop
+      error stop
     endif
 
   ! Radioactive decay
@@ -2250,7 +2403,7 @@ subroutine readreleases
   mass = 0
   parts = 0
   comment = ' '
-  read(unitreleases,release,iostat=readerror)
+  read(unitreleases,release,iostat=ios)
   id1=idate1
   it1=itime1
   id2=idate2
@@ -2281,7 +2434,7 @@ subroutine readreleases
     write(*,*) 'RELEASES file is corrupt.'
     write(*,*) 'At least for one release point, there are zero'
     write(*,*) 'particles released. Make changes to RELEASES.'
-    stop
+    error stop
   endif
 
   ! If FLEXPART is run for backward deposition force zpoint
@@ -2320,7 +2473,7 @@ subroutine readreleases
     write(*,*) 'FLEXPART MODEL ERROR'
     write(*,*) 'Release stops before it begins.'
     write(*,*) 'Make changes to file RELEASES.'
-    stop
+    error stop
   endif
   if (mdomainfill.eq.0) then   ! no domain filling
     if (ldirect.eq.1) then
@@ -2329,7 +2482,7 @@ subroutine readreleases
         write(*,*) 'Release starts before simulation begins or ends'
         write(*,*) 'after simulation stops.'
         write(*,*) 'Make files COMMAND and RELEASES consistent.'
-        stop
+        error stop
       endif
       if (npart(numpoint).gt.num_min_discrete) then
         ireleasestart(numpoint)=int((jul1-bdate)*86400.)
@@ -2344,7 +2497,7 @@ subroutine readreleases
         write(*,*) 'Release starts before simulation begins or ends'
         write(*,*) 'after simulation stops.'
         write(*,*) 'Make files COMMAND and RELEASES consistent.'
-        stop
+        error stop
       endif
       if (npart(numpoint).gt.num_min_discrete) then
         ireleasestart(numpoint)=int((jul1-bdate)*86400.)
@@ -2365,7 +2518,7 @@ subroutine readreleases
     releaserate=releaserate+real(npart(numpoint))/ &
          real(ireleaseend(numpoint)-ireleasestart(numpoint))
   else
-    releaserate=99999999
+    releaserate=99999999.
   endif
   numpartmax=numpartmax+npart(numpoint)
   goto 101
@@ -2452,18 +2605,7 @@ subroutine readreleases
   write(*,*) '#### ERROR - MAXIMUM NUMBER OF EMITTED SPECIES IS####'
   write(*,*) '#### TOO LARGE. PLEASE REDUCE NUMBER OF SPECIES. ####'
   write(*,*) '#####################################################'
-  stop
-
-998 write(*,*) '#####################################################'
-  write(*,*) '#### FLEXPART MODEL SUBROUTINE READRELEASES:     ####'
-  write(*,*) '####                                             ####'
-  write(*,*) '#### FATAL ERROR - FILE "RELEASES" IS            ####'
-  write(*,*) '#### CORRUPT. PLEASE CHECK YOUR INPUTS FOR       ####'
-  write(*,*) '#### MISTAKES OR GET A NEW "RELEASES"-           ####'
-  write(*,*) '#### FILE ...                                    ####'
-  write(*,*) '#####################################################'
-  stop
-
+  error stop
 
 999 write(*,*) '#####################################################'
   write(*,*) '   FLEXPART MODEL SUBROUTINE READRELEASES: '
@@ -2472,12 +2614,12 @@ subroutine readreleases
   write(*,*) 'POINTS IS NOT AVAILABLE OR YOU ARE NOT'
   write(*,*) 'PERMITTED FOR ANY ACCESS'
   write(*,*) '#####################################################'
-  stop
+  error stop
 
 1000 write(*,*) ' #### FLEXPART MODEL ERROR! FILE "RELEASES"    #### '
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(2)(1:length(2))
-  stop
+  error stop
 end subroutine readreleases
 
 subroutine readspecies(id_spec,pos_spec)
@@ -2520,7 +2662,6 @@ subroutine readspecies(id_spec,pos_spec)
   integer :: i, pos_spec,j
   integer :: idow,ihour,id_spec
   character(len=3) :: aspecnumb
-  logical :: spec_found
 
   character(len=16) :: pspecies
   character(len=50) :: line
@@ -2529,11 +2670,10 @@ subroutine readspecies(id_spec,pos_spec)
   real :: pcrain_aero, pcsnow_aero, pccn_aero, pin_aero
   real :: parea_dow(7), parea_hour(24), ppoint_dow(7), ppoint_hour(24)
   integer :: pndia
-  integer :: readerror
+  integer :: ios
   integer :: pshape,porient
   ! Daria Tatsii: species shape properties
   real ::pla,pia,psa,f,e,paspectratio
-  real :: la(maxspec),ia(maxspec),sa(maxspec) ! Axes
 
   ! declare namelist
   namelist /species_params/ &
@@ -2593,15 +2733,16 @@ subroutine readspecies(id_spec,pos_spec)
   !************************************************************
   specnum(pos_spec)=id_spec
   write(aspecnumb,'(i3.3)') specnum(pos_spec)
-  open(unitspecies,file=path(1)(1:length(1))//'SPECIES/SPECIES_'//aspecnumb,status='old',form='formatted',err=998)
+  open(unitspecies,file=path(1)(1:length(1))//'SPECIES/SPECIES_'//aspecnumb, &
+    status='old',form='formatted',err=998)
   write(*,*) 'reading SPECIES',specnum(pos_spec)
 
   ASSSPEC=.FALSE.
 
   ! try namelist input
-  read(unitspecies,species_params,iostat=readerror)
+  read(unitspecies,species_params,iostat=ios)
   !CGZ add check on which line of species file problem occurs
-  if (readerror.ne.0) then
+  if (ios.ne.0) then
     backspace(unitspecies)
     read(unitspecies,fmt='(A)') line
     if (lroot) write(*,*) &
@@ -2609,13 +2750,14 @@ subroutine readspecies(id_spec,pos_spec)
   end if
   close(unitspecies)
 
-  if ((len(trim(pspecies)).eq.0).or.(readerror.ne.0)) then ! no namelist found
+  if ((len(trim(pspecies)).eq.0).or.(ios.ne.0)) then ! no namelist found
     if (lroot) write(*,*) "SPECIES file not in NAMELIST format, attempting to &
          &read as fixed format"
 
-    readerror=1
+    ios=1
 
-    open(unitspecies,file=path(1)(1:length(1))//'SPECIES/SPECIES_'//aspecnumb,status='old',err=998)
+    open(unitspecies,file=path(1)(1:length(1))//'SPECIES/SPECIES_'//aspecnumb, &
+      status='old',err=998)
 
     do i=1,6
       read(unitspecies,*)
@@ -2728,26 +2870,28 @@ subroutine readspecies(id_spec,pos_spec)
     ohcconst(pos_spec)=pohcconst
     ohdconst(pos_spec)=pohdconst
     ohnconst(pos_spec)=pohnconst
-    shape(pos_spec)=pshape
+    ishape(pos_spec)=pshape
     orient(pos_spec)=porient
 
 
     ! Daria Tatsii 2023: compute particle shape dimensions
-    if (shape(pos_spec).ge.1) then ! Compute shape according to given axes
-      select case (shape(pos_spec))
+    if (ishape(pos_spec).ge.1) then ! Compute shape according to given axes
+      select case (ishape(pos_spec))
         case (1)
           write(*,*) "Particle shape USER-DEFINED for particle", id_spec
           if ((psa.le.0.0).or.(pia.le.0.0).or.(pla.le.0.0)) then
-            write(*,*) "#### ERROR: Shape=1 (user-defined) is chosen, but no valid axes are provided."
-            write(*,*) "#### SPECIES file requires SA, IA, and LA parameter greater than zero."
-            stop
+            write(*,*) "#### ERROR: Shape=1 (user-defined) is chosen, &
+              &but no valid axes are provided."
+            write(*,*) "#### SPECIES file requires SA, IA, and LA parameter &
+              &greater than zero."
+            error stop
           endif
           write(*,*) "SA,IA,LA:",psa,pia,pla
         case (2) ! Cylinders (fibers) !
           if (paspectratio.le.0.0) then
             write(*,*) "#### ERROR: Shape=2 cylinder is chosen, but no valid apect ratio is provided."
             write(*,*) "#### SPECIES file requires ASPECTRATIO parameter greater than zero."
-            stop
+            error stop
           endif
           psa=(((dquer(pos_spec)**3.0)*2.0)/ &
                   (3.0*paspectratio))**(1.0/3.0)
@@ -2763,7 +2907,7 @@ subroutine readspecies(id_spec,pos_spec)
           if ((psa.le.0.0).or.(pia.le.0.0).or.(pla.le.0.0)) then
             write(*,*) "#### ERROR: Shape=3 (user-defined) is chosen, but no valid axes are provided."
             write(*,*) "#### SPECIES file requires SA, IA, and LA parameter greater than zero."
-            stop
+            error stop
           endif
           write(*,*) "SA,IA,LA:",psa,pia,pla
         case (4) ! Tetrahedrons !
@@ -2774,7 +2918,7 @@ subroutine readspecies(id_spec,pos_spec)
           if ((psa.le.0.0).or.(pia.le.0.0).or.(pla.le.0.0)) then
             write(*,*) "#### ERROR: Shape=4 (user-defined) is chosen, but no valid axes are provided."
             write(*,*) "#### SPECIES file requires SA, IA, and LA parameter greater than zero."
-            stop
+            error stop
           endif
           write(*,*) "SA,IA,LA:",psa,pia,pla
         case (5) ! Octahedrons !
@@ -2785,7 +2929,7 @@ subroutine readspecies(id_spec,pos_spec)
           if ((psa.le.0.0).or.(pia.le.0.0).or.(pla.le.0.0)) then
             write(*,*) "#### ERROR: Shape=5 (user-defined) is chosen, but no valid axes are provided."
             write(*,*) "#### SPECIES file requires SA, IA, and LA parameter greater than zero."
-            stop
+            error stop
           endif
           write(*,*) "SA,IA,LA:",psa,pia,pla
         case (6) ! Ellipsoids !
@@ -2796,16 +2940,30 @@ subroutine readspecies(id_spec,pos_spec)
           if ((psa.le.0.0).or.(pia.le.0.0).or.(pla.le.0.0)) then
             write(*,*) "#### ERROR: Shape=6 (user-defined) is chosen, but no valid axes are provided."
             write(*,*) "#### SPECIES file requires SA, IA, and LA parameter greater than zero."
-            stop
+            error stop
           endif
           write(*,*) "SA,IA,LA:",psa,pia,pla
       end select
 
       ! When using the shape option, dquer is the sphere equivalent diameter
+      
       f=psa/pia
       e=pia/pla
-      Fn(pos_spec)=f*f*e*((dquer(pos_spec))**3)/(psa*pia*pla) ! Newton's regime
-      Fs(pos_spec)=f*e**(1.3)*(dquer(pos_spec)**3/(psa*pia*pla)) ! Stokes' regime  
+      ! Drag coefficient scheme by Bagheri & Bonadonna, 2016 to define settling velocities of other shapes (by D.Tatsii)
+      if ((ishape(pos_spec).eq.2).or.((ishape(pos_spec).eq.1).and. &
+        (pia.eq.psa).and.(pla.ge.20.0*pia))) then
+
+        Fn(pos_spec)=f*f*e  ! simplified equation, validated by experiments with fibers
+        Fs(pos_spec)=f*e**(1.3)   ! simplified equation, validated by experiments with fibers
+      else
+        Fn(pos_spec)=f*f*e*((dquer(pos_spec))**3)/(psa*pia*pla) ! Newton's regime  
+        Fs(pos_spec)=f*e**(1.3)*(dquer(pos_spec)**3/(psa*pia*pla)) ! Stokes' regime
+      endif
+      ! Pre-compute ks and kn values needed for horizontal and average orientation (B&B Figure 12 k_(s,max))
+      ks1(pos_spec)=(Fs(pos_spec)**(1./3.) + Fs(pos_spec)**(-1./3.))/2.
+      ks2(pos_spec)=0.5*((Fs(pos_spec)**0.05)+(Fs(pos_spec)**(-0.36)))
+      kn2(pos_spec)=10.**(alpha2*(-log10(Fn(pos_spec)))**beta2)
+
     else ! Spheres
       write(*,*) "Particle shape SPHERE for particle", id_spec
     endif
@@ -2859,11 +3017,11 @@ subroutine readspecies(id_spec,pos_spec)
       if (density(pos_spec) .gt. 0) then
         write(*,'(a)') '  Dry deposition is turned         :   ON'
         if (reldiff(pos_spec).gt.0) then
-           stop 'density>0 (SPECIES is a particle) implies reldiff <=0  '
+          error stop 'density>0 (SPECIES is a particle) implies reldiff <=0  '
         endif
       else
         if (reldiff(pos_spec).le.0) then
-           stop 'density<=0 (SPECIES is a gas) implies reldiff >0  '
+          error stop 'density<=0 (SPECIES is a gas) implies reldiff >0  '
         endif      
         write(*,'(a)') '  Dry deposition is (density<0)    :   OFF'
       end if
@@ -2913,8 +3071,9 @@ subroutine readspecies(id_spec,pos_spec)
   end if
 
   if (ndia(pos_spec).gt.maxndia) then
-    write(*,*) 'NDIA in SPECIES file', pos_spec, 'set to', ndia(pos_spec), 'larger than maxndia', &
-      maxndia, 'set in par_mod.f90'
+    maxndia=ndia(pos_spec)
+    ! write(*,*) 'NDIA in SPECIES file', pos_spec, 'set to', ndia(pos_spec), 'larger than maxndia', &
+    !   maxndia, 'set in par_mod.f90'
   endif
   !  if (dsigma(i).eq.0.) dsigma(i)=1.0001   ! avoid floating exception
   if (dquer(i).gt.0 .and. dsigma(i).le.1.) then !dsigma(i)=1.0001   ! avoid floating exception
@@ -2926,7 +3085,7 @@ subroutine readspecies(id_spec,pos_spec)
     write(*,*) '#### if dsigma was < 1                          ####' 
     write(*,*) '#### use the reciprocal of the old dsigma       ####'  
     if (.not.debug_mode) then 
-       stop
+      error stop
     else
        write(*,*) 'debug mode: continue'
     endif
@@ -2937,10 +3096,8 @@ subroutine readspecies(id_spec,pos_spec)
     write(*,*) '#### IS CORRUPT. SPECIES CANNOT BE BOTH      ####'
     write(*,*) '#### PARTICLE AND GAS.                       ####'
     write(*,*) '#### SPECIES NUMBER',aspecnumb
-    stop
+    error stop
   endif
-20 continue
-
 
 22 close(unitspecies)
 
@@ -2959,18 +3116,7 @@ subroutine readspecies(id_spec,pos_spec)
   write(*,*) '#### CONSTANT IS SET                            ####'
   write(*,*) '#### PLEASE MODIFY SPECIES DESCR. FILE!        #### '
   write(*,*) '#####################################################'
-  stop
-
-
-997 write(*,*) '#####################################################'
-  write(*,*) '#### FLEXPART MODEL ERROR!                      #### '
-  write(*,*) '#### THE ASSSOCIATED SPECIES HAS TO BE DEFINED  #### '
-  write(*,*) '#### BEFORE THE ONE WHICH POINTS AT IT          #### '
-  write(*,*) '#### PLEASE CHANGE ORDER IN RELEASES OR ADD     #### '
-  write(*,*) '#### THE ASSOCIATED SPECIES IN RELEASES         #### '
-  write(*,*) '#####################################################'
-  stop
-
+  error stop
 
 998 write(*,*) '#####################################################'
   write(*,*) '#### FLEXPART MODEL ERROR!                      #### '
@@ -2978,12 +3124,12 @@ subroutine readspecies(id_spec,pos_spec)
   write(*,*) '#### CANNOT BE FOUND: CREATE FILE'
   write(*,*) '#### ',path(1)(1:length(1)),'SPECIES/SPECIES_',aspecnumb
   write(*,*) '#####################################################'
-  stop
+  error stop
 
 1000 write(*,*) ' #### FLEXPART MODEL ERROR! FILE "SPECIES_',aspecnumb,'.namelist'
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(2)(1:length(2))
-  stop
+  error stop
 end subroutine readspecies
 
 subroutine readpartoptions
@@ -3008,10 +3154,10 @@ subroutine readpartoptions
 
   implicit none
 
-  integer :: i,np
+  integer :: np,stat
 
   ! namelist help variables
-  integer :: readerror
+  integer :: ios
 
   logical ::                      &
     longitude=.false.,            &
@@ -3093,14 +3239,15 @@ subroutine readpartoptions
   open(unitpartoptions,file=path(1)(1:length(1))//'PARTOPTIONS',form='formatted',status='old',err=9999)
 
   ! try to read in as a namelist
-  read(unitpartoptions,partoptions,iostat=readerror)
+  read(unitpartoptions,partoptions,iostat=ios)
   close(unitpartoptions)
 
-  if (readerror.ne.0) then
+  if (ios.ne.0) then
     write(*,*) 'Namelist error in PARTOPTIONS file', trim(path(1)(1:length(1))//'PARTOPTIONS')
-    stop
+    error stop
   endif
-  allocate( partopt(num_partopt) )
+  allocate( partopt(num_partopt),stat=stat)
+  if (stat.ne.0) error stop "Could not allocate partopt"
   ! Save values in particle options derived type
   !*********************************************
   partopt(1)%long_name='longitude'
@@ -3285,7 +3432,7 @@ subroutine readpartoptions
       write(*,*) '### FLEXPART MODEL ERROR! FILE COMMAND:     ###'
       write(*,*) '### LOUTRESTART NEEDS TO BE DIVISABLE BY    ###'
       write(*,*) '### LOUTSTEP*IPOUTFAC.                      ###'
-      stop
+      error stop
     endif
   endif
 
@@ -3294,12 +3441,12 @@ subroutine readpartoptions
 9999   write(*,*) ' #### FLEXPART MODEL ERROR! FILE "PARTOPTIONS" #### '
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(1)(1:length(1))
-  stop
+  error stop
 
 10000  write(*,*) ' #### FLEXPART MODEL ERROR! FILE "PARTOPTIONS" #### '
   write(*,*) ' #### CANNOT BE OPENED IN THE DIRECTORY       #### '
   write(*,'(a)') path(2)(1:length(2))
-  stop
+  error stop
 end subroutine readpartoptions
 
 subroutine skplin(nlines,iunit)

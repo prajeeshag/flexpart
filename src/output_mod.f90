@@ -215,16 +215,20 @@ subroutine output_particles(itime,initial_output)
   call find_time_vars(itime)
 
 !$OMP DO
-  do i=1,count%allocated ! Loop over all particles, including terminated ones
+  do i=1,count%allocated ! LB: Loop over all particles, including terminated ones because of 
+  ! averages that could still be available. There should be a better way.
+    !Initialise fields
+    output(:,i) = -1
+    masstemp(i,:) = -1
+    masstemp_av(i,:) = -1
+    wetdepotemp(i,:) = -1
+    drydepotemp(i,:) = -1
+    if (part(i)%tend.eq.0) cycle ! Not spawned yet
+    if ((.not. init_out) .and. (part(i)%tstart.eq.itime)) cycle ! No information avail yet for new parts
     if (((.not. part(i)%alive).and.(abs(part(i)%tend-itime).ge.ipoutfac*loutstep)) .or. &
-      (init_out .and. (i.lt.partinitpointer1-1))) then ! Only freshly spawned particles need to be computed for init_out
-      output(:,i) = -1
-      masstemp(i,:) = -1
-      masstemp_av(i,:) = -1
-      wetdepotemp(i,:) = -1
-      drydepotemp(i,:) = -1
-      cycle
-    endif
+      (init_out .and. (i.lt.partinitpointer1-1 .or. (part(i)%alive .eqv. .false.) ))) cycle
+    ! no particles that have been dead for longer than a write interval
+    
     !*****************************************************************************
     ! Interpolate several variables (PV, specific humidity, etc.) to particle position
     !*****************************************************************************
@@ -241,14 +245,8 @@ subroutine output_particles(itime,initial_output)
       if (.not. partopt(np)%print) cycle ! Only compute when field should be printed
       i_av = partopt(np)%i_average
       if (init_out.and.(i_av.ne.0)) cycle ! no averages for initial particle output
-      if ((i_av.ne.0).and.(part(i)%ntime.eq.0)) then
-        if (partopt(np)%name.eq.'ma') then
-          masstemp_av(i,1:nspec) = -1
-        else
-          output(np,i) = -1
-        endif
-        cycle ! no averages for freshly spawned particles
-      endif
+      if ((i_av.ne.0).and.(part(i)%ntime.eq.0)) cycle ! no averages for freshly spawned particles
+
       select case (partopt(np)%name)
         case ('LO')
           output(np,i)=xlon0+real(part(i)%xlon)*dx

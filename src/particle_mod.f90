@@ -386,6 +386,7 @@ contains
         tmppart(i)%val_av = 0
       end do
     endif
+
     do i=1,count%allocated+nmpart
       allocate( tmppart(i)%mass(maxspec),tmppart(i)%mass_init(maxspec),stat=stat)
       if (stat.ne.0) error stop "Could not allocate tmppart"
@@ -399,6 +400,8 @@ contains
         if (stat.ne.0) error stop "Could not allocate tmppart"
         tmppart(i)%wetdepo(maxspec)=0.
       endif
+      tmppart(i)%ntime=0 ! Preventing particles to be written to partoutput when they just spawned
+      tmppart(i)%tend=0 ! Preventing writing particles that have not spawned yet
     end do
     if (count%allocated.gt.0) tmppart(1:count%allocated) = part
     call move_alloc(tmppart,part)

@@ -48,13 +48,13 @@ _FLEXPART_ is compiled with [make](https://www.gnu.org/software/make/), which us
     $ cd src/
     $ make -j -f <prefered_makefile>
 
+This will create the executable `FLEXPART_ETA`. Note that this executable can only be used on ECMWF data.
+
+### Compiling FLEXPART without eta coordinates
+
+    $ make -j -f <prefered_makefile> eta=no
+
 This will create the executable `FLEXPART`
-
-### Compiling FLEXPART with eta coordinates (ECMWF only)
-
-    $ make -j -f <prefered_makefile> eta=yes
-
-This will create the executable `FLEXPART_ETA`
 
 ### Compiling FLEXPART without NetCDF libraries
 

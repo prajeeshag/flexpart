@@ -68,10 +68,10 @@ else
 endif
 
 ### Enable eta coordinates?
-ifeq ($(eta), yes)
-	ETAOPT = -DETA
-else
+ifeq ($(eta), no)
 	ETAOPT = -UETA
+else
+	ETAOPT = -DETA
 endif
 
 ## OPTIMIZATION LEVEL
@@ -93,24 +93,25 @@ LDDEBUG  = $(DBGFLAGS) $(LIBPATH) $(LIBRPATH) $(LIBS)
 
 MODOBJS = \
 advance_mod.o 		binary_output_mod.o \
-cbl_mod.o 			cmapf_mod.o \
-com_mod.o 			conv_mod.o \
+cbl_mod.o 		cmapf_mod.o \
+com_mod.o 		conv_mod.o \
 class_gribfile_mod.o \
-date_mod.o 			drydepo_mod.o \
-erf_mod.o 			flux_mod.o \
+date_mod.o 		drydepo_mod.o \
+erf_mod.o 		flux_mod.o \
 getfields_mod.o 	initialise_mod.o \
 interpol_mod.o 		mean_mod.o \
-ohr_mod.o 			outgrid_mod.o \
+ohr_mod.o 		outgrid_mod.o \
 output_mod.o 		par_mod.o \
 particle_mod.o 		pbl_profile_mod.o \
 plume_mod.o 		point_mod.o \
 random_mod.o 		readoptions_mod.o \
 restart_mod.o 		settling_mod.o \
-sort_mod.o  		timemanager_mod.o \
-turbulence_mod.o 	txt_output_mod.o \
-unc_mod.o 			verttransform_mod.o \
-wetdepo_mod.o 		windfields_mod.o \
-qvsat_mod.o 		xmass_mod.o
+sort_mod.o  \
+timemanager_mod.o 	turbulence_mod.o \
+txt_output_mod.o 	unc_mod.o \
+verttransform_mod.o 	wetdepo_mod.o \
+windfields_mod.o 	qvsat_mod.o \
+xmass_mod.o
 
 OBJECTS_NCF = netcdf_output_mod.o
 
@@ -121,19 +122,19 @@ FLEXPART.o
 
 ifeq ($(ncf), no)
 	OBJECTS	:= $(OBJECTS)
-ifeq ($(eta), yes)
+ifeq ($(eta), no)
+	FP := $(FLEXPART-BIN)
+else
 	FP := $(FLEXPART-ETA-BIN)
 	OBJECTS := $(OBJECTS) $(OBJECTS_ETA)
-else
-	FP := $(FLEXPART-BIN)
 endif
 else
 	OBJECTS := $(OBJECTS) $(OBJECTS_NCF)
-ifeq ($(eta), yes)
+ifeq ($(eta), no)
+	FP := $(FLEXPART)
+else
 	FP := $(FLEXPART-ETA)
 	OBJECTS := $(OBJECTS) $(OBJECTS_ETA)
-else
-	FP := $(FLEXPART)
 endif
 endif
 
@@ -165,17 +166,17 @@ cleanall:
 .SUFFIXES = $(SUFFIXES) .f90
 
 #ETA RECOMPILE
-ifeq ($(eta), yes)
+ifeq ($(eta), no)
 	ifneq ("$(wildcard ./coord_ecmwf_mod.o)","")
-		etadep := "no"
-	else
 		etadep := "yes"
+	else
+		etadep := "no"
 	endif
 else
 	ifneq ("$(wildcard ./coord_ecmwf_mod.o)","")
-		etadep := "yes"
-	else
 		etadep := "no"
+	else
+		etadep := "yes"
 	endif
 endif
 
@@ -183,7 +184,7 @@ recompile:
 	@echo Why, $(etadep)
 
 #GIT
-GIT_VERSION := "$(shell git log --pretty=format:"%h %D %ad" -n 1)"
+GIT_VERSION := "$(shell git log --pretty=format:"%h %ad" -n 1)"
 file_git := gitversion.txt
 
 ifneq ("$(wildcard $(file_git))","")
@@ -196,7 +197,7 @@ gitversion:
 	@echo Added Gitversion: $(GIT_VERSION)
 	@echo Old Gitversion: $(GIT_OLD)
 
-	sed -i '0,/gitversion_tmp/s;gitversion_tmp.*;gitversion_tmp=\&\n$(GIT_VERSION);' FLEXPART.f90
+	sed -i '0,/gitversion_tmp/s;gitversion_tmp.*;gitversion_tmp=$(GIT_VERSION);' FLEXPART.f90
 	@echo $(GIT_VERSION) > gitversion.txt
 
 ## DEPENDENCIES
@@ -229,7 +230,6 @@ else
 windfields_mod.o: cmapf_mod.o point_mod.o class_gribfile_mod.o date_mod.o qvsat_mod.o \
 	pbl_profile_mod.o
 endif
-
 #4) 4th level dependencies
 verttransform_mod.o: par_mod.o com_mod.o qvsat_mod.o windfields_mod.o
 settling_mod.o: windfields_mod.o
@@ -237,13 +237,13 @@ interpol_mod.o: windfields_mod.o particle_mod.o turbulence_mod.o
 ohr_mod.o: windfields_mod.o particle_mod.o
 
 #5)
-ifeq ($(eta),yes)
+ifneq ($(eta),no)
 coord_ecmwf_mod.o: interpol_mod.o
 endif
 drydepo_mod.o: unc_mod.o interpol_mod.o erf_mod.o
 
 #6)
-ifeq ($(eta),yes)
+ifneq ($(eta),no)
 advance_mod.o: coord_ecmwf_mod.o settling_mod.o drydepo_mod.o turbulence_mod.o
 plume_mod.o: mean_mod.o coord_ecmwf_mod.o
 outgrid_mod.o: ohr_mod.o unc_mod.o coord_ecmwf_mod.o
@@ -269,14 +269,14 @@ endif
 conv_mod.o: flux_mod.o class_gribfile_mod.o qvsat_mod.o sort_mod.o
 ifeq ($(ncf), no)
 output_mod.o: binary_output_mod.o txt_output_mod.o
-ifeq ($(eta),yes)
+ifneq ($(eta),no)
 restart_mod.o: coord_ecmwf_mod.o unc_mod.o outgrid_mod.o
 else
 restart_mod.o: interpol_mod.o unc_mod.o outgrid_mod.o
 endif
 else
 output_mod.o: netcdf_output_mod.o binary_output_mod.o txt_output_mod.o
-ifeq ($(eta),yes)
+ifneq ($(eta),no)
 restart_mod.o: coord_ecmwf_mod.o unc_mod.o netcdf_output_mod.o
 else
 restart_mod.o: interpol_mod.o unc_mod.o netcdf_output_mod.o

@@ -349,7 +349,7 @@ subroutine gridcheck_ecmwf
   real(kind=8) :: xaux1in,xaux2in,yaux1in,yaux2in
   integer :: gribVer,parCat,parNum,typSurf,valSurf,discipl,parId
   !HSO  end
-  integer :: ix,jy,i,ifn,ifield,j,k,iumax,iwmax,numskip
+  integer :: ix,jy,i,ifn,ifield,j,k,iumax,iwmax,numskip,size1,size2
   real :: sizesouth,sizenorth,xauxa
 
   ! VARIABLES AND ARRAYS NEEDED FOR GRIB DECODING
@@ -360,8 +360,9 @@ subroutine gridcheck_ecmwf
   ! dimension of zsec2 at least (10+nn), where nn is the number of vertical
   ! coordinate parameters
 
-  integer :: isec1(56), isec2(12)
-  real(kind=4),allocatable,dimension(:) :: zsec2,zsec4
+  integer :: isec1(56), isec2(3)
+  real(kind=4),allocatable,dimension(:) :: zsec2
+  real(kind=4),allocatable,dimension(:) :: zsec4
   character(len=1) :: opt
 
   !HSO  grib api error messages
@@ -513,7 +514,7 @@ subroutine gridcheck_ecmwf
     endif
 
     call grib_get_int(igrib,'numberOfPointsAlongAParallel', &
-         isec2(2),iret)
+         isec2(1),iret)
     ! ! nx=isec2(2)
     ! ! WRITE(*,*) nx,nxmax
     ! if (isec2(2).gt.nxmax) then
@@ -528,33 +529,42 @@ subroutine gridcheck_ecmwf
 
       !HSO  get the required fields from section 2 in a gribex compatible manner
       call grib_get_int(igrib,'numberOfPointsAlongAParallel', &
-           isec2(2),iret)
+           isec2(1),iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
       call grib_get_int(igrib,'numberOfPointsAlongAMeridian', &
-           isec2(3),iret)
+           isec2(2),iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
       call grib_get_real8(igrib,'longitudeOfFirstGridPointInDegrees', &
            xaux1in,iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
       call grib_get_int(igrib,'numberOfVerticalCoordinateValues', &
-           isec2(12),iret)
+           isec2(3),iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
 
-      nxfield=isec2(2)
-      ny=isec2(3)
-      nlev_ec=isec2(12)/2-1
+      nxfield=isec2(1)
+      ny=isec2(2)
+      nlev_ec=isec2(3)/2-1
+      ! call grib_get_size(igrib,'values',size1,iret)
+      ! call grib_check(iret,gribFunction,gribErrorMsg)
+      call grib_get_size(igrib,'pv',size2,iret)
+      call grib_check(iret,gribFunction,gribErrorMsg)
 
-      allocate(zsec2(60+2*nlev_ec), stat=stat)
+      allocate(zsec2(size2), stat=stat)
       if (stat.ne.0) error stop "Could not allocate zsec2"
-      allocate(zsec4(16*nxfield*ny), stat=stat)
-      if (stat.ne.0) error stop "Could not allocate zsec4"
-      !  get the size and data of the vertical coordinate array
       call grib_get_real4_array(igrib,'pv',zsec2,iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
     endif
 
     !get the size and data of the values array
     if (isec1(6).ne.-1) then
+      ! LB: Within ecCodes, especially when moving from the grib_api to eccodes,
+      ! memory is allocated within the function below when the input array is 
+      ! dynamically allocated. This is why it needs to be allocated and 
+      ! deallocated for every field to avoid unexpected behaviour.
+      call grib_get_size(igrib,'values',size1,iret)
+      call grib_check(iret,gribFunction,gribErrorMsg)
+      allocate(zsec4(size1), stat=stat)
+      if (stat.ne.0) error stop "Could not allocate zsec4"
       call grib_get_real4_array(igrib,'values',zsec4,iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
     endif
@@ -700,6 +710,8 @@ subroutine gridcheck_ecmwf
     endif
 
     call grib_release(igrib)
+    if (isec1(6).ne.-1) deallocate( zsec4 )
+
   end do                      !! READ NEXT LEVEL OR PARAMETER
   !
   ! CLOSING OF INPUT DATA FILE
@@ -824,6 +836,7 @@ subroutine gridcheck_ecmwf
     bknew(i)=bkz(i)
   end do
 
+  deallocate( zsec2 )
   ! Switch on following lines to use doubled vertical resolution
   !*************************************************************
   !nz=nuvz+nwz-1
@@ -920,7 +933,7 @@ subroutine gridcheck_gfs
   !HSO  parameters for grib_api
   integer :: ifile
   integer :: iret
-  integer :: igrib,stat
+  integer :: igrib,stat,size1
   real(kind=4) :: xaux1,xaux2,yaux1,yaux2
   real(kind=8) :: xaux1in,xaux2in,yaux1in,yaux2in
   integer :: gribVer,parCat,parNum,typSurf,valSurf,discipl
@@ -999,11 +1012,7 @@ subroutine gridcheck_gfs
       call grib_get_int(igrib,'level',isec1(8),iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
 
-      !get the size and data of the values array
-      call grib_get_real4_array(igrib,'values',zsec4,iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-
-      else ! GRIB Edition 2
+    else ! GRIB Edition 2
 
       !read the grib2 identifiers
       call grib_get_int(igrib,'discipline',discipl,iret)
@@ -1143,21 +1152,21 @@ subroutine gridcheck_gfs
       nxmax=nx
       nymax=ny
       call alloc_fixedfields
-      if (gribVer.eq.1) then
-        allocate( zsec4(16*nxmax*nymax),stat=stat) ! GRIB Edition 1
-        if (stat.ne.0) error stop "Could not allocate zsec2"
-      endif
+
     endif ! ifield.eq.1
 
     if (nxshift.lt.0) error stop 'nxshift (par_mod) must not be negative'
     if (nxshift.ge.nxfield) error stop 'nxshift (par_mod) too large'
 
-    if (gribVer.eq.1) then ! GRIB Edition 1
-      if (isec1(6).ne.-1) then
-      !  get the size and data of the values array
-        call grib_get_real4_array(igrib,'values',zsec4,iret)
-        call grib_check(iret,gribFunction,gribErrorMsg)
-      endif
+    if (isec1(6).ne.-1) then
+    !  get the size and data of the values array
+      !get the size and data of the values array
+      call grib_get_size(igrib,'values',size1,iret)
+      call grib_check(iret,gribFunction,gribErrorMsg)
+      allocate(zsec4(size1),stat=stat)
+      if (stat.ne.0) error stop "Could not allocate zsec4"
+      call grib_get_real4_array(igrib,'values',zsec4,iret)
+      call grib_check(iret,gribFunction,gribErrorMsg)
     endif
 
     ! NCEP ISOBARIC LEVELS
@@ -1220,7 +1229,7 @@ subroutine gridcheck_gfs
     endif
 
     call grib_release(igrib)
-
+    deallocate( zsec4 )
   end do                      !! READ NEXT LEVEL OR PARAMETER
   !
   ! CLOSING OF INPUT DATA FILE
@@ -1366,7 +1375,7 @@ subroutine gridcheck_gfs
   !  aknew(2*(i-1))=akz(i)
   !10     bknew(2*(i-1))=bkz(i)
   ! End doubled vertical resolution
-  deallocate(  akm_usort,pres,zsec4 )
+  deallocate(  akm_usort,pres )
   return
 
 999   write(*,*)
@@ -1415,7 +1424,7 @@ subroutine gridcheck_nest
   !HSO  parameters for grib_api
   integer :: ifile
   integer :: iret
-  integer :: igrib,stat
+  integer :: igrib,stat,size1,size2
   integer :: gribVer,parCat,parNum,typSurf,valSurf,discipl
   integer :: parID !added by mc for making it consistent with new gridcheck.f90
   integer :: gotGrib
@@ -1434,7 +1443,7 @@ subroutine gridcheck_nest
   ! dimension of zsec2 at least (10+nn), where nn is the number of vertical
   ! coordinate parameters
 
-  integer :: isec1(56),isec2(12) !(22+nxmaxn+nymaxn)
+  integer :: isec1(56),isec2(3) !(22+nxmaxn+nymaxn)
   real(kind=4),allocatable,dimension(:) :: zsec2,zsec4
 
   !HSO  grib api error messages
@@ -1600,25 +1609,27 @@ subroutine gridcheck_nest
       !HSO  get the required fields from section 2 in a gribex compatible manner
       if (ifield.eq.1) then
         call grib_get_int(igrib,'numberOfPointsAlongAParallel', &
-             isec2(2),iret)
+             isec2(1),iret)
         call grib_check(iret,gribFunction,gribErrorMsg)
         call grib_get_int(igrib,'numberOfPointsAlongAMeridian', &
-             isec2(3),iret)
+             isec2(2),iret)
         call grib_check(iret,gribFunction,gribErrorMsg)
         call grib_get_int(igrib,'numberOfVerticalCoordinateValues', &
-             isec2(12),iret)
+             isec2(3),iret)
         call grib_check(iret,gribFunction,gribErrorMsg)
 
-        nxn(l)=isec2(2)
-        nyn(l)=isec2(3)
-        nlev_ecn=isec2(12)/2-1
+        nxn(l)=isec2(1)
+        nyn(l)=isec2(2)
+        nlev_ecn=isec2(3)/2-1
 
         if (nxn(l).gt.nxmaxn) nxmaxn=nxn(l)
         if (nyn(l).gt.nymaxn) nymaxn=nyn(l)
-        allocate( zsec2(60+2*nlev_ecn), stat=stat)
+
+        call grib_get_size(igrib,'pv',size2,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+
+        allocate(zsec2(size2), stat=stat)
         if (stat.ne.0) error stop "Could not allocate zsec2"
-        allocate( zsec4(16*nxmaxn*nymaxn), stat=stat)
-        if (stat.ne.0) error stop "Could not allocate zsec4"
 
         !HSO    get the size and data of the vertical coordinate array
         call grib_get_real4_array(igrib,'pv',zsec2,iret)
@@ -1630,6 +1641,10 @@ subroutine gridcheck_nest
 
       !get the size and data of the values array
       if (isec1(6).ne.-1) then
+        call grib_get_size(igrib,'values',size1,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        allocate(zsec4(size1), stat=stat)
+        if (stat.ne.0) error stop "Could not allocate zsec4"
         call grib_get_real4_array(igrib,'values',zsec4,iret)
         call grib_check(iret,gribFunction,gribErrorMsg)
       endif
@@ -1709,6 +1724,7 @@ subroutine gridcheck_nest
       endif
 
       call grib_release(igrib)
+      deallocate( zsec4 )
     end do                 !! READ NEXT LEVEL OR PARAMETER
     !
     ! CLOSING OF INPUT DATA FILE
@@ -1831,7 +1847,7 @@ subroutine gridcheck_nest
       endif
     end do
 
-    deallocate( zsec2,zsec4 )
+    deallocate( zsec2 )
   end do
 
   ! Allocate memory for windfields using nxmax, nymaxn, numbnest
@@ -1912,7 +1928,7 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
 
   !HSO  parameters for grib_api
   integer :: ifile
-  integer :: iret
+  integer :: iret, size1, stat
   integer, dimension(:), allocatable   :: igrib
   integer :: nfield, ii, arsize
   integer :: gribVer,parCat,parNum,typSurf,valSurf,discipl,parId
@@ -1928,19 +1944,19 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
 
   ! dimension of isec2 at least (22+n), where n is the number of parallels or
   ! meridians in a quasi-regular (reduced) Gaussian or lat/long grid
+  ! LB: Only 3 indices are used in this function, so isec2 has dimension 12
 
   ! dimension of zsec2 at least (10+nn), where nn is the number of vertical
   ! coordinate parameters
 
   integer :: isec1(56)
-  integer,allocatable,dimension(:) :: isec2
+  integer :: isec2(3)
   real(kind=4),allocatable,dimension(:) :: zsec4
   real(kind=4) :: xaux,yaux,xaux0,yaux0
   real(kind=8) :: xauxin,yauxin
   real,parameter :: eps=1.e-4
   real(kind=4) :: nsss(0:nxmax-1,0:nymax-1),ewss(0:nxmax-1,0:nymax-1)
   real :: plev1,pmean,tv,fu,hlev1,ff10m,fflev1,conversion_factor
-  integer :: stat
 
   logical :: hflswitch,strswitch!,readcloud
 
@@ -1992,13 +2008,11 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
 !$OMP   excessoro, lsm, nymin1,ciwch,clwch,readclouds,sumclouds, nxshift,nxmax,nymax) & 
 !$OMP PRIVATE(ii, gribVer, iret, isec1, discipl, parCat, parNum, parId,typSurf, valSurf, &
 !$OMP   zsec4, isec2, gribErrorMsg, xauxin, yauxin, xaux, yaux, xaux0,  &
-!$OMP   yaux0, k, arsize, stat, conversion_factor)  &
+!$OMP   yaux0, k, arsize, stat, conversion_factor, size1)  &
 !$OMP REDUCTION(+:gotGrid)
   !
   ! GET NEXT FIELDS
   !
-  allocate( isec2(22+nxmax+nymax),zsec4( 16*nxmax*nymax ),stat=stat)
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate isec2 or zsec4'
 
 !$OMP DO SCHEDULE(static)
 
@@ -2116,29 +2130,32 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
     endif
     if(parId .ne. isec1(6) .and. parId .ne. 77) then
       write(*,*) 'parId',parId, 'isec1(6)',isec1(6)
-  !    stop
     endif
 
   endif
 
   !HSO  get the size and data of the values array
   if (isec1(6).ne.-1) then
+    call grib_get_size(igrib(ii),'values',size1,iret)
+    call grib_check(iret,gribFunction,gribErrorMsg)
+    allocate(zsec4(size1), stat=stat)
+    if (stat.ne.0) error stop "Could not allocate zsec4"
     call grib_get_real4_array(igrib(ii),'values',zsec4,iret)
     call grib_check(iret,gribFunction,gribErrorMsg)
   endif
 
   !HSO  get the required fields from section 2 in a gribex compatible manner
   if (ii.eq.1) then
-    call grib_get_int(igrib(ii),'numberOfPointsAlongAParallel',isec2(2),iret)
+    call grib_get_int(igrib(ii),'numberOfPointsAlongAParallel',isec2(1),iret)
     call grib_check(iret,gribFunction,gribErrorMsg)
-    call grib_get_int(igrib(ii),'numberOfPointsAlongAMeridian',isec2(3),iret)
+    call grib_get_int(igrib(ii),'numberOfPointsAlongAMeridian',isec2(2),iret)
     call grib_check(iret,gribFunction,gribErrorMsg)
-    call grib_get_int(igrib(ii),'numberOfVerticalCoordinateValues',isec2(12))
+    call grib_get_int(igrib(ii),'numberOfVerticalCoordinateValues',isec2(3))
     call grib_check(iret,gribFunction,gribErrorMsg)
   ! CHECK GRID SPECIFICATIONS
-    if(isec2(2).ne.nxfield) error stop 'READWIND: NX NOT CONSISTENT'
-    if(isec2(3).ne.ny) error stop 'READWIND: NY NOT CONSISTENT'
-    if(isec2(12)/2-1.ne.nlev_ec) &
+    if(isec2(1).ne.nxfield) error stop 'READWIND: NX NOT CONSISTENT'
+    if(isec2(2).ne.ny) error stop 'READWIND: NY NOT CONSISTENT'
+    if(isec2(3)/2-1.ne.nlev_ec) &
       error stop 'READWIND: VERTICAL DISCRETIZATION NOT CONSISTENT'
   endif ! ifield
 
@@ -2380,10 +2397,10 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
 
   call grib_release(igrib(ii))
 
+  deallocate( zsec4 )
   end do fieldloop
 !$OMP END DO
 
-  deallocate( zsec4,isec2 )
 !$OMP END PARALLEL
 
   deallocate(igrib)
@@ -2589,7 +2606,7 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
 
   !HSO  new parameters for grib_api
   integer :: ifile
-  integer :: iret
+  integer :: iret,size1,size2,stat
   integer :: igrib
   integer :: gribVer,parCat,parNum,typSurf,valSurf,discipl
   !HSO end edits
@@ -2612,7 +2629,7 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
   !HSO kept isec1, isec2 and zsec4 for consistency with gribex GRIB input
 
   integer :: isec1(8),isec2(3)
-  real(kind=4) :: zsec4(16*nxmax*nymax)
+  real(kind=4),allocatable,dimension(:) :: zsec4
   real(kind=4) :: xaux,yaux,xaux0,yaux0
   real(kind=8) :: xauxin,yauxin
   real,parameter :: eps=1.e-4
@@ -2789,32 +2806,26 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
 
     endif ! gribVer
 
-    if (isec1(6).ne.-1) then
-    !  get the size and data of the values array
-      call grib_get_real4_array(igrib,'values',zsec4,iret)
-    !    call grib_check(iret,gribFunction,gribErrorMsg)
-    endif
-
     if(ifield.eq.1) then
 
-    !get the required fields from section 2
-    !store compatible to gribex input
-    call grib_get_int(igrib,'numberOfPointsAlongAParallel', &
-         isec2(2),iret)
-    !  call grib_check(iret,gribFunction,gribErrorMsg)
-    call grib_get_int(igrib,'numberOfPointsAlongAMeridian', &
-         isec2(3),iret)
-    !  call grib_check(iret,gribFunction,gribErrorMsg)
-    call grib_get_real8(igrib,'longitudeOfFirstGridPointInDegrees', &
-         xauxin,iret)
-    !  call grib_check(iret,gribFunction,gribErrorMsg)
-    call grib_get_real8(igrib,'latitudeOfLastGridPointInDegrees', &
-         yauxin,iret)
-    !  call grib_check(iret,gribFunction,gribErrorMsg)
-    xaux=real(xauxin)+real(nxshift)*dx
-    yaux=real(yauxin)
+      !get the required fields from section 2
+      !store compatible to gribex input
+      call grib_get_int(igrib,'numberOfPointsAlongAParallel', &
+           isec2(2),iret)
+      !  call grib_check(iret,gribFunction,gribErrorMsg)
+      call grib_get_int(igrib,'numberOfPointsAlongAMeridian', &
+           isec2(3),iret)
+      !  call grib_check(iret,gribFunction,gribErrorMsg)
+      call grib_get_real8(igrib,'longitudeOfFirstGridPointInDegrees', &
+           xauxin,iret)
+      !  call grib_check(iret,gribFunction,gribErrorMsg)
+      call grib_get_real8(igrib,'latitudeOfLastGridPointInDegrees', &
+           yauxin,iret)
+      !  call grib_check(iret,gribFunction,gribErrorMsg)
+      xaux=real(xauxin)+real(nxshift)*dx
+      yaux=real(yauxin)
 
-    ! CHECK GRID SPECIFICATIONS
+      ! CHECK GRID SPECIFICATIONS
 
       if(isec2(2).ne.nxfield) error stop 'READWIND: NX NOT CONSISTENT'
       if(isec2(3).ne.ny) error stop 'READWIND: NY NOT CONSISTENT'
@@ -2831,6 +2842,15 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
            error stop 'READWIND: LOWER LEFT LATITUDE NOT CONSISTENT'
     endif
     !HSO end of edits
+
+    if (isec1(6).ne.-1) then
+    !  get the size and data of the values array
+      call grib_get_size(igrib,'values',size1,iret)
+      allocate( zsec4(size1),stat=stat )
+      if (stat.ne.0) error stop "Could not allocate zsec4"
+      call grib_get_real4_array(igrib,'values',zsec4,iret)
+    !    call grib_check(iret,gribFunction,gribErrorMsg)
+    endif
 
     i179=nint(179./dx)
     if (dx.lt.0.7) then
@@ -3105,6 +3125,8 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
     endif
 
     call grib_release(igrib)
+
+    deallocate( zsec4 )
   end do                      !! READ NEXT LEVEL OR PARAMETER
   !
   ! CLOSING OF INPUT DATA FILE
@@ -3291,7 +3313,7 @@ subroutine readwind_nest(indj,n,uuhn,vvhn,wwhn)
 
   !HSO  parameters for grib_api
   integer :: ifile
-  integer :: iret
+  integer :: iret,size1,stat
   integer :: igrib
   integer :: gribVer,parCat,parNum,typSurf,valSurf,discipl
   integer :: parId !!added by mc for making it consistent with new readwind.f90
@@ -3311,8 +3333,8 @@ subroutine readwind_nest(indj,n,uuhn,vvhn,wwhn)
   ! dimension of zsec2 at least (10+nn), where nn is the number of vertical
   ! coordinate parameters
 
-  integer :: isec1(56),isec2(22+nxmaxn+nymaxn)
-  real(kind=4) :: zsec4(16*nxmaxn*nymaxn)
+  integer :: isec1(56),isec2(3)
+  real(kind=4),allocatable,dimension(:) :: zsec4
   real(kind=4) :: xaux,yaux
   real(kind=8) :: xauxin,yauxin
   real,parameter :: eps=1.e-4
@@ -3408,7 +3430,7 @@ subroutine readwind_nest(indj,n,uuhn,vvhn,wwhn)
         isec1(7)=-1
         isec1(8)=-1
         isec1(8)=valSurf     ! level
-         conversion_factor=1.
+        conversion_factor=1.
         if ((parCat.eq.0).and.(parNum.eq.0).and.(typSurf.eq.105)) then ! T
           isec1(6)=130         ! indicatorOfParameter
         elseif ((parCat.eq.2).and.(parNum.eq.2).and.(typSurf.eq.105)) then ! U
@@ -3479,31 +3501,36 @@ subroutine readwind_nest(indj,n,uuhn,vvhn,wwhn)
 
       endif
 
+      !HSO  get the required fields from section 2 in a gribex compatible manner
+      if(ifield.eq.1) then
+        call grib_get_int(igrib,'numberOfPointsAlongAParallel', &
+             isec2(1),iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_int(igrib,'numberOfPointsAlongAMeridian', &
+             isec2(2),iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        call grib_get_int(igrib,'numberOfVerticalCoordinateValues', &
+             isec2(3))
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        ! CHECK GRID SPECIFICATIONS
+        if(isec2(1).ne.nxn(l)) error stop &
+        'READWIND: NX NOT CONSISTENT FOR A NESTING LEVEL'
+        if(isec2(2).ne.nyn(l)) error stop &
+        'READWIND: NY NOT CONSISTENT FOR A NESTING LEVEL'
+        if(isec2(3)/2-1.ne.nlev_ec) error stop 'READWIND: VERTICAL DISCRET&
+             &IZATION NOT CONSISTENT FOR A NESTING LEVEL'
+       
+      endif ! ifield
+
       !HSO  get the size and data of the values array
       if (isec1(6).ne.-1) then
+        call grib_get_size(igrib,'values',size1,iret)
+        call grib_check(iret,gribFunction,gribErrorMsg)
+        allocate(zsec4(size1), stat=stat)
+        if (stat.ne.0) error stop "Could not allocate zsec4"
         call grib_get_real4_array(igrib,'values',zsec4,iret)
         call grib_check(iret,gribFunction,gribErrorMsg)
       endif
-
-      !HSO  get the required fields from section 2 in a gribex compatible manner
-      if(ifield.eq.1) then
-      call grib_get_int(igrib,'numberOfPointsAlongAParallel', &
-           isec2(2),iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_int(igrib,'numberOfPointsAlongAMeridian', &
-           isec2(3),iret)
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      call grib_get_int(igrib,'numberOfVerticalCoordinateValues', &
-           isec2(12))
-      call grib_check(iret,gribFunction,gribErrorMsg)
-      ! CHECK GRID SPECIFICATIONS
-      if(isec2(2).ne.nxn(l)) error stop &
-      'READWIND: NX NOT CONSISTENT FOR A NESTING LEVEL'
-      if(isec2(3).ne.nyn(l)) error stop &
-      'READWIND: NY NOT CONSISTENT FOR A NESTING LEVEL'
-      if(isec2(12)/2-1.ne.nlev_ec) error stop 'READWIND: VERTICAL DISCRET&
-           &IZATION NOT CONSISTENT FOR A NESTING LEVEL'
-      endif ! ifield
 
       !HSO  get the second part of the grid dimensions only from GRiB1 messages
       if (isec1(6) .eq. 167 .and. (gotGrid.eq.0)) then ! !added by mc to make it consisitent with new readwind.f90
@@ -3614,6 +3641,7 @@ subroutine readwind_nest(indj,n,uuhn,vvhn,wwhn)
       end do
 
       call grib_release(igrib)
+      deallocate(zsec4)
     end do                      !! READ NEXT LEVEL OR PARAMETER
   !
   ! CLOSING OF INPUT DATA FILE

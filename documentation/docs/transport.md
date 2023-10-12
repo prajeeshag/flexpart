@@ -11,7 +11,7 @@ The three dimensional Lagrangian time scales and turbulent energy parameters for
 This is optional now. Is it still not resolved by ECMWF data? What resolution is needed to resolve it? [Maryon 1998](https://www.sciencedirect.com/science/article/abs/pii/S1352231097003257).
 
 ### Turbulence in the troposphere and stratosphere
-Turbulent velocities above the PBL, both in the stratosphere and in the troposphere are computed following [Legras et al. 2003](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2002JD003045), using a constant vertical diffusivity ($D_z = 50$ m<sup>2</sup> s<sup>-1</sup>) to compute vertical turbulent velocities in the stratosphere, and a constant horizontal diffusivity ($D_h = 50$ m<sup>2</sup> s<sup>-1</sup>)  to compute horizontal turbulent velocities in the free troposphere. Velocity scales are then obtained by using $\sigma_{v_i}=\sqrt{D_i/dt}$. A linear transition height of 1 km is used between the troposphere and stratosphere.
+Turbulent velocities above the PBL, both in the stratosphere and in the troposphere are computed following [Legras et al. 2003](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2002JD003045), using a constant vertical diffusivity ($D_z = 0.1$ m<sup>2</sup> s<sup>-1</sup>) to compute vertical turbulent velocities in the stratosphere, and a constant horizontal diffusivity ($D_h = 50$ m<sup>2</sup> s<sup>-1</sup>)  to compute horizontal turbulent velocities in the free troposphere. Velocity scales are then obtained by using $\sigma_{v_i}=\sqrt{D_i/dt}$. A linear transition height of 1 km is used between the troposphere and stratosphere.
 
 ## Convection
 

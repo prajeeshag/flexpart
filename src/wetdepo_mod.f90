@@ -118,7 +118,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
   ! CALCULATE DEPOSITION 
   !**************************************************
 
-      call get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc_count,wetscav) ! OMP carefully check
+      call get_wetscav(itime,ltsample,jpart,ks,grfraction,inc_count,blc_count,wetscav) ! OMP carefully check
 
       if (WETBKDEP) then
         if ((xscav_frac1(jpart,ks).lt.-0.1)) then   ! particle marked as starting particle
@@ -203,7 +203,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
   tot_inc_count(1:nspec)=tot_inc_count(1:nspec)+inc_count(1:nspec)
 end subroutine wetdepo
 
-subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc_count,wetscav)
+subroutine get_wetscav(itime,ltsample,jpart,ks,grfraction,inc_count,blc_count,wetscav)
   !                          i      i        i     i   i    o           o          o       o
   !*****************************************************************************
   !                                                                            *
@@ -253,17 +253,16 @@ subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc
 
   implicit none
 
-  integer :: jpart,itime,ltsample,loutnext,i,j
-  integer :: hz,il,interp_time, n
+  integer :: jpart,itime,ltsample,i,j
+  integer :: hz,interp_time, n
   integer(kind=1) :: clouds_v
-  integer :: ks, kp
+  integer :: ks
   integer(selected_int_kind(16)), dimension(nspec) :: blc_count, inc_count
 
   !  integer :: n1,n2, icbot,ictop, indcloud !TEST
   real :: S_i, act_temp, cl, cle ! in cloud scavenging
   real :: clouds_h ! cloud height for the specific grid point
-  real :: lsp,convp,cc,grfraction(3),prec(3),wetscav,totprec
-  real :: restmass
+  real :: lsp,convp,cc,grfraction(3),prec(3),wetscav
   real,parameter :: smallnum = tiny(0.0) ! smallest number that can be handled
   !save lfr,cfr
   real :: xts,yts
@@ -276,7 +275,6 @@ subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc
   real, parameter :: bcls(6) = (/22.7, 0.0, 0.0, 1321.0, 381.0, 0.0/) !now (Kyro et al 2009)
   real :: frac_act, liq_frac, ice_frac, dquer_m
 
-  real    :: Si_dummy, wetscav_dummy
   logical :: readclouds_this_nest
 
 
@@ -297,7 +295,10 @@ subroutine get_wetscav(itime,ltsample,loutnext,jpart,ks,grfraction,inc_count,blc
 
   ! Determine which nesting level to be used
   !*****************************************
+  readclouds_this_nest=.false.
+
   call find_ngrid(xts,yts)
+  if ( (ngrid.gt.0) .and. readclouds_nest(ngrid)) readclouds_this_nest=.true.
 
   ! If point at border of grid -> small displacement into grid
   !***********************************************************

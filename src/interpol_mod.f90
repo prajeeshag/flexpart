@@ -37,11 +37,10 @@ module interpol_mod
   logical :: lbounds_w(2),lbounds_uv(2) ! marking particles below or above bounds
 #endif
 
-  private :: interpol_wind_meter
-  private :: stdev_meter
-  private :: interpol_partoutput_val_meter
 #ifdef ETA
   private :: interpol_wind_eta,stdev_eta,interpol_partoutput_val_eta
+#else
+  private :: interpol_wind_meter,stdev_meter,interpol_partoutput_val_meter
 #endif
 
   interface hor_interpol
@@ -924,7 +923,10 @@ subroutine interpol_mesoscale(xt,yt,zt,zteta)
   use turbulence_mod
 
   real, intent(in)    :: xt,yt,zt,zteta
-  integer             :: iw(2),iuv(2),iweta(2)
+#ifdef ETA
+  integer             :: iuv(2),iweta(2)
+#endif
+  integer             :: iw(2)
 
   ! Where in the grid? Stereographic (ngrid<0) or nested (ngrid>0)
   !***************************************************************
@@ -980,8 +982,11 @@ subroutine interpol_wind(itime,xt,yt,zt,zteta)
 
   integer, intent(in) :: itime
   real, intent(in)    :: xt,yt,zt,zteta
-  integer             :: iw(2),iuv(2),iweta(2)
-
+#ifdef ETA
+  integer             :: iuv(2),iweta(2)
+#else
+  integer             :: iw(2)
+#endif
 
   ! Where in the grid? Stereographic (ngrid<0) or nested (ngrid>0)
   !***************************************************************
@@ -1051,7 +1056,11 @@ subroutine interpol_wind_short(itime,xt,yt,zt,zteta)
 
   integer, intent(in) :: itime
   real, intent(in) :: xt,yt,zt,zteta
-  integer             :: iw(2),iuv(2),iweta(2)
+#ifdef ETA
+  integer             :: iuv(2),iweta(2)
+#else
+  integer             :: iw(2)
+#endif
 
   !********************************************
   ! Multilinear interpolation in time and space
@@ -1262,7 +1271,7 @@ subroutine interpol_wind_eta(zteta,iuv,iweta)
   call temporal_interpolation(vh(1),vh(2),v)
   call temporal_interpolation(wetah(1),wetah(2),weta)
 end subroutine interpol_wind_eta
-#endif
+#else
 
 subroutine interpol_wind_meter(zt,iw)
 
@@ -1317,6 +1326,7 @@ subroutine interpol_wind_meter(zt,iw)
   call temporal_interpolation(uh(1),uh(2),u)
   call temporal_interpolation(vh(1),vh(2),v)
 end subroutine interpol_wind_meter
+#endif
 
 #ifdef ETA
 subroutine interpol_partoutput_val_eta(fieldname,output,j)
@@ -1395,7 +1405,7 @@ subroutine interpol_partoutput_val_eta(fieldname,output,j)
       call temporal_interpolation(field1(1),field1(2),output)
   end select
 end subroutine interpol_partoutput_val_eta
-#endif
+#else
 
 subroutine interpol_partoutput_val_meter(fieldname,output,j)
   implicit none
@@ -1471,7 +1481,7 @@ subroutine interpol_partoutput_val_meter(fieldname,output,j)
       call temporal_interpolation(field1(1),field1(2),output)
   end select
 end subroutine interpol_partoutput_val_meter
-
+#endif
 ! #ifdef ETA
 ! subroutine interpol_pbl_eta(zt,zteta,rhoa,rhograd,ithread)
   
@@ -1549,7 +1559,7 @@ subroutine stdev_eta(iw,iuv,iweta)
   call stdev(wetasl,wetasq,16.,wsigeta)
 
 end subroutine stdev_eta
-#endif
+#else
 
 subroutine stdev_meter(iw)
 
@@ -1601,5 +1611,5 @@ subroutine stdev_meter(iw)
   call stdev(vsl,vsq,16.,vsig)
 
 end subroutine stdev_meter
-
+#endif
 end module interpol_mod

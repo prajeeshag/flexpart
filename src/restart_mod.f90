@@ -20,7 +20,7 @@ subroutine output_restart(itime,loutnext,outnum)
 
   integer, intent(in) :: itime,loutnext
   real, intent(in) :: outnum
-  integer :: i,j,jjjjmmdd,ihmmss,stat
+  integer :: i,j,jjjjmmdd,ihmmss
   integer :: ks,kp,kz,nage,jy,ix,l,n
   real(kind=dp) :: jul
   character :: adate*8,atime*6

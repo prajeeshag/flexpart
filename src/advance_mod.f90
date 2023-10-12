@@ -662,9 +662,11 @@ subroutine petterssen_corr(itime,ipart)
     nsp,insp                        ! loop variables for number of species
   real ::                         &
     xts,yts,zts,ztseta,           & ! local 'real' copy of the particle position
-    uold,vold,wold
+    uold,vold
 #ifdef ETA
   real :: woldeta,weta_settling ! eta equivalents
+#else
+  real :: wold
 #endif
 
   xts=real(part(ipart)%xlon)

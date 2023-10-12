@@ -182,7 +182,7 @@ subroutine output_particles(itime,initial_output)
   integer,intent(in) :: itime
   logical,optional,intent(in) :: initial_output
   logical :: init_out
-  integer :: ii,i,j,m,jjjjmmdd,ihmmss,np,ns,i_av
+  integer :: i,j,m,jjjjmmdd,ihmmss,np,ns,i_av
   real(kind=dp) :: jul
   real :: tmp(2)
   character :: adate*8,atime*6
@@ -419,7 +419,7 @@ subroutine output_particles(itime,initial_output)
         if (partopt(np)%name.eq.'MA') then
           do ns=1,nspec
             if (init_out) then
-              call partinit_netcdf(itime,masstemp(:,ns),'MA',ns,ncid)
+              call partinit_netcdf(masstemp(:,ns),'MA',ns,ncid)
             else
               call partoutput_netcdf(itime,masstemp(:,ns),'MA',ns,ncid)
             endif
@@ -438,7 +438,7 @@ subroutine output_particles(itime,initial_output)
           end do
         else
           if (init_out) then
-            call partinit_netcdf(itime,output(np,:),partopt(np)%name,j,ncid)
+            call partinit_netcdf(output(np,:),partopt(np)%name,j,ncid)
           else
             call partoutput_netcdf(itime,output(np,:),partopt(np)%name,j,ncid)
           endif

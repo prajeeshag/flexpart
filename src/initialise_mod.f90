@@ -101,7 +101,7 @@ subroutine releaseparticles(itime)
   real :: topo,r,t
   real :: dp1,dp2,xlonav,timecorrect(maxspec),press,pressold
   real :: presspart,average_timecorrect
-  integer :: itime,numrel,i,j,k,n,ipart,minpart
+  integer :: itime,numrel,i,j,k,ipart,minpart
   integer :: kz,istart,iend,totpart
   integer :: nweeks,ndayofweek,nhour,jjjjmmdd,ihmmss,mm
   real(kind=dp) :: julmonday,jul,jullocal,juldiff
@@ -398,7 +398,7 @@ subroutine init_mass_conversion(ipart,ipoint)
   implicit none
 
   integer,intent(in) :: ipart,ipoint
-  integer :: ii,n,k
+  integer :: n,k
   real :: rhoaux(2),rhoout
   real :: dz1,dz2
 
@@ -648,7 +648,6 @@ subroutine init_particle(itime,ipart,ithread)
     ithread,             & ! OMP thread starting at 0
     itime,               &
     ipart
-  integer :: k
   integer :: nrand
   real :: dummy1,dummy2
   real :: xt,yt,zt,zteta
@@ -878,7 +877,7 @@ subroutine init_domainfill
   real,allocatable,dimension(:) :: pp
 
   integer :: ixm,ixp,jym,jyp,indzm,indzh,indzp,i,jj,ii
-  integer :: alive_tmp,allocated_tmp,spawned_tmp,terminated_tmp
+  ! integer :: alive_tmp,allocated_tmp,spawned_tmp,terminated_tmp
   real :: pvpart,ddx,ddy,rddx,rddy,p1,p2,p3,p4,y1(2)
   integer :: idummy = -11
 
@@ -1583,7 +1582,7 @@ subroutine boundcond_domainfill(itime,loutend)
             yh1(mm)=(dz2*y1(1)+dz1*y1(2))*dz
           end do
           pvpart=(yh1(1)*dt2+yh1(2)*dt1)*dtt
-          ylat=ylat0+part(ipart)%ylat*dy
+          ylat=ylat0+real(part(ipart)%ylat)*dy
           if (ylat.lt.0.) pvpart=-1.*pvpart
 
 

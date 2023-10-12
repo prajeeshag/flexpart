@@ -253,6 +253,8 @@ subroutine verttransform_init(n)
     return
   endif
 
+  jym=nymin1
+  ixm=0
   loop1: do jy=0,nymin1
     do ix=0,nxmin1
       if (ps(ix,jy,1,n).gt.100000.) then
@@ -1339,6 +1341,7 @@ subroutine verttransform_gfs(n,uuh,vvh,wwh,pvh)
         ui=uu(ix,jy,iz,n)*dxconst/cosf
         vi=vv(ix,jy,iz,n)*dyconst
 
+        klp=nz+1
         do kz=kmin,nz
           if ((height(iz).gt.uvwzlev(ix,jy,kz-1)).and. &
           (height(iz).le.uvwzlev(ix,jy,kz))) then
@@ -1350,6 +1353,13 @@ subroutine verttransform_gfs(n,uuh,vvh,wwh,pvh)
             exit
           endif
         end do
+
+        if (klp.eq.nz+1) then
+          klp=nz
+          kl=nz-1
+          dz1=uvwzlev(ix,jy,kz)-uvwzlev(ix,jy,kz-1)
+          dz2=0.
+        endif
 
         ix1=ix-1
         jy1=jy-1

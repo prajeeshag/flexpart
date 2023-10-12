@@ -1798,7 +1798,7 @@ subroutine wrt_part_initialpos(itime,istart,iend)
   partinitpointer = partinitpointer+newpart
 end subroutine wrt_part_initialpos
 
-subroutine partinit_netcdf(itime,field,fieldname,imass,ncid)
+subroutine partinit_netcdf(field,fieldname,imass,ncid)
 
   !*****************************************************************************
   !                                                                            *
@@ -1812,7 +1812,7 @@ subroutine partinit_netcdf(itime,field,fieldname,imass,ncid)
 
   implicit none
 
-  integer, intent(in)            :: itime,imass
+  integer, intent(in)            :: imass
   real, intent(in)               :: field(:)
   character(2), intent(in)       :: fieldname  ! input field to interpolate over
   integer                        :: ncid,newpart
@@ -2535,7 +2535,7 @@ subroutine readinitconditions_netcdf()
 
   integer             :: ncidend,pIDend,tempIDend,stat
   integer             :: plen,i,j,release_max,nsp
-  integer             :: zkind
+  integer(kind=2)     :: zkind
   real                :: cun
   integer,allocatable, dimension (:) :: specnum_rel,numpoint_max
   real,allocatable,dimension(:,:) :: mass_temp
@@ -2703,8 +2703,8 @@ subroutine readinitconditions_netcdf()
   zpoint2(:)=0.
   zpoint1(:)=1.e8
   do i=1,plen
-    if (part(i)%z.gt.zpoint2(part(i)%npoint)) zpoint2(part(i)%npoint)=part(i)%z
-    if (part(i)%z.lt.zpoint1(part(i)%npoint)) zpoint1(part(i)%npoint)=part(i)%z
+    if (part(i)%z.gt.zpoint2(part(i)%npoint)) zpoint2(part(i)%npoint)=real(part(i)%z)
+    if (part(i)%z.lt.zpoint1(part(i)%npoint)) zpoint1(part(i)%npoint)=real(part(i)%z)
   end do
 
   ! Setting xpoint1, ypoint1, xpoint2, ypoint2
@@ -2717,10 +2717,10 @@ subroutine readinitconditions_netcdf()
   ypoint2(:)=0.
   ypoint1(:)=1.e8
   do i=1,plen
-    if (part(i)%xlon.gt.xpoint2(part(i)%npoint)) xpoint2(part(i)%npoint)=part(i)%xlon
-    if (part(i)%xlon.lt.xpoint1(part(i)%npoint)) xpoint1(part(i)%npoint)=part(i)%xlon
-    if (part(i)%ylat.gt.ypoint2(part(i)%npoint)) ypoint2(part(i)%npoint)=part(i)%ylat
-    if (part(i)%ylat.lt.ypoint1(part(i)%npoint)) ypoint1(part(i)%npoint)=part(i)%ylat
+    if (part(i)%xlon.gt.xpoint2(part(i)%npoint)) xpoint2(part(i)%npoint)=real(part(i)%xlon)
+    if (part(i)%xlon.lt.xpoint1(part(i)%npoint)) xpoint1(part(i)%npoint)=real(part(i)%xlon)
+    if (part(i)%ylat.gt.ypoint2(part(i)%npoint)) ypoint2(part(i)%npoint)=real(part(i)%ylat)
+    if (part(i)%ylat.lt.ypoint1(part(i)%npoint)) ypoint1(part(i)%npoint)=real(part(i)%ylat)
   end do
   do j=1,numpoint
     xpoint1(j)=(xpoint1(j)-xlon0)/dx

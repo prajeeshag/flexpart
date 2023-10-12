@@ -234,7 +234,7 @@ contains
       itime,               &  ! spawning time
       nmpart                  ! number of particles that are being spawned
     integer ::             &
-      i ,j, k                 ! loop variable
+      i ,j                    ! loop variable
 
     ! Check if new memory needs to be allocated 
     !*******************************************

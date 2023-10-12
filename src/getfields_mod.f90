@@ -922,7 +922,6 @@ subroutine calcpar(n)
   real :: rh,subsceff,ylat
   real :: altmin,tvold,pold,zold,pint,tv,hmixdummy,akzdummy
   real,allocatable,dimension(:) :: vd
-  real :: z0_tmp(numclass) ! temporary variable for z0 (shared between OMP threads)
   real,parameter :: const=r_air/ga
 
   !write(*,*) 'in calcpar writting snowheight'
@@ -1074,10 +1073,10 @@ subroutine calcpar(n)
            ps(ix,jy,1,n))
       pold=ps(ix,jy,1,n)
       zold=0.
-      if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-        loop_start=2
-      else
+      if (metdata_format.eq.GRIBFILE_CENTRE_NCEP) then
         loop_start=llev
+      else
+        loop_start=2
       end if
       do kz=loop_start,nuvz
         pint=akz(kz)+bkz(kz)*ps(ix,jy,1,n)  ! pressure on model layers
@@ -1190,7 +1189,6 @@ subroutine calcpar_nest(n)
   real :: rh,subsceff,ylat
   real :: altmin,tvold,pold,zold,pint,tv
   real,allocatable,dimension(:) :: vd
-  real :: z0_tmp(numclass) ! temporary variable for z0 (shared between OMP threads)
   real,parameter :: const=r_air/ga
 
 
@@ -1575,10 +1573,10 @@ subroutine richardson(psfc,ust,ttlev,qvlev,ulev,vlev,nuvz, &
 
     ! Integrate z up to one level above zt
     !*************************************
-    if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-      loop_start=2
-    else
+    if (metdata_format.eq.GRIBFILE_CENTRE_NCEP) then
       loop_start=llev
+    else
+      loop_start=2
     end if
     kcheck=loop_start
     do k=loop_start,nuvz

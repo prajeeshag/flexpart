@@ -2772,15 +2772,15 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
     elseif ((parCat.eq.0).and.(parNum.eq.0).and.(typSurf.eq.104)) then ! T sigma 0
       isec1(6)=11          ! indicatorOfParameter
       isec1(7)=107         ! indicatorOfTypeOfLevel
-      isec1(8)=0.995       ! lowest sigma level
+      isec1(8)=0.995       ! lowest sigma level !LB: isec1 is an integer array!!!
     elseif ((parCat.eq.2).and.(parNum.eq.2).and.(typSurf.eq.104)) then ! U sigma 0
       isec1(6)=33          ! indicatorOfParameter
       isec1(7)=107         ! indicatorOfTypeOfLevel
-      isec1(8)=0.995       ! lowest sigma level
+      isec1(8)=0.995       ! lowest sigma level !LB: isec1 is an integer array!!!
     elseif ((parCat.eq.2).and.(parNum.eq.3).and.(typSurf.eq.104)) then ! V sigma 0
       isec1(6)=34          ! indicatorOfParameter
       isec1(7)=107         ! indicatorOfTypeOfLevel
-      isec1(8)=0.995       ! lowest sigma level
+      isec1(8)=0.995       ! lowest sigma level !LB: isec1 is an integer array!!!
     elseif ((parCat.eq.3).and.(parNum.eq.5).and.(typSurf.eq.1)) then ! TOPO
       isec1(6)=7           ! indicatorOfParameter
       isec1(7)=1           ! indicatorOfTypeOfLevel
@@ -3726,11 +3726,6 @@ subroutine readwind_nest(indj,n,uuhn,vvhn,wwhn)
   write(*,*) ' #### ',wfnamen(l,indj),' FOR NESTING LEVEL  #### '
   write(*,*) ' #### ',l,' IS NOT GRIB FORMAT !!!           #### '
   error stop 'Execution terminated'
-
-
-999   write(*,*) ' #### FLEXPART MODEL ERROR! WINDFIELD         #### '
-  write(*,*) ' #### ',wfnamen(l,indj),'                    #### '
-  write(*,*) ' #### CANNOT BE OPENED FOR NESTING LEVEL ',l,'####'
 
 end subroutine readwind_nest
 

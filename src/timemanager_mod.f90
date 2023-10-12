@@ -108,7 +108,7 @@ subroutine timemanager
   real, parameter ::        &
     e_inv = 1.0/exp(1.0)  
   integer ::                &
-    j,i,k,                  & ! loop variables
+    j,i,                    & ! loop variables
     ks,                     & ! loop variable species
     kp,                     & ! loop variable for maxpointspec_act
     itime=0,                & ! time index
@@ -134,7 +134,6 @@ subroutine timemanager
     xmassfract                ! dry deposition related
   real(dep_prec),allocatable,dimension(:) ::         &
     drydeposit       ! dry deposition related
-  integer :: alive_tmp,spawned_tmp
 
   ! First output for time 0
   !************************

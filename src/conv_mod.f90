@@ -711,9 +711,12 @@ subroutine redist(itime,ipart,ktop,ipconv,ithread)
   real :: totlevmass, wsubpart
   real :: temp_levold,temp_levold1
   real :: sub_levold,sub_levold1
-  real :: pint, pold, rn, tv, tvold, dlevfrac
-  real :: ztold,ffraction
-  real :: tv1, tv2, dlogp, dz, dz1, dz2
+  real :: rn, dlevfrac
+  real :: ztold,ffraction, dlogp
+  real :: dz, dz1, dz2
+#ifndef ETA
+  real :: tv, tv1, tv2, tvold, pold, pint
+#endif
 
   ! ipart   ... number of particle to be treated
 

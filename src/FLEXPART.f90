@@ -306,7 +306,9 @@ subroutine read_options_and_initialise_flexpart
   call alloc_convect
   call alloc_getfields
   call alloc_interpol
+#ifdef USE_NCF
   if (lnetcdfout.eq.1) call alloc_netcdf
+#endif USE_NCF
 
   ! Assign fractional cover of landuse classes to each ECMWF grid point
   !********************************************************************

@@ -627,7 +627,9 @@ subroutine timemanager
   if (iflux.eq.1) deallocate(flux)
   if (OHREA) deallocate(OH_field,OH_hourly,lonOH,latOH,altOH)
   if (ipin.ne.3 .and. ipin.ne.4) deallocate(xmasssave)
+#ifdef _USE_NCF
   if (lnetcdfout.eq.1) call dealloc_netcdf
+#endif _USE_NCF
   deallocate(xpoint1,xpoint2,ypoint1,ypoint2,zpoint1,zpoint2)
   deallocate(xmass)
   deallocate(ireleasestart,ireleaseend,npart,kindz)

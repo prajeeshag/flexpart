@@ -1156,6 +1156,7 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
 
         ! Concentration output
         !*********************
+!$OMP BARRIER
 !$OMP SINGLE
         if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
 
@@ -2540,6 +2541,7 @@ subroutine readinitconditions_netcdf()
   integer,allocatable, dimension (:) :: specnum_rel,numpoint_max
   real,allocatable,dimension(:,:) :: mass_temp
   real,allocatable,dimension(:) :: vsh,fracth,schmih
+  logical :: lstart=.true.
 
   integer :: idummy = -8
   
@@ -2631,6 +2633,23 @@ subroutine readinitconditions_netcdf()
         error stop "Negative initial mass."
       endif
     end do
+    if (part(i)%tstart*ldirect.lt.0) then
+      if (lstart) then
+        write(*,*) "WARNING: (some) particles have a starting time of", part(i)%tstart, "in"
+        if (ldirect.le.0) then 
+          write(*,*) "backward mode, please only use negative values."
+          write(*,*) "time array in part_ic.nc should be given in seconds after the"
+          write(*,*) "start of your simulation. Positive values will be converted to"
+          write(*,*) "negative starting times..."
+        else 
+          write(*,*) "forward mode, please only use positive values."
+          write(*,*) "time array in part_ic.nc should be given in seconds after the"
+          write(*,*) "start of your simulation. Negative values will be converted to"
+          write(*,*) "positive starting times..."
+        endif
+      endif
+      part(i)%tstart = part(i)%tstart*-1
+    endif
   end do
   ! Release
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='release',varid=tempIDend))
@@ -2745,9 +2764,9 @@ subroutine readinitconditions_netcdf()
       endif
       if (part(i)%npoint.eq.j) then 
         npart(j)=npart(j)+1
-        if ((ireleasestart(j).gt.part(i)%tstart).or.(ireleasestart(j).eq.-1)) &
+        if ((ireleasestart(j).gt.part(i)%tstart*ldirect).or.(ireleasestart(j).eq.-1)) &
           ireleasestart(j)=part(i)%tstart
-        if ((ireleaseend(j).le.part(i)%tstart).or.(ireleaseend(j).eq.-1)) &
+        if ((ireleaseend(j).le.part(i)%tstart*ldirect).or.(ireleaseend(j).eq.-1)) &
           ireleaseend(j)=part(i)%tstart
       endif
     end do

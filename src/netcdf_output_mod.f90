@@ -2632,6 +2632,21 @@ subroutine readinitconditions_netcdf()
         error stop "Negative initial mass."
       endif
     end do
+    if (part(i)%tstart*ldirect.lt.0) then
+      write(*,*) "Particle", i, "has a starting time of", part(i)%tstart, "in"
+      if (ldirect.le.0) then 
+        write(*,*) "backward mode, please only use negative values."
+        write(*,*) "time array in part_ic.nc should be given in seconds after the"
+        write(*,*) "start of your simulation."
+        error stop "Positive starting time in part_ic while running in backward mode."
+      endif
+      if (ldirect.le.0) then 
+        write(*,*) "forward mode, please only use positive values."
+        write(*,*) "time array in part_ic.nc should be given in seconds after the"
+        write(*,*) "start of your simulation."
+        error stop "Negative starting time in part_ic while running in backward mode."
+      endif
+    endif
   end do
   ! Release
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='release',varid=tempIDend))
@@ -2746,9 +2761,9 @@ subroutine readinitconditions_netcdf()
       endif
       if (part(i)%npoint.eq.j) then 
         npart(j)=npart(j)+1
-        if ((ireleasestart(j).gt.part(i)%tstart).or.(ireleasestart(j).eq.-1)) &
+        if ((ireleasestart(j).gt.part(i)%tstart*ldirect).or.(ireleasestart(j).eq.-1)) &
           ireleasestart(j)=part(i)%tstart
-        if ((ireleaseend(j).le.part(i)%tstart).or.(ireleaseend(j).eq.-1)) &
+        if ((ireleaseend(j).le.part(i)%tstart*ldirect).or.(ireleaseend(j).eq.-1)) &
           ireleaseend(j)=part(i)%tstart
       endif
     end do

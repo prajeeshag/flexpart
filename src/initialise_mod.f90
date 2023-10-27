@@ -238,9 +238,9 @@ subroutine releaseparticles(itime)
   ! divided by the sum of rho of all particles.
   !*****************************************************************************
         do k=1,nspec
-          part(ipart)%mass(k)=xmass(i,k)/real(npart(i)) &
+          mass(ipart,k)=xmass(i,k)/real(npart(i)) &
                 *timecorrect(k)/average_timecorrect
-          part(ipart)%mass_init(k)=part(ipart)%mass(k)
+          mass_init(ipart,k)=mass(ipart,k)
         end do
   ! Assign certain properties to particle
   !**************************************
@@ -398,7 +398,7 @@ subroutine init_mass_conversion(ipart,ipoint)
   implicit none
 
   integer,intent(in) :: ipart,ipoint
-  integer :: n,k
+  integer :: n
   real :: rhoaux(2),rhoout
   real :: dz1,dz2
 
@@ -426,16 +426,13 @@ subroutine init_mass_conversion(ipart,ipoint)
       end do
     endif
     rhoout=dz2*rhoaux(1)+dz1*rhoaux(2)
-    rho_rel(ipoint)=rhoout !What is this????
+    rho_rel(ipoint)=rhoout
 
 
   ! Multiply "mass" (i.e., mass mixing ratio in forward runs) with density
   !********************************************************************
-
-    do k=1,nspec
-      part(ipart)%mass(k)=part(ipart)%mass(k)*rhoout
-      part(ipart)%mass_init(k)=part(ipart)%mass(k)
-    end do
+    mass(ipart,:)=mass(ipart,:)*rhoout
+    mass_init(ipart,:)=mass(ipart,:)
   endif
 end subroutine init_mass_conversion
 
@@ -550,7 +547,7 @@ subroutine readpartpositions
     do
       i=i+1
       read(unitpartin) part(i)%npoint,xlonin,ylatin,part(i)%z,part(i)%tstart, &
-           topo,pvi,qvi,rhoi,hmixi,tri,tti,(part(i)%mass(j),j=1,nspec)
+           topo,pvi,qvi,rhoi,hmixi,tri,tti,(mass(i,j),j=1,nspec)
       ! For switching coordinates: this happens in timemanager.f90 after the first fields are read
       if (xlonin.eq.-9999.9) exit
       call set_xlon(i,real((xlonin-xlon0)/dx,kind=dp))
@@ -1142,10 +1139,10 @@ subroutine init_domainfill
                 numparticlecount=numparticlecount+1
                 part(numpart+jj)%npoint=numparticlecount
                 part(numpart+jj)%idt=mintime
-                part(numpart+jj)%mass(1)=colmass(lix,ljy)/real(ncolumn)
-                if (mdomainfill.eq.2) part(numpart+jj)%mass(1)= &
-                     part(numpart+jj)%mass(1)*pvpart*48./29.*ozonescale/10.**9
-                part(numpart+jj)%mass_init(1)=part(numpart+jj)%mass(1)
+                mass(numpart+jj,1)=colmass(lix,ljy)/real(ncolumn)
+                if (mdomainfill.eq.2) mass(numpart+jj,1)= &
+                     mass(numpart+jj,1)*pvpart*48./29.*ozonescale/10.**9
+                mass_init(numpart+jj,1)=mass(numpart+jj,1)
               else
                 call terminate_particle(numpart+jj, 0)
                 jj=jj-1
@@ -1598,10 +1595,10 @@ subroutine boundcond_domainfill(itime,loutend)
             part(ipart)%npoint=numparticlecount_tmp
             part(ipart)%idt=mintime
             part(ipart)%tstart=itime
-            part(ipart)%mass(1)=xmassperparticle
-            if (mdomainfill.eq.2) part(ipart)%mass(1)= &
-                 part(ipart)%mass(1)*pvpart*48./29.*ozonescale/10.**9
-            part(ipart)%mass_init(1)=part(ipart)%mass(1)
+            mass(ipart,1)=xmassperparticle
+            if (mdomainfill.eq.2) mass(ipart,1)= &
+                 mass(ipart,1)*pvpart*48./29.*ozonescale/10.**9
+            mass_init(ipart,1)=mass(ipart,1)
           else
             stop 'boundcond_domainfill error: look into original to understand what should happen here'
           endif
@@ -1810,10 +1807,10 @@ subroutine boundcond_domainfill(itime,loutend)
             numparticlecount_tmp=numparticlecount_tmp+1
             part(ipart)%npoint=numparticlecount_tmp
             part(ipart)%idt=mintime
-            part(ipart)%mass(1)=xmassperparticle
-            if (mdomainfill.eq.2) part(ipart)%mass(1)= &
-                 part(ipart)%mass(1)*pvpart*48./29.*ozonescale/10.**9
-            part(ipart)%mass_init(1)=part(ipart)%mass(1)
+            mass(ipart,1)=xmassperparticle
+            if (mdomainfill.eq.2) mass(ipart,1)= &
+                 mass(ipart,1)*pvpart*48./29.*ozonescale/10.**9
+            mass_init(ipart,1)=mass(ipart,1)
           else
             stop 'boundcond_domainfill error: look into original to understand what should happen here'
           endif

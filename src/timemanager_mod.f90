@@ -133,7 +133,7 @@ subroutine timemanager
     prob_rec(maxspec),      & ! dry deposition related
     xmassfract                ! dry deposition related
   real(dep_prec),allocatable,dimension(:) ::         &
-    drydeposit       ! dry deposition related
+    drytmp       ! dry deposition related
 
   ! First output for time 0
   !************************
@@ -408,7 +408,7 @@ subroutine timemanager
             if (DRYDEPSPEC(ks)) then        ! dry deposition
               xscav_frac1(j,ks)=prob_rec(ks)
             else
-              part(j)%mass(ks)=0.
+              mass(j,ks)=0.
               xscav_frac1(j,ks)=0.
             endif
           endif
@@ -443,7 +443,7 @@ subroutine timemanager
   end do
 
 
-!$OMP PARALLEL PRIVATE(prob_rec,nage,inage,itage,ks,kp,thread,i,j,xmassfract,drydeposit)
+!$OMP PARALLEL PRIVATE(prob_rec,nage,inage,itage,ks,kp,thread,i,j,xmassfract,drytmp)
 
 !num_threads(numthreads_grid)
 
@@ -452,8 +452,8 @@ subroutine timemanager
 #else
     thread = 0
 #endif
-  allocate( drydeposit(maxspec),stat=stat )
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate drydeposit inside of OMP loop'
+  allocate( drytmp(maxspec),stat=stat )
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate drytmp inside of OMP loop'
 
 !$OMP DO 
 ! SCHEDULE(dynamic, max(1,numpart/1000))
@@ -483,11 +483,11 @@ subroutine timemanager
 
           if (DRYDEPSPEC(ks)) then     ! dry deposition (and radioactive decay)
 
-            call drydepo_massloss(j,ks,ldeltat,drydeposit(ks))
+            call drydepo_massloss(j,ks,ldeltat,drytmp(ks))
 
           else if (decay(ks).gt.0.) then  ! no dry depo, but radioactive decay
 
-            part(j)%mass(ks) = part(j)%mass(ks) * &
+            mass(j,ks) = mass(j,ks) * &
               exp( -real(abs(lsynctime)) * decay(ks) )
 
           endif
@@ -495,12 +495,12 @@ subroutine timemanager
   ! Skip check on mass fraction when npoint represents particle number
           if (mdomainfill.eq.0.and.mquasilag.eq.0) then
             if (ipin.eq.3 .or. ipin.eq.4) then 
-              if (part(j)%mass_init(ks).gt.0) &
+              if (mass_init(j,ks).gt.0) &
                 xmassfract = max( xmassfract, &
-                                  part(j)%mass(ks) / part(j)%mass_init(ks) )
+                                  mass(j,ks) / mass_init(j,ks) )
             else if (xmass(part(j)%npoint,ks).gt.0.) then
               xmassfract = max( xmassfract, real( npart(part(j)%npoint) ) * &
-                part(j)%mass(ks) /  xmass(part(j)%npoint,ks) )
+                mass(j,ks) /  xmass(part(j)%npoint,ks) )
             endif
           else
             xmassfract=1.0
@@ -523,10 +523,10 @@ subroutine timemanager
               kp=1
           endif
 
-          call drydepokernel(part(j)%nclass,drydeposit,real(part(j)%xlon), &
+          call drydepokernel(part(j)%nclass,drytmp,real(part(j)%xlon), &
                real(part(j)%ylat),nage,kp,thread+1)
           if (nested_output.eq.1) call drydepokernel_nest( &
-               part(j)%nclass,drydeposit,real(part(j)%xlon),real(part(j)%ylat), &
+               part(j)%nclass,drytmp,real(part(j)%xlon),real(part(j)%ylat), &
                nage,kp,thread+1)
         endif
 
@@ -541,7 +541,7 @@ subroutine timemanager
     end do !loop over particles
 
 !$OMP END DO
-  deallocate(drydeposit)
+  deallocate(drytmp)
 !$OMP END PARALLEL
 
   ! Terminating particles flagged due to insufficient mass or exceeded max age

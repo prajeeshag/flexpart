@@ -64,7 +64,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
   integer :: ks, kp,stat
   integer(selected_int_kind(16)), dimension(nspec) :: blc_count, inc_count
   real :: grfraction(3),wetscav,restmass
-  real,allocatable,dimension(:) :: wetdeposit
+  real,allocatable,dimension(:) :: wettmp
   real,parameter :: smallnum = tiny(0.0) ! smallest number that can be handled
 
   ! Compute interval since radioactive decay of deposited mass was computed
@@ -84,7 +84,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
 #ifdef _OPENMP
   call omp_set_num_threads(numthreads_grid)
 #endif
-!$OMP PARALLEL PRIVATE(jpart,itage,nage,inage,ks,kp,thread,wetscav,wetdeposit, &
+!$OMP PARALLEL PRIVATE(jpart,itage,nage,inage,ks,kp,thread,wetscav,wettmp, &
 !$OMP restmass, grfraction) REDUCTION(+:blc_count,inc_count)
   
 #if (defined _OPENMP)
@@ -93,8 +93,8 @@ subroutine wetdepo(itime,ltsample,loutnext)
     thread = 0
 #endif
 
-  allocate( wetdeposit(nspec),stat=stat)
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate wetdeposit inside of OMP loop'
+  allocate( wettmp(nspec),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate wettmp inside of OMP loop'
 
 !$OMP DO 
   do i=1,count%alive
@@ -126,37 +126,37 @@ subroutine wetdepo(itime,ltsample,loutnext)
              xscav_frac1(jpart,ks)=wetscav*(zpoint2(part(jpart)%npoint)-&
              zpoint1(part(jpart)%npoint))*grfraction(1)
           else
-            part(jpart)%mass(ks)=0.
+            mass(jpart,ks)=0.
             xscav_frac1(jpart,ks)=0.
           endif
         endif
       endif
 
       if (wetscav.gt.0.) then
-        wetdeposit(ks)=part(jpart)%mass(ks)* &
+        wettmp(ks)=mass(jpart,ks)* &
              (1.-exp(-wetscav*abs(ltsample)))*grfraction(1)  ! wet deposition
       else ! if no scavenging
-        wetdeposit(ks)=0.
+        wettmp(ks)=0.
       endif
-      part(jpart)%wetdepo(ks)=part(jpart)%wetdepo(ks)+wetdeposit(ks)
-      restmass = part(jpart)%mass(ks)-wetdeposit(ks)
+      wetdeposit(jpart,ks)=wetdeposit(jpart,ks)+wettmp(ks)
+      restmass = mass(jpart,ks)-wettmp(ks)
       if (ioutputforeachrelease.eq.1) then
         kp=part(jpart)%npoint
       else
         kp=1
       endif
       if (restmass .gt. smallnum) then
-        part(jpart)%mass(ks)=restmass
+        mass(jpart,ks)=restmass
   !   depostatistic
   !   wetdepo_sum(ks,kp)=wetdepo_sum(ks,kp)+wetdeposit(ks)
   !   depostatistic
       else
-        part(jpart)%mass(ks)=0.
+        mass(jpart,ks)=0.
       endif
   !   Correct deposited mass to the last time step when radioactive decay of
   !   gridded deposited mass was calculated
       if (decay(ks).gt.0.) then
-        wetdeposit(ks)=wetdeposit(ks)*exp(abs(ldeltat)*decay(ks))
+        wettmp(ks)=wettmp(ks)*exp(abs(ldeltat)*decay(ks))
       endif
 
   !    endif ! no deposition
@@ -167,16 +167,16 @@ subroutine wetdepo(itime,ltsample,loutnext)
   !*****************************************************************************
 
     if ((ldirect.eq.1).and.(iout.ne.0)) then !OMP reduction necessary for wetgridunc
-      call wetdepokernel(part(jpart)%nclass,wetdeposit,real(part(jpart)%xlon), &
+      call wetdepokernel(part(jpart)%nclass,wettmp,real(part(jpart)%xlon), &
            real(part(jpart)%ylat),nage,kp,thread+1)
       if (nested_output.eq.1) call wetdepokernel_nest(part(jpart)%nclass, &
-           wetdeposit,real(part(jpart)%xlon),real(part(jpart)%ylat),nage,kp,thread+1)
+           wettmp,real(part(jpart)%xlon),real(part(jpart)%ylat),nage,kp,thread+1)
     endif
 
   end do ! all particles
 
 !$OMP END DO
-  deallocate(wetdeposit)
+  deallocate(wettmp)
 !$OMP END PARALLEL
 
 #ifdef _OPENMP

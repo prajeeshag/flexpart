@@ -298,7 +298,9 @@ subroutine get_wetscav(itime,ltsample,jpart,ks,grfraction,inc_count,blc_count,we
   readclouds_this_nest=.false.
 
   call find_ngrid(xts,yts)
-  if ( (ngrid.gt.0) .and. readclouds_nest(ngrid)) readclouds_this_nest=.true.
+  if ( (ngrid.gt.0) ) then
+    if (readclouds_nest(ngrid)) readclouds_this_nest=.true.
+  endif
 
   ! If point at border of grid -> small displacement into grid
   !***********************************************************

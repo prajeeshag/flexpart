@@ -464,7 +464,7 @@ contains
     endif
 
     if (n_average.gt.0) then 
-      allocate( tmpval_av(count%allocated+nmpart,maxspec),stat=stat)
+      allocate( tmpval_av(count%allocated+nmpart,n_average),stat=stat)
       if (stat.ne.0) error stop "Could not allocate val_av"
       if (count%allocated.gt.0) tmpval_av(1:count%allocated,:) = val_av
       tmpval_av(count%allocated+1:count%allocated+nmpart,:) = 0

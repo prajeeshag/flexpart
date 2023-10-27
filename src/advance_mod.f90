@@ -630,7 +630,7 @@ subroutine adv_in_pbl(itime,itimec, dxsave,dysave,dawsave,dcwsave, abovePBL,  &
   ! Determine probability of deposition
   !************************************
     if (DRYDEP) then
-      call drydepo_probability(prob(ipart,:),dt,zts,vdepo,ithread+1)
+      call drydepo_probability(ipart,dt,zts,vdepo,ithread+1)
     endif
 
     if (zts.lt.0.) call set_z(ipart,min(h-eps2,-1.*part(ipart)%z))    

@@ -814,15 +814,16 @@ subroutine get_vdep_prob(itime,xt,yt,zt,tmpprob,ithread)
   endif
 end subroutine get_vdep_prob
 
-subroutine drydepo_probability(tmpprob,dt,zts,vdepo,ithread)
+subroutine drydepo_probability(ipart,dt,zts,vdepo,ithread)
   use par_mod
   use com_mod
   use interpol_mod
+  use particle_mod
 
   implicit none
 
   integer,intent(in) :: ithread ! OMP thread starting at 1
-  real,intent(inout) :: tmpprob(maxspec)
+  integer,intent(in) :: ipart ! particle index
   real,intent(inout) :: vdepo(maxspec)  ! deposition velocities for all species
   real,intent(in) :: dt,zts             ! real(ldt), real(zt)
   integer :: ns,m                      ! loop variable over species
@@ -846,7 +847,7 @@ subroutine drydepo_probability(tmpprob,dt,zts,vdepo,ithread)
   ! correction by Petra Seibert, 10 April 2001
   !   this formulation means that prob(n) = 1 - f(0)*...*f(n)
   !   where f(n) is the exponential term
-        tmpprob(ns)=1.+(tmpprob(ns)-1.)*exp(-vdepo(ns)*abs(dt)/(2.*href))
+        prob(ipart,ns)=1.+(prob(ipart,ns)-1.)*exp(-vdepo(ns)*abs(dt)/(2.*href))
         !if (pp.eq.535) write(*,*) 'advance1', ks,dtt,p1,vdep(ix,jy,ks,1)
       endif
     end do

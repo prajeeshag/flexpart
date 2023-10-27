@@ -648,6 +648,7 @@ subroutine conccalc(itime,weight)
 #endif
 !$OMP PARALLEL PRIVATE(i,itage,nage,inage,rhoi,nrelpointer,kz,xl,yl,ks,wx,wy,w,thread,ddx,ddy, &
 !$OMP ix,jy,ixp,jyp)
+
 #if (defined _OPENMP)
     thread = OMP_GET_THREAD_NUM()+1 ! Starts with 1
 #else

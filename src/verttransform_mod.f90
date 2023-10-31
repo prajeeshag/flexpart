@@ -930,7 +930,7 @@ subroutine verttransform_ecmwf_cloud(lreadclouds,lsumclouds,nxlim,nylim,clouds_t
   real,intent(in),dimension(0:nxlim,0:nylim,nzmax) :: rho_tmp,tt_tmp,qv_tmp
   real,intent(in),dimension(0:nxlim,0:nylim,nzmax) :: uvzlev
 
-  integer,dimension(0:nxmax-1,0:nymax-1) :: rain_cloud_above
+  integer :: rain_cloud_above
 
   integer :: ix,jy,kz,kz_inv
   real :: pressure,rh,lsp,convp,cloudh_min,prec
@@ -954,6 +954,9 @@ subroutine verttransform_ecmwf_cloud(lreadclouds,lsumclouds,nxlim,nylim,clouds_t
     if (.not.lsumclouds) then 
       clwc_tmp(0:nxlim,0:nylim,:) = clwc_tmp(0:nxlim,0:nylim,:) + ciwc_tmp(:,:,:)
     end if
+
+!$OMP PARALLEL PRIVATE(ix,jy,kz,lsp,convp,prec,cloudh_min) REDUCTION(+:ctwc_tmp)
+!$OMP DO
     do jy=0,nylim
       do ix=0,nxlim
         lsp=lsprec_tmp(ix,jy)
@@ -1021,6 +1024,8 @@ subroutine verttransform_ecmwf_cloud(lreadclouds,lsumclouds,nxlim,nylim,clouds_t
         endif ! precipitation
       end do
     end do
+!$OMP END DO
+!$OMP END PARALLEL
 
   ! eso: copy the relevant data to clw4 to reduce amount of communicated data for MPI
   !    ctwc(:,:,n) = icloud_stats(:,:,4,n)
@@ -1031,10 +1036,12 @@ subroutine verttransform_ecmwf_cloud(lreadclouds,lsumclouds,nxlim,nylim,clouds_t
   !   create a cloud and rainout/washout field, clouds occur where rh>80%
   !   total cloudheight is stored at level 0
     !write(*,*) 'Global fields: using cloud water from Parameterization'
+!$OMP PARALLEL PRIVATE(jy,ix,kz_inv,kz,lsp,convp,pressure,rh,rain_cloud_above)
+!$OMP DO
     do jy=0,nylim
       do ix=0,nxlim
   ! OLD METHOD
-        rain_cloud_above(ix,jy)=0
+        rain_cloud_above=0
         lsp=lsprec_tmp(ix,jy)
         convp=convprec_tmp(ix,jy)
         cloudsh_tmp(ix,jy)=0
@@ -1045,7 +1052,7 @@ subroutine verttransform_ecmwf_cloud(lreadclouds,lsumclouds,nxlim,nylim,clouds_t
           clouds_tmp(ix,jy,kz)=0
           if (rh.gt.0.8) then ! in cloud
             if ((lsp.gt.0.01).or.(convp.gt.0.01)) then ! cloud and precipitation
-              rain_cloud_above(ix,jy)=1
+              rain_cloud_above=1
 #ifdef ETA
               cloudsh_tmp(ix,jy)=cloudsh_tmp(ix,jy)+ &
                    int(uvzlev(ix,jy,kz)-uvzlev(ix,jy,kz-1))
@@ -1062,7 +1069,7 @@ subroutine verttransform_ecmwf_cloud(lreadclouds,lsumclouds,nxlim,nylim,clouds_t
               clouds_tmp(ix,jy,kz)=1 ! cloud
             endif
           else ! no cloud
-            if (rain_cloud_above(ix,jy).eq.1) then ! scavenging
+            if (rain_cloud_above.eq.1) then ! scavenging
               if (lsp.ge.convp) then
                 clouds_tmp(ix,jy,kz)=5 ! lsp dominated washout
               else
@@ -1074,6 +1081,8 @@ subroutine verttransform_ecmwf_cloud(lreadclouds,lsumclouds,nxlim,nylim,clouds_t
   !END OLD METHOD
       end do
     end do
+!$OMP END DO
+!$OMP END PARALLEL
   endif !readclouds
 end subroutine verttransform_ecmwf_cloud
 

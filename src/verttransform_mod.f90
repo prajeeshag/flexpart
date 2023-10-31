@@ -375,17 +375,23 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
   real :: dzdx1,dzdx2,dzdy1,dzdy2
 
 
+!$OMP PARALLEL PRIVATE(jy,ix,iz,kz,dz1,dz2,dz,ix1,jy1,ixp,jyp,dzdx1,dzdx2,dzdx, &
+!$OMP dzdy1,dzdy2,dzdy,dpdeta)
 
-  ! Finding the index in eta levels (uv and w) that correspond to
-  ! a certain height level in meters
-  !**************************************************************
 
-  idx(:,:,1)=2
-  idxw(:,:,1)=2
-  do iz=2,nz-1
-    idx(:,:,iz)=idx(:,:,iz-1)
-    idxw(:,:,iz)=idxw(:,:,iz-1)
-    do jy=0,nymin1
+!$OMP DO
+  do jy=0,nymin1
+    cosf(jy)=1./cos((real(jy)*dy+ylat0)*pi180) ! Needed in slope computations
+  
+    ! Finding the index in eta levels (uv and w) that correspond to
+    ! a certain height level in meters
+    !**************************************************************
+    idx(:,jy,1)=2
+    idxw(:,jy,1)=2
+
+    do iz=2,nz-1
+      idx(:,jy,iz)=idx(:,jy,iz-1)
+      idxw(:,jy,iz)=idxw(:,jy,iz-1)
       do ix=0,nxmin1
         ! height in meters that corresponds to the eta w level
         innwz: do kz=idxw(ix,jy,iz),nuvz
@@ -412,16 +418,8 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
         endif
       end do
     end do
-  end do
 
-!$OMP PARALLEL PRIVATE(jy,ix,kz,dz1,dz2,dz,ix1,jy1,ixp,jyp,dzdx1,dzdx2,dzdx, &
-!$OMP dzdy1,dzdy2,dzdy,dpdeta)
-
-  ! All bottom and top levels
-!$OMP DO
-  do jy=0,nymin1
-    cosf(jy)=1./cos((real(jy)*dy+ylat0)*pi180) ! Needed in slope computations
-    
+    ! All bottom and top levels
     do ix=0,nxmin1
 
       uu(ix,jy,1,n)=uuh(ix,jy,1)
@@ -455,15 +453,8 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
 
       ww(ix,jy,1,n)=wwh(ix,jy,1)*pinmconv(ix,jy,1)
       ww(ix,jy,nz,n)=wwh(ix,jy,nwz)*pinmconv(ix,jy,nz)
-    end do
-  end do
-!$OMP END DO
 
-!$OMP DO SCHEDULE(guided)
-  do iz=2,nz-1
-    do jy=0,nymin1
-      do ix=0,nxmin1
-
+      do iz=2,nz-1
         ! Levels, where uv is given
         !*************************
         if (height(iz).gt.etauvheight(ix,jy,nuvz,n)) then
@@ -543,89 +534,62 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
                                       + dzdy*vv(ix,jy,iz,n)*dyconst        
 
       enddo
-    enddo
-  enddo
-!$OMP END DO
 
-  ! Compute density gradients
-  !**************************
-!$OMP DO
-  do jy=0,nymin1
-    do ix=0,nxmin1
+      ! Compute density gradients
+      !**************************
       drhodz(ix,jy,nz,n)=drhodz(ix,jy,nz-1,n)
       drhodz(ix,jy,1,n)=(rho(ix,jy,2,n)-rho(ix,jy,1,n))/(height(2)-height(1))
-    end do
-  end do
-!$OMP END DO
-
-!$OMP DO
-  do iz=2,nz-1
-    do jy=0,nymin1
-      do ix=0,nxmin1
+      do iz=2,nz-1
         drhodz(ix,jy,iz,n)=(rho(ix,jy,iz+1,n)-rho(ix,jy,iz-1,n))/ &
           (height(iz+1)-height(iz-1))
       enddo
+#ifdef ETA
+  ! Keep original fields if wind_coord_type==ETA
+      do kz=1,nz
+        uueta(ix,jy,kz,n) = uuh(ix,jy,kz)
+        vveta(ix,jy,kz,n) = vvh(ix,jy,kz)
+        tteta(ix,jy,kz,n) = tth(ix,jy,kz,n)
+        qv(ix,jy,kz,n)    = qvh(ix,jy,kz,n)
+        pveta(ix,jy,kz,n) = pvh(ix,jy,kz)
+        rhoeta(ix,jy,kz,n) = rhoh(ix,jy,kz)
+        prseta(ix,jy,kz,n) = prsh(ix,jy,kz)
+        ! eq A11 from Mid-latitude atmospheric dynamics by Jonathan E. Martin
+        ! tvirtual(ix,jy,kz,n)=tteta(ix,jy,kz,n)* &  
+        !   ((qv(ix,jy,kz,n)+0.622)/(0.622*qv(ix,jy,kz,n)+0.622))
+        if ((kz.gt.1).and.(kz.lt.nz)) drhodzeta(ix,jy,kz,n)= &
+             (rhoh(ix,jy,kz+1)-rhoh(ix,jy,kz-1))/ &
+             (height(kz+1)-height(kz-1)) 
+             ! Note that this is still in SI units and not in eta
+        if (readclouds) then
+          clwc(ix,jy,kz,n)=clwch(ix,jy,kz,n)
+          if (.not. sumclouds) ciwc(ix,jy,kz,n)=ciwch(ix,jy,kz,n)
+        endif
+      end do
+      drhodzeta(ix,jy,1,n)=(rhoh(ix,jy,2)-rhoh(ix,jy,1))/(height(2)-height(1))
+      drhodzeta(ix,jy,nz,n)=drhodzeta(ix,jy,nz-1,n)
+      ! tvirtual(ix,jy,1,n)=tt2(ix,jy,1,n)* &
+      !   (1.+0.378*ew(td2(ix,jy,1,n),ps(ix,jy,1,n))/ps(ix,jy,1,n))
+      ! Convert w from Pa/s to eta/s, following FLEXTRA
+      !************************************************
+      do kz=1,nuvz-1
+        if (kz.eq.1) then
+          dpdeta=(akm(kz+1)-akm(kz)+(bkm(kz+1)-bkm(kz))*ps(ix,jy,1,n))/ &
+            (wheight(kz+1)-wheight(kz))
+        else if (kz.eq.nuvz-1) then
+          dpdeta=(akm(kz)-akm(kz-1)+(bkm(kz)-bkm(kz-1))*ps(ix,jy,1,n))/ &
+            (wheight(kz)-wheight(kz-1))
+        else
+          dpdeta=(akm(kz+1)-akm(kz-1)+(bkm(kz+1)-bkm(kz-1))*ps(ix,jy,1,n))/ &
+            (wheight(kz+1)-wheight(kz-1))
+        endif
+        wweta(ix,jy,kz,n)=wwh(ix,jy,kz)/dpdeta
+      end do
+      wweta(ix,jy,nuvz,n)=wweta(ix,jy,nuvz-1,n) 
+      !What is the appropriate value for the top level???      
+#endif   
     enddo
   enddo
-!$OMP END DO NOWAIT
-
-  ! Keep original fields if wind_coord_type==ETA
-#ifdef ETA
-!$OMP DO
-    do kz=1,nz
-      do jy=0,nymin1
-        do ix=0,nxmin1
-          uueta(ix,jy,kz,n) = uuh(ix,jy,kz)
-          vveta(ix,jy,kz,n) = vvh(ix,jy,kz)
-          tteta(ix,jy,kz,n) = tth(ix,jy,kz,n)
-          qv(ix,jy,kz,n)    = qvh(ix,jy,kz,n)
-          pveta(ix,jy,kz,n) = pvh(ix,jy,kz)
-          rhoeta(ix,jy,kz,n) = rhoh(ix,jy,kz)
-          prseta(ix,jy,kz,n) = prsh(ix,jy,kz)
-          ! eq A11 from Mid-latitude atmospheric dynamics by Jonathan E. Martin
-          ! tvirtual(ix,jy,kz,n)=tteta(ix,jy,kz,n)* &  
-          !   ((qv(ix,jy,kz,n)+0.622)/(0.622*qv(ix,jy,kz,n)+0.622))
-          if ((kz.gt.1).and.(kz.lt.nz)) drhodzeta(ix,jy,kz,n)= &
-               (rhoh(ix,jy,kz+1)-rhoh(ix,jy,kz-1))/ &
-               (height(kz+1)-height(kz-1)) 
-               ! Note that this is still in SI units and not in eta
-          if (readclouds) then
-            clwc(ix,jy,kz,n)=clwch(ix,jy,kz,n)
-            if (.not. sumclouds) ciwc(ix,jy,kz,n)=ciwch(ix,jy,kz,n)
-          endif
-        end do
-      end do
-    end do
 !$OMP END DO
-
-!$OMP DO
-    do jy=0,nymin1
-      do ix=0,nxmin1
-        drhodzeta(ix,jy,1,n)=(rhoh(ix,jy,2)-rhoh(ix,jy,1))/(height(2)-height(1))
-        drhodzeta(ix,jy,nz,n)=drhodzeta(ix,jy,nz-1,n)
-        ! tvirtual(ix,jy,1,n)=tt2(ix,jy,1,n)* &
-        !   (1.+0.378*ew(td2(ix,jy,1,n),ps(ix,jy,1,n))/ps(ix,jy,1,n))
-        ! Convert w from Pa/s to eta/s, following FLEXTRA
-        !************************************************
-        do kz=1,nuvz-1
-          if (kz.eq.1) then
-            dpdeta=(akm(kz+1)-akm(kz)+(bkm(kz+1)-bkm(kz))*ps(ix,jy,1,n))/ &
-              (wheight(kz+1)-wheight(kz))
-          else if (kz.eq.nuvz-1) then
-            dpdeta=(akm(kz)-akm(kz-1)+(bkm(kz)-bkm(kz-1))*ps(ix,jy,1,n))/ &
-              (wheight(kz)-wheight(kz-1))
-          else
-            dpdeta=(akm(kz+1)-akm(kz-1)+(bkm(kz+1)-bkm(kz-1))*ps(ix,jy,1,n))/ &
-              (wheight(kz+1)-wheight(kz-1))
-          endif
-          wweta(ix,jy,kz,n)=wwh(ix,jy,kz)/dpdeta
-        end do
-        wweta(ix,jy,nuvz,n)=wweta(ix,jy,nuvz-1,n) 
-        !What is the appropriate value for the top level???
-      end do
-    end do
-!$OMP END DO
-#endif
 !$OMP END PARALLEL
 
 end subroutine verttransform_ecmwf_windfields
@@ -956,7 +920,7 @@ subroutine verttransform_ecmwf_cloud(lreadclouds,lsumclouds,nxlim,nylim,clouds_t
     end if
 
 !$OMP PARALLEL PRIVATE(ix,jy,kz,lsp,convp,prec,cloudh_min) REDUCTION(+:ctwc_tmp)
-!$OMP DO
+!$OMP DO SCHEDULE(dynamic,max(1,nylim/50))
     do jy=0,nylim
       do ix=0,nxlim
         lsp=lsprec_tmp(ix,jy)

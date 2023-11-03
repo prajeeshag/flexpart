@@ -373,10 +373,16 @@ subroutine calcpv(n)
 !$OMP ixvp,ixvm,jumpx,ivrp,ivrm,jux,theta,klvrp,klvrm,klpt,thetap,thetam,dthetadp, &
 !$OMP ii,i,ivr,kdn,kch,kup,thdn,thup,dt1,dt2,dt,vx,k,dvdx, &
 !$OMP jj,j,uy,dudy)
-!$OMP DO
+!$OMP DO SCHEDULE(dynamic,1)
   do jy=0,nymin1
     if (sglobal.and.jy.eq.0) cycle
     if (nglobal.and.jy.eq.nymin1) cycle
+
+    ! do kl=1,nuvz
+    !   ppml(0:nxmin1,jy,kl)=akz(kl)+bkz(kl)*ps(0:nxmin1,jy,1,n)
+    !   ppmk(0:nxmin1,jy,kl)=(100000./ppml(0:nxmin1,jy,kl))**kappa
+    ! end do
+
     phi = (ylat0 + jy * dy) * pi / 180.
     f = 0.00014585 * sin(phi)
     tanphi = tan(phi)

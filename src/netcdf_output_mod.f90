@@ -2416,7 +2416,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   character           :: adate*8,atime*6,timeunit*32,adate_start*8,atime_start*6
   character(len=3)    :: anspec
   real(kind=dp)       :: julin,julcommand
-  real,allocatable,dimension(:) :: mass_temp
+  ! real,allocatable,dimension(:) :: mass_temp
   integer :: idummy = -8
 
   write(adate,'(i8.8)') ibdate
@@ -2483,20 +2483,20 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%z, & 
     start=(/ tlen, 1 /),count=(/ 1, plen /)))
   ! Mass
-  allocate(mass_temp(count%allocated), stat=stat)
-  if (stat.ne.0) error stop "Could not allocate mass_temp"
+  ! allocate(mass_temp(count%allocated), stat=stat)
+  ! if (stat.ne.0) error stop "Could not allocate mass_temp"
   if (mdomainfill.eq.0) then
     do j=1,nspec
       write(anspec, '(i3.3)') j
       call nf90_err(nf90_inq_varid(ncid=ncidend,name='mass'//anspec,varid=tempIDend))
-      call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=mass_temp(:), & 
+      call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=mass(:,j), & 
         start=(/ tlen, 1 /),count=(/ 1, plen /)))
-      do i=1,count%allocated
-        part(i)%mass(j)=mass_temp(i)
-      end do
+      ! do i=1,count%allocated
+      !   part(i)%mass(j)=mass_temp(i)
+      ! end do
     end do
   endif
-  deallocate( mass_temp )
+  ! deallocate( mass_temp )
 
   do i=1,plen
     if (part(i)%z.lt.0) then 
@@ -2539,7 +2539,7 @@ subroutine readinitconditions_netcdf()
   integer(kind=2)     :: zkind
   real                :: cun
   integer,allocatable, dimension (:) :: specnum_rel,numpoint_max
-  real,allocatable,dimension(:,:) :: mass_temp
+  ! real,allocatable,dimension(:,:) :: mass_temp
   real,allocatable,dimension(:) :: vsh,fracth,schmih
   logical :: lstart=.true.
 
@@ -2579,7 +2579,7 @@ subroutine readinitconditions_netcdf()
   write(*,*) 'Npart:',plen
   call alloc_particles( plen )
   ! allocate temporary mass array
-  allocate(mass_temp(plen,nspec))
+  ! allocate(mass_temp(plen,nspec))
 
   ! And give them the correct positions
   ! Longitude
@@ -2602,14 +2602,14 @@ subroutine readinitconditions_netcdf()
     start=(/ 1 /),count=(/ plen /)))
   ! Mass
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='mass',varid=tempIDend))
-  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=mass_temp, & 
+  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=mass, & 
     start=(/ 1,1 /),count=(/ plen,nspec /)))
-  do i=1,plen
-    do nsp=1,nspec
-      part(i)%mass(nsp)=mass_temp(i,nsp)
-    end do
-  end do
-  deallocate(mass_temp)
+  ! do i=1,plen
+  !   do nsp=1,nspec
+  !     part(i)%mass(nsp)=mass_temp(i,nsp)
+  !   end do
+  ! end do
+  ! deallocate(mass_temp)
 
   ! Check if they are within the bounds
   do i=1,plen
@@ -2628,8 +2628,8 @@ subroutine readinitconditions_netcdf()
       error stop "Initial height particle below surface/sea level."
     endif
     do nsp=1,nspec
-      if (part(i)%mass(nsp).lt.0) then
-        write(*,*) "Particle", i, "of species", nsp, "with mass", part(i)%mass(nsp)
+      if (mass(i,nsp).lt.0) then
+        write(*,*) "Particle", i, "of species", nsp, "with mass", mass(i,nsp)
         error stop "Negative initial mass."
       endif
     end do
@@ -2759,7 +2759,7 @@ subroutine readinitconditions_netcdf()
     do j=1,numpoint
       if (part(i)%npoint.eq.j) then
          do nsp=1,nspec
-           xmass(j,nsp) = xmass(j,nsp)+part(i)%mass(nsp)
+           xmass(j,nsp) = xmass(j,nsp)+mass(i,nsp)
          end do 
       endif
       if (part(i)%npoint.eq.j) then 
@@ -2773,10 +2773,10 @@ subroutine readinitconditions_netcdf()
   end do
 
   part(:)%idt=mintime
+  mass_init(:,:)=mass(:,:)
   do i=1,plen
     part(i)%nclass=min(int(ran1(idummy,0)*real(nclassunc))+1, &
          nclassunc)
-    part(i)%mass_init=part(i)%mass
     ! Activate particles that are alive from the start of the simulation
     ! if (part(i)%tstart.eq.0) then
     !   call spawn_particle(0,i)

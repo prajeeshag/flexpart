@@ -133,7 +133,7 @@ subroutine timemanager
     prob_rec(maxspec),      & ! dry deposition related
     xmassfract                ! dry deposition related
   real(dep_prec),allocatable,dimension(:) ::         &
-    drydeposit       ! dry deposition related
+    drytmp       ! dry deposition related
 
   ! First output for time 0
   !************************
@@ -232,7 +232,7 @@ subroutine timemanager
   !*************************************
 
     if ((ldirect.eq.-1).and.(lconvection.eq.1).and.(itime.lt.0)) then
-      call convmix(itime) !OMP, conv_mod.f90
+      call convmix(itime)
     endif
 
   ! Get hourly OH fields if not available 
@@ -345,8 +345,7 @@ subroutine timemanager
   !-----------------------------------------------------------------------------
 
   ! openmp change
-  ! LB, openmp following CTM version, need to be very careful due to big differences
-  ! between the openmp loop in this and the CTM version
+  ! LB, openmp following CTM version
 !$OMP PARALLEL PRIVATE(prob_rec,inage,nage,itage,ks,kp,thread,j,i,xmassfract)
 
 #if (defined _OPENMP)
@@ -355,7 +354,7 @@ subroutine timemanager
     thread = 0
 #endif
 
-!$OMP DO 
+!$OMP DO SCHEDULE(dynamic,max(1,numpart/1000))
 ! SCHEDULE(dynamic, max(1,numpart/1000))
 !max(1,int(real(numpart)/numthreads/20.)))
     do i=1,count%alive
@@ -368,10 +367,12 @@ subroutine timemanager
   !************************************
       itage=abs(itime-part(j)%tstart)
       nage=1
-      do inage=1,nageclass
-        nage=inage
-        if (itage.lt.lage(nage)) exit
-      end do
+      if (lagespectra.eq.1) then
+        do inage=1,nageclass
+          nage=inage
+          if (itage.lt.lage(nage)) exit
+        end do
+      endif
 
   ! Initialize newly released particle
   !***********************************
@@ -408,7 +409,7 @@ subroutine timemanager
             if (DRYDEPSPEC(ks)) then        ! dry deposition
               xscav_frac1(j,ks)=prob_rec(ks)
             else
-              part(j)%mass(ks)=0.
+              mass(j,ks)=0.
               xscav_frac1(j,ks)=0.
             endif
           endif
@@ -443,7 +444,8 @@ subroutine timemanager
   end do
 
 
-!$OMP PARALLEL PRIVATE(prob_rec,nage,inage,itage,ks,kp,thread,i,j,xmassfract,drydeposit)
+  if (DRYDEP.or.WETDEP.or.LDECAY.or.(lagespectra.eq.1)) then
+!$OMP PARALLEL PRIVATE(prob_rec,nage,inage,itage,ks,kp,thread,i,j,xmassfract,drytmp)
 
 !num_threads(numthreads_grid)
 
@@ -452,10 +454,13 @@ subroutine timemanager
 #else
     thread = 0
 #endif
-  allocate( drydeposit(maxspec),stat=stat )
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate drydeposit inside of OMP loop'
+  if (DRYDEP) then
+    allocate( drytmp(maxspec),stat=stat )
+    if (stat.ne.0) write(*,*)'ERROR: could not allocate drytmp inside of OMP loop'
+  endif
 
-!$OMP DO 
+!$OMP DO SCHEDULE(static)
+!, max(1,numpart/1000))
 ! SCHEDULE(dynamic, max(1,numpart/1000))
 !max(1,int(real(numpart)/numthreads/20.)))
     do i=1,count%alive
@@ -468,39 +473,41 @@ subroutine timemanager
   !************************************
       itage=abs(itime-part(j)%tstart)
       nage=1
-      do inage=1,nageclass
-        nage=inage
-        if (itage.lt.lage(nage)) exit
-      end do
+      if (lagespectra.eq.1) then
+        do inage=1,nageclass
+          nage=inage
+          if (itage.lt.lage(nage)) exit
+        end do
+      endif
 
 ! Dry deposition and radioactive decay for each species
 ! Also check maximum (of all species) of initial mass remaining on the particle;
 ! if it is below a threshold value, terminate particle
 !*****************************************************************************
-
+      if (DRYDEP.or.WETDEP.or.LDECAY) then
         xmassfract=0.
         do ks=1,nspec
 
           if (DRYDEPSPEC(ks)) then     ! dry deposition (and radioactive decay)
 
-            call drydepo_massloss(j,ks,ldeltat,drydeposit(ks))
+            call drydepo_massloss(j,ks,ldeltat,drytmp(ks))
 
           else if (decay(ks).gt.0.) then  ! no dry depo, but radioactive decay
 
-            part(j)%mass(ks) = part(j)%mass(ks) * &
+            mass(j,ks) = mass(j,ks) * &
               exp( -real(abs(lsynctime)) * decay(ks) )
 
           endif
 
-  ! Skip check on mass fraction when npoint represents particle number
+    ! Skip check on mass fraction when npoint represents particle number
           if (mdomainfill.eq.0.and.mquasilag.eq.0) then
             if (ipin.eq.3 .or. ipin.eq.4) then 
-              if (part(j)%mass_init(ks).gt.0) &
+              if (mass_init(j,ks).gt.0) &
                 xmassfract = max( xmassfract, &
-                                  part(j)%mass(ks) / part(j)%mass_init(ks) )
+                                  mass(j,ks) / mass_init(j,ks) )
             else if (xmass(part(j)%npoint,ks).gt.0.) then
               xmassfract = max( xmassfract, real( npart(part(j)%npoint) ) * &
-                part(j)%mass(ks) /  xmass(part(j)%npoint,ks) )
+                mass(j,ks) /  xmass(part(j)%npoint,ks) )
             endif
           else
             xmassfract=1.0
@@ -512,38 +519,39 @@ subroutine timemanager
           ! flag all particles carrying less mass for termination after parallel region
           part(j)%nstop=.true.
         endif
-
+      endif
 !        Sabine Eckhardt, June 2008
 !        don't create depofield for backward runs
-        if (DRYDEP.AND.(ldirect.eq.1).and.(iout.ne.0)) then
+      if (DRYDEP.AND.(ldirect.eq.1).and.(iout.ne.0)) then
 
-          if (ioutputforeachrelease.eq.1) then
-              kp=part(j)%npoint
-          else
-              kp=1
-          endif
-
-          call drydepokernel(part(j)%nclass,drydeposit,real(part(j)%xlon), &
-               real(part(j)%ylat),nage,kp,thread+1)
-          if (nested_output.eq.1) call drydepokernel_nest( &
-               part(j)%nclass,drydeposit,real(part(j)%xlon),real(part(j)%ylat), &
-               nage,kp,thread+1)
+        if (ioutputforeachrelease.eq.1) then
+            kp=part(j)%npoint
+        else
+            kp=1
         endif
+
+        call drydepokernel(part(j)%nclass,drytmp,real(part(j)%xlon), &
+             real(part(j)%ylat),nage,kp,thread+1)
+        if (nested_output.eq.1) call drydepokernel_nest( &
+             part(j)%nclass,drytmp,real(part(j)%xlon),real(part(j)%ylat), &
+             nage,kp,thread+1)
+      endif
 
   ! Terminate trajectories that are older than maximum allowed age
   !***************************************************************
-
+      if (lagespectra.eq.1) then
         if ((part(j)%alive).and.(abs(itime-part(j)%tstart).ge.lage(nageclass))) then
           if (linit_cond.ge.1) call initcond_calc(itime+lsynctime,j,thread+1)
           ! flag all particles for termination after parallel region
           part(j)%nstop=.true.
         endif
+      endif
     end do !loop over particles
 
 !$OMP END DO
-  deallocate(drydeposit)
+  if (DRYDEP) deallocate(drytmp)
 !$OMP END PARALLEL
-
+  
   ! Terminating particles flagged due to insufficient mass or exceeded max age
   do i=1,count%allocated
     if ((part(i)%nstop).and.(part(i)%alive)) then
@@ -551,6 +559,7 @@ subroutine timemanager
     endif
   end do
 
+  endif
 
 #ifdef _OPENMP
   call omp_set_num_threads(numthreads)

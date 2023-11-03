@@ -293,14 +293,14 @@ subroutine ohreaction(itime,ltsample,loutnext)
         if (ohcconst(k).gt.0.) then
           ohrate=ohcconst(k)*temp**ohnconst(k)*exp(-ohdconst(k)/temp)*oh_average
           ! new particle mass
-          restmass = part(jpart)%mass(k)*exp(-1*ohrate*abs(ltsample))
+          restmass = mass(jpart,k)*exp(-1*ohrate*abs(ltsample))
           if (restmass .gt. smallnum) then
-            part(jpart)%mass(k)=restmass
+            mass(jpart,k)=restmass
           else
-            part(jpart)%mass(k)=0.
+            mass(jpart,k)=0.
           endif
-          ohreacted=part(jpart)%mass(k)*(1-exp(-1*ohrate*abs(ltsample)))
-          if (jpart.eq.1) write(*,*) 'ohreaction', part(jpart)%mass(k),k
+          ohreacted=mass(jpart,k)*(1-exp(-1*ohrate*abs(ltsample)))
+          if (jpart.eq.1) write(*,*) 'ohreaction', mass(jpart,k),k
         else
           ohreacted=0.
         endif

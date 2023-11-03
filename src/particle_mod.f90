@@ -52,7 +52,7 @@ module particle_mod
       zeta_prev                     ! Previous position
 #endif
     type(velocities)   ::         &
-      vel,                        & ! Velocities from interpolated windfields
+      !vel,                        & ! Velocities from interpolated windfields
       turbvel,                    & ! Random turbulent velocities
       mesovel                       ! Mesoscale turbulent velocities
     real               ::         &
@@ -75,12 +75,12 @@ module particle_mod
       nclass,                     &
       !species(maxspec),           & ! the number of the corresponding species file of the particle
       idt                           ! internal time of the particle
-    real,allocatable,dimension(:) ::  &
-      mass,                       & ! Particle mass for each particle species
-      mass_init,                  & ! Initial mass of each particle
-      wetdepo,                    & ! Wet deposition (cumulative)
-      drydepo,                    & ! Dry deposition (cumulative)
-      prob                          ! Probability of absorption at ground due to dry deposition
+    ! real,allocatable,dimension(:) ::  &
+    !   mass,                       & ! Particle mass for each particle species
+    !   mass_init,                  & ! Initial mass of each particle
+    !   wetdepo,                    & ! Wet deposition (cumulative)
+    !   drydepo,                    & ! Dry deposition (cumulative)
+    !   prob                          ! Probability of absorption at ground due to dry deposition
     
     real,allocatable   ::         &
       val_av(:)                     ! Averaged values; only used when average_output=.true.
@@ -110,7 +110,14 @@ module particle_mod
   type(particlecount)         ::  &
     count                           ! Keeping track of global particle number within the simulation
   real,allocatable            ::  &
-    xscav_frac1(:,:)                ! Only allocated when wet or dry deposit backward mode is switched on
+    val_av(:,:),                  &  ! Averaged values; only used when average_output=.true.
+    xscav_frac1(:,:),             &  ! Only allocated when wet or dry deposit backward mode is switched on
+    mass(:,:),                    &  ! mass 
+    mass_init(:,:),               &
+    wetdeposit(:,:),                 &
+    drydeposit(:,:),                 &
+    prob(:,:)
+
   real,allocatable            ::  &
     xplum(:),yplum(:),zplum(:)      ! Only allocated for iout=4 or 5 (plumetraj)
   integer,allocatable         ::  &
@@ -134,7 +141,18 @@ module particle_mod
     update_xlon,                  &
     update_ylat,                  &
     update_z,                     &
-    count
+    count,                        &
+    val_av,                       &
+    xscav_frac1,                  &
+    mass,                         &
+    mass_init,                    &
+    wetdeposit,                   &
+    drydeposit,                   &
+    prob,                         &
+    xplum,                        &
+    yplum,                        &
+    zplum,                        &
+    nclust                       
 
   interface update_xlon
     procedure update_xlon_dp, update_xlon_sp, update_xlon_int
@@ -357,7 +375,7 @@ contains
     integer, intent(in)        :: nmpart
     type(particle),allocatable :: tmppart(:)
     logical, allocatable       :: tmpcount(:)
-    real, allocatable          :: tmpxscav(:,:)
+    real, allocatable          :: tmpxscav(:,:),tmpval_av(:,:),tmpmass(:,:),tmpdepo(:,:)
     real, allocatable          :: tmpxl(:),tmpyl(:),tmpzl(:)
     integer, allocatable       :: tmpnclust(:)
     integer                    :: i,stat
@@ -383,30 +401,55 @@ contains
     !*******************************
     allocate( tmppart(count%allocated+nmpart),stat=stat)
     if (stat.ne.0) error stop "Could not allocate tmppart"
-    if (n_average.gt.0) then 
-      do i=1,count%allocated+nmpart
-        allocate( tmppart(i)%val_av(n_average) )
-        tmppart(i)%val_av = 0
-      end do
-    endif
 
     do i=1,count%allocated+nmpart
-      allocate( tmppart(i)%mass(maxspec),tmppart(i)%mass_init(maxspec),stat=stat)
-      if (stat.ne.0) error stop "Could not allocate tmppart"
-      if (DRYDEP) then
-        allocate( tmppart(i)%drydepo(maxspec),tmppart(i)%prob(maxspec),stat=stat)
-        if (stat.ne.0) error stop "Could not allocate tmppart"
-        tmppart(i)%drydepo(maxspec)=0.
-      endif
-      if (WETDEP) then 
-        allocate( tmppart(i)%wetdepo(maxspec),stat=stat)
-        if (stat.ne.0) error stop "Could not allocate tmppart"
-        tmppart(i)%wetdepo(maxspec)=0.
-      endif
+      ! allocate( tmppart(i)%mass(maxspec),tmppart(i)%mass_init(maxspec),stat=stat)
+      ! if (stat.ne.0) error stop "Could not allocate tmppart"
+      ! if (DRYDEP) then
+      !   allocate( tmppart(i)%drydepo(maxspec),tmppart(i)%prob(maxspec),stat=stat)
+      !   if (stat.ne.0) error stop "Could not allocate tmppart"
+      !   tmppart(i)%drydepo(maxspec)=0.
+      ! endif
+      ! if (WETDEP) then 
+      !   allocate( tmppart(i)%wetdepo(maxspec),stat=stat)
+      !   if (stat.ne.0) error stop "Could not allocate tmppart"
+      !   tmppart(i)%wetdepo(maxspec)=0.
+      ! endif
       tmppart(i)%ntime=0 ! Preventing particles to be written to partoutput when they just spawned
     end do
     if (count%allocated.gt.0) tmppart(1:count%allocated) = part
     call move_alloc(tmppart,part)
+
+    allocate( tmpmass(count%allocated+nmpart,maxspec),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate tmpmass"
+    if (count%allocated.gt.0) tmpmass(1:count%allocated,:) = mass
+    call move_alloc(tmpmass,mass)
+
+    allocate( tmpmass(count%allocated+nmpart,maxspec),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate tmpmass_init"
+    if (count%allocated.gt.0) tmpmass(1:count%allocated,:) = mass_init
+    call move_alloc(tmpmass,mass_init)
+
+    if (DRYDEP) then
+      allocate( tmpdepo(count%allocated+nmpart,maxspec),stat=stat)
+      if (stat.ne.0) error stop "Could not allocate drydeposit"
+      if (count%allocated.gt.0) tmpdepo(1:count%allocated,:) = drydeposit
+      call move_alloc(tmpdepo,drydeposit)
+      drydeposit(count%allocated+1:count%allocated+nmpart,:)=0.
+
+      allocate( tmpdepo(count%allocated+nmpart,maxspec),stat=stat)
+      if (stat.ne.0) error stop "Could not allocate prob"
+      if (count%allocated.gt.0) tmpdepo(1:count%allocated,:) = prob
+      call move_alloc(tmpdepo,prob)
+      prob(count%allocated+1:count%allocated+nmpart,:)=0.
+    endif
+    if (WETDEP) then 
+      allocate( tmpdepo(count%allocated+nmpart,maxspec),stat=stat)
+      if (stat.ne.0) error stop "Could not allocate wetdeposit"
+      if (count%allocated.gt.0) tmpdepo(1:count%allocated,:) = wetdeposit
+      call move_alloc(tmpdepo,wetdeposit)
+      wetdeposit(count%allocated+1:count%allocated+nmpart,:)=0.
+    endif
 
     ! If wet or dry deposition backward mode is switched on, xscav_frac1
     ! needs to be allocated
@@ -418,6 +461,14 @@ contains
       call move_alloc(tmpxscav,xscav_frac1)
       ! Initialise it here
       xscav_frac1(count%allocated+1:count%allocated+nmpart,:) = -1.
+    endif
+
+    if (n_average.gt.0) then 
+      allocate( tmpval_av(count%allocated+nmpart,n_average),stat=stat)
+      if (stat.ne.0) error stop "Could not allocate val_av"
+      if (count%allocated.gt.0) tmpval_av(1:count%allocated,:) = val_av
+      tmpval_av(count%allocated+1:count%allocated+nmpart,:) = 0
+      call move_alloc(tmpval_av, val_av)
     endif
 
     if ((iout.eq.4).or.(iout.eq.5)) then
@@ -490,18 +541,18 @@ contains
 
     integer :: i
 
-    if (n_average.gt.0) then 
-      do i=1,count%allocated
-        deallocate( part(i)%val_av )
-      end do
-    endif
+    if (n_average.gt.0) deallocate( val_av )
     deallocate( part )
     deallocate( count%inmem )
     deallocate( count%ialive )
+    deallocate( mass, mass_init )
 
     if (WETBKDEP.or.DRYBKDEP) then
       deallocate( xscav_frac1 )
     endif
+
+    if (WETDEP) deallocate( wetdeposit )
+    if (DRYDEP) deallocate( drydeposit,prob )
 
     if ((iout.eq.4).or.(iout.eq.5)) then
       deallocate( xplum )

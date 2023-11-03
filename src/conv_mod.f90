@@ -165,8 +165,8 @@ subroutine convmix(itime)
 
   implicit none
 
-  integer :: igr,igrold, ipart, itime, ix, i, j, inest
-  integer :: ipconv,ithread,stat
+  integer :: igr,igrold, ipart, itime, ix, i, j, ik, inest
+  integer :: ipconv,ithread,stat,countconv
   integer :: jy, kpart, ktop, ngrid,kz
   integer,allocatable :: igrid(:), ipoint(:), igridn(:,:)
 
@@ -175,7 +175,7 @@ subroutine convmix(itime)
   ! igridn(maxpart,maxnests)  dto. for nested grids
   ! ipoint(maxpart)           pointer to access particles according to grid position
 
-  logical :: lconv
+  logical :: lconv,lcalcflux
   real :: x, y, xtn,ytn, ztold, delt
   real :: dt1,dt2,dtt
   integer :: mind1,mind2
@@ -184,7 +184,7 @@ subroutine convmix(itime)
 
   ! OMP changes
   integer :: cnt,kk
-  integer,allocatable,dimension(:) :: frst
+  integer,allocatable,dimension(:) :: frst,kkcnt
   double precision :: tmarray(2)
 
   integer :: alivepart
@@ -319,8 +319,16 @@ subroutine convmix(itime)
   end do 
   frst(cnt) = alivepart+1
 
+  allocate(kkcnt(cnt-1))
+  countconv=0
+  do kk=1,cnt-1
+    if (igrid(frst(kk)).eq.-1) cycle ! Only consider grids that have particles inside
+    countconv=countconv+1
+    kkcnt(countconv)=kk
+  end do
+
 !$OMP PARALLEL PRIVATE(kk,jy,ix,tmarray,j,kz,ktop,lconv,kpart,ipart,&
-!$OMP ztold,nage,ipconv,itage,ithread)
+!$OMP ztold,nage,ipconv,itage,ithread,lcalcflux)
 
 #if (defined _OPENMP)
     ithread = OMP_GET_THREAD_NUM()+1 ! Starts at 1
@@ -329,10 +337,10 @@ subroutine convmix(itime)
 #endif
 
 !$OMP DO SCHEDULE(dynamic)
-  do kk=1,cnt-1
-    ! Only consider grids that have particles inside
-    if (igrid(frst(kk)).eq.-1) cycle
-
+  do ik=1,countconv
+    
+    !if (igrid(frst(kk)).eq.-1) cycle
+    kk=kkcnt(ik)
     ! Find horizontal location of grid column
     ix = (igrid(frst(kk))-1)/ny
     jy = igrid(frst(kk)) - ix*ny - 1
@@ -379,14 +387,21 @@ subroutine convmix(itime)
   !***************************************************
 
         if (iflux.eq.1) then
-          itage=abs(itime-part(ipart)%tstart)
-          nage=1
-          do inage=1,nageclass
-            nage=inage
-            if ((itage.lt.lage(nage)).or.(.not.part(ipart)%alive)) exit
-          end do
+          lcalcflux=.true.
+          if (lagespectra.eq.1) then
+            nage=0
+            itage=abs(itime-part(ipart)%tstart)
+            do inage=1,nageclass
+              if ((itage.lt.lage(inage)).and.(part(ipart)%alive)) exit
+              nage=inage
+            end do
+            if (nage.eq.nageclass) lcalcflux=.false.
+            nage=nage+1
+          else
+            nage=1
+          endif
 
-          if (nage.le.nageclass) &
+          if (lcalcflux) &
             call calcfluxes(itime,nage,ipart,real(part(ipart)%xlon), &
                real(part(ipart)%ylat),ztold,ithread)
         endif
@@ -423,7 +438,7 @@ subroutine convmix(itime)
   ! Now visit all grid columns where particles are present
   ! by going through the sorted particles
 !$OMP PARALLEL PRIVATE (igrold,kpart,ipart,igr,jy,ix,kz,lconv, &
-!$OMP ktop,ztold,nage,ipconv,itage)
+!$OMP ktop,ztold,nage,ipconv,itage,lcalcflux)
     igrold = -1
 #if (defined _OPENMP)
     ithread = OMP_GET_THREAD_NUM()+1 ! Starts at 1
@@ -472,20 +487,25 @@ subroutine convmix(itime)
 
   ! Calculate the gross fluxes across layer interfaces
   !***************************************************
-
         if (iflux.eq.1) then
-          itage=abs(itime-part(ipart)%tstart)
-          nage=1
-          do inage=1,nageclass
-            nage=inage
-            if ((itage.lt.lage(nage)).or.(.not.part(ipart)%alive)) exit
-          end do
+          lcalcflux=.true.
+          if (lagespectra.eq.1) then
+            nage=0
+            itage=abs(itime-part(ipart)%tstart)
+            do inage=1,nageclass
+              if ((itage.lt.lage(inage)).and.(part(ipart)%alive)) exit
+              nage=inage
+            end do
+            if (nage.eq.nageclass) lcalcflux=.false.
+            nage=nage+1
+          else
+            nage=1
+          endif
 
-          if (nage.le.nageclass) &
-               call calcfluxes(itime,nage,ipart,real(part(ipart)%xlon), &
-               real(part(ipart)%ylat),ztold,1)
+          if (lcalcflux) &
+            call calcfluxes(itime,nage,ipart,real(part(ipart)%xlon), &
+               real(part(ipart)%ylat),ztold,ithread)
         endif
-
       endif !(lconv .eqv. .true.)
 
     end do

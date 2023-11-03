@@ -63,10 +63,10 @@ subroutine output_restart(itime,loutnext,outnum)
       part(i)%npoint,part(i)%nclass,part(i)%idt,part(i)%tend, &
       part(i)%tstart,part(i)%alive,part(i)%turbvel%u, &
       part(i)%turbvel%v,part(i)%turbvel%w,part(i)%mesovel%u, &
-      part(i)%mesovel%v,part(i)%mesovel%w,(part(i)%mass(j),j=1,nspec), &
-      (part(i)%mass_init(j),j=1,nspec)
-    if (wetdep) write(unitrestart) (part(i)%wetdepo(j),j=1,nspec)
-    if (drydep) write(unitrestart) (part(i)%drydepo(j),j=1,nspec)
+      part(i)%mesovel%v,part(i)%mesovel%w,(mass(i,j),j=1,nspec), &
+      (mass_init(i,j),j=1,nspec)
+    if (wetdep) write(unitrestart) (wetdeposit(i,j),j=1,nspec)
+    if (drydep) write(unitrestart) (drydeposit(i,j),j=1,nspec)
   end do
   if (iout.gt.0) then
 #ifdef USE_NCF
@@ -189,10 +189,10 @@ subroutine readrestart
       part(i)%npoint,part(i)%nclass,part(i)%idt,part(i)%tend, &
       part(i)%tstart,part(i)%alive,part(i)%turbvel%u, &
       part(i)%turbvel%v,part(i)%turbvel%w,part(i)%mesovel%u, &
-      part(i)%mesovel%v,part(i)%mesovel%w,(part(i)%mass(j),j=1,nspec), &
-      (part(i)%mass_init(j),j=1,nspec)
-    if (wetdep) read(unitrestart) (part(i)%wetdepo(j),j=1,nspec)
-    if (drydep) read(unitrestart) (part(i)%drydepo(j),j=1,nspec)
+      part(i)%mesovel%v,part(i)%mesovel%w,(mass(i,j),j=1,nspec), &
+      (mass_init(i,j),j=1,nspec)
+    if (wetdep) read(unitrestart) (wetdeposit(i,j),j=1,nspec)
+    if (drydep) read(unitrestart) (drydeposit(i,j),j=1,nspec)
 #ifdef ETA
     part(i)%etaupdate=.true.
     part(i)%meterupdate=.true.

@@ -375,8 +375,10 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
   real :: dzdx1,dzdx2,dzdy1,dzdy2
 
   ! Copy fields for ETA coordinate interpolations
+
+!$OMP PARALLEL PRIVATE(jy,ix,iz,kz,dz1,dz2,dz,ix1,jy1,ixp,jyp,dzdx1,dzdx2,dzdx, &
+!$OMP dzdy1,dzdy2,dzdy,dpdeta)
 #ifdef ETA
-!$OMP PARALLEL PRIVATE(ix,jy,kz)
 !$OMP WORKSHARE
   uueta(0:nxlim,0:nylim,:,n) = uuh(0:nxlim,0:nylim,:)
   vveta(0:nxlim,0:nylim,:,n) = vvh(0:nxlim,0:nylim,:)
@@ -419,13 +421,10 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
       clwc(0:nxlim,0:nylim,kz,n)=clwch(0:nxlim,0:nylim,kz,n)
       if (.not. sumclouds) ciwc(0:nxlim,0:nylim,kz,n)=ciwch(0:nxlim,0:nylim,kz,n)
     end do
-!$OMP END DO
+!$OMP END DO NOWAIT
   endif
-!$OMP END PARALLEL
 #endif
 
-!$OMP PARALLEL PRIVATE(jy,ix,iz,kz,dz1,dz2,dz,ix1,jy1,ixp,jyp,dzdx1,dzdx2,dzdx, &
-!$OMP dzdy1,dzdy2,dzdy,dpdeta)
   ! Finding the index in eta levels (uv and w) that correspond to
   ! a certain height level in meters
   !**************************************************************
@@ -577,12 +576,12 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
         jyp=jy+1
         if ((jy.eq.nylim).or.(jy.eq.0)) then
           cycle
-        else if ((.not.xglobal).and.((ix.eq.nxlim).or.(ix.eq.0))) then
+        else if (((ix.eq.nxlim).or.(ix.eq.0))) then !(.not.xglobal).and.
           cycle
-        else if (ix.eq.nxlim) then
-          ixp=0
-        else if (ix.eq.0) then
-          ix1=nxlim
+        ! else if (ix.eq.nxlim) then
+        !   ixp=0
+        ! else if (ix.eq.0) then
+        !   ix1=nxlim
         endif
         dzdx1=(etauvheight(ixp,jy,kz-1,n)-etauvheight(ix1,jy,kz-1,n))/2.
         dzdx2=(etauvheight(ixp,jy,kz,n)-etauvheight(ix1,jy,kz,n))/2.

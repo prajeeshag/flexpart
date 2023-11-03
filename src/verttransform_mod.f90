@@ -413,7 +413,7 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
       ((akm(kz+1)-akm(kz-1)+(bkm(kz+1)-bkm(kz-1))*ps(ix,jy,1,n))/ &
         (wheight(kz+1)-wheight(kz-1)))
   end forall
-!$OMP END WORKSHARE NOWAIT
+!$OMP END WORKSHARE
 
   if (readclouds) then
 !$OMP DO
@@ -421,7 +421,7 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
       clwc(0:nxlim,0:nylim,kz,n)=clwch(0:nxlim,0:nylim,kz,n)
       if (.not. sumclouds) ciwc(0:nxlim,0:nylim,kz,n)=ciwch(0:nxlim,0:nylim,kz,n)
     end do
-!$OMP END DO NOWAIT
+!$OMP END DO
   endif
 #endif
 
@@ -493,19 +493,19 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
   forall (jy=0:nylim) 
     cosf(jy)=1./cos((real(jy)*dy+ylat0)*pi180) ! Needed in slope computations
   end forall
-!$OMP END WORKSHARE NOWAIT
+!$OMP END WORKSHARE
 
 #ifndef ETA
   if (readclouds) then !hg adding the cloud water 
 !$OMP WORKSHARE
     clwc(0:nxlim,0:nylim,1,n)=clwch(0:nxlim,0:nylim,1,n)
     clwc(0:nxlim,0:nylim,nz,n)=clwch(0:nxlim,0:nylim,nuvz,n)
-!$OMP END WORKSHARE NOWAIT
+!$OMP END WORKSHARE
     if (.not. sumclouds) then
 !$OMP WORKSHARE
       ciwc(0:nxlim,0:nylim,1,n)=ciwch(0:nxlim,0:nylim,1,n)
       ciwc(0:nxlim,0:nylim,nz,n)=ciwch(0:nxlim,0:nylim,nuvz,n) 
-!$OMP END WORKSHARE NOWAIT
+!$OMP END WORKSHARE
     endif
   endif
 #endif
@@ -597,7 +597,7 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
     end do
   end do
 !$OMP END DO
-
+!$OMP BARRIER
 !$OMP WORKSHARE
   ! Compute density gradients
   !**************************

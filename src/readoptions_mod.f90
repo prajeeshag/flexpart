@@ -180,7 +180,6 @@ subroutine readavailable
     tmpwfname
   character(len=255),allocatable,dimension(:,:) :: wfname1n,tmpwfnamen
 
-
   ! Windfields are only used, if they are within the modelling period.
   ! However, 1 additional day at the beginning and at the end is used for
   ! interpolation. -> Compute beginning and ending date for the windfields.
@@ -426,6 +425,9 @@ subroutine readcommand
   !     18 May 1996                                                            *
   !     HSO, 1 July 2014                                                       *
   !     Added optional namelist input                                          *
+  !                                                                            * 
+  !     June 2023 Anne Tipka                                                   * 
+  !     Added new parameter bcscheme for selcting below cloud scheme           *
   !                                                                            *
   !*****************************************************************************
   !                                                                            *
@@ -517,7 +519,8 @@ subroutine readcommand
   nxshift, &
   maxthreadgrid, &
   maxfilesize, &
-  logvertinterp
+  logvertinterp, &
+  bcscheme
 
   ! Presetting namelist command
   ldirect=0
@@ -559,6 +562,7 @@ subroutine readcommand
   maxthreadgrid=1
   maxfilesize=10000
   logvertinterp=0
+  bcscheme=2
 
   !Af set release-switch
   WETBKDEP=.false.
@@ -1913,8 +1917,7 @@ subroutine readreceptors
 
   ! prepare namelist output if requested
   if (nmlout) open(unitreceptorout,file=trim(path(2))// &
-    'RECEPTORS.namelist',err=1000)
-
+    'RECEPTORS.namelist',status='replace',err=1000)  
 
   if (ios .ne. 0) then ! read as regular text file
 

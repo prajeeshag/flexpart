@@ -956,7 +956,7 @@ subroutine init_domainfill
 
   ! Allocate memory for storing the particles
   !******************************************
-  call alloc_particles(npart(1))
+  call alloc_particles(int(npart(1)*1.1)) ! A bit more to avoid single part alloc
 
   ! Initialise total particle number
   numparttot=0

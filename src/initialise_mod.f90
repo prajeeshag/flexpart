@@ -1400,7 +1400,7 @@ subroutine boundcond_domainfill(itime,loutend)
 ! #else
 !   ithread = 0
 ! #endif
-
+  ithread=0
 ! !$OMP DO
   do jy=ny_sn(1),ny_sn(2)
 

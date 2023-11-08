@@ -75,7 +75,7 @@ subroutine output_restart(itime,loutnext,outnum)
   write(unitrestart) loutnext
   write(unitrestart) outnum
   write(unitrestart) numreceptor
-  write(*,*) imax,iwritten,drybkdep,wetbkdep
+
   do ipart=1,imax
     if ((ipout.gt.0).and.(n_average.gt.0)) then
       if((.not. part(ipart)%alive).and.(abs(part(ipart)%tend-itime).ge.ipoutfac*loutstep)) &
@@ -101,7 +101,7 @@ subroutine output_restart(itime,loutnext,outnum)
 #ifdef USE_NCF
     if (lnetcdfout.eq.1) write(unitrestart) tpointer
 #endif
-    write(*,*) nspec,maxpointspec_act,nageclass,numygrid,numxgrid,nclassunc,numzgrid
+
     do ks=1,nspec
       do kp=1,maxpointspec_act
         do nage=1,nageclass
@@ -206,7 +206,7 @@ subroutine readrestart
   read(unitpartin) loutnext_init
   read(unitpartin) outnum_init
   read(unitpartin) numreceptor
-  write(*,*) drybkdep,wetbkdep
+
   count%alive=numpart
   count%spawned=numpart
   if (count%allocated.lt.imax) call alloc_particles(imax-count%allocated)
@@ -231,7 +231,7 @@ subroutine readrestart
     part(ipart)%meterupdate=.true.
 #endif
   end do
-  write(*,*) nspec,maxpointspec_act,nageclass,numygrid,numxgrid,nclassunc,numzgrid
+
   if (iout.gt.0) then 
 #ifdef USE_NCF
     if (lnetcdfout.eq.1) read(unitpartin) tpointer

@@ -422,7 +422,7 @@ contains
     integer, allocatable       :: tmpnclust(:)
     integer                    :: i,stat
 
-    !if (nmpart.gt.100) &
+    if (nmpart.gt.100) &
       write(*,*) 'Allocating ',nmpart,' particles', count%allocated, count%terminated, count%spawned
 
     ! Keeping track of the allocated memory in case 

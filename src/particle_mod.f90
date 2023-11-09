@@ -219,14 +219,20 @@ contains
     integer :: i
 
     if (ipin.le.1 .and. ipout.eq.0) then
-      ! Find dead particles to replace
-      ipart=count%allocated+1
-      do i=1,count%allocated
-        if (.not. part(i)%alive) then
-          ipart=i
-          exit
-        endif
-      end do
+      if ((ipin.eq.0 .and. count%terminated.eq.0) .or. &
+        (count%allocated.gt.count%spawned)) then
+        ipart = count%spawned + 1
+      else if ((count%spawned-count%terminated) .lt. count%allocated) then
+        ! Find dead particles to replace
+        do i=1,count%allocated
+          if (.not. part(i)%alive) then
+            ipart=i
+            exit
+          endif
+        end do
+      else
+        ipart=count%allocated + 1
+      endif
     else
       ipart = count%spawned + 1
     endif

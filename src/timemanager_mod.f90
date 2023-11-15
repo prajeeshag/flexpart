@@ -260,9 +260,11 @@ subroutine timemanager
           if (ldirect.lt.0) then
             if ((part(i)%tstart.le.itime).and.(part(i)%tstart.gt.itime+lsynctime)) then
               call spawn_particle(itime,i)
+              call init_mass_conversion(i,part(i)%npoint)
             endif
           else if ((part(i)%tstart.ge.itime).and.(part(i)%tstart.lt.itime+lsynctime)) then
             call spawn_particle(itime,i)
+            call init_mass_conversion(i,part(i)%npoint)
           endif
         endif
       end do

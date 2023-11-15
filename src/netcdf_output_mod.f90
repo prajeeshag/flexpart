@@ -2899,11 +2899,11 @@ subroutine readinitconditions_netcdf()
   do i=1,plen
     part(i)%nclass=min(int(ran1(idummy,0)*real(nclassunc))+1, &
          nclassunc)
-    ! Activate particles that are alive from the start of the simulation
-    ! if (part(i)%tstart.eq.0) then
-    !   call spawn_particle(0,i)
-    ! endif
   end do
+
+  allocate(rho_rel(numpoint),stat=stat)
+  if (stat.ne.0) write(*,*)'ERROR: could not allocate rho_rel in readinitconditions_netcdf'
+
   write(*,FMT='(A,ES14.7)') ' Total mass to be released:', sum(xmass(1:numpoint,1:nspec))
   call get_totalpart_num(numpart)
   numparticlecount=numpart

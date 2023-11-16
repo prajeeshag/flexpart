@@ -260,9 +260,11 @@ subroutine timemanager
           if (ldirect.lt.0) then
             if ((part(i)%tstart.le.itime).and.(part(i)%tstart.gt.itime+lsynctime)) then
               call spawn_particle(itime,i)
+              call init_mass_conversion(i,part(i)%npoint)
             endif
           else if ((part(i)%tstart.ge.itime).and.(part(i)%tstart.lt.itime+lsynctime)) then
             call spawn_particle(itime,i)
+            call init_mass_conversion(i,part(i)%npoint)
           endif
         endif
       end do
@@ -308,7 +310,7 @@ subroutine timemanager
 
         if ((iout.eq.4).or.(iout.eq.5)) call plumetraj(itime)
         if (iflux.eq.1) call fluxoutput(itime)
-        if (ipout.ge.1) then
+        if (ipout.eq.1) then
           if (mod(itime,ipoutfac*loutstep).eq.0) then
 
             call output_particles(itime)!,active_per_rel) ! dump particle positions

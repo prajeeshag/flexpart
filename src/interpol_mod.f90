@@ -1281,23 +1281,23 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
   ! 1.) Bilinear horizontal interpolation
   ! This has to be done separately for 2 fields (Temporal)
   !*******************************************************
-! Loop over 2 time steps
-!***********************
+  ! Loop over 2 time steps
+  !***********************
 
-!-------------------------------------------------------------------------
-! PS, AT new interpolation of precip with 2 additional fields
-! therefore, we need a special treatment of lsp,cp which are in yy1,yy2
-!-------------------------------------------------------------------------
-!
-!      1.1 1.2 1.3               ip(1).mp(1)
-!      1.2 1.3 2.1               ip(2).mp(2)
-!
-!   ||___|___|___||___|___|___||
-!
-! ip  1   2   3    1   2   3    1
-! m        1            2  
-!
-!-------------------------------------------------------------------------
+  !-------------------------------------------------------------------------
+  ! PS, AT new interpolation of precip with 2 additional fields
+  ! therefore, we need a special treatment of lsp,cp which are in yy1,yy2
+  !-------------------------------------------------------------------------
+  !
+  !      1.1 1.2 1.3               ip(1).mp(1)
+  !      1.2 1.3 2.1               ip(2).mp(2)
+  !
+  !   ||___|___|___||___|___|___||
+  !
+  ! ip  1   2   3    1   2   3    1
+  ! m        1            2  
+  !
+  !-------------------------------------------------------------------------
 
   dt1 = real(itime  - memtime(1))
   dt2 = real(memtime(2) - itime)

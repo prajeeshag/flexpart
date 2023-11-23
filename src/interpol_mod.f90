@@ -1302,6 +1302,10 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
   dt1 = real(itime  - memtime(1))
   dt2 = real(memtime(2) - itime)
   dt  = real(memtime(2) - memtime(1))
+  if (dt.eq.0. .and. dt1.eq.0.) then ! Fix if last last timestep and memtime(2)=memtime(1)
+    dt = 1.
+    dt2 = 1.
+  endif
   dtt = dt/3.
   if (numpf .eq. 1) then
     mp(1) = 1

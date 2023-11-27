@@ -351,11 +351,11 @@ subroutine get_wetscav(itime,jpart,ks,gridfract,wetscav)
   ! NOTE this is just for z coordinate
   ! Reverse sign for eta
 #ifdef ETA
-  if   (part(jpart)%zeta .gt. float(ictop)) then
-    if (part(jpart)%zeta .le. float(icbot)) then
+  if   (part(jpart)%zeta .gt. ictop) then
+    if (part(jpart)%zeta .le. icbot) then
 #else
-  if   (part(jpart)%z .le. float(ictop)) then
-    if (part(jpart)%z .gt. float(icbot)) then
+  if   (part(jpart)%z .le. ictop) then
+    if (part(jpart)%z .gt. icbot) then
 #endif
       indcloud = 2 ! in-cloud
     else
@@ -448,7 +448,7 @@ subroutine get_wetscav_belowcld_aerosol_rain(ks,prec,wetscav)
   integer,intent(in) :: ks ! Species index
   real, intent(in) :: prec ! precipitation in sub-grid cell
   real, intent(out) :: wetscav ! scavenging coefficient
-  integer :: icbot,ictop, indcloud
+
 
   real :: dquer_m, ldquer
   real :: wetscavlim, logAd, B
@@ -546,7 +546,7 @@ subroutine get_wetscav_belowcld_aerosol_snow(ks,prec,wetscav)
   integer,intent(in) :: ks ! Species index
   real, intent(in) :: prec ! precipitation in sub-grid cell
   real, intent(out) :: wetscav ! scavenging coefficient
-  integer :: icbot,ictop, indcloud
+
 
   real :: dquer_m, ldquer
   real :: wetscavlim, logAd, B

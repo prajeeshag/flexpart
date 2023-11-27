@@ -972,13 +972,13 @@ subroutine verttransform_ecmwf_cloud(lcw_tmp,lcwsum_tmp,nxlim,nylim,&
   real,intent(in),dimension(0:nxlim,0:nylim,nzmax) :: rho_tmp,tt_tmp,qv_tmp
   real,intent(in),dimension(0:nxlim,0:nylim,nzmax) :: uvzlev,wzlev
 
-  integer,intent(out) :: icloudbot_tmp(0:nxlim,0:nylim), icloudtop_tmp(0:nxlim,0:nylim)
+  real,intent(out) :: icloudbot_tmp(0:nxlim,0:nylim), icloudtop_tmp(0:nxlim,0:nylim)
 
   integer :: ix,jy
 
   ! converted parameters for eta coordinates:
-  integer :: max_cloudthck_eta
-  integer, dimension(2) :: conv_clrange_eta,highconvp_clrange_eta,lowconvp_clrange_eta
+  real :: max_cloudthck_eta
+  real, dimension(2) :: conv_clrange_eta,highconvp_clrange_eta,lowconvp_clrange_eta
   
   ! AT, PS: for v11, we add back the quick fix to interpolate clouds in 
   !   interpol_rain developed by PS for v8 and extend it to using 
@@ -1022,8 +1022,8 @@ subroutine convert_cloud_params(ix,jy,nxlim,nylim,max_cloudthck_eta,conv_clrange
   real,intent(in),dimension(0:nxlim,0:nylim,nzmax) :: uvzlev
 
   ! converted parameters for eta coordinates:
-  integer,intent(out) :: max_cloudthck_eta
-  integer, dimension(2),intent(out) :: conv_clrange_eta,highconvp_clrange_eta, &
+  real,intent(out) :: max_cloudthck_eta
+  real, dimension(2),intent(out) :: conv_clrange_eta,highconvp_clrange_eta, &
     lowconvp_clrange_eta
   integer :: kz
 
@@ -1093,7 +1093,7 @@ subroutine identify_cloud(ix,jy,lcw_tmp,lcwsum_tmp,nxlim,nylim, &
   real,intent(in),dimension(0:nxlim,0:nylim,nzmax) :: rho_tmp,tt_tmp,qv_tmp
   real,intent(in),dimension(0:nxlim,0:nylim,nzmax) :: uvzlev,wzlev
 
-  integer,intent(out) :: icloudbot_tmp(0:nxlim,0:nylim), icloudtop_tmp(0:nxlim,0:nylim)
+  real,intent(out) :: icloudbot_tmp(0:nxlim,0:nylim), icloudtop_tmp(0:nxlim,0:nylim)
 
   integer :: kz
   real :: pressure,rh
@@ -1123,8 +1123,8 @@ subroutine identify_cloud(ix,jy,lcw_tmp,lcwsum_tmp,nxlim,nylim, &
       if (clw .gt. 0.) then ! cloud layer - maybe use threshold?
 #ifdef ETA
         if (icloudbot_tmp(ix,jy) .eq. icmv) & !cloud bottom set to first cloud instance
-          icloudbot_tmp(ix,jy) = nint(uvheight(kz))
-        icloudtop_tmp(ix,jy) = nint(uvheight(kz)) !After the loop, thck will be the top
+          icloudbot_tmp(ix,jy) = uvheight(kz)
+        icloudtop_tmp(ix,jy) = uvheight(kz) !After the loop, thck will be the top
 #else
         if (icloudbot_tmp(ix,jy) .eq. icmv) &
             icloudbot_tmp(ix,jy) = nint(height(kz))
@@ -1143,14 +1143,14 @@ subroutine identify_cloud(ix,jy,lcw_tmp,lcwsum_tmp,nxlim,nylim, &
       if (rh .ge. rhmin) then
 #ifdef ETA
         if (icloudbot_tmp(ix,jy) .eq. icmv) then
-          icloudbot_tmp(ix,jy)=nint(uvheight(kz))! use int to save memory
+          icloudbot_tmp(ix,jy)=uvheight(kz)
         endif
-        icloudtop_tmp(ix,jy)=nint(uvheight(kz)) ! use int to save memory
+        icloudtop_tmp(ix,jy)=uvheight(kz) 
 #else
         if (icloudbot_tmp(ix,jy) .eq. icmv) then
-          icloudbot_tmp(ix,jy)=nint(height(kz))! use int to save memory
+          icloudbot_tmp(ix,jy)=height(kz)
         endif
-        icloudtop_tmp(ix,jy)=nint(height(kz)) ! use int to save memory
+        icloudtop_tmp(ix,jy)=height(kz) 
 #endif
 
       endif
@@ -1172,12 +1172,12 @@ subroutine apply_cloud_bounds(ix,jy,nxlim,nylim,lsprec_tmp,convprec_tmp,uvzlev, 
   real,intent(in),dimension(0:nxlim,0:nylim,nzmax) :: uvzlev
 
   ! converted parameters for eta coordinates:
-  integer,intent(in) :: max_cloudthck_eta
-  integer,intent(in),dimension(2) :: conv_clrange_eta,highconvp_clrange_eta,lowconvp_clrange_eta
+  real,intent(in) :: max_cloudthck_eta
+  real,intent(in),dimension(2) :: conv_clrange_eta,highconvp_clrange_eta,lowconvp_clrange_eta
 
-  integer,intent(inout) :: icloudbot_tmp(0:nxlim,0:nylim), icloudtop_tmp(0:nxlim,0:nylim)
+  real,intent(inout) :: icloudbot_tmp(0:nxlim,0:nylim), icloudtop_tmp(0:nxlim,0:nylim)
 
-  integer :: icloudtop_old, min_cloudtop
+  real :: icloudtop_old, min_cloudtop
   integer :: kz
   real :: lsp,convp,prec
   logical lconvectprec

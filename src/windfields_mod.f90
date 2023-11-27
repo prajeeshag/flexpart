@@ -91,7 +91,7 @@ module windfields_mod
     ciwch                                   ! original eta level ice [kg/kg] ZHG
   real, allocatable,dimension(:,:,:) ::   &
     ctwc                                    ! ESO: =icloud_stats(:,:,4,:) total cloud water content
-  integer,allocatable,dimension(:,:,:) :: & ! new scavenging AT 2021
+  real,allocatable,dimension(:,:,:) ::    & ! new scavenging AT 2021
     icloudbot,                            & ! cloud bottom height [m/eta]
 	  icloudtop                               ! cloud top [m/eta]
 
@@ -127,7 +127,7 @@ module windfields_mod
     ciwchn                                   ! original eta level ice [kg/kg] ZHG
   real,allocatable,dimension(:,:,:,:) ::   &
     ctwcn                                    ! ESO: =icloud_stats(:,:,4,:) total cloud water content
-  integer,allocatable,dimension(:,:,:,:) :: & ! new scavenging AT 2021
+  real,allocatable,dimension(:,:,:,:) :: & ! new scavenging AT 2021
     icloudbotn,                             & ! cloud bottom height [m/eta]
   	icloudtopn                                ! cloud thickness [m/eta]
 

@@ -102,7 +102,7 @@ subroutine releaseparticles(itime)
   real :: dp1,dp2,xlonav,timecorrect(maxspec),press,pressold
   real :: presspart,average_timecorrect
   integer :: itime,numrel,i,j,k,ipart,minpart
-  integer :: kz,istart,iend,totpart
+  integer :: kz,istart,iend,totpart,iterm_index
   integer :: nweeks,ndayofweek,nhour,jjjjmmdd,ihmmss,mm
   real(kind=dp) :: julmonday,jul,jullocal,juldiff
   real,parameter :: eps2=1.e-6
@@ -148,6 +148,7 @@ subroutine releaseparticles(itime)
 
   call get_totalpart_num(istart)
   minpart=1
+  iterm_index=1
   do i=1,numpoint
     if ((itime.ge.ireleasestart(i)).and. &! are we within release interval?
          (itime.le.ireleaseend(i))) then
@@ -218,7 +219,7 @@ subroutine releaseparticles(itime)
         if (totpart.gt.0) call alloc_particles(totpart)
       endif
       do j=1,numrel             ! loop over particles to be released this time
-        call get_newpart_index(ipart)
+        call get_newpart_index(ipart,iterm_index)
         call spawn_particle(itime, ipart)
 
   ! Particle coordinates are determined by using a random position within the release volume
@@ -1358,7 +1359,7 @@ subroutine boundcond_domainfill(itime,loutend)
   real :: windx,rhox
   real :: deltaz,boundarea,fluxofmass
 
-  integer :: ixm,ixp,jym,jyp,indzm,mm
+  integer :: ixm,ixp,jym,jyp,indzm,mm,iterm_index
   real :: pvpart,ddx,ddy,rddx,rddy,p1,p2,p3,p4,y1(2),yh1(2)
 
   integer :: idummy = -11
@@ -1417,6 +1418,7 @@ subroutine boundcond_domainfill(itime,loutend)
 !   ithread = 0
 ! #endif
   ithread=0
+  iterm_index=1
 ! !$OMP DO
   do jy=ny_sn(1),ny_sn(2)
 
@@ -1530,7 +1532,7 @@ subroutine boundcond_domainfill(itime,loutend)
 
         do m=1,mmass
           !THIS WILL CAUSE PROBLEMS WITH OMP! because of dynamical allocation
-          call get_newpart_index(ipart)
+          call get_newpart_index(ipart,iterm_index)
           call spawn_particle(itime, ipart)
 
   ! Assign particle positions
@@ -1745,7 +1747,7 @@ subroutine boundcond_domainfill(itime,loutend)
         endif
 
         do m=1,mmass
-          call get_newpart_index(ipart)
+          call get_newpart_index(ipart,iterm_index)
           call spawn_particle(itime, ipart)
   
   ! Assign particle positions

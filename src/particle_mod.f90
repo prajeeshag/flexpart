@@ -103,7 +103,8 @@ module particle_mod
     logical,allocatable  ::       &
       inmem(:)                      ! Logical to keep track which particle numbers are allocated
     integer,allocatable  ::       &                  
-      ialive(:)                     ! Array that stores alive particle numbers up to count%alive for OMP loops 
+      ialive(:),                  & ! Array that stores alive particle numbers up to count%alive for OMP loops 
+      iterm(:)                      ! Array that stores terminated particle numbers up to count%allocated
   end type
 
   type(particle), allocatable ::  &
@@ -209,13 +210,14 @@ contains
     endif
   end function particle_allocated
 
-  subroutine get_newpart_index(ipart)
+  subroutine get_newpart_index(ipart,iterm_index)
     !**************************************************
     ! Returns the first free spot to put a new particle
     !**************************************************
     implicit none
 
     integer, intent(inout) :: ipart   ! First free index
+    integer, intent(inout) :: iterm_index
     integer :: i
 
     if (ipin.le.1 .and. ipout.eq.0) then
@@ -224,12 +226,8 @@ contains
         ipart = count%spawned + 1
       else if ((count%spawned-count%terminated) .lt. count%allocated) then
         ! Find dead particles to replace
-        do i=1,count%allocated
-          if (.not. part(i)%alive) then
-            ipart=i
-            exit
-          endif
-        end do
+        ipart=count%iterm(iterm_index)
+        iterm_index = iterm_index+1
       else
         ipart=count%allocated + 1
       endif
@@ -386,6 +384,17 @@ contains
     end do
 
     count%alive=j-1
+
+    if (ipin.le.1 .and. ipout.eq.0) then
+      j=1
+      do i=1,count%allocated
+        if (.not. part(i)%alive) then
+          count%iterm(j)=i
+          j=j+1
+        endif
+      end do
+    endif
+
   end subroutine rewrite_ialive
 
   subroutine rewrite_ialive_single(ipart)
@@ -442,6 +451,13 @@ contains
     if (stat.ne.0) error stop "Could not allocate tmpnclust"
     if (count%allocated.gt.0) tmpnclust(1:count%allocated) = count%ialive
     call move_alloc(tmpnclust,count%ialive)
+
+    if (ipin.le.1 .and. ipout.eq.0) then
+      allocate( tmpnclust(count%allocated+nmpart),stat=stat)
+      if (stat.ne.0) error stop "Could not allocate tmpnclust"
+      if (count%allocated.gt.0) tmpnclust(1:count%allocated) = count%iterm
+      call move_alloc(tmpnclust,count%iterm)
+    endif 
 
     count%inmem(count%allocated+1:count%allocated+nmpart) = .true.
 
@@ -593,6 +609,7 @@ contains
     deallocate( part )
     deallocate( count%inmem )
     deallocate( count%ialive )
+    if (ipin.le.1 .and. ipout.eq.0) deallocate( count%iterm )
     deallocate( mass, mass_init )
 
     if (WETBKDEP.or.DRYBKDEP) then

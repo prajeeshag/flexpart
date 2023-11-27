@@ -1217,7 +1217,7 @@ subroutine apply_cloud_bounds(ix,jy,nxlim,nylim,lsprec_tmp,convprec_tmp,uvzlev, 
     endif
   enddo
   ! PS  get rid of too thin clouds   
-  if (icloudtop_tmp(ix,jy) .lt. min_cloudtop) then
+  if (icloudtop_tmp(ix,jy) .gt. min_cloudtop) then
     icloudbot_tmp(ix,jy)=icmv
     icloudtop_tmp(ix,jy)=icmv
   endif

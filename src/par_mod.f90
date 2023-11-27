@@ -302,6 +302,6 @@ module par_mod
   ! integer code for missing values, used in wet scavenging (PS, 2012)
   !******************************************************
 
-  integer,parameter ::  icmv=-9999
+  integer,parameter ::  icmv=-9999.
 
 end module par_mod

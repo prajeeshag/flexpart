@@ -1267,7 +1267,7 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
   implicit none
 
   integer, intent(in) :: kz, icmv, itime
-  integer, intent(out) :: intiy1,intiy2
+  real, intent(out) :: intiy1,intiy2
   real, intent(out) :: yint1,yint2,yint3,ytint,yint4
   integer :: m
   integer :: mm,ip1,ip2,ip3,ip4 

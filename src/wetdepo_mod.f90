@@ -268,7 +268,8 @@ subroutine get_wetscav(itime,jpart,ks,gridfract,wetscav)
   integer(kind=1) :: clouds_v
   integer(selected_int_kind(16)), dimension(nspec) :: blc_count, inc_count
 
-  integer :: icbot,ictop, indcloud
+  integer :: indcloud
+  real :: icbot,ictop
   real :: t_particle, si, cl, cle ! in cloud scavenging
   real :: lsp,convp,cc,prec
   !save lfr,cfr

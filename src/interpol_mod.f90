@@ -1270,8 +1270,8 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
   real, intent(out) :: intiy1,intiy2
   real, intent(out) :: yint1,yint2,yint3,ytint,yint4
   integer :: m
-  integer :: mm,ip1,ip2,ip3,ip4 
-  integer :: ipsum
+  integer :: mm
+  real :: ip1,ip2,ip3,ip4,ipsum
   real :: dt,dtp1,dtp2,rt
   real :: y1(2),y2(2),y3(2),y4(2),yi1(2),yi2(2),ytt(2) ! interpolated values
   
@@ -1376,28 +1376,28 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
            + p4*ctwc(ixp,jyp,mm)
 
   !PS clouds:
-      ip1=1
-      ip2=1
-      ip3=1
-      ip4=1
-      ipsum=1
+      ip1=1.
+      ip2=1.
+      ip3=1.
+      ip4=1.
+      ipsum=1.
       if (icloudbot(ix ,jy ,mm) .eq. icmv) then
-        ip1=0
+        ip1=0.
         ipsum=ipsum-p1
       endif
       if (icloudbot(ixp,jy ,mm) .eq. icmv) then
-        ip2=0
+        ip2=0.
         ipsum=ipsum-p2
       endif
       if (icloudbot(ix ,jyp,mm) .eq. icmv) then
-        ip3=0
+        ip3=0.
         ipsum=ipsum-p3
       endif
       if (icloudbot(ixp,jyp,mm) .eq. icmv) then
-        ip4=0
+        ip4=0.
         ipsum=ipsum-p4
       endif
-      if (ipsum .eq. 0) then
+      if (ipsum .eq. 0.) then
         yi1(m)=icmv
       else
         yi1(m)=(ip1*p1*icloudbot(ix ,jy ,mm) &
@@ -1413,29 +1413,28 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
               
       endif
           
-      ip1=1
-      ip2=1
-      ip3=1
-      ip4=1
-      ipsum=1
+      ip1=1.
+      ip2=1.
+      ip3=1.
+      ip4=1.
+      ipsum=1.
       if (icloudtop(ix ,jy ,mm) .eq. icmv) then
-        ip1=0
+        ip1=0.
         ipsum=ipsum-p1
       endif
       if (icloudtop(ixp,jy ,mm) .eq. icmv) then
-        ip2=0
+        ip2=0.
         ipsum=ipsum-p2
       endif
       if (icloudtop(ix ,jyp,mm) .eq. icmv) then
-        ip3=0
+        ip3=0.
         ipsum=ipsum-p3
       endif
       if (icloudtop(ixp,jyp,mm) .eq. icmv) then
-        ip4=0
+        ip4=0.
         ipsum=ipsum-p4
       endif
-      ipsum= ip1+ip2+ip3+ip4
-      if (ipsum .eq. 0) then
+      if (ipsum .eq. 0.) then
         yi2(m)=icmv
       else
         yi2(m)=(ip1*p1*icloudtop(ix ,jy ,mm) &
@@ -1480,28 +1479,28 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
            + p4*ctwcn(ixp,jyp,mm,ngrid)
 
   !PS clouds:
-      ip1=1
-      ip2=1
-      ip3=1
-      ip4=1
-      ipsum=1
+      ip1=1.
+      ip2=1.
+      ip3=1.
+      ip4=1.
+      ipsum=1.
       if (icloudbotn(ix ,jy ,mm,ngrid) .eq. icmv) then
-        ip1=0
+        ip1=0.
         ipsum=ipsum-p1
       endif
       if (icloudbotn(ixp,jy ,mm,ngrid) .eq. icmv) then
-        ip2=0
+        ip2=0.
         ipsum=ipsum-p2
       endif
       if (icloudbotn(ix ,jyp,mm,ngrid) .eq. icmv) then
-        ip3=0
+        ip3=0.
         ipsum=ipsum-p3
       endif
       if (icloudbotn(ixp,jyp,mm,ngrid) .eq. icmv) then
-        ip4=0
+        ip4=0.
         ipsum=ipsum-p4
       endif
-      if (ipsum .eq. 0) then
+      if (ipsum .eq. 0.) then
         yi1(m)=icmv
       else
         yi1(m)=(ip1*p1*icloudbotn(ix ,jy ,mm,ngrid) &
@@ -1510,28 +1509,28 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
               + ip4*p4*icloudbotn(ixp,jyp,mm,ngrid))/ipsum
       endif
           
-      ip1=1
-      ip2=1
-      ip3=1
-      ip4=1
-      ipsum=1
+      ip1=1.
+      ip2=1.
+      ip3=1.
+      ip4=1.
+      ipsum=1.
       if (icloudtopn(ix ,jy ,mm,ngrid) .eq. icmv) then
-        ip1=0
+        ip1=0.
         ipsum=ipsum-p1
       endif
       if (icloudtopn(ixp,jy ,mm,ngrid) .eq. icmv) then
-        ip2=0
+        ip2=0.
         ipsum=ipsum-p2
       endif
       if (icloudtopn(ix ,jyp,mm,ngrid) .eq. icmv) then
-        ip3=0
+        ip3=0.
         ipsum=ipsum-p3
       endif
       if (icloudtopn(ixp,jyp,mm,ngrid) .eq. icmv) then
-        ip4=0
+        ip4=0.
         ipsum=ipsum-p4
       endif
-      if (ipsum .eq. 0) then
+      if (ipsum .eq. 0.) then
         yi2(m)=icmv
       else
         yi2(m)=(ip1*p1*icloudtopn(ix ,jy ,mm,ngrid) &

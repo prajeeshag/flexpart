@@ -67,6 +67,7 @@ openmp-simulation:
   stage: test
   needs:
     - alma8-build
+    - rocky9-build
 
   script:
     - ulimit -s unlimited
@@ -88,6 +89,7 @@ etex-simulation:
   when: manual
   needs:
     - alma8-build
+    - rocky9-build
 
   script:
     - ulimit -s unlimited

@@ -1952,24 +1952,24 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
     call write_to_file(ncid,'lon',nf90_float,(/ lonDimID /),lonID,(/ 1 /), &
       'degrees_east',.false.,'grid_longitude','longitude in degree east')
     call nf90_err(nf90_put_att(ncid, lonID, 'axis', 'Lon'))
-    call nf90_err(nf90_put_att(ncid, lonID, 'description', 'grid cell centers'))
+    call nf90_err(nf90_put_att(ncid, lonID, 'description', 'grid point'))
 
     ! lat
     call write_to_file(ncid,'lat',nf90_float,(/ latDimID /),latID,(/ 1 /), &
-      'degrees_east',.false.,'grid_latitude','latitude in degree north')
+      'degrees_north',.false.,'grid_latitude','latitude in degree north')
     call nf90_err(nf90_put_att(ncid, latID, 'axis', 'Lat'))
-    call nf90_err(nf90_put_att(ncid, latID, 'description', 'grid cell centers'))
+    call nf90_err(nf90_put_att(ncid, latID, 'description', 'grid point'))
 
     if (.not.allocated(coord)) allocate(coord(nx))
-     do i = 1,nx
-        coord(i) = xlon0 + i*dx
+     do i = 0,nx-1
+        coord(i+1) = xlon0 + i*dx
      enddo
      call nf90_err(nf90_put_var(ncid, lonID, coord(1:nx)))
      deallocate(coord)
 
     if (.not.allocated(coord)) allocate(coord(ny))
-     do i = 1,ny
-        coord(i) = ylat0 + i*dy
+     do i = 0,ny-1
+        coord(i+1) = ylat0 + i*dy
      enddo
      call nf90_err(nf90_put_var(ncid, latID, coord(1:ny)))
      deallocate(coord)

@@ -83,8 +83,8 @@ module particle_mod
     !   drydepo,                    & ! Dry deposition (cumulative)
     !   prob                          ! Probability of absorption at ground due to dry deposition
     
-    real,allocatable   ::         &
-      val_av(:)                     ! Averaged values; only used when average_output=.true.
+    ! real,allocatable   ::         &
+    !   val_av(:)                     ! Averaged values; only used when average_output=.true.
     real               ::         &
       ntime=0.,                   & ! Number of timesteps to average over
       cartx_av=0.,                & ! Averaged x pos;
@@ -99,11 +99,13 @@ module particle_mod
       spawned=0,                  & ! Total number of spawned particles
       terminated=0,               & ! Total number of particles that have been terminated
       allocated=0,                & ! Number of total allocated particle spaces
+      iterm_max=0,                & ! Number of empty spaces for overwriting particles
       ninmem=0                      ! Number of particles currently in memory
     logical,allocatable  ::       &
       inmem(:)                      ! Logical to keep track which particle numbers are allocated
     integer,allocatable  ::       &                  
-      ialive(:)                     ! Array that stores alive particle numbers up to count%alive for OMP loops 
+      ialive(:),                  & ! Array that stores alive particle numbers up to count%alive for OMP loops 
+      iterm(:)                      ! Array that stores terminated particle numbers up to count%allocated
   end type
 
   type(particle), allocatable ::  &
@@ -134,6 +136,7 @@ module particle_mod
     dealloc_all_particles,        &
     terminate_particle,           &
     rewrite_ialive,               &
+    rewrite_iterm,                &
     spawn_particle,               &
     spawn_particles,              &
     get_totalpart_num,            &
@@ -209,28 +212,30 @@ contains
     endif
   end function particle_allocated
 
-  subroutine get_newpart_index(ipart)
+  subroutine get_newpart_index(ipart,iterm_index)
     !**************************************************
     ! Returns the first free spot to put a new particle
     !**************************************************
     implicit none
 
     integer, intent(inout) :: ipart   ! First free index
+    integer, intent(inout) :: iterm_index
     integer :: i
 
     if (ipin.le.1 .and. ipout.eq.0) then
       if ((ipin.eq.0 .and. count%terminated.eq.0) .or. &
         (count%allocated.gt.count%spawned)) then
         ipart = count%spawned + 1
-      else if ((count%spawned-count%terminated) .lt. count%allocated) then
+      else if (iterm_index.le.count%iterm_max) then
         ! Find dead particles to replace
-        do i=1,count%allocated
-          if (.not. part(i)%alive) then
-            ipart=i
-            exit
-          endif
-        end do
+        if (count%iterm(iterm_index).eq.-1) then
+          error stop 'BUG: Attempting to overwrite particle: get_newpart_index.'
+        endif
+        ipart=count%iterm(iterm_index)
+        count%iterm(iterm_index) = -1
+        iterm_index = iterm_index+1
       else
+        write(*,*) ipart
         ipart=count%allocated + 1
       endif
     else
@@ -323,7 +328,10 @@ contains
     !*******************************************
     if (.not. particle_allocated(ipart)) call alloc_particle(ipart)
 
-    if (part(ipart)%alive) error stop 'Attempting to overwrite existing particle'
+    if (part(ipart)%alive) then
+      write(*,*) ipart, count%alive, count%terminated, count%allocated
+      error stop 'Attempting to overwrite existing particle'
+    endif
 
     ! Update the number of particles that are currently alive
     !********************************************************
@@ -386,7 +394,26 @@ contains
     end do
 
     count%alive=j-1
+
+    if (ipin.le.1 .and. ipout.eq.0) call rewrite_iterm
   end subroutine rewrite_ialive
+
+  subroutine rewrite_iterm()
+    implicit none
+
+    integer :: i,j
+
+    j=1
+    do i=1,count%allocated
+      if (.not. part(i)%alive) then
+        count%iterm(j)=i
+        j=j+1
+      endif
+    end do
+
+    count%iterm_max=j-1
+
+  end subroutine rewrite_iterm
 
   subroutine rewrite_ialive_single(ipart)
     implicit none
@@ -442,6 +469,13 @@ contains
     if (stat.ne.0) error stop "Could not allocate tmpnclust"
     if (count%allocated.gt.0) tmpnclust(1:count%allocated) = count%ialive
     call move_alloc(tmpnclust,count%ialive)
+
+    if (ipin.le.1 .and. ipout.eq.0) then
+      allocate( tmpnclust(count%allocated+nmpart),stat=stat)
+      if (stat.ne.0) error stop "Could not allocate tmpnclust"
+      if (count%allocated.gt.0) tmpnclust(1:count%allocated) = count%iterm
+      call move_alloc(tmpnclust,count%iterm)
+    endif 
 
     count%inmem(count%allocated+1:count%allocated+nmpart) = .true.
 
@@ -593,6 +627,7 @@ contains
     deallocate( part )
     deallocate( count%inmem )
     deallocate( count%ialive )
+    if (ipin.le.1 .and. ipout.eq.0) deallocate( count%iterm )
     deallocate( mass, mass_init )
 
     if (WETBKDEP.or.DRYBKDEP) then

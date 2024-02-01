@@ -209,14 +209,14 @@ module par_mod
   !**************************************************************************
 
   ! for bcscheme = 1
-  ! rain (Laakso et al 2003)
+  ! rain (Laakso et al 2003, figure 7) Size range: 10-510 nm
   real, parameter :: bclr(6) = &
       (/274.35758, 332839.59273, 226656.57259, 58005.91340, 6588.38582, 0.244984/)
-  ! snow (Kyro et al 2009)
+  ! snow (Kyro et al 2009) Size range: 10nm-1um
   real, parameter :: bcls(6) = (/22.7, 0.0, 0.0, 1321.0, 381.0, 0.0/) 
   
   ! for bcscheme = 2 & 3
-  ! AT (after Wang et al 2014)
+  ! AT (after Wang et al 2014, Table 8)
   ! rain
   real, parameter :: bclr_a(4) = &
       (/-6.2609, 0.682, 0.8676, 0.1282/)
@@ -226,7 +226,7 @@ module par_mod
       (/0.723, 0.0303/)
   real, parameter :: bclr_e(7) = &
       (/-0.6492, 9.3483, -21.929, 25.317, -15.395, 4.7242, -0.5766/)
-  ! snow 
+  ! snow
   real, parameter :: bcls_a(7) = &
       (/-4.426, 1.394, -1.202, -3.2942, -1.9521, -0.4904, -0.0457/)
   real, parameter :: bcls_b(7) = &
@@ -248,6 +248,10 @@ module par_mod
   integer, parameter :: conv_clrange(2) = (/ 3000, 6000 /)
   integer, parameter :: highconvp_clrange(2) = (/ 0, 10000 /)
   integer, parameter :: lowconvp_clrange(2) = (/ 500, 8000 /)
+  real, parameter :: rhmin = 0.90 ! Condition for presence of clouds in the nested fields
+          ! PS note that original by Sabine Eckhart was 80%
+          ! PS however, for T<-20 C we consider saturation over ice
+          ! PS so I think 90% should be enough
 
   !**************************************************************************
   ! Maximum number of particles to be released in a single atmospheric column
@@ -298,7 +302,7 @@ module par_mod
   ! integer code for missing values, used in wet scavenging (PS, 2012)
   !******************************************************
 
-  integer,parameter ::  icmv=-9999
+  integer,parameter ::  icmv=-9999.
 
   logical,parameter :: lpartoutputperfield=.false.
 

@@ -102,7 +102,7 @@ subroutine releaseparticles(itime)
   real :: dp1,dp2,xlonav,timecorrect(maxspec),press,pressold
   real :: presspart,average_timecorrect
   integer :: itime,numrel,i,j,k,ipart,minpart
-  integer :: kz,istart,iend,totpart
+  integer :: kz,istart,iend,totpart,iterm_index
   integer :: nweeks,ndayofweek,nhour,jjjjmmdd,ihmmss,mm
   real(kind=dp) :: julmonday,jul,jullocal,juldiff
   real,parameter :: eps2=1.e-6
@@ -147,6 +147,7 @@ subroutine releaseparticles(itime)
   endif
 
   call get_totalpart_num(istart)
+  if (ipin.le.1 .and. ipout.eq.0) call rewrite_iterm()
   minpart=1
   do i=1,numpoint
     if ((itime.ge.ireleasestart(i)).and. &! are we within release interval?
@@ -214,11 +215,14 @@ subroutine releaseparticles(itime)
       zaux=zpoint2(i)-zpoint1(i)
 
       if (ipin.le.1 .and. ipout.eq.0) then
-        totpart = numrel-(count%allocated-count%alive)
+        call rewrite_iterm()
+        totpart = numrel-count%iterm_max
         if (totpart.gt.0) call alloc_particles(totpart)
+        call rewrite_iterm()
+        iterm_index=1
       endif
       do j=1,numrel             ! loop over particles to be released this time
-        call get_newpart_index(ipart)
+        call get_newpart_index(ipart,iterm_index)
         call spawn_particle(itime, ipart)
 
   ! Particle coordinates are determined by using a random position within the release volume
@@ -352,6 +356,8 @@ subroutine releaseparticles(itime)
       end do  ! numrel 
     endif ! releasepoint
   end do ! numpoint
+
+  if (ipin.le.1 .and. ipout.eq.0) call rewrite_iterm()
 
   call get_totalpart_num(iend)
 
@@ -1358,7 +1364,7 @@ subroutine boundcond_domainfill(itime,loutend)
   real :: windx,rhox
   real :: deltaz,boundarea,fluxofmass
 
-  integer :: ixm,ixp,jym,jyp,indzm,mm
+  integer :: ixm,ixp,jym,jyp,indzm,mm,iterm_index
   real :: pvpart,ddx,ddy,rddx,rddy,p1,p2,p3,p4,y1(2),yh1(2)
 
   integer :: idummy = -11
@@ -1382,6 +1388,8 @@ subroutine boundcond_domainfill(itime,loutend)
   ! Terminate trajectories that have left the domain, if domain-filling
   ! trajectory calculation domain is not global
   !********************************************************************
+  if (ipin.le.1 .and. ipout.eq.0) call rewrite_iterm()
+
   iterminate=0
   do i=1,count%allocated
     if (.not. part(i)%alive) cycle
@@ -1417,6 +1425,7 @@ subroutine boundcond_domainfill(itime,loutend)
 !   ithread = 0
 ! #endif
   ithread=0
+  iterm_index=1
 ! !$OMP DO
   do jy=ny_sn(1),ny_sn(2)
 
@@ -1530,7 +1539,7 @@ subroutine boundcond_domainfill(itime,loutend)
 
         do m=1,mmass
           !THIS WILL CAUSE PROBLEMS WITH OMP! because of dynamical allocation
-          call get_newpart_index(ipart)
+          call get_newpart_index(ipart,iterm_index)
           call spawn_particle(itime, ipart)
 
   ! Assign particle positions
@@ -1745,7 +1754,7 @@ subroutine boundcond_domainfill(itime,loutend)
         endif
 
         do m=1,mmass
-          call get_newpart_index(ipart)
+          call get_newpart_index(ipart,iterm_index)
           call spawn_particle(itime, ipart)
   
   ! Assign particle positions
@@ -1836,6 +1845,7 @@ subroutine boundcond_domainfill(itime,loutend)
   end do ! north south
 ! !$OMP END DO
 ! !$OMP END PARALLEL
+  if (ipin.le.1 .and. ipout.eq.0) call rewrite_iterm()
   numparticlecount = numparticlecount_tmp
   ! If particles shall be dumped, then accumulated masses at the domain boundaries
   ! must be dumped, too, to be used for later runs

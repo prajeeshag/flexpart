@@ -2002,8 +2002,7 @@ subroutine writeheader_partoutput_dims(np,ncid,timeunit,timeDimID,partDimID,latD
     ! particles variables
     call nf90_err(nf90_def_var(ncid, 'particle', nf90_int, (/ partDimID/), partID))
     call nf90_err(nf90_put_att(ncid, partID, 'long_name', 'particle index'))
-
-  endif 
+  endif
 
   ! create variables
   !*************************

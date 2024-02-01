@@ -1267,11 +1267,11 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
   implicit none
 
   integer, intent(in) :: kz, icmv, itime
-  integer, intent(out) :: intiy1,intiy2
+  real, intent(out) :: intiy1,intiy2
   real, intent(out) :: yint1,yint2,yint3,ytint,yint4
   integer :: m
-  integer :: mm,ip1,ip2,ip3,ip4 
-  integer :: ipsum
+  integer :: mm
+  real :: ip1,ip2,ip3,ip4,ipsum
   real :: dt,dtp1,dtp2,rt
   real :: y1(2),y2(2),y3(2),y4(2),yi1(2),yi2(2),ytt(2) ! interpolated values
   
@@ -1281,27 +1281,31 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
   ! 1.) Bilinear horizontal interpolation
   ! This has to be done separately for 2 fields (Temporal)
   !*******************************************************
-! Loop over 2 time steps
-!***********************
+  ! Loop over 2 time steps
+  !***********************
 
-!-------------------------------------------------------------------------
-! PS, AT new interpolation of precip with 2 additional fields
-! therefore, we need a special treatment of lsp,cp which are in yy1,yy2
-!-------------------------------------------------------------------------
-!
-!      1.1 1.2 1.3               ip(1).mp(1)
-!      1.2 1.3 2.1               ip(2).mp(2)
-!
-!   ||___|___|___||___|___|___||
-!
-! ip  1   2   3    1   2   3    1
-! m        1            2  
-!
-!-------------------------------------------------------------------------
+  !-------------------------------------------------------------------------
+  ! PS, AT new interpolation of precip with 2 additional fields
+  ! therefore, we need a special treatment of lsp,cp which are in yy1,yy2
+  !-------------------------------------------------------------------------
+  !
+  !      1.1 1.2 1.3               ip(1).mp(1)
+  !      1.2 1.3 2.1               ip(2).mp(2)
+  !
+  !   ||___|___|___||___|___|___||
+  !
+  ! ip  1   2   3    1   2   3    1
+  ! m        1            2  
+  !
+  !-------------------------------------------------------------------------
 
   dt1 = real(itime  - memtime(1))
   dt2 = real(memtime(2) - itime)
   dt  = real(memtime(2) - memtime(1))
+  if (dt.eq.0. .and. dt1.eq.0.) then ! Fix if last last timestep and memtime(2)=memtime(1)
+    dt = 1.
+    dt2 = 1.
+  endif
   dtt = dt/3.
   if (numpf .eq. 1) then
     mp(1) = 1
@@ -1355,15 +1359,15 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
            + p3*tcc(ix ,jyp,1,mm) &
            + p4*tcc(ixp,jyp,1,mm)
 #ifdef ETA
-        ytt(m)=p1*tteta(ix ,jy ,kz,mm) &
-             + p2*tteta(ixp,jy ,kz,mm) &
-             + p3*tteta(ix ,jyp,kz,mm) &
-             + p4*tteta(ixp,jyp,kz,mm)
+      ytt(m)=p1*tteta(ix ,jy ,kz,mm) &
+           + p2*tteta(ixp,jy ,kz,mm) &
+           + p3*tteta(ix ,jyp,kz,mm) &
+           + p4*tteta(ixp,jyp,kz,mm)
 #else
-        ytt(m)=p1*tt(ix ,jy ,kz,mm) &
-             + p2*tt(ixp,jy ,kz,mm) &
-             + p3*tt(ix ,jyp,kz,mm) &
-             + p4*tt(ixp,jyp,kz,mm)
+      ytt(m)=p1*tt(ix ,jy ,kz,mm) &
+           + p2*tt(ixp,jy ,kz,mm) &
+           + p3*tt(ix ,jyp,kz,mm) &
+           + p4*tt(ixp,jyp,kz,mm)
 #endif
       if (lcw) &
         y4(m)= p1*ctwc(ix ,jy ,mm) &
@@ -1372,16 +1376,28 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
            + p4*ctwc(ixp,jyp,mm)
 
   !PS clouds:
-      ip1=1
-      ip2=1
-      ip3=1
-      ip4=1
-      if (icloudbot(ix ,jy ,mm) .eq. icmv) ip1=0
-      if (icloudbot(ixp,jy ,mm) .eq. icmv) ip2=0
-      if (icloudbot(ix ,jyp,mm) .eq. icmv) ip3=0
-      if (icloudbot(ixp,jyp,mm) .eq. icmv) ip4=0
-      ipsum= ip1+ip2+ip3+ip4
-      if (ipsum .eq. 0) then
+      ip1=1.
+      ip2=1.
+      ip3=1.
+      ip4=1.
+      ipsum=1.
+      if (icloudbot(ix ,jy ,mm) .eq. icmv) then
+        ip1=0.
+        ipsum=ipsum-p1
+      endif
+      if (icloudbot(ixp,jy ,mm) .eq. icmv) then
+        ip2=0.
+        ipsum=ipsum-p2
+      endif
+      if (icloudbot(ix ,jyp,mm) .eq. icmv) then
+        ip3=0.
+        ipsum=ipsum-p3
+      endif
+      if (icloudbot(ixp,jyp,mm) .eq. icmv) then
+        ip4=0.
+        ipsum=ipsum-p4
+      endif
+      if (ipsum .eq. 0.) then
         yi1(m)=icmv
       else
         yi1(m)=(ip1*p1*icloudbot(ix ,jy ,mm) &
@@ -1397,22 +1413,34 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
               
       endif
           
-      ip1=1
-      ip2=1
-      ip3=1
-      ip4=1
-      if (icloudthck(ix ,jy ,mm) .eq. icmv) ip1=0
-      if (icloudthck(ixp,jy ,mm) .eq. icmv) ip2=0
-      if (icloudthck(ix ,jyp,mm) .eq. icmv) ip3=0
-      if (icloudthck(ixp,jyp,mm) .eq. icmv) ip4=0
-      ipsum= ip1+ip2+ip3+ip4
-      if (ipsum .eq. 0) then
+      ip1=1.
+      ip2=1.
+      ip3=1.
+      ip4=1.
+      ipsum=1.
+      if (icloudtop(ix ,jy ,mm) .eq. icmv) then
+        ip1=0.
+        ipsum=ipsum-p1
+      endif
+      if (icloudtop(ixp,jy ,mm) .eq. icmv) then
+        ip2=0.
+        ipsum=ipsum-p2
+      endif
+      if (icloudtop(ix ,jyp,mm) .eq. icmv) then
+        ip3=0.
+        ipsum=ipsum-p3
+      endif
+      if (icloudtop(ixp,jyp,mm) .eq. icmv) then
+        ip4=0.
+        ipsum=ipsum-p4
+      endif
+      if (ipsum .eq. 0.) then
         yi2(m)=icmv
       else
-        yi2(m)=(ip1*p1*icloudthck(ix ,jy ,mm) &
-              + ip2*p2*icloudthck(ixp,jy ,mm) &
-              + ip3*p3*icloudthck(ix ,jyp,mm) &
-              + ip4*p4*icloudthck(ixp,jyp,mm))/ipsum
+        yi2(m)=(ip1*p1*icloudtop(ix ,jy ,mm) &
+              + ip2*p2*icloudtop(ixp,jy ,mm) &
+              + ip3*p3*icloudtop(ix ,jyp,mm) &
+              + ip4*p4*icloudtop(ixp,jyp,mm))/ipsum
       endif
   !PS end clouds
     end do
@@ -1434,15 +1462,15 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
            + p3*tccn(ix ,jyp,1,mm,ngrid) &
            + p4*tccn(ixp,jyp,1,mm,ngrid)
 #ifdef ETA
-        ytt(m)=p1*ttetan(ix ,jy ,kz,mm,ngrid) &
-             + p2*ttetan(ixp,jy ,kz,mm,ngrid) &
-             + p3*ttetan(ix ,jyp,kz,mm,ngrid) &
-             + p4*ttetan(ixp,jyp,kz,mm,ngrid)
+      ytt(m)=p1*ttetan(ix ,jy ,kz,mm,ngrid) &
+           + p2*ttetan(ixp,jy ,kz,mm,ngrid) &
+           + p3*ttetan(ix ,jyp,kz,mm,ngrid) &
+           + p4*ttetan(ixp,jyp,kz,mm,ngrid)
 #else
-        ytt(m)=p1*ttn(ix ,jy ,kz,mm,ngrid) &
-             + p2*ttn(ixp,jy ,kz,mm,ngrid) &
-             + p3*ttn(ix ,jyp,kz,mm,ngrid) &
-             + p4*ttn(ixp,jyp,kz,mm,ngrid)
+      ytt(m)=p1*ttn(ix ,jy ,kz,mm,ngrid) &
+           + p2*ttn(ixp,jy ,kz,mm,ngrid) &
+           + p3*ttn(ix ,jyp,kz,mm,ngrid) &
+           + p4*ttn(ixp,jyp,kz,mm,ngrid)
 #endif
       if (lcw_nest(ngrid)) &
         y4(m)= p1*ctwcn(ix ,jy ,mm,ngrid) &
@@ -1451,16 +1479,28 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
            + p4*ctwcn(ixp,jyp,mm,ngrid)
 
   !PS clouds:
-      ip1=1
-      ip2=1
-      ip3=1
-      ip4=1
-      if (icloudbotn(ix ,jy ,mm,ngrid) .eq. icmv) ip1=0
-      if (icloudbotn(ixp,jy ,mm,ngrid) .eq. icmv) ip2=0
-      if (icloudbotn(ix ,jyp,mm,ngrid) .eq. icmv) ip3=0
-      if (icloudbotn(ixp,jyp,mm,ngrid) .eq. icmv) ip4=0
-      ipsum= ip1+ip2+ip3+ip4
-      if (ipsum .eq. 0) then
+      ip1=1.
+      ip2=1.
+      ip3=1.
+      ip4=1.
+      ipsum=1.
+      if (icloudbotn(ix ,jy ,mm,ngrid) .eq. icmv) then
+        ip1=0.
+        ipsum=ipsum-p1
+      endif
+      if (icloudbotn(ixp,jy ,mm,ngrid) .eq. icmv) then
+        ip2=0.
+        ipsum=ipsum-p2
+      endif
+      if (icloudbotn(ix ,jyp,mm,ngrid) .eq. icmv) then
+        ip3=0.
+        ipsum=ipsum-p3
+      endif
+      if (icloudbotn(ixp,jyp,mm,ngrid) .eq. icmv) then
+        ip4=0.
+        ipsum=ipsum-p4
+      endif
+      if (ipsum .eq. 0.) then
         yi1(m)=icmv
       else
         yi1(m)=(ip1*p1*icloudbotn(ix ,jy ,mm,ngrid) &
@@ -1469,22 +1509,34 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
               + ip4*p4*icloudbotn(ixp,jyp,mm,ngrid))/ipsum
       endif
           
-      ip1=1
-      ip2=1
-      ip3=1
-      ip4=1
-      if (icloudthckn(ix ,jy ,mm,ngrid) .eq. icmv) ip1=0
-      if (icloudthckn(ixp,jy ,mm,ngrid) .eq. icmv) ip2=0
-      if (icloudthckn(ix ,jyp,mm,ngrid) .eq. icmv) ip3=0
-      if (icloudthckn(ixp,jyp,mm,ngrid) .eq. icmv) ip4=0
-      ipsum= ip1+ip2+ip3+ip4
-      if (ipsum .eq. 0) then
+      ip1=1.
+      ip2=1.
+      ip3=1.
+      ip4=1.
+      ipsum=1.
+      if (icloudtopn(ix ,jy ,mm,ngrid) .eq. icmv) then
+        ip1=0.
+        ipsum=ipsum-p1
+      endif
+      if (icloudtopn(ixp,jy ,mm,ngrid) .eq. icmv) then
+        ip2=0.
+        ipsum=ipsum-p2
+      endif
+      if (icloudtopn(ix ,jyp,mm,ngrid) .eq. icmv) then
+        ip3=0.
+        ipsum=ipsum-p3
+      endif
+      if (icloudtopn(ixp,jyp,mm,ngrid) .eq. icmv) then
+        ip4=0.
+        ipsum=ipsum-p4
+      endif
+      if (ipsum .eq. 0.) then
         yi2(m)=icmv
       else
-        yi2(m)=(ip1*p1*icloudthckn(ix ,jy ,mm,ngrid) &
-              + ip2*p2*icloudthckn(ixp,jy ,mm,ngrid) &
-              + ip3*p3*icloudthckn(ix ,jyp,mm,ngrid) &
-              + ip4*p4*icloudthckn(ixp,jyp,mm,ngrid))/ipsum
+        yi2(m)=(ip1*p1*icloudtopn(ix ,jy ,mm,ngrid) &
+              + ip2*p2*icloudtopn(ixp,jy ,mm,ngrid) &
+              + ip3*p3*icloudtopn(ix ,jyp,mm,ngrid) &
+              + ip4*p4*icloudtopn(ixp,jyp,mm,ngrid))/ipsum
       endif
   !PS end clouds
     end do
@@ -1514,7 +1566,7 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
   
 !  write(*,*) 'before cbot: ', intiy1, ' cthick: ', intiy2   
   if (intiy1 .ne. icmv .and. intiy2 .ne. icmv) then
-    intiy2 = intiy1 + intiy2 ! convert cloud thickness to cloud top
+    intiy2 = intiy2 !intiy1 + intiy2 ! convert cloud thickness to cloud top
   else
     intiy1=icmv
     intiy2=icmv

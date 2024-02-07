@@ -98,14 +98,12 @@ subroutine releaseparticles(itime)
 
   !real xaux,yaux,zaux,ran1,rfraction,xmasssave(maxpoint)
   real :: xaux,yaux,zaux,rfraction
-  real :: topo,r,t
-  real :: dp1,dp2,xlonav,timecorrect(maxspec),press,pressold
-  real :: presspart,average_timecorrect
+  real :: xlonav,timecorrect(maxspec)
+  real :: average_timecorrect
   integer :: itime,numrel,i,j,k,ipart,minpart
-  integer :: kz,istart,iend,totpart,iterm_index
+  integer :: istart,iend,totpart,iterm_index
   integer :: nweeks,ndayofweek,nhour,jjjjmmdd,ihmmss,mm
   real(kind=dp) :: julmonday,jul,jullocal,juldiff
-  real,parameter :: eps2=1.e-6
 
   integer :: idummy = -7
   !save idummy,xmasssave
@@ -264,85 +262,16 @@ subroutine releaseparticles(itime)
         endif
         part(ipart)%idt=mintime               ! first time step
 
-  ! Determine vertical particle position
-  !*************************************
+        ! Determine vertical particle position
+        !*************************************
         call set_z(ipart,zpoint1(i)+ran1(idummy,0)*zaux)
-  ! Interpolation of topography and density
-  !****************************************
+        ! Interpolation of topography and density
+        !****************************************
 
-  ! Determine the nest we are in
-  !*****************************
-        call find_ngrid(part(ipart)%xlon,part(ipart)%ylat)
-
-  ! Determine (nested) grid coordinates and auxiliary parameters used for interpolation
-  !*****************************************************************************
-        call find_grid_indices(real(part(ipart)%xlon),real(part(ipart)%ylat))
-        call find_grid_distances(real(part(ipart)%xlon),real(part(ipart)%ylat))
-
-        if (ngrid.gt.0) then
-          topo=p1*oron(ix ,jy ,ngrid) &
-               + p2*oron(ixp,jy ,ngrid) &
-               + p3*oron(ix ,jyp,ngrid) &
-               + p4*oron(ixp,jyp,ngrid)
-        else
-          topo=p1*oro(ix ,jy) &
-               + p2*oro(ixp,jy) &
-               + p3*oro(ix ,jyp) &
-               + p4*oro(ixp,jyp)
-        endif
-
-  ! If starting height is in pressure coordinates, retrieve pressure profile and convert zpart1 to meters
-  !*****************************************************************************
-        if (kindz(i).eq.3) then
-          presspart=real(part(ipart)%z)
-          do kz=1,nz
-            if (ngrid.gt.0) then
-              r=p1*rhon(ix ,jy ,kz,2,ngrid) &
-                   +p2*rhon(ixp,jy ,kz,2,ngrid) &
-                   +p3*rhon(ix ,jyp,kz,2,ngrid) &
-                   +p4*rhon(ixp,jyp,kz,2,ngrid)
-              t=p1*ttn(ix ,jy ,kz,2,ngrid) &
-                   +p2*ttn(ixp,jy ,kz,2,ngrid) &
-                   +p3*ttn(ix ,jyp,kz,2,ngrid) &
-                   +p4*ttn(ixp,jyp,kz,2,ngrid)
-            else
-              r=p1*rho(ix ,jy ,kz,2) &
-                   +p2*rho(ixp,jy ,kz,2) &
-                   +p3*rho(ix ,jyp,kz,2) &
-                   +p4*rho(ixp,jyp,kz,2)
-              t=p1*tt(ix ,jy ,kz,2) &
-                   +p2*tt(ixp,jy ,kz,2) &
-                   +p3*tt(ix ,jyp,kz,2) &
-                   +p4*tt(ixp,jyp,kz,2)
-            endif
-            press=r*r_air*t/100.
-            if (kz.eq.1) pressold=press
-
-            if (press.lt.presspart) then
-              if (kz.eq.1) then
-                call set_z(ipart,height(1)/2.)
-              else
-                dp1=pressold-presspart
-                dp2=presspart-press
-                call set_z(ipart,(height(kz-1)*dp2+height(kz)*dp1) &
-                     /(dp1+dp2))
-              endif
-              exit
-            endif
-            pressold=press
-          end do
-        endif
-
-
-  ! If release positions are given in meters above sea level, subtract the
-  ! topography from the starting height
-  !***********************************************************************
-
-        if (kindz(i).eq.2) call update_z(ipart,-topo)
-        if (part(ipart)%z.lt.eps2) call set_z(ipart,eps2)   ! Minimum starting height is eps2
-        if (part(ipart)%z.gt.height(nz)-0.5) &
-          call set_z(ipart,height(nz)-0.5) ! Maximum starting height is uppermost level - 0.5 meters
-
+        ! Transform the verticle particle position from pressure or sea level to above ground
+        ! if necessary
+        !************************************************************************************
+        call kindz_to_z(ipart)
 #ifdef ETA
         call z_to_zeta(itime,part(ipart)%xlon,part(ipart)%ylat,part(ipart)%z,part(ipart)%zeta)
         part(ipart)%etaupdate = .true. ! The z(meter) coordinate is up to date
@@ -383,6 +312,106 @@ subroutine releaseparticles(itime)
 
 end subroutine releaseparticles
 
+subroutine kindz_to_z(ipart)
+  use point_mod
+  use xmass_mod
+  use output_mod
+  use interpol_mod
+
+  implicit none
+
+  integer,intent(in) :: ipart
+  integer :: kz
+  real :: dp1,dp2,press,presspart,pressold,topo,r,t
+  real,parameter :: eps2=1.e-6
+
+
+  ! Determine the nest we are in
+  !*****************************
+  call find_ngrid(part(ipart)%xlon,part(ipart)%ylat)
+
+  ! Determine (nested) grid coordinates and auxiliary parameters used for interpolation
+  !*****************************************************************************
+  call find_grid_indices(real(part(ipart)%xlon),real(part(ipart)%ylat))
+  call find_grid_distances(real(part(ipart)%xlon),real(part(ipart)%ylat))
+
+
+  if (kindz(part(ipart)%npoint).eq.1) return ! Nothing needs to happen
+
+  ! If starting height is in pressure coordinates, retrieve pressure profile and 
+  ! convert zpart1 to meters
+  !*****************************************************************************
+
+  if (kindz(part(ipart)%npoint).eq.3) then
+    presspart=real(part(ipart)%z)
+    do kz=1,nz
+      if (ngrid.gt.0) then
+        r=p1*rhon(ix ,jy ,kz,2,ngrid) &
+             +p2*rhon(ixp,jy ,kz,2,ngrid) &
+             +p3*rhon(ix ,jyp,kz,2,ngrid) &
+             +p4*rhon(ixp,jyp,kz,2,ngrid)
+        t=p1*ttn(ix ,jy ,kz,2,ngrid) &
+             +p2*ttn(ixp,jy ,kz,2,ngrid) &
+             +p3*ttn(ix ,jyp,kz,2,ngrid) &
+             +p4*ttn(ixp,jyp,kz,2,ngrid)
+      else
+        r=p1*rho(ix ,jy ,kz,2) &
+             +p2*rho(ixp,jy ,kz,2) &
+             +p3*rho(ix ,jyp,kz,2) &
+             +p4*rho(ixp,jyp,kz,2)
+        t=p1*tt(ix ,jy ,kz,2) &
+             +p2*tt(ixp,jy ,kz,2) &
+             +p3*tt(ix ,jyp,kz,2) &
+             +p4*tt(ixp,jyp,kz,2)
+      endif
+      press=r*r_air*t/100.
+      if (kz.eq.1) pressold=press
+
+      if (press.lt.presspart) then
+        if (kz.eq.1) then
+          call set_z(ipart,height(1)/2.)
+        else
+          dp1=pressold-presspart
+          dp2=presspart-press
+          call set_z(ipart,(height(kz-1)*dp2+height(kz)*dp1) &
+               /(dp1+dp2))
+        endif
+        exit
+      endif
+      pressold=press
+    end do
+
+  ! If release positions are given in meters above sea level, subtract the
+  ! topography from the starting height
+  !***********************************************************************
+
+  else if (kindz(part(ipart)%npoint).eq.2) then
+    if (ngrid.gt.0) then
+      topo=p1*oron(ix ,jy ,ngrid) &
+           + p2*oron(ixp,jy ,ngrid) &
+           + p3*oron(ix ,jyp,ngrid) &
+           + p4*oron(ixp,jyp,ngrid)
+    else
+      topo=p1*oro(ix ,jy) &
+           + p2*oro(ixp,jy) &
+           + p3*oro(ix ,jyp) &
+           + p4*oro(ixp,jyp)
+    endif
+    call update_z(ipart,-topo)
+  endif
+  if (part(ipart)%z.lt.eps2) call set_z(ipart,eps2)   ! Minimum starting height is eps2
+  if (part(ipart)%z.gt.height(nz)-0.5) &
+    call set_z(ipart,height(nz)-0.5) ! Maximum starting height is uppermost level - 0.5 meters
+
+  if (ipin.eq.3 .or. ipin.eq.4) then
+    if (part(ipart)%z.gt.zpoint2(part(ipart)%npoint)) &
+      zpoint2(part(ipart)%npoint)=real(part(ipart)%z)
+    if (part(ipart)%z.lt.zpoint1(part(ipart)%npoint)) &
+      zpoint1(part(ipart)%npoint)=real(part(ipart)%z)
+  endif    
+
+end subroutine kindz_to_z
+
 subroutine init_mass_conversion(ipart,ipoint)
   ! For special simulations, multiply particle concentration air density;
   ! Simply take the 2nd field in memory to do this (accurate enough)
@@ -417,8 +446,8 @@ subroutine init_mass_conversion(ipart,ipoint)
 
   if ((ind_rel .eq. 1).or.(ind_rel .eq. 3).or.(ind_rel .eq. 4)) then
 
-  ! Interpolate the air density
-  !****************************
+    ! Interpolate the air density, horizontal values are computed in kindz_to_z
+    !**************************************************************************
     call find_z_level_meters(real(part(ipart)%z))
     call find_vert_vars_lin(height,real(part(ipart)%z),indz,dz1,dz2,lbounds)
 
@@ -441,8 +470,8 @@ subroutine init_mass_conversion(ipart,ipoint)
     rho_rel(ipoint)=rhoout
 
 
-  ! Multiply "mass" (i.e., mass mixing ratio in forward runs) with density
-  !********************************************************************
+    ! Multiply "mass" (i.e., mass mixing ratio in forward runs) with density
+    !***********************************************************************
     mass(ipart,:)=mass(ipart,:)*rhoout
     mass_init(ipart,:)=mass(ipart,:)
   endif

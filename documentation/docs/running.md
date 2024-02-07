@@ -34,9 +34,33 @@ These are:
 
 - the [**option files**](configuration.md#options), defining the set-up of the run,
 - the [**pathnames file**](configuration.md#pathnames), defining the paths of where input and output are located, 
-- the [**AVAILABLE file**](configuration.md#available), listing all available meteorological input
+- the [**AVAILABLE file**](configuration.md#available), listing all available [meteorological input files](running.md#meteodata).
 
-A full description can be found in [Configuration](configuration.md#config).
+A full description of these files can be found in [Configuration](configuration.md#config).
+
+### <a name="meteodata"></a>Meteorological input data
+
+Necessary fields from Eularian models:
+
+- 3D wind velocities
+- Temperatures
+- Specific humidity
+- Surface and sea level pressure
+- Snow depth
+- Cloud cover
+- Cloud liquid and ice water content (when available)
+- 2 metre dew point
+- Large scale precipitation
+- Convective precipitation
+- Sensible heat flux
+- Solar radiation
+- Ew and ns surface stress
+- Orography and its standard deviation
+- Land sea mask
+
+#### ECMWF
+
+#### GFS
 
 ## OpenMP
 

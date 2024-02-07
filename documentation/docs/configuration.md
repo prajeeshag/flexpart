@@ -1,40 +1,40 @@
-# Running FLEXPART
+# Configuration
 To run FLEXPART, there are three important (sets) of files that need to be specified.
 These are:
 
-- the [**option files**](running.md#options), defining the set-up of the run,
-- the [**pathnames file**](running.md#pathnames), defining the paths of where input and output are located, 
-- the [**AVAILABLE file**](running.md#available), listing all available meteorological input,
+- the [**option files**](configuration.md#options), defining the set-up of the run,
+- the [**pathnames file**](configuration.md#pathnames), defining the paths of where input and output are located, 
+- the [**AVAILABLE file**](configuration.md#available), listing all available meteorological input,
 
-Of course, there is also the **par_mod.f90** file, which needs to be specified before compiling (see [**Compiling FLEXPART**](installation.md#compliling), but the parameters in this file are expected to not have to be changed between simulations.
+Of course, there is also the **par_mod.f90** file, which needs to be specified before compiling (see [**Compiling FLEXPART**](building.md#compliling), but the parameters in this file are expected to not have to be changed between simulations.
 
-In addition to the regular input files listed above, a simulation can also be started using a NetCDF file listing all particles to be released. This option can be switched on by specifying IPIN=3 in the COMMAND option file. More information about how to use this option can be found here: [User-defined initial conditions](running.md#ic).
+In addition to the regular input files listed above, a simulation can also be started using a NetCDF file listing all particles to be released. This option can be switched on by specifying IPIN=3 in the COMMAND option file. More information about how to use this option can be found here: [User-defined initial conditions](configuration.md#ic).
 
-When wanting to restart a previous simulation, see [restarting a simulation](running.md#restart).
+When wanting to restart a previous simulation, see [restarting a simulation](configuration.md#restart).
 
 ## <a name="options"></a>Option files
-These files define the simulation settings. At the start of a simulation, a copy of each file will be written to the output directory defined in the [**pathnames file**](running.md#pathnames).
+These files define the simulation settings. At the start of a simulation, a copy of each file will be written to the output directory defined in the [**pathnames file**](configuration.md#pathnames).
 All option files should be presented as namelists (i.e. &OPTIONFILE). A template of these files can be found in the options/ directory within the repository.
 
 Inside the `options/` directory a template of all option files can be found:
 
-- [COMMAND](running.md#command)
-- [RELEASES](running.md#releases)
-- [SPECIES](running.md#species)
-- [OUTGRID](running.md#outgrid)
-- [OUTGRID_NESTED](running.md#outgrid_nested)
-- [AGECLASSES](running.md#ageclasses)
-- [RECEPTORS](running.md#receptors)
-- [PARTOPTIONS](running.md#partoptions)
+- [COMMAND](configuration.md#command)
+- [RELEASES](configuration.md#releases)
+- [SPECIES](configuration.md#species)
+- [OUTGRID](configuration.md#outgrid)
+- [OUTGRID_NESTED](configuration.md#outgrid_nested)
+- [AGECLASSES](configuration.md#ageclasses)
+- [RECEPTORS](configuration.md#receptors)
+- [PARTOPTIONS](configuration.md#partoptions)
 
 ### <a name="command"></a>COMMAND
 Sets the behaviour of the run (time range, backward or forward, output frequency, etc.). A table of all options is listed below.
 
-- **Time variables**: Flexpart can be run in forward or backward mode. In forward mode, particles are being traced forward in time, while in backward more, the origin of particles are being traced, going backward in time. This can be set by the [LDIRECT](running.md#ldirect) variable. The start and end of the simulation are set by [IBDATE](running.md#IBDATE):[IBTIME](running.md#IBTIME) and [IEDATE](running.md#IEDATE):[IETIME](running.md#IETIME). [IEDATE](running.md#IEDATE):[IETIME](running.md#IETIME) is always at a later time than [IBDATE](running.md#IBDATE):[IBTIME](running.md#IBTIME), also for backwards simulations. Output variables can be written at specified times: [LOUTSTEP](running.md#LOUTSTEP), and restart files will be written at every [LOUTRESTART](running.md#LOUTRESTART) interval.
-- **Numerical variables**: [LSYNCTIME](running.md#LSYNCTIME) and LOUTSAMPLE set the integration interval, smaller generally giving better results, although below a certain number, not much will be gained. With the [CTL](running.md#CTL) and [IFINE](running.md#IFINE) setting, you can make integration steps even smaller for the turbulence computations.
-- **Output variables**: The output is written at every [LOUTSTEP](running.md#LOUTSTEP) interval. Both gridded data ([IOUT](running.md#IOUT)>0) and particle based data ([IPOUT](running.md#IPOUT)=1) can be written to NetCDF files (binary option for gridded data). Nested output can be set by the [NESTED_OUTPUT](running.md#NESTED_OUTPUT) switched. Note that for gridded output, the [OUTGRID](running.md#OUTGRID) for ([IOUT](running.md#IOUT)>0) and [OUTGRID_NESTED](running.md#OUTGRID_NESTED) (for [NESTED_OUTPUT](running.md#NESTED_OUTPUT)=1) option files should be specified. Other output variables can be set in the par_mod.f90 file. Namely, the size of the NetCDF files that contain the particle based data (max_partoutput_filesize). [IND_RECEPTOR](running.md#IND_RECEPTOR) can be set to get concentrations or mixing ratios at specified receptor points set in the RECEPTORS options file. For backward simulations, [IND_RECEPTOR](running.md#IND_RECEPTOR) can be used to get wet or dry deposition gridded data. [SFC_ONLY](running.md#SFC_ONLY) and [LINIT_COND](running.md#LINIT_COND) are only working for binary output. 
-- **Input variables**: IPIN can be set to chose the input type: either initial conditions from particles come from the [RELEASES](running.md#releases) file ([IPIN](running.md#IPIN)=0), from restart files of a previous run ([IPIN](running.md#IPIN)=1),
-from a particle netCDF file written in a previous run (only works when the correct fields in [PARTOPTIONS](running.md#PARTOPTIONS) are chosen) ([IPIN](running.md#IPIN)=2), or from user-defined initial particle conditions ([IPIN](running.md#IPIN)=3). [MDOMAINFILL](running.md#MDOMAINFILL) can be set to distribute particles according to the air density or stratospheric ozone density profiles. This option overwrites the vertical levels set in the [RELEASES](running.md#releases) option file.
+- **Time variables**: Flexpart can be run in forward or backward mode. In forward mode, particles are being traced forward in time, while in backward more, the origin of particles are being traced, going backward in time. This can be set by the [LDIRECT](configuration.md#ldirect) variable. The start and end of the simulation are set by [IBDATE](configuration.md#IBDATE):[IBTIME](configuration.md#IBTIME) and [IEDATE](configuration.md#IEDATE):[IETIME](configuration.md#IETIME). [IEDATE](configuration.md#IEDATE):[IETIME](configuration.md#IETIME) is always at a later time than [IBDATE](configuration.md#IBDATE):[IBTIME](configuration.md#IBTIME), also for backwards simulations. Output variables can be written at specified times: [LOUTSTEP](configuration.md#LOUTSTEP), and restart files will be written at every [LOUTRESTART](configuration.md#LOUTRESTART) interval.
+- **Numerical variables**: [LSYNCTIME](configuration.md#LSYNCTIME) and LOUTSAMPLE set the integration interval, smaller generally giving better results, although below a certain number, not much will be gained. With the [CTL](configuration.md#CTL) and [IFINE](configuration.md#IFINE) setting, you can make integration steps even smaller for the turbulence computations.
+- **Output variables**: The output is written at every [LOUTSTEP](configuration.md#LOUTSTEP) interval. Both gridded data ([IOUT](configuration.md#IOUT)>0) and particle based data ([IPOUT](configuration.md#IPOUT)=1) can be written to NetCDF files (binary option for gridded data). Nested output can be set by the [NESTED_OUTPUT](configuration.md#NESTED_OUTPUT) switched. Note that for gridded output, the [OUTGRID](configuration.md#OUTGRID) for ([IOUT](configuration.md#IOUT)>0) and [OUTGRID_NESTED](configuration.md#OUTGRID_NESTED) (for [NESTED_OUTPUT](configuration.md#NESTED_OUTPUT)=1) option files should be specified. Other output variables can be set in the par_mod.f90 file. Namely, the size of the NetCDF files that contain the particle based data (max_partoutput_filesize). [IND_RECEPTOR](configuration.md#IND_RECEPTOR) can be set to get concentrations or mixing ratios at specified receptor points set in the RECEPTORS options file. For backward simulations, [IND_RECEPTOR](configuration.md#IND_RECEPTOR) can be used to get wet or dry deposition gridded data. [SFC_ONLY](configuration.md#SFC_ONLY) and [LINIT_COND](configuration.md#LINIT_COND) are only working for binary output. 
+- **Input variables**: IPIN can be set to chose the input type: either initial conditions from particles come from the [RELEASES](configuration.md#releases) file ([IPIN](configuration.md#IPIN)=0), from restart files of a previous run ([IPIN](configuration.md#IPIN)=1),
+from a particle netCDF file written in a previous run (only works when the correct fields in [PARTOPTIONS](configuration.md#PARTOPTIONS) are chosen) ([IPIN](configuration.md#IPIN)=2), or from user-defined initial particle conditions ([IPIN](configuration.md#IPIN)=3). [MDOMAINFILL](configuration.md#MDOMAINFILL) can be set to distribute particles according to the air density or stratospheric ozone density profiles. This option overwrites the vertical levels set in the [RELEASES](configuration.md#releases) option file.
 
 | Variable name | Description | Possible values and **default** (bold) |
 | ----------- | ----------- | ----------- |
@@ -56,9 +56,9 @@ from a particle netCDF file written in a previous run (only works when the corre
 | <a name="LCONVECTION"></a>LCONVECTION | Switch for convection parameterization | 0 (off), **1 (on)** |
 | <a name="LTURBULENCE"></a>LTURBULENCE | Switch for turbulence parameterization | 0 (off), **1 (on)** |
 | <a name="LTURBULENCE_MESO"></a>LTURBULENCE_MESO | Switch for mesoscale turbulence parameterization | **0 (off)**, 1 (on) |
-| <a name="LAGESPECTRA"></a>LAGESPECTRA | Switch for calculation of age spectra (needs file [AGECLASSES](running.md#ageclasses) option file) | 0 (off), **1 (on)** |
-| <a name="IPIN"></a>IPIN | Particle information input. Starting from [RELEASES](running.md#releases) option file, form restart.bin, or user-defined particle input data (see Silvia Bucci's stuff) | **0 (using RELEASES option file)**, 1 (using restart.bin file), 2 (using previous partoutput file), 3 (self made initial conditions), 4 (restart.bin and self made initial conditions) |
-| <a name="IOUTPUTFOREACHRELEASE"></a>IOUTPUTFOREACHRELEASE | Switch for separate output fields for each location in the [RELEASES](running.md#releases) file | 0 (no), **1 (yes)** |
+| <a name="LAGESPECTRA"></a>LAGESPECTRA | Switch for calculation of age spectra (needs file [AGECLASSES](configuration.md#ageclasses) option file) | 0 (off), **1 (on)** |
+| <a name="IPIN"></a>IPIN | Particle information input. Starting from [RELEASES](configuration.md#releases) option file, form restart.bin, or user-defined particle input data (see Silvia Bucci's stuff) | **0 (using RELEASES option file)**, 1 (using restart.bin file), 2 (using previous partoutput file), 3 (self made initial conditions), 4 (restart.bin and self made initial conditions) |
+| <a name="IOUTPUTFOREACHRELEASE"></a>IOUTPUTFOREACHRELEASE | Switch for separate output fields for each location in the [RELEASES](configuration.md#releases) file | 0 (no), **1 (yes)** |
 | <a name="IFLUX"></a>IFLUX | Output of mass fluxes through output grid box boundaries (northward, southward, eastward, westward, upward and downward) | 0 (off), **1 (on)** |
 | <a name="MDOMAINFILL"></a>MDOMAINFILL | Switch for domain-filling calculations: particles are initialized to reproduce air density or stratospheric ozone density; for limited-area simulations, particles are generated at the domain boundaries | **0 (no)**, 1 (like air density), 2 (stratospheric ozone tracer) |
 | <a name="IND_SOURCE"></a>IND_SOURCE | Unit to be used at the source; see Seibert and Frank (2004); Eckhardt et al. (2017) | **1 (mass)**, 2 (mass mixing ratio) |
@@ -79,7 +79,7 @@ from a particle netCDF file written in a previous run (only works when the corre
 This file contains the information about the particles initial conditions: how many, where and when they will be released, their mass and what species they are (defined in the SPECIES files).
 The RELEASES file contains at two types of namelists: 
  
- 1. `&RELEASES_CTRL` namelist, specifying the total number of species and the specific species file associated (see [SPECIES](running.md#species)). There is only one of this namelist and it is found at the top of the file. 
+ 1. `&RELEASES_CTRL` namelist, specifying the total number of species and the specific species file associated (see [SPECIES](configuration.md#species)). There is only one of this namelist and it is found at the top of the file. 
 
  2. `&RELEASE` namelist, specifying for each release, the start and end of the release, the location of the release, and the number of particles that are to be released.
 
@@ -109,7 +109,7 @@ And for each release:
 |COMMENT | Comment, written in the outputfile| character string |
 
 <br/>
-**Note:** the RELEASES file is no longer necessary when using [IPIN](running.md#ipin)=3, giving full control to the user to decide where and when particles of different species are being released (see [User-defined initial conditions](running.md#ic)).
+**Note:** the RELEASES file is no longer necessary when using [IPIN](configuration.md#ipin)=3, giving full control to the user to decide where and when particles of different species are being released (see [User-defined initial conditions](configuration.md#ic)).
 
 ### <a name="species"></a>SPECIES
 The subdirectory options/SPECIES/ needs to contain one or more files named SPECIES_nnn. For each species nnn listed in the header section of the RELEASES file, such a SPECIES_nnn file must exist. The parameters in the SPECIES_nnn file, contained in the namelist &SPECIES_PARAMS, set the species name and define the physicochemical properties of the species; they are described in Table 10. These are important for simulating radioactive or chemical decay, wet deposition (scavenging) for gases and aerosols, dry deposition for gases and aerosols, particle settling, and chemical reaction with the OH radical. Some parameters are only necessary for gas tracers and some are only necessary for aerosol tracers; thus, a namelist does not need to contain all parameters for both gases and particles. Optionally, since FLEXPART version 6.0, information about temporal emission variations can be added at the end of the file.
@@ -158,7 +158,7 @@ The following specifies the parameters associated with each physicochemical proc
 <br/>
 
 ### <a name="outgrid"></a>OUTGRID
-The OUTGRID file specifies the domain and grid spacing of the three-dimensional output grid. Note that in a Lagrangian model, the domain and resolution of the gridded output are totally independent from those of the meteorological input (apart from the fact that the output domain must be contained within the computational domain). The output grid is available in binary and NetCDF format, which can be set by [IOUT](running.md#iout) in the [COMMAND](running.md#command) file.
+The OUTGRID file specifies the domain and grid spacing of the three-dimensional output grid. Note that in a Lagrangian model, the domain and resolution of the gridded output are totally independent from those of the meteorological input (apart from the fact that the output domain must be contained within the computational domain). The output grid is available in binary and NetCDF format, which can be set by [IOUT](configuration.md#iout) in the [COMMAND](configuration.md#command) file.
 
 
 | Variable name | Descriptions | Data type |
@@ -175,7 +175,7 @@ The OUTGRID file specifies the domain and grid spacing of the three-dimensional 
 
 ### <a name="outgrid_nest"></a>OUTGRID_NEST
 Output can also be produced on one nested output grid with higher horizontal resolution.
-This file specifies the size and dimensions of the nested output grid. The height levels are equal to those set in [OUTGRID](running.md#outgrid).
+This file specifies the size and dimensions of the nested output grid. The height levels are equal to those set in [OUTGRID](configuration.md#outgrid).
 
 | Variable name | Descriptions | Data type |
 | ------------- | ------------ | --------- |
@@ -190,7 +190,7 @@ This file specifies the size and dimensions of the nested output grid. The heigh
 
 ### <a name="ageclasses"></a>AGECLASSES
 
-The option to produce age class output can be activated by setting [LAGESPECTRA](running.md#lagespectra) in the [COMMAND](running.md#command) file. The AGECLASSES file then allows for the definition of a list of times (in seconds, in increasing order) that define the age classes used for model output. With this option, the model output (e.g., oncentrations) is split into contributions from particles of different age, defined as the time passed since the particle release. Particles are dropped from the simulation once they exceed the maximum age, skipping unnecesary computations. This is an important technique to limit the cpu usage for long-term simulations. Thus, even if the user is not interested in age information per se, it may often be useful to set one age class to define a maximum particle age.
+The option to produce age class output can be activated by setting [LAGESPECTRA](configuration.md#lagespectra) in the [COMMAND](configuration.md#command) file. The AGECLASSES file then allows for the definition of a list of times (in seconds, in increasing order) that define the age classes used for model output. With this option, the model output (e.g., oncentrations) is split into contributions from particles of different age, defined as the time passed since the particle release. Particles are dropped from the simulation once they exceed the maximum age, skipping unnecesary computations. This is an important technique to limit the cpu usage for long-term simulations. Thus, even if the user is not interested in age information per se, it may often be useful to set one age class to define a maximum particle age.
 The file should contain two namelist: 
 
 1) &NAGE
@@ -242,7 +242,7 @@ The pathnames file is a text file containing the path to:
 - first line: directory of the option files,
 - second line: name of directory where output files are generated,
 - third line: base path to the meteorological input data,
-- fourth line: full path and filename of the AVAILABLE file (see [**AVAILABLE**](running.md#available)).
+- fourth line: full path and filename of the AVAILABLE file (see [**AVAILABLE**](configuration.md#available)).
 
 When using nested areas, the third and fourth line can be repeated with the respected meteorological data directory base paths and AVAILABLE_NEST file paths:
 
@@ -254,14 +254,14 @@ The meteorological input data, one file for each input time, are stored in GRIB 
 fields must be identical.
 
 ## <a name="ic"></a>User-defined initial conditions
-A simulation can be started using a NetCDF file listing all particles to be released. This option can be switched on by specifying [IPIN](running.md#ipin)=3 in the [COMMAND](running.md#command) option file. This file should be called **part_ic.nc** and located in the output directory defined in [Pathnames file](running.md#pathnames). It should have the following structure:
+A simulation can be started using a NetCDF file listing all particles to be released. This option can be switched on by specifying [IPIN](configuration.md#ipin)=3 in the [COMMAND](configuration.md#command) option file. This file should be called **part_ic.nc** and located in the output directory defined in [Pathnames file](configuration.md#pathnames). It should have the following structure:
 
 **Header**
 
 | Variable name | Description | Data type |
 | ------------- | ----------- | --------- |
 | `nspecies` | Number of species | integer |
-| `species` | Species IDs (see [SPECIES](running.md#species)) | 1D-array of integers |
+| `species` | Species IDs (see [SPECIES](configuration.md#species)) | 1D-array of integers |
 | `kindz` | Reference level | integer: 1=above ground, 2=above sea level, 3 for pressure in hPa | 
 
 <br/>
@@ -273,9 +273,9 @@ A simulation can be started using a NetCDF file listing all particles to be rele
 | `longitude` | Initial longitude of each particle | 1D-array of reals with dimension `particle` |
 | `latitude` | Initial latitude of each particle | 1D-array of reals with dimension `particle` |
 | `height` | Initial height of each particle (meter above reference level) | 1D-array of reals with dimension `particle` |
-| `time` | Release time of each particle seconds after simulation start (IBDATE/IBTIME for forward runs, IEDATE/IETIME for backward runs, set in [COMMAND](running.md#command)) | 1D-array of integers with dimension `particle` |
+| `time` | Release time of each particle seconds after simulation start (IBDATE/IBTIME for forward runs, IEDATE/IETIME for backward runs, set in [COMMAND](configuration.md#command)) | 1D-array of integers with dimension `particle` |
 | `mass` | Initial mass of each particle (kg) | 2D-array of reals with dimension `species` and `particle` |
-| `release` | Release ID of each particle, giving separate concentration fields for each ID when [IOUTPUTFOREACHRELEASE](running.md#ioutputforeachrelease) in [COMMAND](running.md#command) is set | 1D-array of integers with dimension `particle` |
+| `release` | Release ID of each particle, giving separate concentration fields for each ID when [IOUTPUTFOREACHRELEASE](configuration.md#ioutputforeachrelease) in [COMMAND](configuration.md#command) is set | 1D-array of integers with dimension `particle` |
 
 <br/>
 

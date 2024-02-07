@@ -2911,6 +2911,8 @@ subroutine readinitconditions_netcdf()
   zpoint2(:)=0.
   zpoint1(:)=1.e8
   do i=1,plen
+    if (part(i)%npoint.ne.1) cycle ! This will be computed after information about
+                                   ! topography (2) or pressure (3) is known (kindz_to_z)
     if (part(i)%z.gt.zpoint2(part(i)%npoint)) zpoint2(part(i)%npoint)=real(part(i)%z)
     if (part(i)%z.lt.zpoint1(part(i)%npoint)) zpoint1(part(i)%npoint)=real(part(i)%z)
   end do

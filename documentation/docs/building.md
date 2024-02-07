@@ -1,4 +1,4 @@
-# Installation
+# Building
 
 ## Download FLEXPART
 There are two options to download _FLEXPART_:

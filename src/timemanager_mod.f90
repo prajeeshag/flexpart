@@ -189,8 +189,8 @@ subroutine timemanager
       s_firstt = real(count_clock)/real(count_rate)
     endif
 
-  ! Writing restart file
-  !*********************
+    ! Writing restart file
+    !*********************
     if ((itime.ne.itime_init).and.(loutrestart.ne.-1).and.(mod(itime,loutrestart).eq.0)) then
       call output_restart(itime,loutnext,outnum)
     endif
@@ -200,14 +200,13 @@ subroutine timemanager
     ! endif
     call init_output(itime,filesize)
 
-  ! Get necessary wind fields if not available
-  !*******************************************
+    ! Get necessary wind fields if not available
+    !*******************************************
     call getfields(itime,nstop1) !OMP on verttransform_ecmwf and readwind_ecmwf, getfields_mod.f90
     if (nstop1.gt.1) error stop 'NO METEO FIELDS AVAILABLE'
 
-  ! In case of ETA coordinates being read from file, convert the z positions to zeta
-  !*********************************************************************************
-#ifdef ETA
+    ! In case of ETA coordinates being read from file, convert the z positions to zeta
+    !*********************************************************************************
     if ((itime.eq.itime_init).and.((ipin.eq.1).or.(ipin.eq.3).or.(ipin.eq.4))) then 
       
       if (count%allocated.le.0) error stop 'Something is going wrong reading the old particle file! &
@@ -215,12 +214,16 @@ subroutine timemanager
 !$OMP PARALLEL PRIVATE(i)
 !$OMP DO
       do i=1,count%allocated ! Also includes particles that are not spawned yet
+        ! If kindz>1, vertical positions computation
+        if (ipin.eq.3 .or. ipin.eq.4) call kindz_to_z(i) 
+#ifdef ETA
         call update_z_to_zeta(itime, i)
+#endif
       end do
 !$OMP END DO
 !$OMP END PARALLEL
     endif
-#endif
+
 
     if (WETDEP .and. (itime.ne.0) .and. (numpart.gt.0)) then
       call wetdepo(itime,lsynctime,loutnext)

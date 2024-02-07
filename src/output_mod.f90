@@ -416,8 +416,8 @@ subroutine output_particles(itime,initial_output)
   if (numpart.gt.0) then
 
   ! OpenMP output does not work on all systems depending on how they are set-up
-!$OMP PARALLEL PRIVATE(np,ns,ncid_tmp)
-!$OMP DO SCHEDULE(dynamic)
+! !$OMP PARALLEL PRIVATE(np,ns,ncid_tmp)
+! !$OMP DO SCHEDULE(dynamic)
     do np=1,num_partopt
       if (.not. partopt(np)%print) cycle
       if (init_out.and.(partopt(np)%i_average.ne.0)) cycle ! no averages for initial particle output
@@ -455,8 +455,8 @@ subroutine output_particles(itime,initial_output)
       endif
       if (lpartoutputperfield) call close_partoutput_file(ncid_tmp)
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+! !$OMP END DO
+! !$OMP END PARALLEL
   endif
   if (.not. lpartoutputperfield) call close_partoutput_file(ncid)
   if (mdomainfill.ge.1 .and. (.not. init_out)) then

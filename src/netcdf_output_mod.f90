@@ -2438,7 +2438,7 @@ subroutine partoutput_netcdf(itime,field,np,imass,ncid)
     if ((mdomainfill.ge.1).and.(imass.eq.1)) then
       if (mass_written.eqv..false.) then 
         call nf90_err(nf90_inq_varid(ncid=ncid,name=trim(partopt(np)%short_name),varid=tempIDend))
-        call nf90_err(nf90_put_var(ncid=ncid,varid=tempIDend,values=field(1)))
+        call nf90_err(nf90_put_var(ncid,tempIDend,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
       endif
       massav_written=.true.
     else

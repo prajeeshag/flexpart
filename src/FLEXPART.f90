@@ -406,8 +406,6 @@ subroutine initialise_particles
   !**********************************************
   itime_init=0
 
-  if (ipout.ne.0) call readpartoptions
-
   if (ipin.le.2) then 
     call readreleases
   else
@@ -417,6 +415,9 @@ subroutine initialise_particles
     error stop 'Compile with netCDF if you would like to use the ipin=3,4 options.'
 #endif
   endif
+
+  ! needs to be called after maxspec is defined in readreleases or readinitconditions
+  if (ipout.ne.0) call readpartoptions 
 
   if (iout.ne.0) then
     call alloc_grid

@@ -790,7 +790,7 @@ subroutine get_cloud_liquid(gridfract,prec,cc,cl)
   real, intent(inout) :: cl ! scavenging coefficient
   !ZHG 2015 use cloud liquid & ice water (CLWC+CIWC) from ECMWF
   ! Mother grid
-  if (ngrid.eq.0) then
+  if (ngrid.le.0) then
     if (lcw) then
       cl = cl*(gridfract/cc)
       ! A.Plach 2021 cl should not become too small

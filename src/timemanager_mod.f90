@@ -217,7 +217,9 @@ subroutine timemanager
         ! If kindz>1, vertical positions computation
         if (ipin.eq.3 .or. ipin.eq.4) call kindz_to_z(i) 
 #ifdef ETA
-        call update_z_to_zeta(itime, i)
+        call z_to_zeta(itime,part(i)%xlon,part(i)%ylat,part(i)%z,part(i)%zeta)
+        part(i)%etaupdate = .true.
+        part(i)%meterupdate = .true.
 #endif
       end do
 !$OMP END DO
@@ -382,6 +384,7 @@ subroutine timemanager
 
   ! Initialize newly released particle
   !***********************************
+
       if ((part(j)%tstart.eq.itime).or.(itime.eq.0)) then
 #ifdef ETA
         call update_zeta_to_z(itime, j)
@@ -421,7 +424,6 @@ subroutine timemanager
           endif
         enddo
       endif
-
   ! Integrate Langevin equation for lsynctime seconds
   !*************************************************
 

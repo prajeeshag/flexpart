@@ -67,3 +67,4 @@ echo "[$MM] Tests failed: $STATUS / $TESTSRUN"
 #
 # Return collective error status
 #
+exit $STATUS

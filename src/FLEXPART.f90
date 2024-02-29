@@ -44,7 +44,7 @@ program flexpart
   real :: s_timemanager
   character(len=256) ::   &
     inline_options          ! pathfile, flexversion, arg2
-  character(len=256) :: gitversion_tmp="undefined"
+  character(len=256) :: gitversion_tmp="1c8264d Wed Feb 21 15:34:05 2024 +0100"
 
   ! Keeping track of the total running time of FLEXPART, printed out at the end.
   !*****************************************************************************
@@ -170,10 +170,16 @@ subroutine read_options_and_initialise_flexpart
   use initialise_mod
   use drydepo_mod
   use getfields_mod
-  use interpol_mod, only: alloc_interpol
+  use interpol_mod,         only: alloc_interpol
   use outgrid_mod
   use binary_output_mod
-  use omp_lib, only: OMP_GET_MAX_THREADS
+  use omp_lib,              only: OMP_GET_MAX_THREADS
+#ifdef USE_NCF
+  use chemistry_mod,        only: readreagents
+  use totals_mod
+  use receptor_netcdf_mod,  only: readreceptors_satellite, receptorout_init, satelliteout_init
+#endif
+  use receptor_mod,         only: alloc_receptor
 
   implicit none
 
@@ -291,21 +297,39 @@ subroutine read_options_and_initialise_flexpart
 
   ! Read the receptor points for which extra concentrations are to be calculated
   !*****************************************************************************
+  numreceptor=0
+  numsatreceptor=0
+  nlayermax=1
+  ! NOTE: need to change to calc receptors conc without netcdf
+#ifdef USE_NCF
+  call readreceptors_satellite
   call readreceptors
-
-  ! Read the physico-chemical species property table
-  !*************************************************
-  !SEC: now only needed SPECIES are read in readreleases.f
-  !call readspecies
+#endif
 
   ! Read the landuse inventory
   !***************************
   call readlanduse ! CHECK ETA
 
+  ! Read chemical reagent information
+  !**********************************
+  ! default settings
+  nreagent=0
+  reagents(:)=""
+#ifdef USE_NCF
+  call readreagents
+#endif 
+
   ! For continuation of previous run or from user defined initial 
   ! conditions, read in particle positions
   !*************************************************************************
   call initialise_particles
+
+  ! Initialize variables for totals calculations
+  !*********************************************
+#ifdef USE_NCF
+  call alloc_totals
+  call totals_init
+#endif 
 
   ! Convert the release point coordinates from geografical to grid coordinates
   !***************************************************************************
@@ -323,29 +347,32 @@ subroutine read_options_and_initialise_flexpart
   call alloc_interpol
 #ifdef USE_NCF
   if (lnetcdfout.eq.1) call alloc_netcdf
-#endif USE_NCF
+#endif 
 
   ! Assign fractional cover of landuse classes to each ECMWF grid point
   !********************************************************************
   call assignland
 
   ! Calculate volume, surface area, etc., of all output grid cells
-  ! Allocate fluxes and OHfield if necessary
   !***************************************************************
   if (iout.ne.0) then
     call outgrid_init
     if (nested_output.eq.1) call outgrid_init_nest ! CHECK ETA
   endif
 
-  ! Read the OH field
-  !******************
-  if (OHREA) then
-    call readOHfield
-  endif
+  ! Initialize receptor output
+  !***************************
 
-  ! Binary receptor output when lnetcdfout is set to zero, otherwise
-  ! added to gridded output
-  if (lnetcdfout.eq.0) call openreceptors
+  call alloc_receptor
+  if (lnetcdfout.eq.1) then
+#ifdef USE_NCF
+    call receptorout_init
+    call satelliteout_init
+#endif  
+  else
+    call receptorout_init_binary
+    call satelliteout_init_binary
+  endif
 
   if ((iout.eq.4).or.(iout.eq.5)) call openouttraj ! CHECK ETA
 
@@ -363,6 +390,7 @@ subroutine read_options_and_initialise_flexpart
   !************************************
   allocate(nan_count(numthreads), stat=stat)
   if (stat.ne.0) error stop "Could not allocate nan_count"
+
 end subroutine read_options_and_initialise_flexpart
 
 subroutine initialise_particles
@@ -408,8 +436,6 @@ subroutine initialise_particles
 
   if (ipin.le.2) then 
     call readreleases
-    ! needs to be called after maxspec is defined in readreleases or readinitconditions
-    if (ipout.ne.0) call readpartoptions 
   else
 #ifdef USE_NCF
     call readinitconditions_netcdf
@@ -418,7 +444,7 @@ subroutine initialise_particles
 #endif
   endif
 
-
+  if (ipout.ne.0) call readpartoptions
 
   if (iout.ne.0) then
     call alloc_grid

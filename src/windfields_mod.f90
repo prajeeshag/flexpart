@@ -790,7 +790,7 @@ subroutine gridcheck_ecmwf
     write(*,*) 'Reduce resolution of wind fields.'
     write(*,*) 'Or change parameter settings in file par_mod.f90'
     write(*,*) nwz,nwzmax
-    stop
+    error stop
   endif
 
 
@@ -1003,7 +1003,6 @@ subroutine gridcheck_gfs
   ifield=0
   do
     ifield=ifield+1
-    print*,'ifield GFS=',ifield 
     !
     ! GET NEXT FIELDS
     !
@@ -1063,7 +1062,6 @@ subroutine gridcheck_gfs
       if (stat.ne.0) error stop "Could not allocate zsec4"
       call grib_get_real4_array(igrib,'values',zsec4,iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
-      print*, 'gridcheck zsec4 for U in check gfs in',  trim(wfname(ifn))
       !PRINT*,zsec4(1:15)
       !stop    'MIP2 in gridcheck' 
       deallocate(zsec4)
@@ -1219,7 +1217,6 @@ subroutine gridcheck_gfs
     if((isec1(6).eq.33).and.(isec1(7).eq.100)) then ! check for U wind
       iumax=iumax+1
       ! fixgfs11 
-      print*, iumax
       allocate( tmppres(iumax), stat=stat)
       if (stat.ne.0) error stop "Could not allocate tmppres"
       if (iumax.gt.1) tmppres(1:iumax-1)=pres
@@ -1247,9 +1244,7 @@ subroutine gridcheck_gfs
     !*************
 
     if((isec1(6).eq.007).and.(isec1(7).eq.001)) then
-    ! IP 8/5/23 allocate fields missing for GFS reading 
-    ! print*, 'allocated oro?', allocated(oro) 28/11/23
-    ! call alloc_fixedfields
+
     ! IP 8/5/23
       do jy=0,ny-1
         do ix=0,nxfield-1
@@ -1404,9 +1399,6 @@ subroutine gridcheck_gfs
      bkz(i)=bkm(i)
   end do
 
- ! fixgfs11 -- check akzs read correctly
-  print*, 'GFS: akz=', akz
-  !stop
 
   ! NOTE: In FLEXPART versions up to 4.0, the number of model levels was doubled
   ! upon the transformation to z levels. In order to save computer memory, this is
@@ -2834,15 +2826,10 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
     
 
       ! IPfixgfs11
-      print*, 'gridcheck zsec4 for U in readgrid gfs' 
       call grib_get_size(igrib,'values',size1,iret)
       allocate( zsec4(size1),stat=stat )
       call grib_get_real4_array(igrib,'values',zsec4,iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
-      print*, trim(wfname(indj))
-      print*, 'zsec4 for T in readwind from ', trim(wfname(indj))
-      PRINT*,zsec4(1:15) 
-      !stop    'MIP2 in readgrid' 
       deallocate(zsec4)
 
 
@@ -2857,10 +2844,6 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
      allocate( zsec4(size1),stat=stat )
      call grib_get_real4_array(igrib,'values',zsec4,iret)
      call grib_check(iret,gribFunction,gribErrorMsg)
-     print*, 'zsec4 for U in readwind from ', trim(wfname(indj))
-     print*,  zsec4(1:15)
-     !stop    'in gridcheck' 
-     !stop    'in readwind_gfs 11' 
      deallocate(zsec4)
 
 
@@ -3013,10 +2996,6 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
       if (stat.ne.0) error stop "Could not allocate zsec4"
       call grib_get_real4_array(igrib,'values',zsec4,iret)
       call grib_check(iret,gribFunction,gribErrorMsg)
-      ! IPfixgfs11
-      print*, 'get zsec4 before i179'
-      !print*, 'zsec4=', zsec4(1:150)
-      !stop
     endif
 
     i179=nint(179./dx)
@@ -3034,10 +3013,6 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
     
 
     if (isec1(6).ne.-1) then
- 
-! IPfixgfs11: which field in grib message?
- print*,'xsec18',xsec18, 'isec1(6)',isec1(6)
- write (*, *) 'nxfield: ', nxfield, i180
 
 
     do j=0,nymin1
@@ -3050,7 +3025,6 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
               !end do
             numpt=minloc(abs(xsec18*100.0-akz),dim=1) ! IP 29.1.24
             ! IPfixgfs11
-            print*,'numpt',numpt !,'akz',akz
             ! numpt was const 1, and akzs were from not initialized allocation
           endif
           help=zsec4(nxfield*(ny-j-1)+i+1)
@@ -3064,21 +3038,6 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
           else
             tth(i-i181,j,numpt,n)=help
           endif
-
-        ! IPfixgfs11 -- track T red herring
-        if((i.le.2).and.(j.le.2)) then
-            print*, i,j 
-            print*, help
-         endif
-
-         if ((j.eq.0).and.(i.eq.180)) then
-            print*, i,j 
-            print*, help
-            print*, tth(i-i180,j,numpt,n) 
-            print*, nymin1, nxfield, i179, i181
-            !stop 'zeros'
-         endif
-
         endif
         if((isec1(6).eq.033).and.(isec1(7).eq.100)) then
     ! U VELOCITY
@@ -3350,14 +3309,6 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
 
   !HSO close grib file
   call grib_close_file(ifile)
-
-  ! IPfixgfs11
-  print*, tth(0:3,0,1,1)
-  print*, tth(0:3,1,1,1)
-  print*, tth(0:3,2,1,1)
-  print*, tth(0:3,3,1,1)
-  !stop 'tth in readwind gfs'
-
    
   ! SENS. HEAT FLUX
   sshf(:,:,1,n)=0.0     ! not available from gfs.tccz.pgrbfxx files
@@ -3428,7 +3379,6 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
         if (temp .le. 0.0) then 
           write (*, *) 'STOP: CALCULATE 2 M DEW POINT FROM 2 M RELATIVE HUMIDITY: temp, i, j, k, n'
           write (*, *) temp, i, j, k, n
-          print*, 'plev1', plev1
 !          temp = 273.0
           stop
         endif
@@ -3439,9 +3389,6 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
         if (help.le.0.) td2(i,j,1,n)=tt2(i,j,1,n)
     end do
   end do
-
-
-   print*, 'hoolis'
 
   if(levdiff2.eq.0) then
     iwmax=nlev_ec+1
@@ -3491,9 +3438,6 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
     call shift_field(clwch,nxfield,ny,nuvzmax,nuvz,2,n)
   endif
 
-print*, 'hoolis2'
-
-
   do i=0,nxmin1
     do j=0,nymin1
   ! Convert precip. from mm/s -> mm/hour
@@ -3524,13 +3468,8 @@ print*, 'hoolis2'
     end do
   endif
 
-print*, 'hoolis3'
-
-
   if(iumax.ne.nuvz) error stop 'READWIND: NUVZ NOT CONSISTENT'
   if(iumax.ne.nwz) error stop 'READWIND: NWZ NOT CONSISTENT'
-
-print*, 'hoolis4'
 
   return
   

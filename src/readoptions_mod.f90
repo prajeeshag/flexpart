@@ -520,7 +520,8 @@ subroutine readcommand
   maxthreadgrid, &
   maxfilesize, &
   logvertinterp, &
-  bcscheme
+  bcscheme, &
+  itsplit  ! deprecated: only for IO back compatibility  
 
   ! Presetting namelist command
   ldirect=0
@@ -563,6 +564,7 @@ subroutine readcommand
   maxfilesize=10000
   logvertinterp=0
   bcscheme=2
+  itsplit=999999999 ! deprecated: only for IO back compatibility  
 
   !Af set release-switch
   WETBKDEP=.false.

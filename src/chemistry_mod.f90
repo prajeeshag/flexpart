@@ -16,7 +16,6 @@ module chemistry_mod
   use date_mod
   use totals_mod, only: chem_loss
   use netcdf_output_mod, only: nf90_err
-  use omp_lib, only: OMP_GET_THREAD_NUM
 
   ! reagent field variables 
 
@@ -29,6 +28,8 @@ module chemistry_mod
   real(kind=dp), dimension(2)             :: CL_time            ! julian date of fields in memory
   real, allocatable, dimension(:,:,:)     :: jrate_average      ! monthly average actinic flux 
   real, allocatable, dimension(:)         :: lonjr,latjr
+
+  private :: zenithangle, photo_O1D
 
   contains
 
@@ -374,7 +375,7 @@ module chemistry_mod
     implicit none
 
     integer               :: jpart,itime
-    integer               :: ii,i,j,ks,ix,jy,jrx,jry,nr
+    integer               :: ii,i,j,ks,ix,jy,kz,jrx,jry,nr
     integer               :: ngrid,interp_time,n,indz
     integer               :: jjjjmmdd,hhmmss,mm,hh,m1,m2
     integer               :: clx,cly,clz,clzm
@@ -388,10 +389,17 @@ module chemistry_mod
     real                  :: clrate,temp
     real, parameter       :: smallnum = tiny(0.0) ! smallest number that can be handled
     real(kind=dp)         :: jul
+    real                  :: lonjrx,latjry
+!! testing
+!    real, dimension(nxCL,nyCL,nzCL) :: clr_field
+!    integer, dimension(nxCL,nyCL,nzCL) :: cnt_field
+!    character(30) :: frmt
+!    character(6)  :: atime
 
     ! use middle of synchronisation time step
     interp_time=nint(itime+0.5*lsynctime)
     jul=bdate+real(ldirect*interp_time,kind=dp)/86400.
+    call caldate(jul, jjjjmmdd, hhmmss)
 
     dt1=float(interp_time-memCLtime(1))
     dt2=float(memCLtime(2)-interp_time)
@@ -401,8 +409,9 @@ module chemistry_mod
     dtt2=float(memtime(2)-interp_time)
     dttt=1./(dtt1+dtt2)
 
-    !! test
     print*, 'chemreaction: rate c constants = ',reaccconst(1,:)
+    print*, 'chemreaction: rate d constants = ',reacdconst(1,:)
+    print*, 'chemreaction: rate n constants = ',reacnconst(1,:)
     print*, 'chemreaction: reag_hourly = ',reag_hourly(:)
     print*, 'chemreaction: itime, interp_time, jul = ',itime, interp_time, jul
     print*, 'chemreaction: range(jrate_average) = ',minval(jrate_average),maxval(jrate_average)
@@ -410,17 +419,18 @@ module chemistry_mod
     ! initialization
     chem_loss(:,:)=0d0
 
+!! testing
+!    cnt_field(:,:,:)=0
+!    clr_field(:,:,:)=0.
+
     ! Loop over particles
     !*****************************************
 
-    print*, 'number alive = ',count%alive
-    print*, 'max part number = ',count%ialive(count%alive)
-
 !$OMP PARALLEL &
-!$OMP PRIVATE(ii,jpart,ngrid,j,xtn,ytn,ix,jy,i, &
-!$OMP   xlon,ylat,clx,cly,clz,clzm,altCLtop,dz1,dz2,dzz,nr, &
-!$OMP   cl_tmp,cl_cur,jrx,jry,sza,jrate,jrate_cur,indz, &
-!$OMP   temp,ks,clrate,restmass,clreacted) &
+!$OMP PRIVATE(ii,jpart,ngrid,j,xtn,ytn,ix,jy, &
+!$OMP   xlon,ylat,clx,cly,clz,clzm,kz,altCLtop,dz1,dz2,dzz,nr,i, &
+!$OMP   cl_tmp,cl_cur,jrx,jry,lonjrx,latjry,sza,jrate,jrate_cur, &
+!$OMP   indz,temp,ks,clrate,restmass,clreacted) &
 !$OMP REDUCTION(+:chem_loss) 
 
 !$OMP DO
@@ -467,18 +477,18 @@ module chemistry_mod
       ! get the level of the chem field for the particle
       ! z is the z-coord of the trajectory above model orography in metres
       ! altCL is the height of the centre of the level in the chem field above orography
-      do i=2,nzCL
-        altCLtop(i-1)=altCL(i-1)+0.5*(altCL(i)-altCL(i-1))
+      do kz=2,nzCL
+        altCLtop(kz-1)=altCL(kz-1)+0.5*(altCL(kz)-altCL(kz-1))
       end do
       altCLtop(nzCL)=altCL(nzCL)+0.5*(altCL(nzCL)-altCL(nzCL-1))
       clzm=nzCL-1
-      clz=nzCL
       do clz=1,nzCL
         if (real(part(jpart)%z).lt.altCLtop(clz)) then
           clzm=clz-1
           exit
         endif
       end do
+      clz=min(nzCL,clz)
       if (clzm.eq.0 ) then
         dz1=1.
         dz2=1.
@@ -509,7 +519,9 @@ module chemistry_mod
           jrx=minloc(abs(lonjr-xlon),dim=1)
           jry=minloc(abs(latjr-ylat),dim=1)
           ! calculate solar zenith angle in degrees (sza) 
-          sza=zenithangle(latjr(jry),lonjr(jrx),jul)
+          latjry=latjr(jry)
+          lonjrx=lonjr(jrx)
+          sza=zenithangle(latjry,lonjrx,jjjjmmdd,hhmmss)
           ! calculate J(O1D) (jrate)
           jrate=photo_O1D(sza)
           ! note can use dt1, dt2, dtt from above if CL fields also monthly
@@ -525,10 +537,10 @@ module chemistry_mod
         !**********************
 
         if (cl_cur.gt.smallnum) then
-          indz=nz-1
-          do i=2,nz
-            if (height(i).gt.part(jpart)%z) then
-              indz=i-1
+          indz=nz
+          do kz=2,nz
+            if (height(kz).gt.part(jpart)%z) then
+              indz=kz-1
               exit
             endif
           end do
@@ -538,8 +550,11 @@ module chemistry_mod
             if (reaccconst(nr,ks).gt.0.) then
               ! k = CT^Nexp(-D/temp)[reagent]
               clrate=reaccconst(nr,ks)*(temp**reacnconst(nr,ks))*exp(-1.*reacdconst(nr,ks)/temp)*cl_cur
+!! testing
+!              clr_field(clx,cly,clz)=clr_field(clx,cly,clz)+clrate
+!              cnt_field(clx,cly,clz)=cnt_field(clx,cly,clz)+1
               ! new particle mass
-              restmass = mass(jpart,ks)*exp(-1.*clrate*abs(lsynctime))
+              restmass=mass(jpart,ks)*exp(-1.*clrate*abs(lsynctime))
               if (restmass.gt.smallnum) then
                 clreacted=mass(jpart,ks)-restmass
                 mass(jpart,ks)=restmass
@@ -547,11 +562,6 @@ module chemistry_mod
                 clreacted=mass(jpart,ks)
                 mass(jpart,ks)=0.
               endif
-              !! test
-              if (jpart.gt.5000000.and.jpart.lt.5000200) then
-                print*, 'xlon, ylat, zhgt, cl_cur, clreacted, restmass = ',xlon,ylat,part(jpart)%z,cl_cur,clreacted,restmass
-              endif
-              !!
               chem_loss(nr,ks)=chem_loss(nr,ks)+real(clreacted,kind=dp)
             endif
           end do  ! nspec
@@ -563,6 +573,18 @@ module chemistry_mod
 !$OMP END DO
 
 !$OMP END PARALLEL
+
+!! testing
+!    where (cnt_field.gt.0) clr_field=clr_field/cnt_field
+!    write(atime,'(I6.6)') itime
+!    open(300,file=path(2)(1:length(2))//'clr_field_'//atime//'.txt',status='replace',action='write')
+!    write(frmt,fmt='(A,I4,A)') '(',nxCL,'(E14.6))'
+!    do clz=1,nzCL
+!      do cly=1,nyCL
+!        write(300,frmt) clr_field(1:nxCL,cly,clz)
+!      end do
+!    end do
+!    close(300)
 
   end subroutine chemreaction
 
@@ -626,7 +648,7 @@ module chemistry_mod
 
   end subroutine readjrate
 
-  real function photo_O1D(sza)
+  function photo_O1D(sza) result(jrate)
 
   !*****************************************************************************
   !                                                                            *
@@ -646,8 +668,9 @@ module chemistry_mod
 
     implicit none
 
+    real, intent(in)  :: sza
+    real :: jrate
     integer :: iz,ik
-    real :: sza
     real :: z1,z2,zg,f1,f2,dummy
     real :: photo_NO2
     integer, parameter :: nzenith=11
@@ -673,16 +696,15 @@ module chemistry_mod
       f1=alog(fact_photo(ik))
       f2=alog(fact_photo(ik+1))
       photo_NO2=1.45e-2*exp(-0.4/cos(sza*pi/180.))
-      photo_O1D=photo_NO2*exp(f1+(f2-f1)*dummy)
+      jrate=photo_NO2*exp(f1+(f2-f1)*dummy)
     else
-      photo_O1D=0.
+      jrate=0.
     endif
-
-    return
 
   end function photo_O1D
 
-  real function zenithangle(ylat,xlon,jul)
+
+  function zenithangle(ylat,xlon,jjjjmmdd,hhmmss) result(sza)
 
   !*****************************************************************************
   !                                                                            *
@@ -707,17 +729,18 @@ module chemistry_mod
 
     implicit none
 
-    integer :: jjjj,mm,id,iu,minute,yyyymmdd,hhmmss
+    integer,       intent(in)  :: jjjjmmdd,hhmmss
+    real,          intent(in)  :: ylat,xlon
+    real    :: sza
+    integer :: jjjj,mm,id,iu,minute 
     integer :: ndaynum
-    real :: sinsol,solelev,ylat,xlon
+    real :: sinsol,solelev
     real :: rnum,rylat,ttime,dekl,rdekl,eq
     real,parameter :: pi=3.1415927
-    real(kind=dp)  :: jul
 
-    call caldate(jul,yyyymmdd,hhmmss)
-    jjjj=yyyymmdd/10000
-    mm=yyyymmdd/100-jjjj*100
-    id=yyyymmdd-jjjj*10000-mm*100
+    jjjj=jjjjmmdd/10000
+    mm=jjjjmmdd/100-jjjj*100
+    id=jjjjmmdd-jjjj*10000-mm*100
     iu=hhmmss/10000
     minute=hhmmss/100-100*iu
 
@@ -743,28 +766,10 @@ module chemistry_mod
     !sinsol=sin(rylat)*sin(rdekl)+cos(rylat)*cos(rdekl)*
     !    &       cos((eq)*pi/12.)
     solelev=asin(sinsol)*180./pi
-    zenithangle=90.-solelev
-
-    return
+    sza=90.-solelev
 
   end function zenithangle
 
-  !*****************************************************************************
-  !                                                                            *
-  !    netcdf error message handling                                           *
-  !                                                                            *
-  !*****************************************************************************
-
-!  subroutine nf90_err(status)
-!
-!    integer, intent (in) :: status
-!
-!    if(status /= nf90_noerr) then
-!      print*, trim(nf90_strerror(status))
-!      error stop 'Stopped'
-!    end if
-!
-!  end subroutine nf90_err
 
 end module chemistry_mod
 

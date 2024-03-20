@@ -686,11 +686,8 @@ subroutine satelliteout_init_binary
   !                                                                            *
   ! Variables:                                                                 *
   ! numsatreceptor         actual number of satellite receptors                *
-  ! satellitename          names of the satellite receptors                    *
-  ! xsatellite             longitude coordinate                                *
-  ! ysatellite             latitude coordinate                                 *
-  ! zsatellite             altitude coordinates of the layers                  *
-  ! tsatellite             time coordinate of the satellite receptors          *
+  ! nspec                  number of species                                   *
+  ! nlayermax              max number of layers in retrievals                  *
   !                                                                            *
   !*****************************************************************************
 
@@ -717,6 +714,7 @@ subroutine satelliteout_init_binary
       else
         write(unitoutsatellite) nspec
       endif
+      write(unitoutsatellite)   nlayermax
     endif
 
     return  
@@ -801,25 +799,17 @@ subroutine write_satellite_binary(crec,cunc,nnrec,xkrec,nrec)
       ks_start=1
     endif
    
-    !! test
-    print*, 'write_satellite_binary: nrec, satname = ',nrec, satellitename(nrec)
-    print*, 'tsat, latsat, lonsat = ',tsatellite(nrec), ysatellite(nrec), xsatellite(nrec)
-    print*, 'zsat = ',zsatellite(1:nlayermax,nrec)
-    print*, 'nnrec = ',nnrec(1:nlayermax)
-    print*, 'xkrec = ',xkrec(1:nlayermax)
-    print*, 'crec = ',crec(2,1:nlayermax)
-    print*, 'cunc = ',cunc(2,1:nlayermax)
     ! satellite only mixing ratio output
     write(unitoutsatellite) satellitename(nrec)
     write(unitoutsatellite) tsatellite(nrec)
     write(unitoutsatellite) xsatellite(nrec)*dx+xlon0
     write(unitoutsatellite) ysatellite(nrec)*dy+ylat0
-    write(unitoutsatellite) (zsatellite(nl,nrec),nl=1,nlayermax)
-    write(unitoutsatellite) (nnrec(nl),nl=1,nlayermax)
-    write(unitoutsatellite) (xkrec(nl),nl=1,nlayermax)
+    write(unitoutsatellite) zsatellite(:,nrec)
+    write(unitoutsatellite) nnrec(:)
+    write(unitoutsatellite) xkrec(:)
     do ks=ks_start,nspec
-      write(unitoutsatellite) (crec(ks,nl),nl=1,nlayermax)
-      write(unitoutsatellite) (cunc(ks,nl),nl=1,nlayermax)
+      write(unitoutsatellite) crec(ks,:)
+      write(unitoutsatellite) cunc(ks,:)
     end do
 
 end subroutine write_satellite_binary
@@ -965,9 +955,16 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
   ! data to that altitude
   !*******************************************************************
 
+!$OMP PARALLEL &
+!$OMP PRIVATE(kz,halfheight,kzz,dz1,dz2,dz,xl,yl,iix,jjy, &
+!$OMP ix,jy,l,ks,kp,nage,auxgrid) &
+!$OMP REDUCTION(+:wetgridtotal,wetgridsigmatotal, &
+!$OMP drygridtotal,drygridsigmatotal,gridtotal,gridsigmatotal)
+
   if (.not.lctmoutput) then
     ! divide by density
     mind=memind(2)
+!$OMP DO
     do kz=1,numzgrid
       if (kz.eq.1) then
         halfheight=outheight(1)/2.
@@ -997,6 +994,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
         end do
       end do
     end do
+!$OMP END DO
     ! conversion factor for output relative to dry air
     factor_drygrid=densityoutgrid/densitydrygrid
   else
@@ -1006,6 +1004,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
 
   ! Output is different for forward and backward simulations
   if (ldirect.eq.1) then
+!$OMP DO
     do kz=1,numzgrid
       do jy=0,numygrid-1
         do ix=0,numxgrid-1
@@ -1021,6 +1020,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
         end do
       end do
     end do
+!$OMP END DO
   else
     factor3d(:,:,:)=real(abs(loutaver))/outnum
   endif
@@ -1078,7 +1078,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
 
     do kp=1,maxpointspec_act
       do nage=1,nageclass
-
+!$OMP DO
         do jy=0,numygrid-1
           do ix=0,numxgrid-1
 
@@ -1140,6 +1140,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
             end do
           end do
         end do
+!$OMP END DO
 
   !*******************************************************************
   ! Generate output: may be in concentration (ng/m3) or in mixing
@@ -1148,6 +1149,9 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
   ! 1 or -1, first line is number of values, number of positions
   ! For backward simulations, the unit is seconds, stored in grid_time
   !*******************************************************************
+
+!$OMP BARRIER
+!$OMP SINGLE
 
   ! Concentration output
   !*********************
@@ -1374,7 +1378,8 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
           print*, 'concoutput: max(sparse_dump_r) = ',maxval(sparse_dump_r)
 
         endif ! output for ppt
-
+!$OMP END SINGLE
+!$OMP BARRIER
       end do
     end do
 
@@ -1382,6 +1387,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
     close(unitoutgrid)
 
   end do
+!$OMP END PARALLEL
 
   ! Write out conversion factor for dry air
   !****************************************
@@ -1540,6 +1546,12 @@ subroutine concoutput_nest(itime,outnum)
   !*******************************************************************
 
   mind=memind(2)
+
+!$OMP PARALLEL &
+!$OMP PRIVATE(halfheight,kzz,dz1,dz2,dz,xl,yl,iix,jjy, &
+!$OMP kz,ix,jy,l,ks,kp,nage,auxgrid) 
+
+!$OMP DO
   do kz=1,numzgrid
     if (kz.eq.1) then
       halfheight=outheight(1)/2.
@@ -1548,9 +1560,9 @@ subroutine concoutput_nest(itime,outnum)
     endif
     do kzz=2,nz
       if ((height(kzz-1).lt.halfheight).and. &
-           (height(kzz).gt.halfheight)) goto 46
+           (height(kzz).gt.halfheight)) exit
     end do
-46   kzz=max(min(kzz,nz),2)
+    kzz=max(min(kzz,nz),2)
     dz1=halfheight-height(kzz-1)
     dz2=height(kzz)-halfheight
     dz=dz1+dz2
@@ -1569,6 +1581,7 @@ subroutine concoutput_nest(itime,outnum)
       end do
     end do
   end do
+!$OMP END DO
 
   ! conversion factor for output relative to dry air
   factor_drygrid=densityoutgrid/densitydrygrid
@@ -1622,7 +1635,7 @@ subroutine concoutput_nest(itime,outnum)
 
     do kp=1,maxpointspec_act
       do nage=1,nageclass
-
+!$OMP DO
         do jy=0,numygridn-1
           do ix=0,numxgridn-1
 
@@ -1673,9 +1686,9 @@ subroutine concoutput_nest(itime,outnum)
                    gridsigma(ix,jy,kz)* &
                    sqrt(real(nclassunc))
             end do
-          end do
-        end do
-
+          end do ! ix
+        end do ! jy
+!$OMP END DO
 
   !*******************************************************************
   ! Generate output: may be in concentration (ng/m3) or in mixing
@@ -1684,6 +1697,9 @@ subroutine concoutput_nest(itime,outnum)
   ! 1 or -1, first line is number of values, number of positions
   ! For backward simulations, the unit is seconds, stored in grid_time
   !*******************************************************************
+
+!$OMP BARRIER
+!$OMP SINGLE
 
   ! Concentration output
   !*********************
@@ -1900,7 +1916,8 @@ subroutine concoutput_nest(itime,outnum)
           write(unitoutgridppt) (sparse_dump_r(i),i=1,sp_count_r)
 
         endif ! output for ppt
-
+!$OMP END SINGLE
+!$OMP BARRIER
       end do
     end do
 
@@ -1908,6 +1925,7 @@ subroutine concoutput_nest(itime,outnum)
     close(unitoutgrid)
 
   end do
+!$OMP END PARALLEL
 
   ! Write out conversion factor for dry air
   !****************************************

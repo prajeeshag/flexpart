@@ -316,7 +316,7 @@ subroutine timemanager
       end do
 
 #ifdef ETA
-!$OMP PARALLEL PRIVATE(i)
+!$OMP PARALLEL PRIVATE(i,j)
 !$OMP DO
       do i=1,count%alive
         j=count%ialive(i)

@@ -626,8 +626,7 @@ module initdomain_mod
     ! Initialise the sum over the total mass of the atmosphere
     colmasstotal=0.
 
-!$OMP PARALLEL PRIVATE(jy,ix,ylat,ylatp,ylatm,hzone,cosfactp,cosfactm,pp) &
-!$OMP REDUCTION(+:colmasstotal)
+!$OMP PARALLEL PRIVATE(jy,ix,ylat,ylatp,ylatm,hzone,cosfactp,cosfactm,pp) 
 
 !$OMP DO
     ! loop over latitudes
@@ -664,12 +663,12 @@ module initdomain_mod
         pp(1)=prs(ix,jy,1,1)
         pp(nz)=prs(ix,jy,nz,1)
         colmass(ix,jy)=(pp(1)-pp(nz))/ga*gridarea(jy)
-        colmasstotal=colmasstotal+colmass(ix,jy)
       end do
     end do
 !$OMP END DO
 !$OMP END PARALLEL
 
+    colmasstotal=sum(colmass)
     write(*,*) 'Atmospheric mass air = ',colmasstotal
 
     ! Output of colmass distribution

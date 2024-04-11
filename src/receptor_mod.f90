@@ -83,6 +83,8 @@ module receptor_mod
   !                                                                            *
   !*****************************************************************************
 
+    use omp_lib, only: OMP_GET_MAX_THREADS, OMP_GET_THREAD_NUM
+
     implicit none
 
     integer   :: itime, lrecoutstart, lrecoutend, lrecoutnext
@@ -94,15 +96,27 @@ module receptor_mod
     character :: adate*8, atime*6
     integer   :: jjjjmmdd, ihmmss
     integer   :: numsatlayer, nchar, ks_start
-    integer   :: n, nn, ix, jy, ixp, jyp, indz, indzp, il, ind, ks, k, kz
+    integer   :: n, nn, nr, ix, jy, ixp, jyp, indz, indzp, il, ind, ks, k, kz
     real      :: ddx, ddy, rddx, rddy, p1, p2, p3, p4, dz1, dz2, dz
     real      :: rhoi, zmid
     real, dimension(2) :: rho_p
-    real, dimension(:), allocatable   :: densityoutrecept, nnrec, xkrec
-    real, dimension(:,:), allocatable :: crec, cunc
+    real, dimension(:), allocatable        :: densityoutrecept
+    real, dimension(:,:), allocatable      :: nnrec, xkrec, altrec
+    real, dimension(:), allocatable        :: lonrec, latrec
+    integer, dimension(:), allocatable     :: timerec
+    real, dimension(:,:,:), allocatable    :: crec, cunc
+    character(len=16), dimension(:), allocatable :: namerec
+    real, dimension(:,:,:), allocatable    :: nnrec_omp, xkrec_omp, altrec_omp
+    real, dimension(:,:), allocatable      :: lonrec_omp, latrec_omp
+    integer, dimension(:,:), allocatable   :: timerec_omp
+    real, dimension(:,:,:,:), allocatable  :: crec_omp, cunc_omp
+    character(len=16), dimension(:,:), allocatable :: namerec_omp
+    integer, dimension(:), allocatable     :: nr_omp
     real, parameter :: weightair=28.97
     integer, parameter :: unitoutrecdates=109
     logical :: lexist
+    integer :: nthreads, thread, ithread
+
 
     if (llcmoutput) then
       ks_start=2
@@ -116,7 +130,6 @@ module receptor_mod
       else
         weight=1.0
       endif
-      write(*,*) 'calling receptorcalc at itime = ',itime
       call receptorcalc(itime,weight,lrecoutstart,lrecoutend,recoutnum,recoutnumsat)
     endif
 
@@ -126,7 +139,6 @@ module receptor_mod
       !*******************************
 
       if ((iout.le.3.).or.(iout.eq.5)) then
-        write(*,*) 'calling receptoroutput at itime = ',itime
 
         ! Determine current date for output in dates_receptor file
         !**********************************************************
@@ -153,36 +165,77 @@ module receptor_mod
         if (lnetcdfout.eq.1) then
 #ifdef USE_NCF
           if (numreceptor.gt.0) then
-            print*, 'before: nc_id, concvar_id = ',nc_id, concvar_id
             call receptor_output_netcdf()
-            print*, 'after: nc_id, concvar_id = ',nc_id, concvar_id
           endif
           if (numsatreceptor.gt.0) then
-            print*, 'before: ncsat_id, satvar_id = ',ncsat_id, satvar_id
             call satellite_output_netcdf()
-            print*, 'after: ncsat_id, satvar_id = ',ncsat_id, satvar_id
           endif
 #endif
         endif
 
+        !! testing
+        print*, 'receptor_mod: concvar_id = ',concvar_id
+        print*, 'receptor_mod: satvar_id = ',satvar_id
+
+
         ! Initialize variables
         !*********************
 
-        allocate(densityoutrecept(nlayermax),nnrec(nlayermax),xkrec(nlayermax))
-        allocate(crec(nspec,nlayermax),cunc(nspec,nlayermax))
-        nnrec(:)=0.
-        xkrec(:)=0.
-        crec(:,:)=0.
-        cunc(:,:)=0.
+#if (defined _OPENMP)
+        nthreads=OMP_GET_MAX_THREADS()
+#else
+        nthreads=1
+#endif
+
+        !! testing
+        print*, 'receptor_mod: nthread = ',nthreads
+
+        allocate(densityoutrecept(nlayermax))
+        allocate(nnrec(maxrecsample,nlayermax),&
+                 xkrec(maxrecsample,nlayermax),&
+                 lonrec(maxrecsample),&
+                 latrec(maxrecsample),&
+                 altrec(maxrecsample,nlayermax),&
+                 namerec(maxrecsample),&
+                 timerec(maxrecsample),&
+                 crec(nspec,maxrecsample,nlayermax),&
+                 cunc(nspec,maxrecsample,nlayermax))
+        allocate(nnrec_omp(maxrecsample,nlayermax,nthreads),&
+                 xkrec_omp(maxrecsample,nlayermax,nthreads),&
+                 lonrec_omp(maxrecsample,nthreads),&
+                 latrec_omp(maxrecsample,nthreads),&
+                 altrec_omp(maxrecsample,nlayermax,nthreads),&
+                 namerec_omp(maxrecsample,nthreads),&
+                 timerec_omp(maxrecsample,nthreads),&
+                 crec_omp(nspec,maxrecsample,nlayermax,nthreads),&
+                 cunc_omp(nspec,maxrecsample,nlayermax,nthreads))
+        allocate(nr_omp(nthreads))
+        nnrec(:,:)=0.
+        xkrec(:,:)=0.
+        crec(:,:,:)=0.
+        cunc(:,:,:)=0.
+        nnrec_omp(:,:,:)=0.
+        xkrec_omp(:,:,:)=0.
+        crec_omp(:,:,:,:)=0.
+        cunc_omp(:,:,:,:)=0.
+        nr_omp(:)=0
 
         ! Loop over general receptors
         !**************************** 
 
 !$OMP PARALLEL &
-!$OMP PRIVATE(n,k,ix,jy,ixp,jyp,ddx,ddy,rddx,rddy,p1,p2,p3,p4,indz,indzp,il,dz1,dz2,dz, &
-!$OMP         ind,rho_p,rhoi,densityoutrecept,ks,crec,cunc,nnrec,xkrec) &
-!$OMP SHARED(rpointer) 
+!$OMP PRIVATE(n,k,nn,nr,ix,jy,ixp,jyp,ddx,ddy,rddx,rddy,p1,p2,p3,p4,indz,indzp,il,dz1,dz2,dz, &
+!$OMP         ind,rho_p,rhoi,densityoutrecept,ks,thread) 
 
+#if (defined _OPENMP)
+        thread=OMP_GET_THREAD_NUM()+1 ! Starts with 1
+#else
+        thread=1
+#endif
+        !! testing
+        print*, 'receptor_mod: thread = ',thread
+
+        nr=0
 !$OMP DO
         do n=1,numreceptor
 
@@ -194,11 +247,17 @@ module receptor_mod
             if (cpointer(k).eq.n) exit
           end do
 
-          !! test
-          write(*,*) 'receptoroutput: lrecoutstart, lrecoutend, treceptor(n) = ',lrecoutstart, lrecoutend, treceptor(n)
-          write(*,*) 'receptoroutput: n, cpointer(k), rpointer = ',n, cpointer(k), rpointer
+          ! counter of receptor values this time interval
+          nr=nr+1
+          nr_omp(thread)=nr
+          
+          !! testing
+          if (n.lt.40) then
+            print*, 'receptor_mod: n, thread, nr, cpointer(k), rpointer = ',n, thread, nr, cpointer(k), rpointer
+          endif
 
-          if (.not.llcmoutput) then
+          if (((.not.llcmoutput).and.(iout.eq.2)).or.&
+              (llcmoutput.and.((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)))) then
 
             ! Compute air density
             !*********************
@@ -247,73 +306,127 @@ module receptor_mod
 !                 p4*rho(ixp,jyp,ind,2)*(1. - qv(ixp,jyp,ind,2))
             end do
             rhoi=(dz1*rho_p(2)+dz2*rho_p(1))*dz
-            densityoutrecept(1)=rhoi
+
+            if (.not.llcmoutput) then
+              densityoutrecept(1)=1./rhoi
+            else
+              densityoutrecept(1)=rhoi
+            endif
 
           else 
 
-            ! no normalization by air density
+            ! no multiplication or division by air density
             densityoutrecept(1)=1.
 
           endif ! llcmoutput
 
           ! Write receptor output
           !**********************
+          ! llcmoutput = true: creceptor = m_spec/m_air
+          ! llcmoutput = false: creceptor = m_spec/V                   
 
           if (recoutnum(k).gt.0.) then
             do ks = ks_start,nspec
               ! write mass concentration
               if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
                 ! concentration (ng/m3)
-                crec(ks,1)=creceptor(ks,k)*1.E12/recoutnum(k)
-                cunc(ks,1)=crecuncert(ks,k)*1.E12/recoutnum(k)
+                crec_omp(ks,nr,1,thread)=creceptor(ks,k)*1.E12*densityoutrecept(1)/recoutnum(k)
+                cunc_omp(ks,nr,1,thread)=crecuncert(ks,k)*1.E12*densityoutrecept(1)/recoutnum(k)
               else if (iout.eq.2) then
                 ! mixing ratio (ppt)
                 ! note: for iout=3 (both conc and mixing ratio) only output conc at receptors
-                crec(ks,1)=creceptor(ks,k)*1.E12*weightair/weightmolar(ks)/ &
-                              densityoutrecept(1)/recoutnum(k)
-                cunc(ks,1)=crecuncert(ks,k)*1.E12*weightair/weightmolar(ks)/ &
-                              densityoutrecept(1)/recoutnum(k)
+                crec_omp(ks,nr,1,thread)=creceptor(ks,k)*1.E12*densityoutrecept(1)* &
+                              weightair/weightmolar(ks)/recoutnum(k)
+                cunc_omp(ks,nr,1,thread)=crecuncert(ks,k)*1.E12*densityoutrecept(1)* &
+                              weightair/weightmolar(ks)/recoutnum(k)
               endif
             end do
-            nnrec(1)=nnreceptor(k)/recoutnum(k)
-            xkrec(1)=xkreceptor(k)/recoutnum(k)
+            nnrec_omp(nr,1,thread)=nnreceptor(k)/recoutnum(k)
+            xkrec_omp(nr,1,thread)=xkreceptor(k)/recoutnum(k)
           else
             ! no particles found in kernel for this receptor
-            crec(:,1)=-999.
-            cunc(:,1)=-999.
-            nnrec(1)=-999.
-            xkrec(1)=-999.
+            crec_omp(:,nr,1,thread)=-999.
+            cunc_omp(:,nr,1,thread)=-999.
+            nnrec_omp(nr,1,thread)=-999.
+            xkrec_omp(nr,1,thread)=-999.
           endif
-
-!$OMP CRITICAL
-          ! write receptor output this time interval 
-          if (lnetcdfout.eq.1) then
-#if USE_NCF
-            call write_receptor_netcdf(crec,cunc,nnrec,xkrec,n)
-#endif
-          else
-            call write_receptor_binary(crec,cunc,nnrec,xkrec,n)
-          endif
-
-          ! advance output time index
-          rpointer=rpointer+1
-!$OMP END CRITICAL
+          lonrec_omp(nr,thread)=xreceptor(n)*dx+xlon0
+          latrec_omp(nr,thread)=yreceptor(n)*dy+ylat0
+          altrec_omp(nr,1,thread)=zreceptor(n)
+          timerec_omp(nr,thread)=treceptor(n)
+          namerec_omp(nr,thread)=receptorname(n)
 
         end do ! numreceptor
 !$OMP END DO
 !$OMP END PARALLEL
 
-        !! test
-        write(*,*) 'receptoroutput: rpointer = ',rpointer
+        ! concatentate from all threads
+        nr=1
+        do ithread=1,nthreads
+          !! testing
+          print*, 'receptor_mod: nr_omp(ithread) = ',nr_omp(ithread)
+          if (nr_omp(ithread).eq.0) cycle
+          crec(:,nr:(nr+nr_omp(ithread)-1),1)=crec_omp(:,1:nr_omp(ithread),1,ithread)
+          cunc(:,nr:(nr+nr_omp(ithread)-1),1)=cunc_omp(:,1:nr_omp(ithread),1,ithread)
+          nnrec(nr:(nr+nr_omp(ithread)-1),1)=nnrec_omp(1:nr_omp(ithread),1,ithread)
+          xkrec(nr:(nr+nr_omp(ithread)-1),1)=xkrec_omp(1:nr_omp(ithread),1,ithread)
+          lonrec(nr:(nr+nr_omp(ithread)-1))=lonrec_omp(1:nr_omp(ithread),ithread)
+          latrec(nr:(nr+nr_omp(ithread)-1))=latrec_omp(1:nr_omp(ithread),ithread)
+          altrec(nr:(nr+nr_omp(ithread)-1),1)=altrec_omp(1:nr_omp(ithread),1,ithread)
+          timerec(nr:(nr+nr_omp(ithread)-1))=timerec_omp(1:nr_omp(ithread),ithread)
+          namerec(nr:(nr+nr_omp(ithread)-1))=namerec_omp(1:nr_omp(ithread),ithread)
+          nr=nr+nr_omp(ithread)
+          !! testing
+          print*, 'receptor_mod: nr = ',nr
+        end do
+
+        ! total number of receptors to write this interval
+        nr=nr-1
+
+        ! write receptor output this time interval
+        if (nr.gt.0) then
+          if (lnetcdfout.eq.1) then
+#if USE_NCF
+            call write_receptor_netcdf(crec,cunc,nnrec,xkrec,lonrec,latrec,altrec,timerec,namerec,nr)
+#endif
+          else
+            call write_receptor_binary(crec,cunc,nnrec,xkrec,lonrec,latrec,altrec,timerec,namerec,nr)
+          endif
+        endif
+        ! advance output index
+        rpointer=rpointer+nr
+        
+        !! testing
+        print*, 'receptor_mod: nr_omp = ',nr_omp
+        print*, 'receptor_mod: rpointer = ',rpointer
 
         ! Loop over satellites
         !*********************
 
-!$OMP PARALLEL &
-!$OMP PRIVATE(n,k,ix,jy,ixp,jyp,ddx,ddy,rddx,rddy,p1,p2,p3,p4,kz,numsatlayer,zmid,indz,indzp, &
-!$OMP         il,dz1,dz2,dz,ind,rho_p,rhoi,densityoutrecept,ks,crec,cunc,nnrec,xkrec) &
-!$OMP SHARED(spointer) 
+        nnrec(:,:)=0.
+        xkrec(:,:)=0.
+        crec(:,:,:)=0.
+        cunc(:,:,:)=0.
+        nnrec_omp(:,:,:)=0.
+        xkrec_omp(:,:,:)=0.
+        crec_omp(:,:,:,:)=0.
+        cunc_omp(:,:,:,:)=0.
+        nr_omp(:)=0
 
+!$OMP PARALLEL &
+!$OMP PRIVATE(n,nr,nn,nchar,k,ix,jy,ixp,jyp,ddx,ddy,rddx,rddy,p1,p2,p3,p4,kz,numsatlayer,zmid,indz,indzp, &
+!$OMP         il,dz1,dz2,dz,ind,rho_p,rhoi,densityoutrecept,ks,thread)
+
+#if (defined _OPENMP)
+        thread=OMP_GET_THREAD_NUM()+1 ! Starts with 1
+#else
+        thread=1
+#endif
+
+        !! testing
+        print*, 'receptor_mod: satellites, thread = ',thread
+
+        nr=0
 !$OMP DO
         do n=1,numsatreceptor
 
@@ -324,8 +437,13 @@ module receptor_mod
           do k=1,maxrecsample
             if (csatpointer(k).eq.n) exit
           end do
-          !! test
-          write(*,*) 'receptoroutput: n, csatpointer(k) = ',n, csatpointer(k)
+
+          ! counter of receptor values this time interval
+          nr=nr+1
+          nr_omp(thread)=nr
+
+          !! testing
+          print*, 'receptor_mod: n, thread, nr, csatpointer(k) = ',n, thread, nr, csatpointer(k)
 
           ! get actual number vertical layers for this retrieval
           do nn=1,numsatellite
@@ -388,7 +506,7 @@ module receptor_mod
 !                   p4*rho(ixp,jyp,ind,2)*(1. - qv(ixp,jyp,ind,2))
               end do
               rhoi=(dz1*rho_p(2)+dz2*rho_p(1))*dz
-              densityoutrecept(kz)=rhoi
+              densityoutrecept(kz)=1./rhoi
  
             end do ! numsatlayer  
 
@@ -405,47 +523,70 @@ module receptor_mod
           do kz=1,numsatlayer
             if (recoutnumsat(kz,k).gt.0.) then
               do ks = ks_start,nspec
-                ! write mass concentration
-                if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
-                  ! concentration (ng/m3)
-                  crec(ks,kz)=csatellite(ks,kz,k)*1.E12/recoutnumsat(kz,k)
-                  cunc(ks,kz)=csatuncert(ks,kz,k)*1.E12/recoutnumsat(kz,k)
-                else if (iout.eq.2) then
-                  ! mixing ratio (ppt)
-                  ! note: for iout=3 (both conc and mixing ratio) only output conc at receptors
-                  crec(ks,kz)=csatellite(ks,kz,k)*1.E12*weightair/weightmolar(ks)/ &
-                                densityoutrecept(kz)/recoutnumsat(kz,k)
-                  cunc(ks,kz)=csatuncert(ks,kz,k)*1.E12*weightair/weightmolar(ks)/ &
-                                densityoutrecept(kz)/recoutnumsat(kz,k)
-                endif
+                ! only mixing ratio (ppt) for satellites
+                crec_omp(ks,nr,kz,thread)=csatellite(ks,kz,k)*1.E12*densityoutrecept(kz)* &
+                              weightair/weightmolar(ks)/recoutnumsat(kz,k)
+                cunc_omp(ks,nr,kz,thread)=csatuncert(ks,kz,k)*1.E12*densityoutrecept(kz)* &
+                              weightair/weightmolar(ks)/recoutnumsat(kz,k)
               end do
-              nnrec(kz)=nnsatellite(kz,k)/recoutnumsat(kz,k)
-              xkrec(kz)=xksatellite(kz,k)/recoutnumsat(kz,k)
+              nnrec_omp(nr,kz,thread)=nnsatellite(kz,k)/recoutnumsat(kz,k)
+              xkrec_omp(nr,kz,thread)=xksatellite(kz,k)/recoutnumsat(kz,k)
             else
-              crec(:,kz)=-999.
-              cunc(:,kz)=-999.
-              nnrec(kz)=-999.
-              xkrec(kz)=-999.
+              crec_omp(:,nr,kz,thread)=-999.
+              cunc_omp(:,nr,kz,thread)=-999.
+              nnrec_omp(nr,kz,thread)=-999.
+              xkrec_omp(nr,kz,thread)=-999.
             endif
           end do
-
-!$OMP CRITICAL
-          ! write satellite output this time interval
-          if (lnetcdfout.eq.1) then
-#if USE_NCF
-            call write_satellite_netcdf(crec,cunc,nnrec,xkrec,n)
-#endif  
-          else
-            call write_satellite_binary(crec,cunc,nnrec,xkrec,n)
-          endif
-
-          ! advance output time index
-          spointer=spointer+1
-!$OMP END CRITICAL
+          lonrec_omp(nr,thread)=xsatellite(n)*dx+xlon0
+          latrec_omp(nr,thread)=ysatellite(n)*dy+ylat0
+          altrec_omp(nr,:,thread)=zsatellite(:,n)
+          timerec_omp(nr,thread)=tsatellite(n)
+          namerec_omp(nr,thread)=satellitename(n)
 
         end do ! numsatreceptor
 !$OMP END DO
 !$OMP END PARALLEL
+
+        ! concatentate from all threads
+        nr=1
+        do ithread=1,nthreads
+          !! testing
+          print*, 'receptor_mod: satellites, nr_omp(ithread) = ',nr_omp(ithread)
+          if (nr_omp(ithread).eq.0) cycle
+          crec(:,nr:nr+nr_omp(ithread)-1,:)=crec_omp(:,1:nr_omp(ithread),:,ithread)
+          cunc(:,nr:nr+nr_omp(ithread)-1,:)=cunc_omp(:,1:nr_omp(ithread),:,ithread)
+          nnrec(nr:nr+nr_omp(ithread)-1,:)=nnrec_omp(1:nr_omp(ithread),:,ithread)
+          xkrec(nr:nr+nr_omp(ithread)-1,:)=xkrec_omp(1:nr_omp(ithread),:,ithread)
+          lonrec(nr:nr+nr_omp(ithread)-1)=lonrec_omp(1:nr_omp(ithread),ithread)
+          latrec(nr:nr+nr_omp(ithread)-1)=latrec_omp(1:nr_omp(ithread),ithread)
+          altrec(nr:nr+nr_omp(ithread)-1,:)=altrec_omp(1:nr_omp(ithread),:,ithread)
+          timerec(nr:nr+nr_omp(ithread)-1)=timerec_omp(1:nr_omp(ithread),ithread)
+          namerec(nr:nr+nr_omp(ithread)-1)=namerec_omp(1:nr_omp(ithread),ithread)
+          nr=nr+nr_omp(ithread)
+          !! testing
+          print*, 'receptor_mod: satellites, nr = ',nr
+        end do
+
+        ! total number of receptors to write this interval
+        nr=nr-1
+
+        ! write satellite output this time interval
+        if (nr.gt.0) then
+          if (lnetcdfout.eq.1) then
+#if USE_NCF
+            call write_satellite_netcdf(crec,cunc,nnrec,xkrec,lonrec,latrec,altrec,timerec,namerec,nr)
+#endif  
+          else
+            call write_satellite_binary(crec,cunc,nnrec,xkrec,lonrec,latrec,altrec,timerec,namerec,nr)
+          endif
+        endif
+        ! advance output index
+        spointer=spointer+nr
+
+        !! testing
+        print*, 'receptor_mod: satellites, nr_omp = ',nr_omp
+        print*, 'receptor_mod: spointer = ',spointer
 
         ! close files
         if (lnetcdfout.eq.1) then
@@ -462,8 +603,12 @@ module receptor_mod
         ! Reinitialization
         !*****************
 
-        deallocate(densityoutrecept,nnrec,xkrec)
-        deallocate(crec,cunc)
+        deallocate(densityoutrecept)
+        deallocate(crec,cunc,nnrec,xkrec)
+        deallocate(crec_omp,cunc_omp,nnrec_omp,xkrec_omp)
+        deallocate(lonrec,latrec,altrec,timerec,namerec)
+        deallocate(lonrec_omp,latrec_omp,altrec_omp,timerec_omp,namerec_omp)
+        deallocate(nr_omp)
 
         creceptor(:,:)=0.
         crecuncert(:,:)=0.
@@ -562,9 +707,6 @@ module receptor_mod
     hxsat=hxsat/dx
     hysat=hysat/dy
 
-    write(*,*) 'hxmax, hymax = ',hxmax, hymax
-    write(*,*) 'hxsat, hysat = ',hxsat, hysat
-
     ! Loop over receptors
     !********************
 
@@ -577,9 +719,6 @@ module receptor_mod
       if ((treceptor(n).lt.lrecoutstart).or. &
            (treceptor(n).gt.lrecoutend)) cycle  ! skip if not in current sampling time interval
 
-      !! test
-      write(*,*) 'receptorcalc: lrecoutstart, lrecoutend, treceptor(n) = ',lrecoutstart, lrecoutend, treceptor(n)
-
       ! update pointer
       k=k+1
       if (k.gt.maxrecsample) then
@@ -589,7 +728,7 @@ module receptor_mod
       cpointer(k)=n
 
       !! test
-      write(*,*) 'receptorcalc: n, receptorname(n) = ',n, receptorname(n)
+      print*, 'receptorcalc: n, receptorname(n) = ',n, receptorname(n)
 
       ! Reset concentrations for new receptor
       conc(:)=0.
@@ -608,10 +747,12 @@ module receptor_mod
       h=hxmax*hymax*hzmax
 
       !! test
-      write(*,*) 'receptorcalc: rec_ff = ',rec_ff
+!      print*, 'receptorcalc: rec_ff = ',rec_ff
 
       ! Estimate concentration at receptor
       !***********************************
+
+!! TO DO: replace ATOMIC with j variable with dim of thread
 
 !$OMP PARALLEL &
 !$OMP PRIVATE(i,itage,hz,zd,hx,xd,hy,yd,h,r2,xkern,ks) &
@@ -670,12 +811,12 @@ module receptor_mod
         j=j+1
         if (j.gt.jmax) then
           write(*,*) 'FLEXPART ERROR in receptorcalc: size of jmax too small'
-          stop
+          error stop
         endif
 
         do ks=ks_start,nspec
           if (llcmoutput) then
-            ! special case LCM output use mass ratio species to airtracer
+            ! special case CTM output use mass ratio species to airtracer
             ! species 1 is always airtracer
             conc(ks)=conc(ks) + mass(i,ks)/mass(i,1) * &
                       weight * xkern
@@ -695,6 +836,8 @@ module receptor_mod
 !$OMP END DO
 !$OMP END PARALLEL
 
+!$OMP PARALLEL IF(nspec>99) PRIVATE(ks)
+!$OMP DO
       do ks=ks_start,nspec
         if (conc(ks).gt.0.) then
           ! only do if conc could be calculated for this receptor at this time
@@ -703,17 +846,19 @@ module receptor_mod
                                sqrt(sum((unc(ks,1:j)-conc(ks)/xksum/weight)**2)/real(j))
         endif
       end do
+!$OMP END DO
+!$OMP END PARALLEL
       if (any(conc(:).gt.0.)) then
         recoutnum(k)=recoutnum(k)+weight
       endif
 
       !! test
-      write(*,*) 'receptorcalc: j, conc, xksum = ',j, conc(2), xksum
-      write(*,*) 'receptorcalc: n, k, cpointer(k) = ',n, k, cpointer(k)
-      write(*,*) 'receptorcalc: nnreceptor(k) = ',nnreceptor(k)
-      write(*,*) 'receptorcalc: xkreceptor(k) = ',xkreceptor(k)
-      write(*,*) 'receptorcalc: creceptor(2,k) = ',creceptor(2,k)
-      write(*,*) 'receptorcalc: crecuncert(2,k) = ',crecuncert(2,k)
+!      print*, 'receptorcalc: j, conc, xksum = ',j, conc(2), xksum
+!      print*, 'receptorcalc: n, k, cpointer(k) = ',n, k, cpointer(k)
+!      print*, 'receptorcalc: nnreceptor(k) = ',nnreceptor(k)
+!      print*, 'receptorcalc: xkreceptor(k) = ',xkreceptor(k)
+!      print*, 'receptorcalc: creceptor(2,k) = ',creceptor(2,k)
+!      print*, 'receptorcalc: crecuncert(2,k) = ',crecuncert(2,k)
 
     end do ! numreceptor
 
@@ -730,13 +875,13 @@ module receptor_mod
            (tsatellite(n).gt.lrecoutend)) cycle  ! skip if not in current sampling time interval
    
        !! test
-      write(*,*) 'receptorcalc: lrecoutstart, lrecoutend, tsatellite(n) = ',lrecoutstart, lrecoutend, tsatellite(n)
+!       print*, 'receptorcalc: lrecoutstart, lrecoutend, tsatellite(n) = ',lrecoutstart, lrecoutend, tsatellite(n)
 
       ! update pointer
       k=k+1
       if (k.gt.maxrecsample) then
         write(*,*) 'FLEXPART ERROR in receptorcalc: maxrecsample too small'
-        stop
+        error stop
       endif
       csatpointer(k)=n
 
@@ -750,7 +895,7 @@ module receptor_mod
       end do
 
       !! test
-      write(*,*) 'receptorcalc: n, satellitename(n) = ',n, satellitename(n)
+!      print*, 'receptorcalc: n, satellitename(n) = ',n, satellitename(n)
 
       do kz=1,numsatlayer
 
@@ -772,13 +917,12 @@ module receptor_mod
 
         ! factor by which to expand horizontal threshhold
         ! as expect particle density to decrease with altitude
-!        eta=max(1.,sqrt(zsatellite(kz,n)/zref))
         eta=max(1.,sqrt(0.5*zmid/zref))
 
         h=hxsat*hysat*(0.5*hz)
 
         !! test
-        write(*,*) 'zmid, hz, eta =',zmid, hz, eta
+!        print*, 'zmid, hz, eta =',zmid, hz, eta
 
 !$OMP PARALLEL &
 !$OMP PRIVATE(i,zd,xd,yd,r2,xkern,ks) &
@@ -810,12 +954,12 @@ module receptor_mod
           j=j+1
           if (j.gt.jmax) then
             write(*,*) 'FLEXPART ERROR in receptorcalc: size of jmax too small'
-            stop
+            error stop
           endif
 
           do ks=ks_start,nspec
             if (llcmoutput) then
-              ! special case LCM output use mass ratio species to airtracer
+              ! special case CTM output use mass ratio species to airtracer
               ! species 1 is always airtracer
               conc(ks)=conc(ks) + mass(i,ks)/mass(i,1) * &
                         weight * xkern
@@ -835,6 +979,8 @@ module receptor_mod
 !$OMP END DO
 !$OMP END PARALLEL
 
+!$OMP PARALLEL IF(nspec>99) PRIVATE(ks)
+!$OMP DO
         do ks=ks_start,nspec
           if (conc(ks).gt.0.) then
             ! only do if conc could be calculated for this receptor and time
@@ -843,15 +989,17 @@ module receptor_mod
                                  sqrt(sum((unc(ks,1:j)-conc(ks)/xksum/weight)**2)/real(j))
           endif
         end do
+!$OMP END DO
+!$OMP END PARALLEL
         if (any(conc(:).gt.0.)) then
           recoutnumsat(kz,k)=recoutnumsat(kz,k)+weight
         endif
 
         !! test
-        write(*,*) 'receptorcalc: for satellite: j, conc, xksum = ',j, conc(2), xksum
-        write(*,*) 'receptorcalc: n, k, csatpointer(k) = ',n, k, csatpointer(k)
-        write(*,*) 'receptorcalc: nnsatellite(:,k) = ',nnsatellite(:,k)
-        write(*,*) 'receptorcalc: xksatellite(:,k) = ',xksatellite(:,k)
+!        print*, 'receptorcalc: for satellite: j, conc, xksum = ',j, conc(2), xksum
+!        print*, 'receptorcalc: n, k, csatpointer(k) = ',n, k, csatpointer(k)
+!        print*, 'receptorcalc: nnsatellite(:,k) = ',nnsatellite(:,k)
+!        print*, 'receptorcalc: xksatellite(:,k) = ',xksatellite(:,k)
 
       end do ! numsatlayer
 

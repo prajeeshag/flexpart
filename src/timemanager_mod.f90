@@ -270,6 +270,7 @@ subroutine timemanager
 #ifdef USE_NCF
     if (CLREA) then
       call getchemfield(itime)
+      call getchemhourly(itime)
     endif
 #endif
         

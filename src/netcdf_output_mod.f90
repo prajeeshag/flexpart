@@ -905,15 +905,23 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
   !    a nested domain (before only from mother domain)
   ! Determine center altitude of output layer, and interpolate density
   ! data to that altitude
+  !
+  ! Note:
+  !  llcmoutput = true: grid is mass_spec/mass_air  
+  !                     for iout 1,3, or 5 multiply by rho
+  !                     for iout 2 multiply by 1
+  !  llcmoutput = false: grid is mass_spec/V
+  !                     for iout 1,3, or 5 multiply by 1
+  !                     for iout 2 multiply by 1/rho
   !*******************************************************************
 
 !$OMP PARALLEL PRIVATE(halfheight,kzz,dz1,dz2,dz,xl,yl,ngrid,iix,jjy, &
 !$OMP kz,ix,jy,l,ks,kp,nage,auxgrid) REDUCTION(+:wetgridtotal,wetgridsigmatotal, &
 !$OMP drygridtotal,drygridsigmatotal,gridtotal,gridsigmatotal)
 
-  if (.not.llcmoutput) then
-    ! no grid density required for llcmoutput 
-
+  if (((.not.llcmoutput).and.(iout.eq.2)).or.&
+      (llcmoutput.and.((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)))) then
+    ! compute density
 !$OMP DO
     do kz=1,numzgrid
       if (kz.eq.1) then
@@ -966,7 +974,12 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
       end do
     end do
 !$OMP END DO NOWAIT
+    if (llcmoutput) then
+      ! because divide grid by densityoutgrid
+      densityoutgrid=1./densityoutgrid
+    endif
   else
+    ! no division by density
     densityoutgrid(:,:,:)=1.
   endif ! llcmoutput
 

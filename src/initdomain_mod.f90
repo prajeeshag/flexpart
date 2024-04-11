@@ -22,6 +22,7 @@ module initdomain_mod
   integer, allocatable, dimension(:)    :: nzini    ! number grid cell vertical
   real, allocatable, dimension(:,:)     :: lonini   ! longitudes of initial fields 
   real, allocatable, dimension(:,:)     :: latini   ! latitudes of initial fields
+  real, allocatable, dimension(:)       :: dxini, dyini ! longitude, latitude resolution of initial fields
   real, allocatable, dimension(:,:)     :: altini   ! altitudes of initial fields
   real, allocatable, dimension(:,:,:,:) :: prsini   ! pressure of initial fields
   real, allocatable, dimension(:,:,:,:) :: gridini  ! initial mixing ratios (dry air, ppbv)
@@ -136,6 +137,7 @@ module initdomain_mod
     ! allocate variables used for initial mixing ratios
     if (.not.allocated(gridini)) then
       allocate( nxini(ninit), nyini(ninit), nzini(ninit) )
+      allocate( dxini(ninit), dyini(ninit) )
       allocate( lonini(nxmax,ninit), latini(nymax,ninit), altini(nzmax,ninit) )
       allocate( prsini(nxmax,nymax,nzmax,ninit), gridini(nxmax,nymax,nzmax,ninit) )
       allocate( specnini(ninit) )
@@ -239,6 +241,7 @@ module initdomain_mod
         nxini(indxn)=len
         call nf90_err( nf90_inq_varid(ncid,trim(dimname),varid) )
         call nf90_err( nf90_get_var(ncid,varid,lonini(1:nxini(indxn),indxn)) )
+        dxini(indxn)=abs(lonini(2,indxn)-lonini(1,indxn))
       else if ((index(dimname,'lat').ne.0).or.(index(dimname,'LAT').ne.0) &
             .or.(index(dimname,'Lat').ne.0)) then
         if (len.gt.nymax) then
@@ -248,6 +251,7 @@ module initdomain_mod
         nyini(indxn)=len
         call nf90_err( nf90_inq_varid(ncid,trim(dimname),varid) )
         call nf90_err( nf90_get_var(ncid,varid,latini(1:nyini(indxn),indxn)) )
+        dyini(indxn)=abs(latini(2,indxn)-latini(1,indxn))
       else if (((index(dimname,'lev').ne.0).or.(index(dimname,'LEV').ne.0) &
             .or.(index(dimname,'Lev').ne.0)).and.(index(dimname,'hlevel').eq.0)) then
         if (len.gt.nzmax) then
@@ -287,9 +291,9 @@ module initdomain_mod
       write(*,*) 'ERROR in reagridini: unable to find lat and lon dimensions in file: '//trim(path_name)//trim(file_name)
       error stop
     endif
-    write(*,*) 'nxini(indxn), nyini(indxn), nzini(indxn) = ',nxini(indxn), nyini(indxn), nzini(indxn)
-    write(*,*) 'lonini(1:nxini(indxn),indxn) = ',lonini(1:nxini(indxn),indxn)
-    write(*,*) 'latini(1:nyini(indxn),indxn) = ',latini(1:nyini(indxn),indxn)
+    write(*,*) 'readgridini: nxini(indxn), nyini(indxn), nzini(indxn) = ',nxini(indxn), nyini(indxn), nzini(indxn)
+    write(*,*) 'readgridini: lonini(1:nxini(indxn),indxn) = ',lonini(1:nxini(indxn),indxn)
+    write(*,*) 'readgridini: latini(1:nyini(indxn),indxn) = ',latini(1:nyini(indxn),indxn)
 
     ! read vertical coordinates
     !**************************
@@ -495,8 +499,8 @@ module initdomain_mod
 
     ! variables for column mass calculation 
     integer,allocatable,dimension(:,:) :: nncolumn
-    real,allocatable,dimension(:)   :: gridarea !
-    real,allocatable,dimension(:,:) :: colmass !
+    real,allocatable,dimension(:)   :: gridarea 
+    real,allocatable,dimension(:,:) :: colmass 
     real,parameter :: weightair=28.97
 
     ! variables to store source profiles
@@ -509,12 +513,6 @@ module initdomain_mod
     ! io variables
     character(30) :: frmt
     integer, parameter :: unitcolmass=98, unitinitconc=99
-
-    !! test
-    real :: ppbvmin, ppbvmax
-
-    ppbvmin=2000.
-    ppbvmax=0.
 
     ! Determine the release region (only full grid cells), over which particles
     ! shall be initialized
@@ -607,7 +605,7 @@ module initdomain_mod
     ! Note gridarea is for meteo grid
     !************************************************************
 
-    write(*,*) 'initdomain_fill: nxmin1, nxmax, nymin1, nymax = ',nxmin1, nxmax, nymin1, nymax
+    write(*,*) 'init_domainfill: nxmin1, nxmax, nymin1, nymax = ',nxmin1, nxmax, nymin1, nymax
 
     ! for the south pole
     if (sglobal) then
@@ -635,11 +633,15 @@ module initdomain_mod
 
     ! Initialise the sum over the total mass of the atmosphere
     colmasstotal=0.
+    colmass(:,:)=0.
 
-!$OMP PARALLEL PRIVATE(jy,ix,ylat,ylatp,ylatm,hzone,cosfactp,cosfactm,pp) 
+    write(*,*) 'init_domainfill: ny_sn, nx_we = ',ny_sn, nx_we
+    write(*,*) 'init_domainfill: dxini, dyini = ',dxini, dyini
 
     allocate( pp(nzmax),stat=stat)
-    if (stat.ne.0) write(*,*)'ERROR: could not allocate pp inside of OMP loop'
+    if (stat.ne.0) write(*,*)'ERROR: could not allocate pp'
+
+!$OMP PARALLEL PRIVATE(jy,ix,ylat,ylatp,ylatm,hzone,cosfactp,cosfactm,pp) 
 
 !$OMP DO
     ! loop over latitudes
@@ -679,8 +681,9 @@ module initdomain_mod
       end do
     end do
 !$OMP END DO
-    deallocate(pp)
 !$OMP END PARALLEL
+
+    deallocate(pp)
 
     colmasstotal=sum(colmass)
     write(*,*) 'Atmospheric mass air = ',colmasstotal
@@ -697,6 +700,7 @@ module initdomain_mod
 
     ! If not continuing from particle dump
     !*************************************
+
     if (ipin.eq.0) numpart=0
 
     ! Determine the particle positions
@@ -705,6 +709,7 @@ module initdomain_mod
     if (stat.ne.0) write(*,*)'ERROR: could not allocate pp'
     numparttot=0
     numcolumn=0
+    iterminate=0
 
     ! allocate all particles before loop
     call spawn_particles(0, npart(1))
@@ -736,11 +741,10 @@ module initdomain_mod
           ! poles), distribute the particles randomly. When only few particles are
           ! left distribute them randomly
 
-!! TESTING
-          if ((ncolumn.gt.20)) then !.and.(ncolumn-j.gt.20)) then
+          if ((ncolumn.gt.20).and.(ncolumn-j.gt.20)) then
             pnew=pnew-deltacol
-!          else if (ncolumn.gt.20) then
-!            pnew=pnew-ran1(idummy,0)*(pnew-pp(nz))
+          else if (ncolumn.gt.20) then
+            pnew=pnew-ran1(idummy,0)*(pnew-pp(nz))
           else
             pnew=pp(1)-ran1(idummy,0)*(pp(1)-pp(nz))
           endif
@@ -864,8 +868,13 @@ module initdomain_mod
                       xl=real(part(numpart+jj)%xlon)*dx+xlon0
                       yl=real(part(numpart+jj)%ylat)*dy+ylat0
                       ! get coordinates in gridini
-                      ixm=minloc(abs(lonini(1:nxini(indxn),indxn)-xl),dim=1)
-                      jym=minloc(abs(latini(1:nyini(indxn),indxn)-yl),dim=1)
+                      ! Assumes lon and lat dimensions are midpoints
+                      ixm=int((xl-(lonini(1,indxn)-0.5*dxini(indxn)))/dxini(indxn))+1
+                      jym=int((yl-(latini(1,indxn)-0.5*dyini(indxn)))/dyini(indxn))+1
+                      !! testing
+                      if (jj.eq.1.and.jy.lt.5.and.ix.lt.5) then 
+                        print*, 'init_domainfill: lonini, xl, latini, yl = ',lonini(ixm,indxn),xl,latini(jym,indxn),yl
+                      endif !!
                       ! Get vertical position in gridini
                       if (any(altini(:,indxn).gt.0)) then
                         ! vertical coordinate in metres above ground
@@ -906,8 +915,6 @@ module initdomain_mod
                       mass(numpart+jj,ks)=mass(numpart+jj,1) * &
                            weightmolar(ks)/weightair * &
                            rho_d_i/rho_m_i*ppbvpart/1.E9
-                      if(ppbvpart.lt.ppbvmin) ppbvmin=ppbvpart
-                      if(ppbvpart.gt.ppbvmax) ppbvmax=ppbvpart
                     end do ! nspec
 
                   else
@@ -951,7 +958,6 @@ module initdomain_mod
 
     end do ! loop over latitude
 
-    write(*,*) 'init_domainfill: range(ppbvpart) = ',ppbvmin,ppbvmax
     write(*,*) 'init_domainfill: numpart, numparttot = ',numpart, numparttot
 
     ! Terminate unused particles
@@ -960,7 +966,7 @@ module initdomain_mod
       call terminate_particle(j,0) ! Cannot be within an OMP region
       iterminate=iterminate+1
     end do  
-    write(*,*) 'initdomain_fill: after terminating extra particles count%alive = ',count%alive
+    write(*,*) 'init_domainfill: after terminating extra particles count%alive = ',count%alive
 
     ! Total mass each species
     !************************
@@ -1005,7 +1011,7 @@ module initdomain_mod
       do ix=nx_we(1),nx_we(2)      ! loop about longitudes
         ncolumn=nint(0.999/fractus*real(npart(1))*colmass(ix,jy) &
            /colmasstotal)
-        if (ncolumn.gt.maxcolumn) stop 'maxcolumn too small'
+        if (ncolumn.gt.maxcolumn) error stop 'maxcolumn too small'
         if (ncolumn.eq.0) cycle
 
         ! Memorize how many particles per column shall be used for all boundaries
@@ -1079,8 +1085,8 @@ module initdomain_mod
     end do
 
     if (deall) call dealloc_particle(numpart) ! deallocates everything above numpart
-    write(*,*) 'initdomain_fill: after dealloc count%alive = ',count%alive
-    write(*,*) 'initdomain_fill: count%allocated = ',count%allocated
+    write(*,*) 'init_domainfill: after dealloc count%alive = ',count%alive
+    write(*,*) 'init_domainfill: count%allocated = ',count%allocated
 
 
     ! If particles shall be read in to continue an existing run,
@@ -1095,8 +1101,9 @@ module initdomain_mod
            zcolumn_we,zcolumn_sn,acc_mass_we,acc_mass_sn
       close(unitboundcond)
     endif
-  
-    deallocate( nncolumn,gridarea,colmass )
+
+    deallocate(pp,nncolumn,gridarea)
+
   end subroutine init_domainfill_ncf
 
   !*****************************************************************************

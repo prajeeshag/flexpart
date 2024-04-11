@@ -727,7 +727,7 @@ subroutine satelliteout_init_binary
 end subroutine satelliteout_init_binary
 
 
-subroutine write_receptor_binary(crec,cunc,nnrec,xkrec,nrec)
+subroutine write_receptor_binary(crec,cunc,nnrec,xkrec,lonrec,latrec,altrec,timerec,namerec,nrec)
 
   !*****************************************************************************
   !                                                                            *
@@ -741,8 +741,11 @@ subroutine write_receptor_binary(crec,cunc,nnrec,xkrec,nrec)
   implicit none
 
     integer :: nrec, ks, ks_start
-    real, dimension(nspec,nlayermax) :: crec, cunc
-    real, dimension(nlayermax) :: nnrec, xkrec
+    real, dimension(nspec,maxrecsample,nlayermax) :: crec, cunc
+    real, dimension(maxrecsample,nlayermax) :: nnrec, xkrec, altrec
+    real, dimension(maxrecsample) :: lonrec, latrec
+    integer, dimension(maxrecsample) :: timerec
+    character(len=16), dimension(maxrecsample) :: namerec
 
     if (llcmoutput) then
       ks_start=2
@@ -751,32 +754,34 @@ subroutine write_receptor_binary(crec,cunc,nnrec,xkrec,nrec)
     endif
 
     if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
-      write(unitoutrecept) receptorname(nrec)
-      write(unitoutrecept) xreceptor(nrec)*dx+xlon0
-      write(unitoutrecept) yreceptor(nrec)*dy+ylat0
-      write(unitoutrecept) zreceptor(nrec)
-      write(unitoutrecept) treceptor(nrec)
-      write(unitoutrecept) nnrec(1)
-      write(unitoutrecept) xkrec(1)
-      write(unitoutrecept) (crec(ks,1),ks=ks_start,nspec)
-      write(unitoutrecept) (cunc(ks,1),ks=ks_start,nspec)
+      write(unitoutrecept) nrec
+      write(unitoutrecept) namerec(1:nrec)
+      write(unitoutrecept) lonrec(1:nrec)
+      write(unitoutrecept) latrec(1:nrec)
+      write(unitoutrecept) altrec(1:nrec,1)
+      write(unitoutrecept) timerec(1:nrec)
+      write(unitoutrecept) nnrec(1:nrec,1)
+      write(unitoutrecept) xkrec(1:nrec,1)
+      write(unitoutrecept) (crec(ks,1:nrec,1),ks=ks_start,nspec)
+      write(unitoutrecept) (cunc(ks,1:nrec,1),ks=ks_start,nspec)
     endif
     if ((iout.eq.2).or.(iout.eq.3)) then
-      write(unitoutreceptppt) receptorname(nrec)
-      write(unitoutreceptppt) xreceptor(nrec)*dx+xlon0
-      write(unitoutreceptppt) yreceptor(nrec)*dy+ylat0
-      write(unitoutreceptppt) zreceptor(nrec)
-      write(unitoutreceptppt) treceptor(nrec)
-      write(unitoutreceptppt) nnrec(1)
-      write(unitoutreceptppt) xkrec(1)
-      write(unitoutreceptppt) (crec(ks,1),ks=ks_start,nspec)
-      write(unitoutreceptppt) (cunc(ks,1),ks=ks_start,nspec)
+      write(unitoutreceptppt) nrec
+      write(unitoutreceptppt) namerec(1:nrec)
+      write(unitoutreceptppt) lonrec(1:nrec)
+      write(unitoutreceptppt) latrec(1:nrec)
+      write(unitoutreceptppt) altrec(1:nrec,1)
+      write(unitoutreceptppt) timerec(1:nrec)
+      write(unitoutreceptppt) nnrec(1:nrec,1)
+      write(unitoutreceptppt) xkrec(1:nrec,1)
+      write(unitoutreceptppt) (crec(ks,1:nrec,1),ks=ks_start,nspec)
+      write(unitoutreceptppt) (cunc(ks,1:nrec,1),ks=ks_start,nspec)
     endif
 
 end subroutine write_receptor_binary
 
 
-subroutine write_satellite_binary(crec,cunc,nnrec,xkrec,nrec)
+subroutine write_satellite_binary(crec,cunc,nnrec,xkrec,lonrec,latrec,altrec,timerec,namerec,nrec)
 
   !*****************************************************************************
   !                                                                            *
@@ -789,9 +794,12 @@ subroutine write_satellite_binary(crec,cunc,nnrec,xkrec,nrec)
 
   implicit none
 
-    integer :: nrec, nl, ks, ks_start
-    real, dimension(nspec,nlayermax) :: crec, cunc
-    real, dimension(nlayermax) :: nnrec, xkrec
+    integer :: nrec, n, ks, ks_start
+    real, dimension(nspec,maxrecsample,nlayermax) :: crec, cunc
+    real, dimension(maxrecsample,nlayermax) :: nnrec, xkrec, altrec
+    real, dimension(maxrecsample) :: lonrec, latrec
+    integer, dimension(maxrecsample) :: timerec
+    character(len=16), dimension(maxrecsample) :: namerec
 
     if (llcmoutput) then
       ks_start=2
@@ -800,16 +808,17 @@ subroutine write_satellite_binary(crec,cunc,nnrec,xkrec,nrec)
     endif
    
     ! satellite only mixing ratio output
-    write(unitoutsatellite) satellitename(nrec)
-    write(unitoutsatellite) tsatellite(nrec)
-    write(unitoutsatellite) xsatellite(nrec)*dx+xlon0
-    write(unitoutsatellite) ysatellite(nrec)*dy+ylat0
-    write(unitoutsatellite) zsatellite(:,nrec)
-    write(unitoutsatellite) nnrec(:)
-    write(unitoutsatellite) xkrec(:)
+    write(unitoutsatellite) nrec
+    write(unitoutsatellite) namerec(1:nrec)
+    write(unitoutsatellite) timerec(1:nrec)
+    write(unitoutsatellite) lonrec(1:nrec)
+    write(unitoutsatellite) latrec(1:nrec)
+    write(unitoutsatellite) (altrec(n,1:nlayermax),n=1,nrec)
+    write(unitoutsatellite) (nnrec(n,1:nlayermax),n=1,nrec)
+    write(unitoutsatellite) (xkrec(n,1:nlayermax),n=1,nrec)
     do ks=ks_start,nspec
-      write(unitoutsatellite) crec(ks,:)
-      write(unitoutsatellite) cunc(ks,:)
+      write(unitoutsatellite) (crec(ks,n,1:nlayermax),n=1,nrec)
+      write(unitoutsatellite) (cunc(ks,n,1:nlayermax),n=1,nrec)
     end do
 
 end subroutine write_satellite_binary
@@ -934,11 +943,7 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
 
 
   if (ldirect.eq.1) then
-    do ks=1,nspec
-      do kp=1,maxpointspec_act
-        tot_mu(ks,kp)=1
-      end do
-    end do
+    tot_mu(:,:)=1.
   else
     do ks=1,nspec
       do kp=1,maxpointspec_act
@@ -953,6 +958,14 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
   ! from coarse grid at some time
   ! Determine center altitude of output layer, and interpolate density
   ! data to that altitude
+  ! 
+  ! Note:
+  !  llcmoutput = true: grid is mass_spec/mass_air  
+  !                     for iout 1,3, or 5 multiply by rho
+  !                     for iout 2 multiply by 1
+  !  llcmoutput = false: grid is mass_spec/V
+  !                     for iout 1,3, or 5 multiply by 1
+  !                     for iout 2 multiply by 1/rho 
   !*******************************************************************
 
 !$OMP PARALLEL &
@@ -961,8 +974,9 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
 !$OMP REDUCTION(+:wetgridtotal,wetgridsigmatotal, &
 !$OMP drygridtotal,drygridsigmatotal,gridtotal,gridsigmatotal)
 
-  if (.not.llcmoutput) then
-    ! divide by density
+  if (((.not.llcmoutput).and.(iout.eq.2)).or.&
+      (llcmoutput.and.((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)))) then
+    ! compute density
     mind=memind(2)
 !$OMP DO
     do kz=1,numzgrid
@@ -997,6 +1011,10 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
 !$OMP END DO
     ! conversion factor for output relative to dry air
     factor_drygrid=densityoutgrid/densitydrygrid
+    if (llcmoutput) then
+      ! because divide grid by densityoutgrid
+      densityoutgrid=1./densityoutgrid
+    endif
   else
     ! no division by density
     densityoutgrid(:,:,:)=1.
@@ -1375,10 +1393,6 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
           write(unitoutgridppt) (sparse_dump_i(i),i=1,sp_count_i)
           write(unitoutgridppt) sp_count_r
           write(unitoutgridppt) (sparse_dump_r(i),i=1,sp_count_r)
-          !! test
-          print*, 'concoutput: sp_count_i = ',sp_count_i
-          print*, 'concoutput: sp_count_r = ',sp_count_r
-          print*, 'concoutput: max(sparse_dump_r) = ',maxval(sparse_dump_r)
 
         endif ! output for ppt
 !$OMP END SINGLE
@@ -1527,16 +1541,12 @@ subroutine concoutput_nest(itime,outnum)
 
 
   if (ldirect.eq.1) then
-     do ks=1,nspec
-       do kp=1,maxpointspec_act
-         tot_mu(ks,kp)=1
-       end do
-     end do
+    tot_mu(:,:)=1.
   else
     do ks=1,nspec
-           do kp=1,maxpointspec_act
-             tot_mu(ks,kp)=xmass(kp,ks)
-           end do
+      do kp=1,maxpointspec_act
+        tot_mu(ks,kp)=xmass(kp,ks)
+      end do
     end do
   endif
 
@@ -2058,10 +2068,8 @@ subroutine concoutput_inversion(itime,outnum,gridtotalunc,wetgridtotalunc, &
     allocate(lstartrel(maxpointspec_act))
     lstartrel(:)=.true.
   endif
-  print*, 'lstartrel = ',lstartrel
 
   if (verbosity.eq.1) then
-    print*,'inside concoutput_inversion '
     CALL SYSTEM_CLOCK(count_clock)
     WRITE(*,*) 'SYSTEM_CLOCK',count_clock - count_clock0   
   endif
@@ -2226,7 +2234,6 @@ subroutine concoutput_inversion(itime,outnum,gridtotalunc,wetgridtotalunc, &
     do kp=1,maxpointspec_act
 
       print*, 'itime = ',itime
-      !print*, 'lage(1) = ',lage(1)
       print*, 'ireleasestart(kp) = ',ireleasestart(kp)
       print*, 'ireleaseend(kp) = ',ireleaseend(kp)
 

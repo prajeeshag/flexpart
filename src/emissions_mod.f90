@@ -26,6 +26,7 @@ module emissions_mod
   logical, parameter :: ABLMIX=.false.  ! mass exchange for particles in same PBL grid cell
 
   integer                               :: nxem, nyem
+  real                                  :: dxem, dyem
   integer, dimension(2)                 :: em_memtime 
   real, allocatable, dimension(:,:,:,:) :: em_field                ! emission fields all species
   real, allocatable, dimension(:)       :: lonem, latem            ! emission field lon and lat
@@ -70,12 +71,10 @@ module emissions_mod
     real          :: f_m
     logical       :: lexist
     integer, parameter :: unittest=120
-    real          :: hmixmax
 
 
     ! fraction of stored emissions that is released in a time step
     em_frac = 1. - exp(-1.*real(lsynctime)/tau_em_r)
-    print*, 'em_frac = ',em_frac
 
     ! distance of emission fields in memory from current time
     em_dt1 = float(itime-em_memtime(1))
@@ -88,7 +87,6 @@ module emissions_mod
     dtt=1./(dt1+dt2)
 
     tot_em_up(:) = 0.
-    hmixmax = 0.
 
     ! estimate mass in PBL from particle positions
     !**********************************************
@@ -100,7 +98,7 @@ module emissions_mod
 !$OMP PARALLEL &
 !$OMP PRIVATE(ii,xlon,ylat,em_ix,em_jy,ix,jy,ixp,jyp,ddx,ddy, &
 !$OMP rddx,rddy,p1,p2,p3,p4,mm,hm,hmixi,ks,em_cur,tmp) &
-!$OMP SHARED(hmixmax,em_cond) 
+!$OMP SHARED(em_cond) 
 
 !$OMP DO REDUCTION(+:mass_field)
     do ii=1,count%alive  ! loop over all particles
@@ -108,8 +106,11 @@ module emissions_mod
       xlon=xlon0+part(ii)%xlon*dx
       ylat=ylat0+part(ii)%ylat*dy
 
-      em_ix = minloc(abs(lonem-xlon),dim=1)
-      em_jy = minloc(abs(latem-ylat),dim=1)
+      ! assume emission dimensions given as grid midpoints
+      em_ix=int((xlon-(lonem(1)-0.5*dxem))/dxem)+1
+      em_jy=int((ylat-(latem(1)-0.5*dyem))/dyem)+1
+      !! testing
+      if (ii.lt.20) print*, 'lonem, lon, latem, lat = ',lonem(em_ix),xlon,latem(em_jy),ylat
 
       ! interpolate to particle position
       ix=int(part(ii)%xlon)
@@ -135,7 +136,6 @@ module emissions_mod
       hmixi=(hm(1)*dt2+hm(2)*dt1)*dtt
       ! set minimum PBL height to dampen day/night amplitude of emission
       hmixi=max(hmixi,hmixmin)
-      hmixmax=max(hmixi,hmixmax)
 
       ! determine if particle is in PBL
       em_cond(ii) = part(ii)%z.le.hmixi
@@ -147,9 +147,6 @@ module emissions_mod
 
     end do   ! end of particle loop
 !$OMP END DO
-
-    !! test
-    print*, 'emissions: hmixmax = ',hmixmax
 
     f_m = exp(-1.*real(lsynctime)/tau_ipm)
 
@@ -163,8 +160,9 @@ module emissions_mod
 
       xlon=xlon0+part(ii)%xlon*dx
       ylat=ylat0+part(ii)%ylat*dy
-      em_ix = minloc(abs(lonem-xlon),dim=1)
-      em_jy = minloc(abs(latem-ylat),dim=1)
+      ! assume emission dimensions given as grid midpoints
+      em_ix=int((xlon-(lonem(1)-0.5*dxem))/dxem)+1
+      em_jy=int((ylat-(latem(1)-0.5*dyem))/dyem)+1
 
       ! loop over species
       ! skip species 1 as it is always air tracer with no emission
@@ -233,11 +231,15 @@ module emissions_mod
     deallocate(em_neg)
 
     ! calculate total emission flux and field
+!$OMP PARALLEL IF(nspec>99) PRIVATE(ks)
+!$OMP DO
     do ks=2,nspec
       tot_em_field(ks)=sum((em_field(ks-1,:,:,1)*em_dt2 + &
                          em_field(ks-1,:,:,2)*em_dt1)*em_dtt)*real(lsynctime)
       tot_em_res(ks)=sum(em_res(ks-1,:,:))
     end do
+!$OMP END DO
+!$OMP END PARALLEL
 
     !! test
     inquire(file=path(2)(1:length(2))//'mass_field.txt',exist=lexist)
@@ -294,37 +296,37 @@ module emissions_mod
       ! Current time is after 2nd field
       !*********************************
 
+      ! update dates of emission fields
+      em_memtime(1)=em_memtime(2)  ! time in sec
+      em_time(1)=em_time(2)      ! julian date
+      memid=2
+
+      ! julian date of next emission field assuming monthly fields
+      call caldate(em_time(1), jjjjmmdd, hhmmss)
+      eomday=calceomday(jjjjmmdd/100)
+      em_memtime(2)=em_memtime(1)+ldirect*eomday*24*3600   ! time in sec
+      em_time(2)=em_time(1)+real(ldirect*eomday,kind=dp) ! julian date 
+      call caldate(em_time(2), jjjjmmdd,hhmmss)
+      mm=(jjjjmmdd-(jjjjmmdd/10000)*10000)/100
+      yyyy=jjjjmmdd/10000
+      write(amonth,'(I2.2)') mm
+      write(ayear,'(I4)') yyyy
+
       ! skip species 1 as is always air tracer with no emissions
+!$OMP PARALLEL IF(nspec>99) &
+!$OMP PRIVATE(ks,file_name,nn,strtmp1,strtmp2,julstart,em_name,lexist)
+!$OMP DO
       do ks=2,nspec
 
         write(*,*) 'Updating emission fields for: ',trim(species(ks)) 
     
         em_field(ks-1,:,:,1)=em_field(ks-1,:,:,2)
-        em_memtime(1)=em_memtime(2)  ! time in sec
-        em_time(1)=em_time(2)      ! julian date
-        memid=2 
 
         ! Read new emission field and store in 2nd position
         !***************************************************
 
         ! TO DO: make more general to fit any field frequency
 
-        ! julian date of next emission field assuming monthly fields
-        call caldate(em_time(1), jjjjmmdd, hhmmss)
-        eomday=calceomday(jjjjmmdd/100)
-        em_memtime(2)=em_memtime(1)+ldirect*eomday*24*3600   ! time in sec
-        em_time(2)=em_time(1)+real(ldirect*eomday,kind=dp) ! julian date 
-        !! test
-        write(*,*) 'em_memtime = ',em_memtime(1), em_memtime(2)
-        write(*,*) 'em_time = ',em_time(1), em_time(2)
-        !!
-
-        ! get file name
-        call caldate(em_time(2), jjjjmmdd,hhmmss)
-        mm=(jjjjmmdd-(jjjjmmdd/10000)*10000)/100
-        yyyy=jjjjmmdd/10000
-        write(amonth,'(I2.2)') mm
-        write(ayear,'(I4)') yyyy
         file_name=emis_file(ks)
         nn=index(file_name,'YYYY',back=.false.)
         if (nn.ne.0) then
@@ -352,42 +354,44 @@ module emissions_mod
           write(*,*) '#### FLEXPART ERROR                ####'
           write(*,*) '#### EMISSION FIELD NOT FOUND     ####'
           write(*,*) '#### '//trim(em_name)//' ####'
-          stop
+          error stop
         endif
 
       end do ! nspec
+!$OMP END DO
+!$OMP END PARALLEL
 
     else
 
-        ! No emission field in memory that can be used
-        !**********************************************
+      ! No emission field in memory that can be used
+      !**********************************************
 
-      do ks=2,nspec
+      ! read both fields into memory
+      do memid=1,2
 
-        print*, 'Reading two new emission fields for: ',trim(species(ks))
+        if (memid.eq.1) then
+          em_time(memid)=bdate+real(ldirect*itime,kind=dp)/86400._dp
+        else
+          em_time(memid)=em_time(memid-1)+real(ldirect*eomday,kind=dp)
+        endif
+        em_memtime(memid)=int((em_time(memid)-bdate)*86400._dp)*ldirect
 
-        ! TO DO: make more general to fit any field frequency
+        call caldate(em_time(memid), jjjjmmdd, hhmmss)
+        eomday=calceomday(jjjjmmdd/100)
+        mm=(jjjjmmdd-(jjjjmmdd/10000)*10000)/100
+        yyyy=jjjjmmdd/10000
+        write(amonth,'(I2.2)') mm
+        write(ayear,'(I4)') yyyy
 
-        ! read both fields into memory
-        do memid=1,2
+!$OMP PARALLEL IF(nspec>99) &
+!$OMP PRIVATE(ks,file_name,nn,strtmp1,strtmp2,julstart,em_name,lexist)
+!$OMP DO
+        do ks=2,nspec
 
-          print*, 'memid = ',memid
-          if (memid.eq.1) then
-            em_time(memid)=bdate+real(ldirect*itime,kind=dp)/86400._dp
-          else
-            em_time(memid)=em_time(memid-1)+real(ldirect*eomday,kind=dp)
-          endif
-          print*, 'em_time = ',em_time(memid)
-          em_memtime(memid)=int((em_time(memid)-bdate)*86400._dp)*ldirect
-          print*, 'em_memtime = ',em_memtime(memid)
-          call caldate(em_time(memid), jjjjmmdd, hhmmss)
-          eomday=calceomday(jjjjmmdd/100)
+          write(*,*) 'Reading two new emission fields for: ',trim(species(ks))
 
-          ! get file name
-          mm=(jjjjmmdd-(jjjjmmdd/10000)*10000)/100
-          yyyy=jjjjmmdd/10000
-          write(amonth,'(I2.2)') mm
-          write(ayear,'(I4)') yyyy
+          ! TO DO: make more general to fit any field frequency
+
           file_name=emis_file(ks)
           nn=index(file_name,'YYYY',back=.false.)
           if (nn.ne.0) then
@@ -415,12 +419,14 @@ module emissions_mod
             write(*,*) '#### FLEXPART ERROR                ####'
             write(*,*) '#### EMISSION FIELD NOT FOUND     ####'
             write(*,*) '#### '//trim(em_name)//' ####'
-            stop
+            error stop
           endif
 
-        end do ! memid
+        end do ! nspec
+!$OMP END DO
+!$OMP END PARALLEL
 
-      end do ! nspec
+      end do ! memid
 
     endif ! update fields
 
@@ -465,7 +471,6 @@ module emissions_mod
 
     ! inquire about dims and vars
     call nf90_err( nf90_inquire( ncid, ndim, nvar, natt, unlimid ) )
-    write(*,*) 'ndim, nvar:', ndim, nvar
     allocate(dimids(ndim))
 
     if (.not.allocated(lonem)) then
@@ -479,6 +484,7 @@ module emissions_mod
           allocate( lonem(nxem) )
           call nf90_err( nf90_inq_varid(ncid,trim(dimname),varid) )
           call nf90_err( nf90_get_var(ncid,varid,lonem) )
+          dxem=abs(lonem(2)-lonem(1))
         endif
         if ((index(dimname,'lat').ne.0).or.(index(dimname,'LAT').ne.0) &
               .or.(index(dimname,'Lat').ne.0)) then
@@ -487,16 +493,17 @@ module emissions_mod
           allocate( latem(nyem) )
           call nf90_err( nf90_inq_varid(ncid,trim(dimname),varid) )
           call nf90_err( nf90_get_var(ncid,varid,latem) )
+          dyem=abs(latem(2)-latem(1))
         endif
       end do ! ndim
       ! check dimensions read correctly
       if (.not.allocated(lonem)) then
         write(*,*) 'ERROR in reademissions: longitude dimension not found in file: '//trim(em_name)
-        stop
+        error stop
       endif
       if (.not.allocated(latem)) then
         write(*,*) 'ERROR in reademissions: latitude dimension not found in file: '//trim(em_name)
-        stop
+        error stop
       endif
       ! allocate emission variables
       allocate( em_field(nspec-1,nxem,nyem,2) )
@@ -570,7 +577,7 @@ module emissions_mod
           indxt=minloc(abs(time-mm),dim=1)
         else
           write(*,*) 'ERROR in reademissions: unknown time units in file: '//trim(em_name)
-          stop
+          error stop
         endif
         deallocate( time, jdate )
         exit
@@ -602,11 +609,11 @@ module emissions_mod
     endif
     emis=emis*sclfact+offset
     !! test
-    write(*,*) 'reademissions: sclfact, offset = ',sclfact, offset
-    write(*,*) 'reademissions: range(emis) = ',minval(emis), maxval(emis)
-    write(*,*) 'reademissions: range(em_area) = ',minval(em_area), maxval(em_area)
-    write(*,*) 'reademissions: emis_coeff, emis_unit = ',emis_coeff(kk+1), emis_unit(kk+1)
-    write(*,*) 'reademissions: emis total = ',sum(emis*em_area*emis_coeff(kk+1))*3600.*24.*365./1.e9
+    print*, 'reademissions: sclfact, offset = ',sclfact, offset
+    print*, 'reademissions: range(emis) = ',minval(emis), maxval(emis)
+    print*, 'reademissions: range(em_area) = ',minval(em_area), maxval(em_area)
+    print*, 'reademissions: emis_coeff, emis_unit = ',emis_coeff(kk+1), emis_unit(kk+1)
+    print*, 'reademissions: emis total = ',sum(emis*em_area*emis_coeff(kk+1))*3600.*24.*365./1.e9
     em_field(kk,:,:,memid)=emis*em_area*emis_coeff(kk+1)
 
     ! close file
@@ -691,7 +698,7 @@ module emissions_mod
     inquire(file=trim(file_name),exist=lexist)
     if (.not.lexist) then
       write(*,*) 'FLEXPART ERROR: cannot find file '//trim(file_name)
-      stop
+      error stop
     endif
 
     call nf90_err( nf90_open(file_name, nf90_nowrite, nc_id) )
@@ -707,7 +714,7 @@ module emissions_mod
     ! check dimensions match input emissions
     if ((xlen.ne.nxem).or.(ylen.ne.nyem).or.(splen.ne.(nspec-1))) then
       write(*,*) 'FLEXPART ERROR: emis_residual dimensions do not match input emissions'
-      stop
+      error stop
     endif
 
     ! read em_res

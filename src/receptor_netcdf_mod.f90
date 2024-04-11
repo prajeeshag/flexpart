@@ -145,12 +145,10 @@ module receptor_netcdf_mod
 
     ! species specific variables
     do ks=ks_start,nspec
-      write(*,*) 'species = ',trim(species(ks))
       ! concentration/mixing ratio variables
       call nf90_err( nf90_def_var(nc_id, trim(species(ks)), nf90_float, (/ recdim_id /), concvar_id(ks)) )
       call nf90_err( nf90_def_var(nc_id, trim(species(ks))//"_uncert", nf90_float, (/ recdim_id /), &
                        uncvar_id(ks)) )
-      write(*,*) 'concvar_id(ks) = ',concvar_id(ks)
       if ((iout.eq.1).or.(iout.eq.3).or.(iout.eq.5)) then
         call nf90_err( nf90_put_att(nc_id, concvar_id(ks), "units", "ng/m3") )
         call nf90_err( nf90_put_att(nc_id, concvar_id(ks), "longname", "mean receptor concentration") )
@@ -393,13 +391,10 @@ module receptor_netcdf_mod
       ks_start=1
     endif
 
-    print*, 'receptor_output_netcdf: nc_id  = ',nc_id
 
     do ks = ks_start,nspec
-      print*, 'receptor_output_netcdf: species, concvar_id = ',trim(species(ks)), concvar_id(ks)
       call nf90_err( nf90_inq_varid(nc_id, trim(species(ks)), concvar_id(ks)) )
       call nf90_err( nf90_inq_varid(nc_id, trim(species(ks))//"_uncert", uncvar_id(ks)) )
-      print*, 'receptor_output_netcdf: after read concvar_id = ', concvar_id(ks)
     end do
     call nf90_err( nf90_inq_varid(nc_id, "npart", nnvar_id) )
     call nf90_err( nf90_inq_varid(nc_id, "kernel", xkvar_id) )
@@ -449,7 +444,7 @@ module receptor_netcdf_mod
   end subroutine satellite_output_netcdf
 
 
-  subroutine write_receptor_netcdf(crec,cunc,nnrec,xkrec,nrec)
+  subroutine write_receptor_netcdf(crec,cunc,nnrec,xkrec,lonrec,latrec,altrec,timerec,namerec,nrec)
 
   !*****************************************************************************
   !                                                                            *
@@ -463,8 +458,11 @@ module receptor_netcdf_mod
     implicit none
   
     integer :: ks, ks_start, nrec
-    real, dimension(nspec,nlayermax) :: crec, cunc
-    real, dimension(nlayermax) :: nnrec, xkrec
+    real, dimension(nspec,maxrecsample,nlayermax) :: crec, cunc
+    real, dimension(maxrecsample,nlayermax) :: nnrec, xkrec, altrec
+    real, dimension(maxrecsample) :: lonrec, latrec
+    integer, dimension(maxrecsample) :: timerec
+    character(len=16), dimension(maxrecsample) :: namerec
 
     if (llcmoutput) then
       ks_start=2
@@ -472,32 +470,35 @@ module receptor_netcdf_mod
       ks_start=1
     endif
 
+    !! testing
+    print*, 'write_receptor_netcdf: rpointer, nrec = ',rpointer, nrec
+
     ! species specific
     do ks=ks_start,nspec
-      call nf90_err( nf90_put_var(nc_id, concvar_id(ks), crec(ks,1), (/rpointer/) ) )
-      call nf90_err( nf90_put_var(nc_id, uncvar_id(ks), cunc(ks,1), (/rpointer/) ) )
+      call nf90_err( nf90_put_var(nc_id, concvar_id(ks), crec(ks,1:nrec,1), (/rpointer/), (/nrec/) ) )
+      call nf90_err( nf90_put_var(nc_id, uncvar_id(ks), cunc(ks,1:nrec,1), (/rpointer/), (/nrec/) ) )
     end do
 
     ! not species specific output
     ! receptor name
-    call nf90_err( nf90_put_var(nc_id, recnamevar_id, receptorname(nrec), (/1,rpointer/), (/16,1/) ) )
+    call nf90_err( nf90_put_var(nc_id, recnamevar_id, namerec(1:nrec), (/1,rpointer/), (/16,nrec/) ) )
     ! receptor time
-    call nf90_err( nf90_put_var(nc_id, timevar_id, treceptor(nrec), (/rpointer/) ) )
+    call nf90_err( nf90_put_var(nc_id, timevar_id, timerec(1:nrec), (/rpointer/), (/nrec/) ) )
     ! receptor longitude
-    call nf90_err( nf90_put_var(nc_id, reclonvar_id, xreceptor(nrec)*dx+xlon0, (/rpointer/) ) )
+    call nf90_err( nf90_put_var(nc_id, reclonvar_id, lonrec(1:nrec), (/rpointer/), (/nrec/) ) )
     ! receptor latitude
-    call nf90_err( nf90_put_var(nc_id, reclatvar_id, yreceptor(nrec)*dy+ylat0, (/rpointer/) ) )
+    call nf90_err( nf90_put_var(nc_id, reclatvar_id, latrec(1:nrec), (/rpointer/), (/nrec/) ) )
     ! receptor latitude
-    call nf90_err( nf90_put_var(nc_id, recaltvar_id, zreceptor(nrec), (/rpointer/) ) )
+    call nf90_err( nf90_put_var(nc_id, recaltvar_id, altrec(1:nrec,1), (/rpointer/), (/nrec/) ) )
     ! average number of particles all timesteps for each receptor
-    call nf90_err( nf90_put_var(nc_id, nnvar_id, nnrec(1), (/rpointer/) ) )
+    call nf90_err( nf90_put_var(nc_id, nnvar_id, nnrec(1:nrec,1), (/rpointer/), (/nrec/) ) )
     ! average kernel all timesteps
-    call nf90_err( nf90_put_var(nc_id, xkvar_id, xkrec(1), (/rpointer/) ) )
+    call nf90_err( nf90_put_var(nc_id, xkvar_id, xkrec(1:nrec,1), (/rpointer/), (/nrec/) ) )
 
   end subroutine write_receptor_netcdf
 
   
-  subroutine write_satellite_netcdf(crec,cunc,nnrec,xkrec,nrec)
+   subroutine write_satellite_netcdf(crec,cunc,nnrec,xkrec,lonrec,latrec,altrec,timerec,namerec,nrec)
 
   !*****************************************************************************
   !                                                                            *
@@ -511,8 +512,11 @@ module receptor_netcdf_mod
     implicit none
 
     integer :: ks, ks_start, nrec
-    real, dimension(nspec,nlayermax) :: crec, cunc
-    real, dimension(nlayermax) :: nnrec, xkrec
+    real, dimension(nspec,maxrecsample,nlayermax) :: crec, cunc
+    real, dimension(maxrecsample,nlayermax) :: nnrec, xkrec, altrec
+    real, dimension(maxrecsample) :: lonrec, latrec
+    integer, dimension(maxrecsample) :: timerec
+    character(len=16), dimension(maxrecsample) :: namerec
 
     if (llcmoutput) then
       ks_start=2
@@ -520,27 +524,30 @@ module receptor_netcdf_mod
       ks_start=1
     endif
 
+    !! testing
+    print*, 'write_satellite_netcdf: spointer, nrec = ',spointer, nrec
+
     ! species specific output
     do ks = ks_start,nspec
-      call nf90_err( nf90_put_var(ncsat_id, satvar_id(ks), crec(ks,1:nlayermax-1), (/spointer,1/), (/1,nlayermax-1/) ) )
-      call nf90_err( nf90_put_var(ncsat_id, satuncvar_id(ks), cunc(ks,1:nlayermax-1), (/spointer,1/), (/1,nlayermax-1/) ) )
+      call nf90_err( nf90_put_var(ncsat_id,satvar_id(ks),crec(ks,1:nrec,1:nlayermax-1),(/spointer,1/),(/nrec,nlayermax-1/) ) )
+      call nf90_err( nf90_put_var(ncsat_id,satuncvar_id(ks),cunc(ks,1:nrec,1:nlayermax-1),(/spointer,1/),(/nrec,nlayermax-1/) ) )
     end do
 
     ! non-species specific
     ! receptor name
-    call nf90_err( nf90_put_var(ncsat_id, satnamevar_id, satellitename(nrec), (/1,spointer/), (/16,1/) ) )
+    call nf90_err( nf90_put_var(ncsat_id, satnamevar_id, namerec(1:nrec), (/1,spointer/), (/16,nrec/) ) )
     ! receptor time 
-    call nf90_err( nf90_put_var(ncsat_id, sattimevar_id, tsatellite(nrec), (/spointer/) ) )
+    call nf90_err( nf90_put_var(ncsat_id, sattimevar_id, timerec(1:nrec), (/spointer/), (/nrec/) ) )
     ! receptor longitude
-    call nf90_err( nf90_put_var(ncsat_id, satlonvar_id, xsatellite(nrec)*dx+xlon0, (/spointer/) ) )
+    call nf90_err( nf90_put_var(ncsat_id, satlonvar_id, lonrec(1:nrec), (/spointer/), (/nrec/) ) )
     ! receptor latitude
-    call nf90_err( nf90_put_var(ncsat_id, satlatvar_id, ysatellite(nrec)*dy+ylat0, (/spointer/) ) )
+    call nf90_err( nf90_put_var(ncsat_id, satlatvar_id, latrec(1:nrec), (/spointer/), (/nrec/) ) )
     ! receptor altitude
-    call nf90_err( nf90_put_var(ncsat_id, sataltvar_id, zsatellite(:,nrec), (/spointer,1/), (/1,(nlayermax)/) ) )
+    call nf90_err( nf90_put_var(ncsat_id, sataltvar_id, altrec(1:nrec,:), (/spointer,1/), (/nrec,(nlayermax)/) ) )
     ! average number of particles all timesteps for each receptor
-    call nf90_err( nf90_put_var(ncsat_id, satnnvar_id, nnrec(1:nlayermax-1), (/spointer,1/), (/1,nlayermax-1/) ) )
+    call nf90_err( nf90_put_var(ncsat_id, satnnvar_id, nnrec(1:nrec,1:nlayermax-1), (/spointer,1/), (/nrec,nlayermax-1/) ) )
     ! average kernel all timesteps
-    call nf90_err( nf90_put_var(ncsat_id, satxkvar_id, xkrec(1:nlayermax-1), (/spointer,1/), (/1,nlayermax-1/) ) )
+    call nf90_err( nf90_put_var(ncsat_id, satxkvar_id, xkrec(1:nrec,1:nlayermax-1), (/spointer,1/), (/nrec,nlayermax-1/) ) )
 
   end subroutine write_satellite_netcdf
 
@@ -716,7 +723,6 @@ module receptor_netcdf_mod
       jd=jd+1d0
     end do
     nlayermax=nlayermax+1 ! for levels
-    print*, 'readreceptors_satellite: tmp_numsat = ',tmp_numsat
 
     ! Allocate temporary arrays
     !**************************
@@ -738,7 +744,6 @@ module receptor_netcdf_mod
         ! get filename for current day
         ! assumes same format as output from prep_satellite
         call caldate(jd, jjjjmmdd, hhmmss)
-        print*, 'jjjjmmdd = ',jjjjmmdd
         file_name=sat_file(j)
         call getfilename(jjjjmmdd, file_name)
         write(*,*) 'readreceptors_satellite: file_name = ',file_name
@@ -792,7 +797,7 @@ module receptor_netcdf_mod
           jul=juldate(sdate(nr),stime(nr))
           if ((jul.lt.bdate).or.(jul.gt.edate)) cycle
           numsatreceptor=numsatreceptor+1
-          write(anretr,'(I8.8)') numsatreceptor
+          write(anretr,'(I8.8)') nr
           tmp_satname(numsatreceptor)=trim(sat_name(j))//'_'//anretr
           tmp_tsat(numsatreceptor)=int((jul-bdate)*24.*3600.) ! time in sec
           ! transform to grid coordinates
@@ -805,17 +810,6 @@ module receptor_netcdf_mod
           xm=r_earth*cos((sum(ypts(nr,:))/4.)*pi/180.)*dx/180.*pi
           ym=r_earth*dy/180.*pi
           tmp_satarea(numsatreceptor)=xm*ym
-          !! test
-          if (nr.le.10) then
-            write(*,*) 'readreceptors_satellite:'
-            write(*,*) 'numsatreceptor,nr = ',numsatreceptor, nr
-            write(*,*) 'satellitename = ',tmp_satname(numsatreceptor)
-            write(*,*) 'tsatellite = ',tmp_tsat(numsatreceptor)
-            write(*,*) 'xsatellite, ysatellite = ',tmp_xsat(numsatreceptor), tmp_ysat(numsatreceptor)
-            write(*,*) 'xmidpt, ymidpt = ',sum(xpts(nr,:))/4., sum(ypts(nr,:))/4.
-            write(*,*) 'zsatellite = ',tmp_zsat(:,numsatreceptor)
-          endif
-          !!
         end do ! nretr
 
         deallocate(sdate, stime, xpts, ypts, zpt1, zpt2)
@@ -917,18 +911,12 @@ module receptor_netcdf_mod
     real    :: p1, p2, p3, p4, ddx, ddy, rddx, rddy, dz1, dz2
     real    :: press, pressold, zpres
 
-    print*, 'height = ',height
-
 !$OMP PARALLEL &
 !$OMP PRIVATE(nr,nn,nchar,numsatlayer,nl,zpres,ix,jy,ddx,ddy,ixp,jyp,rddx,rddy,&
 !$OMP p1,p2,p3,p4,kz,press,pressold,dz1,dz2)
 
 !$OMP DO
     do nr=1,numsatreceptor
-
-      !! test
-      if (nr.lt.20) write(*,*) 'zsatellite before transform = ',zsatellite(:,nr)
-      !!
 
       ! get actual number vertical layers for this retrieval
       do nn=1,numsatellite
@@ -984,9 +972,8 @@ module receptor_netcdf_mod
 
       end do ! numsatlayer
 
-      !! test
-      if (nr.lt.20)  write(*,*) 'zsatellite after transform = ',zsatellite(:,nr)
-      !!
+      !! testing
+      if (nr.lt.20)  print*, 'zsatellite after transform = ',zsatellite(:,nr)
 
     end do ! numsatreceptor
 !$OMP END DO

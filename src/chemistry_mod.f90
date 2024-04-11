@@ -22,9 +22,13 @@ module chemistry_mod
   implicit none
 
   integer                                 :: nxCL,nyCL,nzCL
+  integer                                 :: nxjr, nyjr
   real, allocatable, dimension(:)         :: lonCL,latCL,altCL
+  real                                    :: dxCL,dyCL,dxjr,dyjr
   real, allocatable, dimension(:,:,:,:,:) :: CL_field           ! chemical loss fields at input resolution
+  real, allocatable, dimension(:,:,:,:)   :: clfield_cur        ! chemical loss fields current hour
   integer, dimension(2)                   :: memCLtime          ! time of fields in memory (sec)  
+  integer                                 :: curCLhour          ! current hour since start of simulation
   real(kind=dp), dimension(2)             :: CL_time            ! julian date of fields in memory
   real, allocatable, dimension(:,:,:)     :: jrate_average      ! monthly average actinic flux 
   real, allocatable, dimension(:)         :: lonjr,latjr
@@ -130,8 +134,6 @@ module chemistry_mod
   !*****************************************************************************
   !                                                                            *
   !    This routine reads the chemical reagent fields into memory              *
-  !    and interpolates them to current time with optional use of              *
-  !    solar zenith angle information                                          *
   !                                                                            *
   !    Author: Rona Thompson, Sep 2023                                         *
   !                                                                            *
@@ -157,7 +159,6 @@ module chemistry_mod
       if(lroot) write(*,*) 'Getting fields for reagent: ',reagents(nr)
       print*, 'ldirect*memCLtime(1) = ',ldirect*memCLtime(1)
       print*, 'ldirect*memCLtime(2) = ',ldirect*memCLtime(2)
-      print*, 'ldirect*itime = ',ldirect*itime
 
       ! Check fields are available for the current time step
       !*****************************************************
@@ -205,7 +206,7 @@ module chemistry_mod
           write(*,*) '#### FLEXPART ERROR                ####'
           write(*,*) '#### CHEMISTRY FIELD NOT FOUND     ####'
           write(*,*) '#### '//trim(CL_name)//' ####'
-          stop
+          error stop
         endif
 
         if (reag_hourly(nr).gt.0) then
@@ -222,7 +223,7 @@ module chemistry_mod
             write(*,*) '#### FLEXPART ERROR                ####'
             write(*,*) '#### JRATE_AVERAGE NOT FOUND       ####'
             write(*,*) '#### '//trim(jr_name)//' ####'
-            stop
+            error stop
           endif
 
         endif
@@ -236,19 +237,16 @@ module chemistry_mod
 
         ! read both fields into memory
         do memid=1,2
-          print*, 'memid = ',memid
           if (memid.eq.1) then
             CL_time(memid)=bdate+real(ldirect*itime,kind=dp)/86400._dp
           else
             CL_time(memid)=CL_time(memid-1)+real(ldirect*eomday,kind=dp)
           endif
-          print*, 'CL_time = ',CL_time(memid)
           memCLtime(memid)=int((CL_time(memid)-bdate)*86400._dp)*ldirect
           call caldate(CL_time(memid), jjjjmmdd, hhmmss)
           mm=int((jjjjmmdd-(jjjjmmdd/10000)*10000)/100)
           eomday=calceomday(jjjjmmdd/100)
           write(amonth,'(I2.2)') mm
-          print*, 'mm = ',amonth
           write(CL_name,'(A)') trim(reag_path(nr))//trim(reagents(nr))//'_'//amonth//'.nc'
           inquire(file=CL_name,exist=lexist)
           if (lexist) then
@@ -258,7 +256,7 @@ module chemistry_mod
             write(*,*) '#### FLEXPART ERROR                ####'
             write(*,*) '#### CHEMISTRY FIELD NOT FOUND     ####'
             write(*,*) '#### '//trim(CL_name)//' ####'
-            stop
+            error stop
           endif
           if (reag_hourly(nr).gt.0) then
             ! Read average jrates into memory 
@@ -271,7 +269,7 @@ module chemistry_mod
               write(*,*) '#### FLEXPART ERROR                ####'
               write(*,*) '#### JRATE_AVERAGE NOT FOUND       ####'
               write(*,*) '#### '//trim(jr_name)//' ####'
-              stop
+              error stop
             endif
           endif ! reag_hourly
         end do ! memid
@@ -318,6 +316,7 @@ module chemistry_mod
     if (.not.allocated(lonCL)) allocate(lonCL(nxCL))
     call nf90_err( nf90_inq_varid(ncid,'lon',varid) )
     call nf90_err( nf90_get_var(ncid,varid,lonCL) )
+    dxCL=abs(lonCL(2)-lonCL(1))
 
     ! latitude
     call nf90_err( nf90_inq_dimid(ncid,'lat',dimid) )
@@ -325,6 +324,7 @@ module chemistry_mod
     if (.not.allocated(latCL)) allocate(latCL(nyCL))
     call nf90_err( nf90_inq_varid(ncid,'lat',varid) )
     call nf90_err( nf90_get_var(ncid,varid,latCL) )
+    dyCL=abs(latCL(2)-latCL(1))
 
     ! altitude
     call nf90_err( nf90_inq_dimid(ncid,'lev',dimid) )
@@ -337,6 +337,7 @@ module chemistry_mod
     call nf90_err( nf90_inq_varid(ncid,trim(reagents(nr)),varid) )
     if (.not.allocated(CL_field)) then
       allocate(CL_field(nxCL,nyCL,nzCL,nreagent,2))
+      allocate(clfield_cur(nxCL,nyCL,nzCL,nreagent))
     endif
     call nf90_err( nf90_get_var(ncid,varid,CL_field(:,:,:,nr,memid)) )
 
@@ -346,6 +347,123 @@ module chemistry_mod
     return
 
   end subroutine readchemfield
+
+  subroutine getchemhourly(itime)
+
+  !*****************************************************************************
+  !                                                                            *
+  !    This routine interpolates the chemistry fields to current hour and      *
+  !    if required using information on solar zenith angle                     *
+  !                                                                            *
+  !    Author: Rona Thompson, Mar 2024                                         *
+  !                                                                            *
+  !*****************************************************************************
+  !                                                                            *
+  ! Variables:                                                                 *
+  ! itime [s]            actual simulation time [s]                            *
+  !                                                                            *
+  !*****************************************************************************
+
+    implicit none
+
+    integer          :: itime, curhour, interp_time
+    integer          :: nr, kz, ix, jy
+    real             :: dt1, dt2, dtt, sza, jrate, jrate_cur
+    integer          :: jjjjmmdd, hhmmss
+    integer          :: jrx, jry
+    real(kind=dp)    :: jul
+    !! testing
+    character(len=4) :: atime
+    character(len=20) :: frmt
+    real, dimension(nxjr,nyjr) :: jscalar
+    
+    jscalar(:,:)=1.
+
+    ! current hour of simulation
+    curhour=itime/3600
+    print*, 'getchemhourly: curhour, curCLhour = ',curhour, curCLhour
+
+    jul=bdate+real(itime,kind=dp)/86400._dp
+    call caldate(jul,jjjjmmdd,hhmmss)
+
+    if ((ldirect*curCLhour.eq.ldirect*curhour).and.(ldirect*itime.gt.0)) then
+      ! chemical field is for current hour -> don't do anything
+      return
+    else
+      ! interpolate to middle of hour
+      curCLhour=curhour
+      interp_time=curhour*3600+1800
+      dt1=float(interp_time-memCLtime(1))
+      dt2=float(memCLtime(2)-interp_time)
+      dtt=1./(dt1+dt2)
+      !! testing
+      print*, 'getchemhourly: dt1, dt2, dtt = ',dt1,dt2,dtt 
+      do nr=1,nreagent
+        write(*,*) 'Interpolating fields for reagent: ',reagents(nr)
+        clfield_cur(:,:,:,nr)=(dt2*CL_field(:,:,:,nr,1) + dt1*CL_field(:,:,:,nr,2))*dtt
+        if (reag_hourly(nr).gt.0) then
+          ! use actinic flux (jrate) for interpolation
+!$OMP PARALLEL &
+!$OMP PRIVATE(kz,jy,jry,ix,jrx,sza,jrate,jrate_cur) 
+!$OMP DO
+          do kz=1,nzCL
+            do jy=1,nyCL  
+              ! jrate_average dimensions given as grid midpoints
+              jry=int((latCL(jy)-(latjr(1)-0.5*dyjr))/dyjr)+1
+              !! testing
+              if (kz.eq.1.and.jy.lt.10) print*, 'latCL, latjr = ',latCL(jy), latjr(jry)
+              do ix=1,nxCL
+                ! jrate_average dimensions given as grid midpoints
+                jrx=int((lonCL(ix)-(lonjr(1)-0.5*dxjr))/dxjr)+1
+                !! testing
+                if (kz.eq.1.and.jy.lt.10.and.ix.lt.10) print*, 'lonCL, lonjr = ',lonCL(ix), lonjr(jrx)
+                ! solar zenith angle
+                sza=zenithangle(latjr(jry),lonjr(jrx),jjjjmmdd,hhmmss)
+                ! calculate J(O1D) (jrate)
+                jrate=photo_O1D(sza)
+                jrate_cur=(dt2*jrate_average(jrx,jry,1) + &
+                           dt1*jrate_average(jrx,jry,2))*dtt
+                ! apply hourly correction to chem field
+                if(jrate_cur.gt.0.) then
+                  clfield_cur(ix,jy,kz,nr)=clfield_cur(ix,jy,kz,nr)*jrate/jrate_cur
+                  !! testing
+                  if (kz.eq.1) jscalar(ix,jy)=jrate/jrate_cur
+                endif
+              end do
+            end do
+          end do
+!$OMP END DO
+!$OMP END PARALLEL
+        endif ! reag_hourly
+      end do ! nreagent
+    endif ! curhour
+
+    !! testing
+    write(frmt,fmt='(A,I4,A)') '(',nxCL,'(E14.6))'
+    write(atime,fmt='(I4.4)') curhour
+    open(600,file=path(2)(1:length(2))//'clfield_'//atime//'.txt',action='write',status='replace')
+    do kz=1,nzCL
+      do jy=1,nyCL
+        write(600,fmt=frmt) clfield_cur(:,jy,kz,1)
+      end do
+    end do
+    close(600)
+    write(frmt,fmt='(A,I4,A)') '(',nxjr,'(E14.6))'
+    open(600,file=path(2)(1:length(2))//'jscalar_'//atime//'.txt',action='write',status='replace')
+    do jy=1,nyjr
+      write(600,fmt=frmt) jscalar(:,jy)
+    end do
+    close(600)
+    if (itime.eq.0) then
+      write(frmt,fmt='(A,I4,A)') '(',nxjr,'(E14.6))'
+      open(600,file=path(2)(1:length(2))//'javerage_'//atime//'.txt',action='write',status='replace')
+      do jy=1,nyjr
+        write(600,fmt=frmt) jrate_average(:,jy,1)
+      end do
+    endif
+    close(600)
+
+  end subroutine getchemhourly
 
   subroutine chemreaction(itime)
 
@@ -360,11 +478,7 @@ module chemistry_mod
   !*****************************************************************************
   !                                                                            *
   ! Variables:                                                                 *
-  ! ix,jy                indices of output grid cell for each particle         *
   ! itime [s]            actual simulation time [s]                            *
-  ! jpart                particle index                                        *
-  ! loutstep [s]         interval at which gridded deposition is output        *
-  ! oh_average [molecule/cm^3] OH Concentration                                *
   !                                                                            *
   !*****************************************************************************
 
@@ -390,38 +504,15 @@ module chemistry_mod
     real, parameter       :: smallnum = tiny(0.0) ! smallest number that can be handled
     real(kind=dp)         :: jul
     real                  :: lonjrx,latjry
-!! testing
-!    real, dimension(nxCL,nyCL,nzCL) :: clr_field
-!    integer, dimension(nxCL,nyCL,nzCL) :: cnt_field
-!    character(30) :: frmt
-!    character(6)  :: atime
 
     ! use middle of synchronisation time step
     interp_time=nint(itime+0.5*lsynctime)
-    jul=bdate+real(ldirect*interp_time,kind=dp)/86400.
-    call caldate(jul, jjjjmmdd, hhmmss)
-
-    dt1=float(interp_time-memCLtime(1))
-    dt2=float(memCLtime(2)-interp_time)
-    dtt=1./(dt1+dt2)
-
     dtt1=float(interp_time-memtime(1))
     dtt2=float(memtime(2)-interp_time)
     dttt=1./(dtt1+dtt2)
 
-    print*, 'chemreaction: rate c constants = ',reaccconst(1,:)
-    print*, 'chemreaction: rate d constants = ',reacdconst(1,:)
-    print*, 'chemreaction: rate n constants = ',reacnconst(1,:)
-    print*, 'chemreaction: reag_hourly = ',reag_hourly(:)
-    print*, 'chemreaction: itime, interp_time, jul = ',itime, interp_time, jul
-    print*, 'chemreaction: range(jrate_average) = ',minval(jrate_average),maxval(jrate_average)
-
     ! initialization
     chem_loss(:,:)=0d0
-
-!! testing
-!    cnt_field(:,:,:)=0
-!    clr_field(:,:,:)=0.
 
     ! Loop over particles
     !*****************************************
@@ -429,8 +520,7 @@ module chemistry_mod
 !$OMP PARALLEL &
 !$OMP PRIVATE(ii,jpart,ngrid,j,xtn,ytn,ix,jy, &
 !$OMP   xlon,ylat,clx,cly,clz,clzm,kz,altCLtop,dz1,dz2,dzz,nr,i, &
-!$OMP   cl_tmp,cl_cur,jrx,jry,lonjrx,latjry,sza,jrate,jrate_cur, &
-!$OMP   indz,temp,ks,clrate,restmass,clreacted) &
+!$OMP   cl_cur,indz,temp,ks,clrate,restmass,clreacted) &
 !$OMP REDUCTION(+:chem_loss) 
 
 !$OMP DO
@@ -458,8 +548,8 @@ module chemistry_mod
         jy=int(part(jpart)%ylat)
       endif
 
-      ! Get CL from nearest grid-cell and specific month 
-      !*************************************************
+      ! Get CL from nearest grid-cell for current hour
+      !***********************************************
 
       ! world coordinates
       xlon=real(part(jpart)%xlon)*dx+xlon0
@@ -471,8 +561,9 @@ module chemistry_mod
         ylat=90.
       endif
       ! get position in the chem field
-      clx=minloc(abs(lonCL-xlon),dim=1)
-      cly=minloc(abs(latCL-ylat),dim=1)
+      ! assumes chem field dimensions given as grid midpoints
+      clx=int((xlon-(lonCL(1)-0.5*dxCL))/dxCL)+1
+      cly=int((ylat-(latCL(1)-0.5*dyCL))/dyCL)+1   
 
       ! get the level of the chem field for the particle
       ! z is the z-coord of the trajectory above model orography in metres
@@ -505,33 +596,9 @@ module chemistry_mod
 
       do nr=1,nreagent
 
-        ! Compute chem field for current time 
-        !************************************
-
-        do i=1,2
-          cl_tmp(i)=(dz2*CL_field(clx,cly,clzm,nr,i) &
-                     + dz1*CL_field(clx,cly,clz,nr,i))*dzz
-        end do
-        cl_cur=(dt2*cl_tmp(1) + dt1*cl_tmp(2))*dtt
-
-        if (reag_hourly(nr).gt.0) then
-          ! use actinic flux (jrate) for interpolation
-          jrx=minloc(abs(lonjr-xlon),dim=1)
-          jry=minloc(abs(latjr-ylat),dim=1)
-          ! calculate solar zenith angle in degrees (sza) 
-          latjry=latjr(jry)
-          lonjrx=lonjr(jrx)
-          sza=zenithangle(latjry,lonjrx,jjjjmmdd,hhmmss)
-          ! calculate J(O1D) (jrate)
-          jrate=photo_O1D(sza)
-          ! note can use dt1, dt2, dtt from above if CL fields also monthly
-          jrate_cur=jrate_average(jrx,jry,1)*dt2*dtt &
-                      + jrate_average(jrx,jry,2)*dt1*dtt
-          ! apply hourly correction to chem field
-          if(jrate_cur.gt.0.) then
-            cl_cur=cl_cur*jrate/jrate_cur
-          endif
-        endif ! reag_hourly
+        ! chem reagent for particle time and location 
+        cl_cur=(dz2*clfield_cur(clx,cly,clzm,nr) + &
+                dz1*clfield_cur(clx,cly,clz,nr))*dzz
 
         ! Compute chemical loss
         !**********************
@@ -550,9 +617,6 @@ module chemistry_mod
             if (reaccconst(nr,ks).gt.0.) then
               ! k = CT^Nexp(-D/temp)[reagent]
               clrate=reaccconst(nr,ks)*(temp**reacnconst(nr,ks))*exp(-1.*reacdconst(nr,ks)/temp)*cl_cur
-!! testing
-!              clr_field(clx,cly,clz)=clr_field(clx,cly,clz)+clrate
-!              cnt_field(clx,cly,clz)=cnt_field(clx,cly,clz)+1
               ! new particle mass
               restmass=mass(jpart,ks)*exp(-1.*clrate*abs(lsynctime))
               if (restmass.gt.smallnum) then
@@ -573,18 +637,6 @@ module chemistry_mod
 !$OMP END DO
 
 !$OMP END PARALLEL
-
-!! testing
-!    where (cnt_field.gt.0) clr_field=clr_field/cnt_field
-!    write(atime,'(I6.6)') itime
-!    open(300,file=path(2)(1:length(2))//'clr_field_'//atime//'.txt',status='replace',action='write')
-!    write(frmt,fmt='(A,I4,A)') '(',nxCL,'(E14.6))'
-!    do clz=1,nzCL
-!      do cly=1,nyCL
-!        write(300,frmt) clr_field(1:nxCL,cly,clz)
-!      end do
-!    end do
-!    close(300)
 
   end subroutine chemreaction
 
@@ -611,7 +663,6 @@ module chemistry_mod
 
     character(len=256) :: jr_name
     integer            :: memid,mm
-    integer            :: nxjr,nyjr
     integer            :: ncid,dimid,varid
 
     ! Read netcdf file
@@ -626,6 +677,7 @@ module chemistry_mod
     if (.not.allocated(lonjr)) allocate(lonjr(nxjr))
     call nf90_err( nf90_inq_varid(ncid,'longitude',varid) )
     call nf90_err( nf90_get_var(ncid,varid,lonjr) )
+    dxjr=abs(lonjr(2)-lonjr(1))
 
     ! latitude
     call nf90_err( nf90_inq_dimid(ncid,'latitude',dimid) )
@@ -633,6 +685,7 @@ module chemistry_mod
     if (.not.allocated(latjr)) allocate(latjr(nyjr))
     call nf90_err( nf90_inq_varid(ncid,'latitude',varid) )
     call nf90_err( nf90_get_var(ncid,varid,latjr) )
+    dyjr=abs(latjr(2)-latjr(1))
 
     ! jrate field
     call nf90_err( nf90_inq_varid(ncid,'jrate',varid) )
@@ -770,6 +823,37 @@ module chemistry_mod
 
   end function zenithangle
 
+  function find_minloc(n,vect,val) result(ind)
+
+  !*****************************************************************************
+  !                                                                            *
+  !    This function returns index of a vector corresponding to the closest    *
+  !    value to variable val                                                   *
+  !                                                                            *
+  !    Author: R. Thompson, Mar 2024                                           *
+  !                                                                            *
+  !*****************************************************************************
+
+    implicit none
+
+    integer,            intent(in) :: n
+    real, dimension(n), intent(in) :: vect
+    real,               intent(in) :: val
+    integer                        :: i, ind
+    real                           :: diff, diff_min
+
+    diff_min=huge(1.0)
+
+    ind=0
+    do i=1,n
+      diff=abs(vect(i)-val)
+      if ( diff.lt.diff_min ) then
+        diff_min=diff
+        ind=i
+      endif
+    end do    
+
+  end function find_minloc
 
 end module chemistry_mod
 

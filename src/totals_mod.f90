@@ -44,6 +44,7 @@ module totals_mod
     if (stat.ne.0) error stop "Could not allocate totals arrays"
     chem_loss(:,:)=0.
 
+    allocate( tot_mass(nspec) )
     allocate( tot_em_up(nspec) )
     allocate( tot_em_field(nspec) )
     allocate( tot_em_res(nspec) )

@@ -2436,7 +2436,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   endif
 
   ! Open partoutput_end.nc file
-  call nf90_err(nf90_open(trim('partoutput_end.nc'), mode=NF90_NOWRITE,ncid=ncidend))
+  call nf90_err(nf90_open(path(2)(1:length(2))//trim('partoutput_end.nc'), mode=NF90_NOWRITE,ncid=ncidend))
 
   ! Take the positions of the particles at the last timestep in the file
   ! It needs to be the same as given in the COMMAND file, this is arbitrary
@@ -2466,6 +2466,9 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
     write(*,*) julin,julcommand,tend
     error stop 
   endif
+
+  !! testing
+!  print*, 'readpartpositions_netcdf: julin, julcommand = ',julin, julcommand
 
   ! Then the particle dimension
   call nf90_err(nf90_inq_dimid(ncid=ncidend,name='particle',dimid=pIDend))
@@ -2510,7 +2513,9 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   do i=1,plen
     if (part(i)%z.lt.0) then 
       call terminate_particle(i,0)
-      write(*,*) 'Particle ',i,'is not alive in the restart file.'
+      if (mdomainfill.eq.0) then
+        write(*,*) 'Particle ',i,'is not alive in the restart file.'
+      endif
       iterminate=iterminate+1
     endif
     part(i)%nclass=min(int(ran1(idummy,0)*real(nclassunc))+1, &
@@ -2522,6 +2527,11 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   if (iterminate.gt.0) call rewrite_ialive()
   
   call nf90_err(nf90_close(ncidend))
+
+  !! testing
+!  print*, 'readpartpositions_netcdf: number alive = ',count%alive
+!  print*, 'readpartpositions_netcdf: range(part%z) = ',minval(part(1:count%alive)%z),maxval(part(1:count%alive)%z)
+!  print*, 'readpartpositions_netcdf: part(1)%tstart = ',part(1)%tstart
 
 end subroutine readpartpositions_netcdf
 

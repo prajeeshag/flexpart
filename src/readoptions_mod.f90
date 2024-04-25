@@ -1969,7 +1969,7 @@ subroutine readreceptors
       lon=-999.9
       read(unitreceptor,receptors,iostat=ios)
       if ((lon.lt.-900).or.(ios.ne.0)) exit    
-      if ((time.lt.bdate).or.(time.gt.edate)) cycle  ! skip receptors not in simulation window
+      if ((time.lt.bdate).or.(time.ge.edate)) cycle  ! skip receptors not in simulation window
       j=j+1
     end do
     numreceptor=j
@@ -1992,7 +1992,7 @@ subroutine readreceptors
       lon=-999.9
       read(unitreceptor,receptors,iostat=ios)
       if ((lon.lt.-900).or.(ios.ne.0)) exit          ! read error
-      if ((time.lt.bdate).or.(time.gt.edate)) cycle  ! skip receptors not in simulation window
+      if ((time.lt.bdate).or.(time.ge.edate)) cycle  ! skip receptors not in simulation window
       j=j+1
       receptorname(j)=receptor
       xreceptor(j)=(lon-xlon0)/dx       ! transform to grid coordinates

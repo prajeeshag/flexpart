@@ -69,13 +69,11 @@ module emissions_mod
     character(len=20) :: frmt
     real          :: em_frac
     real, allocatable, dimension(:,:,:) :: em_neg
-#ifdef _OPENMP
     real, allocatable, dimension(:,:) :: tot_em_up_tmp
     real, allocatable, dimension(:,:,:,:) :: mass_field_tmp, em_neg_tmp
-#endif
     real          :: f_m
     logical       :: lexist
-    integer, parameter :: unittest=120
+!    integer, parameter :: unittest=120
 
 
     ! fraction of stored emissions that is released in a time step
@@ -91,31 +89,28 @@ module emissions_mod
     dt2=float(memtime(2)-itime)
     dtt=1./(dt1+dt2)
 
+    tot_em_up(:) = 0.
+
     ! estimate mass in PBL from particle positions
     !**********************************************
 
+    mass_field(:,:,:) = 0.
     allocate( em_neg(nspec-1,nxem,nyem) )
-#ifdef _OPENMP
+#if _OPENMP
     allocate( mass_field_tmp(nspec,nxem,nyem,numthreads))
     allocate( em_neg_tmp(nspec-1,nxem,nyem,numthreads))
     allocate( tot_em_up_tmp(nspec,numthreads) )
-#endif
-
-!$OMP PARALLEL
-!$OMP WORKSHARE
     mass_field_tmp(:,:,:,:) = 0.
     em_neg_tmp(:,:,:,:) = 0.
     tot_em_up_tmp(:,:) = 0.
+#endif
     tot_em_up(:) = 0.
     mass_field(:,:,:) = 0.
     em_neg(:,:,:) = 0.
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
 
 !$OMP PARALLEL &
 !$OMP PRIVATE(ii,xlon,ylat,em_ix,em_jy,ix,jy,ixp,jyp,ddx,ddy, &
-!$OMP rddx,rddy,p1,p2,p3,p4,mm,hm,hmixi,ks,ithread) &
-!$OMP SHARED(em_cond,mass_field_tmp) 
+!$OMP rddx,rddy,p1,p2,p3,p4,mm,hm,hmixi,ks,ithread) 
 
 #ifdef _OPENMP
     ithread = OMP_GET_THREAD_NUM()+1 ! Starts with 1
@@ -124,8 +119,6 @@ module emissions_mod
 #endif
 
 !$OMP DO 
-
-! REDUCTION(+:mass_field)
     do ii=1,count%alive  ! loop over all particles
 
       xlon=xlon0+part(ii)%xlon*dx
@@ -135,7 +128,7 @@ module emissions_mod
       em_ix=min(nxem, int((xlon-(lonem(1)-0.5*dxem))/dxem)+1)
       em_jy=min(nyem, int((ylat-(latem(1)-0.5*dyem))/dyem)+1)
       !! testing
-      if (ii.lt.20) print*, 'lonem, lon, latem, lat = ',lonem(em_ix),xlon,latem(em_jy),ylat
+!      if (ii.lt.20) print*, 'lonem, lon, latem, lat = ',lonem(em_ix),xlon,latem(em_jy),ylat
 
       ! interpolate to particle position
       ix=int(part(ii)%xlon)
@@ -180,10 +173,13 @@ module emissions_mod
 !$OMP END DO
 !$OMP END PARALLEL
 
-    ! Manual reduction of mass_field
+#ifdef _OPENMP
+    ! manual reduction of mass_field
     do ithread=1,numthreads
       mass_field(:,:,:) = mass_field(:,:,:)+mass_field_tmp(:,:,:,ithread)
-    end do 
+    end do
+#endif
+
     f_m = exp(-1.*real(lsynctime)/tau_ipm)
 
     ! estimate emissions for each particle
@@ -191,8 +187,7 @@ module emissions_mod
 
 !$OMP PARALLEL &
 !$OMP PRIVATE(ii,xlon,ylat,em_ix,em_jy, &
-!$OMP ks,em_cur,tmp,ithread) &
-!$OMP SHARED(em_cond,tot_em_up_tmp,em_neg_tmp) 
+!$OMP ks,em_cur,tmp,ithread) 
 
 #ifdef _OPENMP
     ithread = OMP_GET_THREAD_NUM()+1 ! Starts with 1
@@ -200,8 +195,7 @@ module emissions_mod
     ithread = 1
 #endif
 
-!$OMP DO 
-! REDUCTION(+:tot_em_up,em_neg)
+!$OMP DO
     do ii=1,count%alive ! loop over particles
 
       if (.not.em_cond(ii)) cycle ! skip particles not in PBL
@@ -233,9 +227,13 @@ module emissions_mod
           if (-1.*tmp.gt.mass(ii,ks)) then
             tmp = tmp + mass(ii,ks)
             ! subtract mass from atmosphere by setting it to zero below
+#ifdef _OPENMP
             tot_em_up_tmp(ks,ithread) = tot_em_up_tmp(ks,ithread) - real(mass(ii,ks),kind=dp)
+#else
+            tot_em_up(ks) = tot_em_up(ks) - real(mass(ii,ks),kind=dp)
+#endif
             mass(ii,ks) = 0.
-            ! add remaining uptake to em_neg
+            ! add remaining uptake to em_neg 
 #ifdef _OPENMP
             em_neg_tmp(ks-1,em_ix,em_jy,ithread) = em_neg_tmp(ks-1,em_ix,em_jy,ithread) + &
               tmp/mass(ii,1)*mass_field(1,em_ix,em_jy)
@@ -245,11 +243,19 @@ module emissions_mod
 #endif
           else
             mass(ii,ks)=mass(ii,ks)+tmp
+#ifdef _OPENMP
             tot_em_up_tmp(ks,ithread) = tot_em_up_tmp(ks,ithread) + real(tmp,kind=dp)
+#else
+            tot_em_up(ks) = tot_em_up(ks) + real(tmp,kind=dp)
+#endif
           endif
         else
           mass(ii,ks)=mass(ii,ks)+tmp
+#ifdef _OPENMP
           tot_em_up_tmp(ks,ithread) = tot_em_up_tmp(ks,ithread) + real(tmp,kind=dp)
+#else
+          tot_em_up(ks) = tot_em_up(ks) + real(tmp,kind=dp)
+#endif
         endif ! negative emissions
 
       end do ! nspec
@@ -279,14 +285,13 @@ module emissions_mod
 !$OMP END DO
 !$OMP END PARALLEL
 
+    ! manual reduction of em_neg and tot_em_up
 #ifdef _OPENMP
     do ithread=1,numthreads
       em_neg(:,:,:) = em_neg(:,:,:)+em_neg_tmp(:,:,:,ithread)
       tot_em_up(:) = tot_em_up(:) + tot_em_up_tmp(:,ithread)
-    end do 
-    deallocate( mass_field_tmp,em_neg_tmp,tot_em_up_tmp )
-#else
-    tot_em_up(:) = tot_em_up_tmp(:,1)
+    end do
+    deallocate( mass_field_tmp, em_neg_tmp, tot_em_up_tmp )
 #endif
 
     ! update for negative emissions
@@ -305,18 +310,18 @@ module emissions_mod
 !$OMP END PARALLEL
 
     !! test
-    inquire(file=path(2)(1:length(2))//'mass_field.txt',exist=lexist)
-    write(*,*) 'emissions: lexist = ',lexist
-    if (lexist) then
-      open(unittest,file=path(2)(1:length(2))//'mass_field.txt',ACCESS='APPEND',STATUS='OLD')
-    else
-      open(unittest,file=path(2)(1:length(2))//'mass_field.txt',STATUS='NEW')
-    endif
-    write(frmt, '(A, I4, A)') '(', nxem, 'E12.3)'
-    do jy=1,nyem-1
-      write(unittest,frmt) (mass_field(2,ix,jy),ix=1,nxem)
-    end do
-    close(unittest)
+!    inquire(file=path(2)(1:length(2))//'mass_field.txt',exist=lexist)
+!    write(*,*) 'emissions: lexist = ',lexist
+!    if (lexist) then
+!      open(unittest,file=path(2)(1:length(2))//'mass_field.txt',ACCESS='APPEND',STATUS='OLD')
+!    else
+!      open(unittest,file=path(2)(1:length(2))//'mass_field.txt',STATUS='NEW')
+!    endif
+!    write(frmt, '(A, I4, A)') '(', nxem, 'E12.3)'
+!    do jy=1,nyem-1
+!      write(unittest,frmt) (mass_field(2,ix,jy),ix=1,nxem)
+!    end do
+!    close(unittest)
     !!
 
   end subroutine emissions
@@ -572,7 +577,7 @@ module emissions_mod
       allocate( em_field(nspec-1,nxem,nyem,2) )
       em_field(:,:,:,:)=0.
       allocate( em_res(nspec-1,nxem,nyem) )
-      if (ipin.eq.1) then
+      if (ipin.eq.2) then
         ! read residual emissions from end of previous run
         write(*,*) 'Reading residual emissions from previous run'
         call em_res_read

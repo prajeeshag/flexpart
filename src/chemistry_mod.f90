@@ -373,11 +373,13 @@ module chemistry_mod
     integer          :: jrx, jry
     real(kind=dp)    :: jul
     !! testing
-    character(len=4) :: atime
-    character(len=20) :: frmt
-    real, dimension(nxjr,nyjr) :: jscalar
+!    character(len=4) :: atime
+!    character(len=20) :: frmt
+!    real, dimension(nxjr,nyjr) :: jscalar, sza_grid
     
-    jscalar(:,:)=1.
+    !! testing
+!    jscalar(:,:)=1.
+!    sza_grid(:,:)=0.
 
     ! current hour of simulation
     curhour=itime/3600
@@ -397,7 +399,7 @@ module chemistry_mod
       dt2=float(memCLtime(2)-interp_time)
       dtt=1./(dt1+dt2)
       !! testing
-      print*, 'getchemhourly: dt1, dt2, dtt = ',dt1,dt2,dtt 
+!      print*, 'getchemhourly: dt1, dt2, dtt = ',dt1,dt2,dtt 
       do nr=1,nreagent
         write(*,*) 'Interpolating fields for reagent: ',reagents(nr)
         clfield_cur(:,:,:,nr)=(dt2*CL_field(:,:,:,nr,1) + dt1*CL_field(:,:,:,nr,2))*dtt
@@ -410,13 +412,15 @@ module chemistry_mod
             do jy=1,nyCL  
               ! jrate_average dimensions given as grid midpoints
               jry=int((latCL(jy)-(latjr(1)-0.5*dyjr))/dyjr)+1
+              jry=min(jry,nyCL)
               !! testing
-              if (kz.eq.1.and.jy.lt.10) print*, 'latCL, latjr = ',latCL(jy), latjr(jry)
+!              if (kz.eq.1.and.jy.lt.10) print*, 'latCL, latjr = ',latCL(jy), latjr(jry)
               do ix=1,nxCL
                 ! jrate_average dimensions given as grid midpoints
                 jrx=int((lonCL(ix)-(lonjr(1)-0.5*dxjr))/dxjr)+1
+                jrx=min(jrx,nxCL)
                 !! testing
-                if (kz.eq.1.and.jy.lt.10.and.ix.lt.10) print*, 'lonCL, lonjr = ',lonCL(ix), lonjr(jrx)
+!                if (kz.eq.1.and.jy.lt.10.and.ix.lt.10) print*, 'lonCL, lonjr = ',lonCL(ix), lonjr(jrx)
                 ! solar zenith angle
                 sza=zenithangle(latjr(jry),lonjr(jrx),jjjjmmdd,hhmmss)
                 ! calculate J(O1D) (jrate)
@@ -427,7 +431,10 @@ module chemistry_mod
                 if(jrate_cur.gt.0.) then
                   clfield_cur(ix,jy,kz,nr)=clfield_cur(ix,jy,kz,nr)*jrate/jrate_cur
                   !! testing
-                  if (kz.eq.1) jscalar(ix,jy)=jrate/jrate_cur
+!                  if (kz.eq.1) then
+!                    jscalar(ix,jy)=jrate/jrate_cur
+!                    sza_grid(ix,jy)=sza
+!                  endif
                 endif
               end do
             end do
@@ -439,29 +446,27 @@ module chemistry_mod
     endif ! curhour
 
     !! testing
-    write(frmt,fmt='(A,I4,A)') '(',nxCL,'(E14.6))'
-    write(atime,fmt='(I4.4)') curhour
-    open(600,file=path(2)(1:length(2))//'clfield_'//atime//'.txt',action='write',status='replace')
-    do kz=1,nzCL
-      do jy=1,nyCL
-        write(600,fmt=frmt) clfield_cur(:,jy,kz,1)
-      end do
-    end do
-    close(600)
-    write(frmt,fmt='(A,I4,A)') '(',nxjr,'(E14.6))'
-    open(600,file=path(2)(1:length(2))//'jscalar_'//atime//'.txt',action='write',status='replace')
-    do jy=1,nyjr
-      write(600,fmt=frmt) jscalar(:,jy)
-    end do
-    close(600)
-    if (itime.eq.0) then
-      write(frmt,fmt='(A,I4,A)') '(',nxjr,'(E14.6))'
-      open(600,file=path(2)(1:length(2))//'javerage_'//atime//'.txt',action='write',status='replace')
-      do jy=1,nyjr
-        write(600,fmt=frmt) jrate_average(:,jy,1)
-      end do
-    endif
-    close(600)
+!    write(frmt,fmt='(A,I4,A)') '(',nxCL,'(E14.6))'
+!    write(atime,fmt='(I4.4)') curhour
+!    open(600,file=path(2)(1:length(2))//'clfield_'//atime//'.txt',action='write',status='replace')
+!    do kz=1,nzCL
+!      do jy=1,nyCL
+!        write(600,fmt=frmt) clfield_cur(:,jy,kz,1)
+!      end do
+!    end do
+!    close(600)
+!    write(frmt,fmt='(A,I4,A)') '(',nxjr,'(E14.6))'
+!    open(600,file=path(2)(1:length(2))//'jscalar_'//atime//'.txt',action='write',status='replace')
+!    do jy=1,nyjr
+!      write(600,fmt=frmt) jscalar(:,jy)
+!    end do
+!    close(600)
+!    write(frmt,fmt='(A,I4,A)') '(',nxjr,'(E14.6))'
+!    open(600,file=path(2)(1:length(2))//'sza_'//atime//'.txt',action='write',status='replace')
+!    do jy=1,nyjr
+!      write(600,fmt=frmt) sza_grid(:,jy)
+!    end do
+!    close(600)
 
   end subroutine getchemhourly
 
@@ -521,15 +526,15 @@ module chemistry_mod
 #ifdef _OPENMP
     allocate( chem_loss_tmp(nreagent,nspec,numthreads) )
     chem_loss_tmp(:,:,:) = 0d0
-#endif 
+#endif
+
     ! Loop over particles
     !*****************************************
 
 !$OMP PARALLEL &
 !$OMP PRIVATE(ii,jpart,ngrid,j,xtn,ytn,ix,jy, &
 !$OMP   xlon,ylat,clx,cly,clz,clzm,kz,altCLtop,dz1,dz2,dzz,nr,i, &
-!$OMP   cl_cur,indz,temp,ks,clrate,restmass,clreacted,ithread)
-! !$OMP REDUCTION(+:chem_loss) 
+!$OMP   cl_cur,indz,temp,ks,clrate,restmass,clreacted,ithread) 
 
 #ifdef _OPENMP
     ithread = OMP_GET_THREAD_NUM()+1 ! Starts with 1
@@ -576,8 +581,8 @@ module chemistry_mod
       endif
       ! get position in the chem field
       ! assumes chem field dimensions given as grid midpoints
-      clx=min(nxCL, int((xlon-(lonCL(1)-0.5*dxCL))/dxCL)+1)
-      cly=min(nyCL, int((ylat-(latCL(1)-0.5*dyCL))/dyCL)+1)
+      clx=min(nxCL,int((xlon-(lonCL(1)-0.5*dxCL))/dxCL)+1)
+      cly=min(nyCL,int((ylat-(latCL(1)-0.5*dyCL))/dyCL)+1)   
 
       ! get the level of the chem field for the particle
       ! z is the z-coord of the trajectory above model orography in metres
@@ -655,11 +660,11 @@ module chemistry_mod
 !$OMP END DO
 
 !$OMP END PARALLEL
-  
+
 #ifdef _OPENMP
   do ithread=1,numthreads
     chem_loss(:,:) = chem_loss(:,:)+chem_loss_tmp(:,:,ithread)
-  end do 
+  end do
   deallocate( chem_loss_tmp )
 #endif
 
@@ -848,37 +853,6 @@ module chemistry_mod
 
   end function zenithangle
 
-  function find_minloc(n,vect,val) result(ind)
-
-  !*****************************************************************************
-  !                                                                            *
-  !    This function returns index of a vector corresponding to the closest    *
-  !    value to variable val                                                   *
-  !                                                                            *
-  !    Author: R. Thompson, Mar 2024                                           *
-  !                                                                            *
-  !*****************************************************************************
-
-    implicit none
-
-    integer,            intent(in) :: n
-    real, dimension(n), intent(in) :: vect
-    real,               intent(in) :: val
-    integer                        :: i, ind
-    real                           :: diff, diff_min
-
-    diff_min=huge(1.0)
-
-    ind=0
-    do i=1,n
-      diff=abs(vect(i)-val)
-      if ( diff.lt.diff_min ) then
-        diff_min=diff
-        ind=i
-      endif
-    end do    
-
-  end function find_minloc
 
 end module chemistry_mod
 

@@ -536,9 +536,18 @@ module initdomain_mod
       endif
     endif
 
-    ! Exit here if resuming a run from particle dump
-    !***********************************************
-    if (gdomainfill.and.ipin.ne.0) return
+    ! If resuming a run from particle dump
+    ! calculate total mass each species then exit
+    !********************************************
+    if (gdomainfill.and.ipin.ne.0) then
+      write(*,*) 'Initialising particles from partoutput'
+      tot_mass(:)=0.
+      do ks=2,nspec
+        tot_mass(ks)=sum(mass(1:count%alive,ks))
+        write(*,'(A,E12.4,A)') 'Species '//species(ks)//': ',tot_mass(ks),' (kg)'
+      end do
+      return
+    endif
 
     ! Allocate fields used within this subroutine
     !*********************************************
@@ -550,7 +559,6 @@ module initdomain_mod
     ! Do not release particles twice (i.e., not at both in the leftmost and rightmost
     ! grid cell) for a global domain
     !*****************************************************************************
-    write(*,*) 'init_domainfill: nx_we(2), nx-2 = ',nx_we(2), nx-2
     if (xglobal) nx_we(2)=min(nx_we(2),nx-2)
     write(*,*) 'init_domainfill: nx_we, ny_sn = ',nx_we, ny_sn
     
@@ -741,10 +749,10 @@ module initdomain_mod
           ! poles), distribute the particles randomly. When only few particles are
           ! left distribute them randomly
 
-          if ((ncolumn.gt.20).and.(ncolumn-j.gt.20)) then
+          if ((ncolumn.gt.20)) then !.and.(ncolumn-j.gt.20)) then
             pnew=pnew-deltacol
-          else if (ncolumn.gt.20) then
-            pnew=pnew-ran1(idummy,0)*(pnew-pp(nz))
+!          else if (ncolumn.gt.20) then
+!            pnew=pnew-ran1(idummy,0)*(pnew-pp(nz))
           else
             pnew=pp(1)-ran1(idummy,0)*(pp(1)-pp(nz))
           endif
@@ -871,6 +879,8 @@ module initdomain_mod
                       ! Assumes lon and lat dimensions are midpoints
                       ixm=int((xl-(lonini(1,indxn)-0.5*dxini(indxn)))/dxini(indxn))+1
                       jym=int((yl-(latini(1,indxn)-0.5*dyini(indxn)))/dyini(indxn))+1
+                      ixm=min(ixm,nxini(indxn))
+                      jym=min(jym,nyini(indxn))
                       !! testing
                       if (jj.eq.1.and.jy.lt.5.and.ix.lt.5) then 
                         print*, 'init_domainfill: lonini, xl, latini, yl = ',lonini(ixm,indxn),xl,latini(jym,indxn),yl
@@ -970,9 +980,6 @@ module initdomain_mod
 
     ! Total mass each species
     !************************
-    if (.not.allocated(tot_mass)) then
-      allocate( tot_mass(nspec) )
-    endif
     tot_mass(:)=0.
     do ks=2,nspec
       tot_mass(ks)=sum(mass(1:count%alive,ks))

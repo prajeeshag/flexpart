@@ -44,7 +44,7 @@ program flexpart
   real :: s_timemanager
   character(len=256) ::   &
     inline_options          ! pathfile, flexversion, arg2
-  character(len=256) :: gitversion_tmp="undefined"
+  character(len=256) :: gitversion_tmp="8d9c680 Mon Apr 22 15:37:39 2024 +0200"
 
   ! Keeping track of the total running time of FLEXPART, printed out at the end.
   !*****************************************************************************
@@ -300,11 +300,10 @@ subroutine read_options_and_initialise_flexpart
   numreceptor=0
   numsatreceptor=0
   nlayermax=1
-  ! NOTE: need to change to calc receptors conc without netcdf
 #ifdef USE_NCF
   call readreceptors_satellite
-  call readreceptors
 #endif
+  call readreceptors
 
   ! Read the landuse inventory
   !***************************

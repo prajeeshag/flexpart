@@ -304,6 +304,19 @@ subroutine timemanager
         else
           call init_domainfill
         endif
+        if (ipin.eq.2) then
+          ! Particles initialized from partoutput
+#ifdef ETA
+!$OMP PARALLEL PRIVATE(i,j)
+!$OMP DO
+          do i=1,count%alive
+            j=count%ialive(i)
+            call update_z_to_zeta(itime,j)
+          end do
+!$OMP END DO
+!$OMP END PARALLEL
+#endif
+        endif
       else 
         call boundcond_domainfill(itime,loutend)
       endif
@@ -704,17 +717,8 @@ subroutine timemanager
 
 #ifdef USE_NCF
     if ((mdomainfill.eq.1).and.(llcmoutput)) then
-
-      if (.not.allocated(tot_mass)) then
-        allocate( tot_mass(nspec) )
-        tot_mass(:)=0.
-      endif
-      
       do ks=1,nspec
-        do i=1,count%alive
-          j=count%ialive(i)
-          tot_mass(ks)=tot_mass(ks)+real(mass(j,ks),kind=dp)
-        end do
+        tot_mass(ks)=sum(real(mass(1:count%alive,ks),kind=dp))
       end do
       call totals_write(itime)
     endif

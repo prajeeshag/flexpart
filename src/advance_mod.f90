@@ -410,10 +410,16 @@ subroutine adv_above_pbl(itime,itimec,dxsave,dysave,ux,vy,tropop,nrand,ipart)
         call get_settling(xts,yts,zts,nsp,part(ipart)%settling)
 #ifdef ETA
         call update_zeta_to_z(itime,ipart)
+        if (part(ipart)%z+part(ipart)%settling*dt.lt.0) then
+          part(ipart)%settling=-part(ipart)%z/dt
+        endif
         call w_to_weta(itime,dt,part(ipart)%xlon,part(ipart)%ylat, &
           part(ipart)%z,part(ipart)%zeta,part(ipart)%settling,weta_settling)
-          weta=weta+weta_settling
+        weta=weta+weta_settling
 #else
+        if (part(ipart)%z+part(ipart)%settling*dt.lt.0) then
+          part(ipart)%settling=-part(ipart)%z/dt
+        endif
         w=w+part(ipart)%settling
 #endif
       end if
@@ -586,6 +592,9 @@ subroutine adv_in_pbl(itime,itimec, dxsave,dysave,dawsave,dcwsave, abovePBL,  &
         endif
         if (density(nsp).gt.0.) then
           call get_settling(xts,yts,zts,nsp,part(ipart)%settling)  !bugfix
+          if (part(ipart)%z+part(ipart)%settling*dt.lt.0) then
+            part(ipart)%settling=-part(ipart)%z/dt
+          endif
           w=w+part(ipart)%settling
         end if
       end if
@@ -712,6 +721,9 @@ subroutine petterssen_corr(itime,ipart)
         call update_z_to_zeta(itime+part(ipart)%idt,ipart)
         zts=real(part(ipart)%z)
         call get_settling(xts,yts,zts,nsp,part(ipart)%settling) !bugfix
+        if (part(ipart)%z+part(ipart)%settling*part(ipart)%idt.lt.0) then
+          part(ipart)%settling=-part(ipart)%z/part(ipart)%idt
+        endif
         call w_to_weta( &
           itime+part(ipart)%idt, real(part(ipart)%idt), part(ipart)%xlon, &
           part(ipart)%ylat, part(ipart)%z, part(ipart)%zeta, &
@@ -721,6 +733,9 @@ subroutine petterssen_corr(itime,ipart)
    !real(part(ipart)%zeta-part(ipart)%zeta_prev)/real(part(ipart)%idt*ldirect)
 #else
         call get_settling(xts,yts,zts,nsp,part(ipart)%settling)
+        if (part(ipart)%z+part(ipart)%settling*part(ipart)%idt.lt.0) then
+          part(ipart)%settling=-part(ipart)%z/part(ipart)%idt
+        endif
         w=w+part(ipart)%settling
 #endif
       end if

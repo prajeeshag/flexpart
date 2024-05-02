@@ -80,7 +80,7 @@ module par_mod
   !real,parameter :: d_trop=50., d_strat=0.1
   real :: d_trop=50., d_strat=0.1, fturbmeso=0.16 ! turbulence factors can change for different runs
   real,parameter :: rho_water=1000. !ZHG 2015 [kg/m3]
-  real,parameter :: ratio_incloud=0.1   !MC 2024
+  real,parameter :: ratio_incloud=0.0062   !MC 2024
   real,parameter :: wet_a=1.e-5, wet_b=0.8 !AT
 
   ! karman            Karman's constant

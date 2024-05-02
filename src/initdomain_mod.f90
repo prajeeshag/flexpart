@@ -185,6 +185,9 @@ module initdomain_mod
     write(*,*) 'readgridini: path, filename, varname = ',path_name,file_name,var_name
     write(*,*) 'readgridini: specnum_rel(indxn), specnum(ks), indxn = ',specnum_rel(indxn), specnum(ks), indxn
 
+    close(unitinitconc)
+    close(unitinitconcout)
+
     ! get file name for current year and month
     call caldate(bdate,yyyymmdd,hhmiss)
     yyyy=yyyymmdd/10000

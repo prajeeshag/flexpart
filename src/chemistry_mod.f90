@@ -14,24 +14,26 @@ module chemistry_mod
   use par_mod
   use com_mod
   use date_mod
-  use totals_mod, only: chem_loss
+  use windfields_mod,    only: rho,nxmax,nymax,nzmax
+  use totals_mod,        only: chem_loss
   use netcdf_output_mod, only: nf90_err
 
   ! reagent field variables 
 
   implicit none
 
-  integer                                 :: nxCL,nyCL,nzCL
+  integer, allocatable, dimension(:)      :: nxCL, nyCL, nzCL
   integer                                 :: nxjr, nyjr
-  real, allocatable, dimension(:)         :: lonCL,latCL,altCL
-  real                                    :: dxCL,dyCL,dxjr,dyjr
+  real, allocatable, dimension(:,:)       :: lonCL, latCL, altCL
+  real, allocatable, dimension(:)         :: dxCL, dyCL
+  real                                    :: dxjr, dyjr
   real, allocatable, dimension(:,:,:,:,:) :: CL_field           ! chemical loss fields at input resolution
   real, allocatable, dimension(:,:,:,:)   :: clfield_cur        ! chemical loss fields current hour
   integer, dimension(2)                   :: memCLtime          ! time of fields in memory (sec)  
   integer                                 :: curCLhour          ! current hour since start of simulation
   real(kind=dp), dimension(2)             :: CL_time            ! julian date of fields in memory
   real, allocatable, dimension(:,:,:)     :: jrate_average      ! monthly average actinic flux 
-  real, allocatable, dimension(:)         :: lonjr,latjr
+  real, allocatable, dimension(:)         :: lonjr, latjr
 
   private :: zenithangle, photo_O1D
 
@@ -57,7 +59,7 @@ module chemistry_mod
     implicit none
 
     character(len=256) :: preag_path
-    character(len=10)  :: preagent
+    character(len=16)  :: preagent, punit
     integer :: phourly
     integer,parameter :: unitreagents=2, unitreagentsout=3
     integer :: readerror
@@ -65,10 +67,11 @@ module chemistry_mod
 
     ! declare namelist
     namelist /reagent_params/ &
-         preagent, preag_path, phourly
+         preagent, preag_path, phourly, punit
 
     preagent="" ! read failure indicator value
     preag_path=""
+    punit=""
     phourly=0
     reag_hourly(:)=0
 
@@ -112,6 +115,7 @@ module chemistry_mod
       reagents(j)=preagent
       reag_path(j)=preag_path
       reag_hourly(j)=phourly
+      reag_unit(j)=punit
       ! namelist output
       if (nmlout.and.lroot) then
         write(unitreagentsout,nml=reagent_params)
@@ -121,6 +125,7 @@ module chemistry_mod
     if (lroot) then
       write(*,*) 'Number of reagents: ',nreagent
       write(*,*) 'Reagent names: ',reagents(1:nreagent)
+      write(*,*) 'Reagent units: ',reag_unit(1:nreagent)
     endif
     close(unitreagents)
     close(unitreagentsout)
@@ -154,26 +159,25 @@ module chemistry_mod
     character(len=256):: CL_name, jr_name
     logical          :: lexist
 
-    do nr=1,nreagent
+    print*, 'getchemfield: ldirect*memCLtime(1) = ',ldirect*memCLtime(1)
+    print*, 'getchemfield: ldirect*memCLtime(2) = ',ldirect*memCLtime(2)
 
-      if(lroot) write(*,*) 'Getting fields for reagent: ',reagents(nr)
-      print*, 'ldirect*memCLtime(1) = ',ldirect*memCLtime(1)
-      print*, 'ldirect*memCLtime(2) = ',ldirect*memCLtime(2)
+    ! Check fields are available for the current time step
+    !*****************************************************
 
-      ! Check fields are available for the current time step
-      !*****************************************************
+    if ((ldirect*memCLtime(1).le.ldirect*itime).and. &
+         (ldirect*memCLtime(2).gt.ldirect*itime)) then
 
-      if ((ldirect*memCLtime(1).le.ldirect*itime).and. &
-           (ldirect*memCLtime(2).gt.ldirect*itime)) then
+      ! The rightfields are already in memory -> don't do anything
+      return 
 
-        ! The rightfields are already in memory -> don't do anything
-        exit
+    else if ((ldirect*memCLtime(2).le.ldirect*itime).and. &
+         (memCLtime(2).ne.0.)) then
 
-      else if ((ldirect*memCLtime(2).le.ldirect*itime).and. &
-           (memCLtime(2).ne.0.)) then
+      ! Current time is after 2nd chem field
+      !*************************************
 
-        ! Current time is after 2nd chem field
-        !*************************************
+      do nr=1,nreagent
 
         write(*,*) 'Updating CL field for: ',trim(reagents(nr))
 
@@ -228,10 +232,14 @@ module chemistry_mod
 
         endif
 
-      else
+      end do ! nreagent
 
-        ! No chem field in memory that can be used
-        !******************************************  
+    else
+
+      ! No chem field in memory that can be used
+      !******************************************  
+
+      do nr=1,nreagent
 
         write(*,*) 'Reading two new CL fields for: ',trim(reagents(nr))
 
@@ -274,11 +282,13 @@ module chemistry_mod
           endif ! reag_hourly
         end do ! memid
 
-      endif ! update hourly fields
+      end do ! nreagent
 
-    end do ! nreagent
+    endif ! update hourly fields
+
 
   end subroutine getchemfield
+
 
   subroutine readchemfield(CL_name,memid,nr)
 
@@ -301,7 +311,7 @@ module chemistry_mod
     implicit none
 
     character(len=256) :: CL_name
-    integer            :: memid,nr
+    integer            :: memid,nr,len
     integer            :: ncid,dimid,varid
 
     ! Read netcdf file
@@ -312,37 +322,56 @@ module chemistry_mod
 
     ! longitude
     call nf90_err( nf90_inq_dimid(ncid,'lon',dimid) )
-    call nf90_err( nf90_inquire_dimension(ncid,dimid,len=nxCL) )
-    if (.not.allocated(lonCL)) allocate(lonCL(nxCL))
+    call nf90_err( nf90_inquire_dimension(ncid,dimid,len=len) )
+    if (.not.allocated(lonCL)) then
+      allocate(nxCL(nreagent))
+      allocate(dxCL(nreagent))
+      allocate(lonCL(nxmax,nreagent))
+    endif
+    nxCL(nr)=len
     call nf90_err( nf90_inq_varid(ncid,'lon',varid) )
-    call nf90_err( nf90_get_var(ncid,varid,lonCL) )
-    dxCL=abs(lonCL(2)-lonCL(1))
+    call nf90_err( nf90_get_var(ncid,varid,lonCL(1:nxCL(nr),nr)) )
+    dxCL(nr)=abs(lonCL(2,nr)-lonCL(1,nr))
 
     ! latitude
     call nf90_err( nf90_inq_dimid(ncid,'lat',dimid) )
-    call nf90_err( nf90_inquire_dimension(ncid,dimid,len=nyCL) )
-    if (.not.allocated(latCL)) allocate(latCL(nyCL))
+    call nf90_err( nf90_inquire_dimension(ncid,dimid,len=len) )
+    if (.not.allocated(latCL)) then
+      allocate(nyCL(nreagent))
+      allocate(dyCL(nreagent))
+      allocate(latCL(nymax,nreagent))
+    endif
+    nyCL(nr)=len
     call nf90_err( nf90_inq_varid(ncid,'lat',varid) )
-    call nf90_err( nf90_get_var(ncid,varid,latCL) )
-    dyCL=abs(latCL(2)-latCL(1))
+    call nf90_err( nf90_get_var(ncid,varid,latCL(1:nyCL(nr),nr)) )
+    dyCL(nr)=abs(latCL(2,nr)-latCL(1,nr))
 
     ! altitude
     call nf90_err( nf90_inq_dimid(ncid,'lev',dimid) )
-    call nf90_err( nf90_inquire_dimension(ncid,dimid,len=nzCL) )
-    if (.not.allocated(altCL)) allocate(altCL(nzCL))
+    call nf90_err( nf90_inquire_dimension(ncid,dimid,len=len) )
+    if (.not.allocated(altCL)) then
+      allocate(nzCL(nreagent))
+      allocate(altCL(nzmax,nreagent))
+    endif
+    nzCL(nr)=len
     call nf90_err( nf90_inq_varid(ncid,'lev',varid) )
-    call nf90_err( nf90_get_var(ncid,varid,altCL) )
+    call nf90_err( nf90_get_var(ncid,varid,altCL(1:nzCL(nr),nr)) )
 
     ! chemical field
     call nf90_err( nf90_inq_varid(ncid,trim(reagents(nr)),varid) )
     if (.not.allocated(CL_field)) then
-      allocate(CL_field(nxCL,nyCL,nzCL,nreagent,2))
-      allocate(clfield_cur(nxCL,nyCL,nzCL,nreagent))
+      allocate(CL_field(nxmax,nymax,nzmax,nreagent,2))
+      allocate(clfield_cur(nxmax,nymax,nzmax,nreagent))
     endif
-    call nf90_err( nf90_get_var(ncid,varid,CL_field(:,:,:,nr,memid)) )
+    call nf90_err( nf90_get_var(ncid,varid,CL_field(1:nxCL(nr),1:nyCL(nr),1:nzCL(nr),nr,memid)) )
 
     ! close file
     call nf90_err( nf90_close(ncid) )
+
+    !! testing
+!    print*, 'readchemfield: nxCL, nyCL, nzCL = ',nxCL(nr), nyCL(nr), nzCL(nr)
+!    print*, 'readchemfield: lonCL = ',lonCL(1:nxCL(nr),nr)
+!    print*, 'readchemfield: latCL = ',latCL(1:nyCL(nr),nr)
 
     return
 
@@ -364,14 +393,20 @@ module chemistry_mod
   !                                                                            *
   !*****************************************************************************
 
+    use point_mod,      only: xlon0, ylat0, dx, dy
+    use windfields_mod, only : height, nz
+
     implicit none
 
-    integer          :: itime, curhour, interp_time
-    integer          :: nr, kz, ix, jy
-    real             :: dt1, dt2, dtt, sza, jrate, jrate_cur
-    integer          :: jjjjmmdd, hhmmss
-    integer          :: jrx, jry
-    real(kind=dp)    :: jul
+    integer            :: itime, curhour, interp_time
+    integer            :: nr, kz, ix, jy, ixm, jym, ixp, jyp, indz, indzm, ii
+    real               :: dt1, dt2, dtt, sza, jrate, jrate_cur, r
+    real, dimension(2) :: r1
+    real               :: dz1, dz2, dz, ddx, ddy, rddx, rddy, p1, p2, p3, p4
+    integer            :: jjjjmmdd, hhmmss
+    integer            :: jrx, jry
+    real(kind=dp)      :: jul
+    real, parameter    :: avog = 6.02214e23 ! Avogadro constant (1/mol)
     !! testing
 !    character(len=4) :: atime
 !    character(len=20) :: frmt
@@ -403,22 +438,77 @@ module chemistry_mod
       do nr=1,nreagent
         write(*,*) 'Interpolating fields for reagent: ',reagents(nr)
         clfield_cur(:,:,:,nr)=(dt2*CL_field(:,:,:,nr,1) + dt1*CL_field(:,:,:,nr,2))*dtt
+        if (reag_unit(nr).eq.'mol/mol') then
+          ! convert to molecule/cm3
+!$OMP PARALLEL &
+!$OMP PRIVATE(kz,ix,jy,indz,indzm,ixm,jym,ixp,jyp,ddx,ddy,rddx,rddy,&
+!$OMP p1,p2,p3,p4,r1,ii,dz1,dz2,dz,r)
+!$OMP DO
+          do kz=1,nzCL(nr)
+            ! assume chem fields vertical coordinate is in meters
+            indzm=nz-1
+            do indz=1,nz
+              if (height(indz).gt.altCL(kz,nr)) then
+                indzm=indz-1
+                exit
+              endif
+            end do
+            dz1=altCL(kz,nr)-height(indzm)
+            dz2=height(indz)-altCL(kz,nr)
+            dz=1./(dz1+dz2)
+            do jy=1,nyCL(nr)
+              jym=int((latCL(jy,nr)-ylat0)/dy)
+              jyp=jym+1
+              ddy=(latCL(jy,nr)-ylat0)/dy-real(jym)
+              rddy=1.-ddy
+              do ix=1,nxCL(nr)
+                ixm=int((lonCL(ix,nr)-xlon0)/dx)
+                ixp=ixm+1
+                ddx=(lonCL(ix,nr)-xlon0)/dx-real(ixm)
+                rddx=1.-ddx
+                p1=rddx*rddy
+                p2=ddx*rddy
+                p3=rddx*ddy
+                p4=ddx*ddy
+                !! testing
+!                if ((ix.lt.5).and.(jy.gt.10.and.jy.lt.20).and.kz.eq.1) then
+!                  print*, 'getchemhourly: lonCL, xlon, latCL, ylat = ',lonCL(ix,nr), xlon0+ixm*dx, latCL(jy,nr), ylat0+jyp*dy
+!                  print*, 'getchemhourly: altCL, height = ',altCL(kz,nr), (dz2*height(indzm)+dz1*height(indzm+1))*dz
+!                endif
+                ! take density from first field (accurate enough)
+                do ii=1,2
+                  indz=indzm+ii-1
+                  r1(ii)=p1*rho(ixm,jym,indz,1)+&
+                         p2*rho(ixp,jym,indz,1)+&
+                         p3*rho(ixm,jyp,indz,1)+&
+                         p4*rho(ixp,jyp,indz,1)
+                end do
+                r=(dz2*r1(1)+dz1*r1(2))*dz
+                ! vmr*Avog*P/(RT)/1e6
+                ! using P/T = rho*rair
+                clfield_cur(ix,jy,kz,nr)=clfield_cur(ix,jy,kz,nr)*avog*r*r_air/rgas/1.e6 
+              end do
+            end do
+          end do
+!$OMP END DO
+!$OMP END PARALLEL
+        endif
         if (reag_hourly(nr).gt.0) then
           ! use actinic flux (jrate) for interpolation
 !$OMP PARALLEL &
 !$OMP PRIVATE(kz,jy,jry,ix,jrx,sza,jrate,jrate_cur) 
 !$OMP DO
-          do kz=1,nzCL
-            do jy=1,nyCL  
+          do kz=1,nzCL(nr)
+            do jy=1,nyCL(nr)
               ! jrate_average dimensions given as grid midpoints
-              jry=int((latCL(jy)-(latjr(1)-0.5*dyjr))/dyjr)+1
-              jry=min(jry,nyCL)
+              jry=int((latCL(jy,nr)-(latjr(1)-0.5*dyjr))/dyjr)+1
+              jry=min(jry,nyCL(nr))
               !! testing
 !              if (kz.eq.1.and.jy.lt.10) print*, 'latCL, latjr = ',latCL(jy), latjr(jry)
-              do ix=1,nxCL
+              do ix=1,nxCL(nr)
                 ! jrate_average dimensions given as grid midpoints
-                jrx=int((lonCL(ix)-(lonjr(1)-0.5*dxjr))/dxjr)+1
-                jrx=min(jrx,nxCL)
+                jrx=int((lonCL(ix,nr)-(lonjr(1)-0.5*dxjr))/dxjr)+1
+                jrx=min(jrx,nxCL(nr))
                 !! testing
 !                if (kz.eq.1.and.jy.lt.10.and.ix.lt.10) print*, 'lonCL, lonjr = ',lonCL(ix), lonjr(jrx)
                 ! solar zenith angle
@@ -499,7 +589,7 @@ module chemistry_mod
     integer               :: ngrid,interp_time,n,indz
     integer               :: jjjjmmdd,hhmmss,mm,hh,m1,m2
     integer               :: clx,cly,clz,clzm,ithread
-    real, dimension(nzCL) :: altCLtop
+    real, dimension(nzmax) :: altCLtop
     real, dimension(2)    :: cl_tmp
     real                  :: xlon,ylat
     real                  :: xtn,ytn
@@ -579,41 +669,45 @@ module chemistry_mod
       if (ylat.gt.90.) then
         ylat=90.
       endif
-      ! get position in the chem field
-      ! assumes chem field dimensions given as grid midpoints
-      clx=min(nxCL,int((xlon-(lonCL(1)-0.5*dxCL))/dxCL)+1)
-      cly=min(nyCL,int((ylat-(latCL(1)-0.5*dyCL))/dyCL)+1)   
-
-      ! get the level of the chem field for the particle
-      ! z is the z-coord of the trajectory above model orography in metres
-      ! altCL is the height of the centre of the level in the chem field above orography
-      do kz=2,nzCL
-        altCLtop(kz-1)=altCL(kz-1)+0.5*(altCL(kz)-altCL(kz-1))
-      end do
-      altCLtop(nzCL)=altCL(nzCL)+0.5*(altCL(nzCL)-altCL(nzCL-1))
-      clzm=nzCL-1
-      do clz=1,nzCL
-        if (real(part(jpart)%z).lt.altCLtop(clz)) then
-          clzm=clz-1
-          exit
-        endif
-      end do
-      clz=min(nzCL,clz)
-      if (clzm.eq.0 ) then
-        dz1=1.
-        dz2=1.
-        clzm=clz
-      else
-        dz1=real(part(jpart)%z)-altCL(clzm)
-        dz2=altCL(clz)-real(part(jpart)%z)
-      endif
-      if (dz1.eq.(-1.*dz2)) then
-        dz1=1.
-        dz2=1.
-      endif
-      dzz=1./(dz1+dz2)
 
       do nr=1,nreagent
+
+        ! get position in the chem field
+        ! assumes chem field dimensions given as grid midpoints
+        clx=min(nxCL(nr),int((xlon-(lonCL(1,nr)-0.5*dxCL(nr)))/dxCL(nr))+1)
+        cly=min(nyCL(nr),int((ylat-(latCL(1,nr)-0.5*dyCL(nr)))/dyCL(nr))+1)   
+
+        ! get the level of the chem field for the particle
+        ! z is the z-coord of the trajectory above model orography in metres
+        ! altCL is the height of the centre of the level in the chem field above orography
+        do kz=2,nzCL(nr)
+          altCLtop(kz-1)=altCL(kz-1,nr)+0.5*(altCL(kz,nr)-altCL(kz-1,nr))
+        end do
+        altCLtop(nzCL(nr))=altCL(nzCL(nr),nr)+0.5*(altCL(nzCL(nr),nr)-altCL(nzCL(nr)-1,nr))
+        clzm=nzCL(nr)-1
+        do clz=1,nzCL(nr)
+          if (real(part(jpart)%z).lt.altCLtop(clz)) then
+            clzm=clz-1
+            exit
+          endif
+        end do
+        clz=min(nzCL(nr),clz)
+        if (clzm.eq.0 ) then
+          dz1=1.
+          dz2=1.
+          clzm=clz
+        else
+          dz1=real(part(jpart)%z)-altCL(clzm,nr)
+          dz2=altCL(clz,nr)-real(part(jpart)%z)
+        endif
+        if (dz1.eq.(-1.*dz2)) then
+          dz1=1.
+          dz2=1.
+        endif
+        dzz=1./(dz1+dz2)
+
+        !! testing
+        if(ii.lt.100) print*, 'chemreaction: nr, clx, cly, clz, clzm = ',nr, clx, cly, clz, clzm
 
         ! chem reagent for particle time and location 
         cl_cur=(dz2*clfield_cur(clx,cly,clzm,nr) + &
@@ -634,7 +728,7 @@ module chemistry_mod
                  + tt(ix,jy,indz,2)*dtt1)*dttt
           do ks=1,nspec
             if (reaccconst(nr,ks).gt.0.) then
-              ! k = CT^Nexp(-D/temp)[reagent]
+              ! k = CT^Nexp(-D/T)[reagent]
               clrate=reaccconst(nr,ks)*(temp**reacnconst(nr,ks))*exp(-1.*reacdconst(nr,ks)/temp)*cl_cur
               ! new particle mass
               restmass=mass(jpart,ks)*exp(-1.*clrate*abs(lsynctime))

@@ -23,7 +23,7 @@ module emissions_mod
 
   real, parameter    :: tau_em_r=4000. ! time scale of residual emission release (s)
   real, parameter    :: tau_ipm=900.   ! time scale of micro mixing (s)
-  logical, parameter :: ABLMIX=.false.  ! mass exchange for particles in same PBL grid cell
+  logical, parameter :: ABLMIX=.true.  ! mass exchange for particles in same PBL grid cell
 
   integer                               :: nxem, nyem
   real                                  :: dxem, dyem
@@ -341,10 +341,10 @@ module emissions_mod
 
     integer       :: itime
     real(kind=dp) :: julstart
-    integer       :: jjjjmmdd, hhmmss, mm, yyyy
+    integer       :: jjjjmmdd, hhmmss, dd, mm, yyyy
     integer       :: nn, ks, eomday, memid
     character(len=4)   :: ayear
-    character(len=2)   :: amonth
+    character(len=2)   :: amonth, aday
     character(len=256) :: em_name, file_name, strtmp1, strtmp2
     logical       :: lexist
 
@@ -375,9 +375,11 @@ module emissions_mod
       em_memtime(2)=em_memtime(1)+ldirect*eomday*24*3600   ! time in sec
       em_time(2)=em_time(1)+real(ldirect*eomday,kind=dp) ! julian date 
       call caldate(em_time(2), jjjjmmdd,hhmmss)
-      mm=(jjjjmmdd-(jjjjmmdd/10000)*10000)/100
       yyyy=jjjjmmdd/10000
+      mm=(jjjjmmdd-yyyy*10000)/100
+      dd=jjjjmmdd-yyyy*10000-mm*100
       write(amonth,'(I2.2)') mm
+      write(aday,'(I2.2)') dd
       write(ayear,'(I4)') yyyy
 
       ! skip species 1 as is always air tracer with no emissions
@@ -411,6 +413,14 @@ module emissions_mod
           strtmp2=file_name(nn+2:len_trim(file_name))
           file_name=trim(strtmp1)//amonth//trim(strtmp2)
           julstart=juldate((jjjjmmdd/100)*100+1,0)
+        endif
+        nn=index(file_name,'DD',back=.false.)
+        if (nn.ne.0) then
+          strtmp1=file_name(1:nn-1)
+          nn=index(file_name,'DD',back=.true.)
+          strtmp2=file_name(nn+2:len_trim(file_name))
+          file_name=trim(strtmp1)//aday//trim(strtmp2)
+          julstart=juldate(jjjjmmdd,0)
         endif
 
         em_name=trim(emis_path(ks))//trim(file_name)
@@ -446,9 +456,11 @@ module emissions_mod
 
         call caldate(em_time(memid), jjjjmmdd, hhmmss)
         eomday=calceomday(jjjjmmdd/100)
-        mm=(jjjjmmdd-(jjjjmmdd/10000)*10000)/100
         yyyy=jjjjmmdd/10000
+        mm=(jjjjmmdd-yyyy*10000)/100
+        dd=jjjjmmdd-yyyy*10000-mm*100
         write(amonth,'(I2.2)') mm
+        write(aday,'(I2.2)') dd
         write(ayear,'(I4)') yyyy
 
 !$OMP PARALLEL IF(nspec>99) &
@@ -476,6 +488,14 @@ module emissions_mod
             strtmp2=file_name(nn+2:len_trim(file_name))
             file_name=trim(strtmp1)//amonth//trim(strtmp2)
             julstart=juldate((jjjjmmdd/100)*100+1,0)
+          endif
+          nn=index(file_name,'DD',back=.false.)
+          if (nn.ne.0) then
+            strtmp1=file_name(1:nn-1)
+            nn=index(file_name,'DD',back=.true.)
+            strtmp2=file_name(nn+2:len_trim(file_name))
+            file_name=trim(strtmp1)//aday//trim(strtmp2)
+            julstart=juldate(jjjjmmdd,0)
           endif
 
           em_name=trim(emis_path(ks))//trim(file_name)

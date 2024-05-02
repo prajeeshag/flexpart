@@ -234,7 +234,7 @@ module com_mod
   integer,allocatable,dimension(:) :: ishape,orient
   ! chemical reagent variables
   character(len=256) :: reag_path(maxreagent)
-  character(len=10)  :: reagents(maxreagent)
+  character(len=16)  :: reagents(maxreagent), reag_unit(maxreagent)
   integer :: reag_hourly(maxreagent), nreagent  
   ! reaction rates
   real,allocatable,dimension(:,:) :: reaccconst,reacdconst,reacnconst

@@ -2012,13 +2012,13 @@ subroutine readreceptors
 
   endif 
 
-  !! test
-  write(*,*) 'readreceptors: '
-  do j=1,numreceptor
-    write(*,*) 'receptorname = ',receptorname(j)
-    write(*,*) 'xreceptor, yreceptor, zreceptor = ',xreceptor(j), yreceptor(j), zreceptor(j)
-    write(*,*) 'treceptor = ',treceptor(j)
-  end do
+  !! testing
+!  write(*,*) 'readreceptors: '
+!  do j=1,numreceptor
+!    print*, 'receptorname = ',receptorname(j)
+!    print*, 'xreceptor, yreceptor, zreceptor = ',xreceptor(j), yreceptor(j), zreceptor(j)
+!    print*, 'treceptor = ',treceptor(j)
+!  end do
   !!
 
   return

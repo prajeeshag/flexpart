@@ -1556,13 +1556,13 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
 !PS clouds:450.
 
 !  write(*,*) yi1(1),yi1(2),yi2(1),yi2(2),dt,dt1,dt2
-  intiy1=(yi1(1)*dt2 + yi1(2)*dt1)/dt
-  if (yi1(1) .eq. float(icmv)) intiy1=yi1(2) 
-  if (yi1(2) .eq. float(icmv)) intiy1=yi1(1) 
+  intiy1=int((yi1(1)*dt2 + yi1(2)*dt1)/dt)
+  if (int(yi1(1)) .eq. icmv) intiy1=int(yi1(2))
+  if (int(yi1(2)) .eq. icmv) intiy1=int(yi1(1))
 
-  intiy2=(yi2(1)*dt2 + yi2(2)*dt1)/dt
-  if (yi2(1) .eq. float(icmv)) intiy2=yi2(2) 
-  if (yi2(2) .eq. float(icmv)) intiy2=yi2(1) 
+  intiy2=int((yi2(1)*dt2 + yi2(2)*dt1)/dt)
+  if (int(yi2(1)) .eq. icmv) intiy2=int(yi2(2))
+  if (int(yi2(2)) .eq. icmv) intiy2=int(yi2(1))
   
 !  write(*,*) 'before cbot: ', intiy1, ' cthick: ', intiy2   
   if (intiy1 .ne. icmv .and. intiy2 .ne. icmv) then

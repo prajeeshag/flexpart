@@ -1,4 +1,4 @@
-# Installation
+# Building
 
 ## Download FLEXPART
 There are two options to download _FLEXPART_:
@@ -21,7 +21,7 @@ _FLEXPART_ 11 is written in Fortran 2018. The following compilers can be used to
   - GNU Fortran compiler version 8+ (`gfortran`)
   - Intel Fortran compiler (`ifort`)
 
-For running _FLEXPART_ in parallel mode, a compiler supporting [OpenMP](https://www.openmp.org/) is required.
+For running _FLEXPART_ in parallel mode, a compiler supporting [OpenMP](https://www.openmp.org/) is required. In addition, libraries (in particular hdf5) should be compiled threadsafe.
 
 ## Libraries
 _FLEXPART_ uses the following libraries:

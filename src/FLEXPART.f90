@@ -40,6 +40,7 @@ program flexpart
 
   implicit none
 
+  integer :: i
   real :: s_timemanager
   character(len=256) ::   &
     inline_options          ! pathfile, flexversion, arg2
@@ -50,10 +51,10 @@ program flexpart
   CALL SYSTEM_CLOCK(count_clock, count_rate, count_max)
   s_total = (count_clock - count_clock0)/real(count_rate)
 
-
   ! FLEXPART version string
   flexversion_major = '11' ! Major version number, also used for species file names
-  flexversion='Version '//trim(flexversion_major)
+
+  flexversion='Version '//trim(flexversion_major)//'.0 (2023-07-11)'
   verbosity=0
 
   call update_gitversion(gitversion_tmp)
@@ -119,6 +120,21 @@ program flexpart
   CALL SYSTEM_CLOCK(count_clock, count_rate, count_max)
   s_total = (count_clock - count_clock0)/real(count_rate) - s_total
   
+  if (verbosity.gt.0) then
+! NIK 16.02.2005 
+    do i=1,nspec
+      if (icnt_incld(i).gt.0) then
+         write(*,*) '**********************************************'
+         write(*,*) 'Scavenging statistics for species ', species(i), ':'
+         write(*,*) 'Total number of occurences of below-cloud scavenging', &
+           & icnt_belowcld(i)
+         write(*,*) 'Total number of occurences of in-cloud    scavenging', &
+           & icnt_incld(i)
+         write(*,*) '**********************************************'
+      endif
+    end do
+  endif
+  
   write(*,*) 'Read wind fields: ', s_readwind, ' seconds'
   write(*,*) 'Timemanager: ', s_timemanager, ' seconds,', 'first timestep: ',s_firstt, 'seconds'
   write(*,*) 'Write particle files: ', s_writepart, ' seconds'
@@ -172,7 +188,7 @@ subroutine read_options_and_initialise_flexpart
   ! Read pathnames from file in working director that specify I/O directories
   !**************************************************************************
   call readpaths
-
+  
   ! Read the user specifications for the current model run
   !*******************************************************
   call readcommand
@@ -214,7 +230,6 @@ subroutine read_options_and_initialise_flexpart
   ! Read the age classes to be used
   !********************************
   call readageclasses
-
 
   ! ! Allocate memory for windfields
   ! !*******************************
@@ -393,6 +408,8 @@ subroutine initialise_particles
 
   if (ipin.le.2) then 
     call readreleases
+    ! needs to be called after maxspec is defined in readreleases or readinitconditions
+    if (ipout.ne.0) call readpartoptions 
   else
 #ifdef USE_NCF
     call readinitconditions_netcdf
@@ -401,7 +418,7 @@ subroutine initialise_particles
 #endif
   endif
 
-  if (ipout.ne.0) call readpartoptions
+
 
   if (iout.ne.0) then
     call alloc_grid

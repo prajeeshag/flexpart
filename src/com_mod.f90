@@ -6,14 +6,17 @@
 !                                                                              *
 !        June 1996                                                             *
 !                                                                              *
-!        Last update:15 August 2013 IP                                         *
+!        Update: 15 August 2013 IP                                             *
+!        PS 19 Nov 2020: correct comment about lcw                             *
+!        Anne Tipka, Petra Seibert 2021-02: implement new interpolation        *
+!           for precipitation according to #295 using 2 additional fields      *
 !                                                                              *
 !*******************************************************************************
 
 module com_mod
 
   use par_mod, only: dp, numpath, maxnests, &
-       numclass, maxcolumn, maxrand, numwfmem
+       numclass, maxcolumn, maxrand, numwfmem, numpf
 
   implicit none
 
@@ -21,10 +24,12 @@ module com_mod
   !**********************************************************************************
   type :: particleoptions
     character(2) :: name
-    character(20) :: long_name
+    character(28) :: long_name
+    character(7) :: short_name
     logical :: print
     logical :: average=.false.
     integer :: i_average=0
+    integer :: ncid
   end type particleoptions
 
   integer :: num_partopt=34
@@ -159,24 +164,33 @@ module com_mod
   ! nageclass               number of ageclasses for the age spectra calculation
   ! lage [s]                ageclasses for the age spectra calculation
 
+ !ESO: Disable settling if more than 1 species per release point
+  logical :: lsettling=.true.
 
   logical :: gdomainfill
   ! gdomainfill             .T., if domain-filling is global, .F. if not
 
-!ZHG SEP 2015 wheather or not to read clouds from GRIB
-  logical :: readclouds=.false.
-!ESO DEC 2015 whether or not both clwc and ciwc are present (if so they are summed)
-  logical :: sumclouds=.false.
+  logical :: lcw=.false. ! ZHG Sep 2015 ! AT renamed
+  ! whether or not cloud water data found in GRIB, overwritten if CW is found
 
-!ESO: Disable settling if more than 1 species per release point
-  logical :: lsettling=.true.
+  logical :: lcwsum=.false. ! ESO Dec 2015 ! AT renamed
+  ! whether or not both clwc and ciwc are present (if so they are summed)
 
-  logical,dimension(maxnests) :: readclouds_nest, sumclouds_nest
-  
+  logical :: lprecint ! AT, PS 2021
+  ! true if new interpolation using additional precip fields is used
+    
+  logical,dimension(maxnests) :: lcw_nest=.false.
+  logical,dimension(maxnests) :: lcwsum_nest=.false.
+  logical,dimension(maxnests) :: lprecintn
+ 
+  !NIK 16.02.2015
+  integer(selected_int_kind(16)),allocatable,dimension(:) :: icnt_belowcld, &
+       &icnt_incld
 
-!NIK 16.02.2015
-  integer(selected_int_kind(16)),allocatable,dimension(:) :: &
-    tot_blc_count,tot_inc_count
+  integer :: bcscheme ! AT 2021
+  ! = 1 for below cloud scheme of Grythe et al 2017 (based on Laakso and Kyro)
+  ! = 2 for below-cloud scheme of Tipka et al 2023 (based on Wang et al 2014)
+  ! = 3 for below-cloud scheme of Tipka et al 2023 (based on modified Wang et al 2014)
 
   !*********************************************************************
   ! Variables defining the release locations, released species and their
@@ -527,8 +541,8 @@ contains
     implicit none
     integer :: stat
 
-    allocate( tot_blc_count(maxspec),tot_inc_count(maxspec),stat=stat)
-    if (stat.ne.0) error stop "Could not allocate tot_blc_count or tot_inc_count"
+    allocate( icnt_belowcld(maxspec),icnt_incld(maxspec),stat=stat)
+    if (stat.ne.0) error stop "Could not allocate cnt_belowcld or icnt_incld"
     allocate( specnum(maxspec),decay(maxspec),weta_gas(maxspec), &
       wetb_gas(maxspec),crain_aero(maxspec),csnow_aero(maxspec), &
       ccn_aero(maxspec),in_aero(maxspec),ndia(maxspec), &
@@ -552,8 +566,9 @@ contains
     if (stat.ne.0) error stop "Could not allocate DRYDEPSPEC or WETDEPSPEC"
     allocate( creceptor(numreceptor,maxspec),stat=stat)
     if (stat.ne.0) error stop "Could not allocate creceptor"
-    tot_blc_count=0
-    tot_inc_count=0
+
+    icnt_belowcld=0
+    icnt_incld=0
   end subroutine alloc_com
 
   subroutine alloc_com_ndia
@@ -565,7 +580,7 @@ contains
   end subroutine alloc_com_ndia
 
   subroutine dealloc_com
-    deallocate(tot_blc_count,tot_inc_count,specnum,decay,weta_gas,wetb_gas, &
+    deallocate(icnt_belowcld,icnt_incld,specnum,decay,weta_gas,wetb_gas, &
       crain_aero,csnow_aero,ccn_aero,in_aero,reldiff,henry,f0,density,dquer, &
       dsigma,ndia,vsetaver,cunningham,weightmolar,vset,schmi,fract,ri,rac,rcl, &
       rgs,rlu,rm,dryvel,ohcconst,ohdconst,ohnconst,Fn,Fs,ks1,ks2,kn2,ishape, &

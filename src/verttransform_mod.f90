@@ -998,9 +998,9 @@ subroutine verttransform_ecmwf_cloud(lcw_tmp,lcwsum_tmp,nxlim,nylim,&
         highconvp_clrange_eta,lowconvp_clrange_eta,uvzlev)
 #endif
 
-      icloudbot_tmp(ix,jy) = icmv !we will use icloudtop as workspace for cloud top
+      icloudbot_tmp(ix,jy) = icmv 
 
-      ! Find the bottom and top of present clouds in gridcell ix, jy
+      ! Find the bottom and top of clouds in grid cell ix, jy
       call identify_cloud(ix,jy,lcw_tmp,lcwsum_tmp,nxlim,nylim, &
         ctwc_tmp,clwc_tmp,ciwc_tmp,icloudbot_tmp,icloudtop_tmp,rho_tmp, &
         tt_tmp,qv_tmp,uvzlev,wzlev)
@@ -1025,7 +1025,7 @@ subroutine convert_cloud_params(ix,jy,nxlim,nylim,max_cloudthck_eta,conv_clrange
   integer,intent(out) :: max_cloudthck_eta
   integer, dimension(2),intent(out) :: conv_clrange_eta,highconvp_clrange_eta, &
     lowconvp_clrange_eta
-  integer :: kz
+  integer :: i, kz
 
 
   ! Convert cloud parameters to eta coords.
@@ -1040,41 +1040,25 @@ subroutine convert_cloud_params(ix,jy,nxlim,nylim,max_cloudthck_eta,conv_clrange
       exit
     endif
   end do
-  do kz=1,nz
-    if (uvzlev(ix,jy,kz).gt.conv_clrange(1)) then 
-      conv_clrange_eta(1)=int(uvheight(kz)*eta_convert)
-      exit
-    endif
-  end do
-  do kz=1,nz
-    if (uvzlev(ix,jy,kz).gt.conv_clrange(2)) then 
-      conv_clrange_eta(2)=int(uvheight(kz)*eta_convert)
-      exit
-    endif
-  end do
-  do kz=1,nz
-    if (uvzlev(ix,jy,kz).gt.highconvp_clrange(1)) then 
-      highconvp_clrange_eta(1)=int(uvheight(kz)*eta_convert)
-      exit
-    endif
-  end do
-  do kz=1,nz
-    if (uvzlev(ix,jy,kz).gt.highconvp_clrange(2)) then 
-      highconvp_clrange_eta(2)=int(uvheight(kz)*eta_convert)
-      exit
-    endif
-  end do
-  do kz=1,nz
-    if (uvzlev(ix,jy,kz).gt.lowconvp_clrange(1)) then 
-      lowconvp_clrange_eta(1)=int(uvheight(kz)*eta_convert)
-      exit
-    endif
-  end do
-  do kz=1,nz
-    if (uvzlev(ix,jy,kz).gt.lowconvp_clrange(2)) then 
-      lowconvp_clrange_eta(2)=int(uvheight(kz)*eta_convert)
-      exit
-    endif
+  do i=1,2
+    do kz=1,nz
+      if (uvzlev(ix,jy,kz).gt.conv_clrange(i)) then 
+        conv_clrange_eta(i)=int(uvheight(kz)*eta_convert)
+        exit
+      endif
+    end do
+    do kz=1,nz
+      if (uvzlev(ix,jy,kz).gt.highconvp_clrange(i)) then 
+        highconvp_clrange_eta(i)=int(uvheight(kz)*eta_convert)
+        exit
+      endif
+    end do
+    do kz=1,nz
+      if (uvzlev(ix,jy,kz).gt.lowconvp_clrange(i)) then 
+        lowconvp_clrange_eta(i)=int(uvheight(kz)*eta_convert)
+        exit
+      endif
+    end do
   end do
 end subroutine convert_cloud_params
 

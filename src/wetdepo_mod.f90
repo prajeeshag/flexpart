@@ -269,7 +269,7 @@ subroutine get_wetscav(itime,jpart,ks,gridfract,wetscav)
   integer(selected_int_kind(16)), dimension(nspec) :: blc_count, inc_count
 
   integer :: indcloud
-  real :: icbot,ictop
+  integer :: icbot,ictop
   real :: t_particle, si, cl, cle ! in cloud scavenging
   real :: lsp,convp,cc,prec
   !save lfr,cfr
@@ -354,11 +354,11 @@ subroutine get_wetscav(itime,jpart,ks,gridfract,wetscav)
   ! NOTE this is just for z coordinate
   ! Reverse sign for eta
 #ifdef ETA
-  if   (part(jpart)%zeta .gt. ictop) then
-    if (part(jpart)%zeta .le. icbot) then
+  if   (part(jpart)%zeta .gt. real(ictop)/eta_convert) then
+    if (part(jpart)%zeta .le. real(icbot)/eta_convert) then
 #else
-  if   (part(jpart)%z .le. ictop) then
-    if (part(jpart)%z .gt. icbot) then
+  if   (part(jpart)%z .le. real(ictop)) then
+    if (part(jpart)%z .gt. real(icbot)) then
 #endif
       indcloud = 2 ! in-cloud
     else

@@ -3373,7 +3373,7 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
   ! CALCULATE 2 M DEW POINT FROM 2 M RELATIVE HUMIDITY
   ! USING BOLTON'S (1980) FORMULA
   ! BECAUSE td2 IS NOT AVAILABLE FROM NCEP GFS DATA
-  k=1 ! CHECK THIS!!!
+  k=2 ! CHECK THIS!!!
   do j=0,ny-1
     do i=0,nxfield-1
         help=qvh2(i,j)

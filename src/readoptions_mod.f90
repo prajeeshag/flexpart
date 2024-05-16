@@ -543,9 +543,9 @@ subroutine readcommand
   loutstep=10800
   loutaver=10800
   loutsample=900
-  lrecoutstep=3600
-  lrecoutaver=3600
-  lrecoutsample=900
+  lrecoutstep=-1
+  lrecoutaver=-1
+  lrecoutsample=-1
   loutrestart=-1
   lsynctime=900
   ctl=-5.0
@@ -584,6 +584,7 @@ subroutine readcommand
   !Af set release-switch
   WETBKDEP=.false.
   DRYBKDEP=.false.
+
 
   ! Open the command file and read user options
   ! Namelist input first: try to read as namelist file
@@ -833,6 +834,30 @@ subroutine readcommand
     error stop 'FLEXPART not compiled with NetCDF'
   endif
 #endif
+
+  ! Check whether RECEPTOR commands are given, otherwise give them default values
+  !******************************************************************************
+
+  if (lrecoutstep.eq.-1) then
+    write(*,*) 'WARNING: FILE COMMAND LRECOUTSTEP not provided,'
+    write(*,*) 'value of LOUTSTEP will be used if RECEPTORS are'
+    write(*,*) 'required.'
+    lrecoutstep=loutstep
+  endif
+
+  if (lrecoutaver.eq.-1) then
+    write(*,*) 'WARNING: FILE COMMAND LRECOUTAVER not provided,'
+    write(*,*) 'value of LOUTAVER will be used if RECEPTORS are'
+    write(*,*) 'required.'
+    lrecoutaver=loutaver
+  endif
+
+  if (lrecoutsample.eq.-1) then
+    write(*,*) 'WARNING: FILE COMMAND LRECOUTSTEP not provided,'
+    write(*,*) 'value of LOUTSAMPLE will be used if RECEPTORS are'
+    write(*,*) 'required.'
+    lrecoutsample=loutsample
+  endif
 
   ! Check whether a valid option for gridded model output has been chosen
   !**********************************************************************

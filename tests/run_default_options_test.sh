@@ -282,6 +282,7 @@ rm -rf ./current ./output/*
 cp -rf ./default_options ./current
 sed -i "/IPIN=/c\ IPIN=  3," ./current/COMMAND
 sed -i "/LDIRECT=/c\ LDIRECT=   -1," ./current/COMMAND
+sed -i "/LOUTRESTART=/c\ LOUTRESTART=  3600," ./current/COMMAND
 sed -i "/IOUTPUTFOREACHRELEASE=/c\ IOUTPUTFOREACHRELEASE=  1," ./current/COMMAND
 sed -i "/IOUT=/c\ IOUT=  1," ./current/COMMAND
 sed -i "/IBTIME=/c\ IBTIME=  020000," ./current/COMMAND
@@ -290,6 +291,14 @@ sed -i "/LOUTAVER=/c\ LOUTAVER=  3600," ./current/COMMAND
 cp -rf part_ic.nc output/
 ./FLEXPART pathnames
 report "[$MM] TEST $TESTRUN (IPIN=3)"
+STATUS=$((STATUS + $?))
+TESTSRUN=$((TESTSRUN + 1))
+
+# and IPIN=4
+mv output/restart_20090101020000 output/restart.bin
+sed -i "/IPIN=/c\ IPIN=  4," ./current/COMMAND
+./FLEXPART pathnames
+report "[$MM] TEST $TESTRUN (IPIN=4)"
 STATUS=$((STATUS + $?))
 TESTSRUN=$((TESTSRUN + 1))
 # clean up

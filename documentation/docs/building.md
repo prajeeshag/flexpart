@@ -37,10 +37,12 @@ These libraries are usually available as packages in most Linux distributions an
 ## Parameters
 Before compiling FLEXPART, you might want to change parameters defined in par_mod.f90
 
-- `wind_coord_type`: for ECMWF meteorological data, you can set this to ETA to use the native eta coordinate system. Otherwise, set this to METER.
-- `mesoscale_turbulence`: by default the mesocale turbulence is switched off, but can be switched on setting this variable to .true.
-- `max_partoutput_filesize`: maximum output of each partoutput NetCDF-4 file in Mb before a new one is created.
-- `max_numthreads_grid`: when using many openmp threads and gridded output (IOUT>0 in COMMAND option file), this variable sets a maximum on how many threads are used for doing the reductions on the grid. A high number can result in a significant increase in RAM usage.
+- `dp`, `sp`, `dep_prec`: Setting the precision of the simulation.
+- `lusekerneloutput`: Switch for using a kernel for calculating concentrations/deposition. Default: **True**.
+- `lparticlecountoutput`: Switch to set output units to number of particles per grid cell. Default: **False**.
+- `numpf`: Number of precipitation fields read by the executable. This should correspond with the number of precipitation fields present in the meteorological data. Default: **1**.
+- `lpartoutputperfield`: When using particle output (IPOUT=1), this switch sets if all selected fields are written to one netcdf file or a separate one for each field.
+- Many parameters that govern the different parameter schemes within FLEXPART.
 
 ## <a name="compiling"></a>Compiling FLEXPART
 _FLEXPART_ is compiled with [make](https://www.gnu.org/software/make/), which uses the makefile in the `src` subdirectory. Starting from the root directory, you can then compile _FLEXPART_ with the following steps:

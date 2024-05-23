@@ -208,15 +208,17 @@ The file should contain two namelist:
 
 1) &NAGE
 
-    | Variable name | Description | Data type |
-    | ------------- | ------------ | --------- |
-    |NAGECLASS | Number of ageclasses for the age spectra calculation | integer |
+| Variable name | Description | Data type |
+| ------------- | ------------ | --------- |
+|NAGECLASS | Number of ageclasses for the age spectra calculation | integer |
+
+<br/>
 
 2) &AGECLASS
 
-    | Variable name | Description | Data type |
-    | ------------- | ------------ | --------- |
-    |LAGE | Maximum age of particles in seconds for each ageclass | integer(s divided by comma's) |
+| Variable name | Description | Data type |
+| ------------- | ------------ | --------- |
+|LAGE | Maximum age of particles in seconds for each ageclass | integer(s divided by comma's) |
 
 <br/>
 
@@ -226,25 +228,27 @@ The file should contain two namelist:
 
 1) &INITCONC_CTRL
 
-	| Variable name | Description | Data type |
-	| ------------- | ------------ | --------- |
-	|NINIT | Number of species for which initial concentration is specified | integer |
-	|SPECNUM_REL | List of species of length NSPEC set in [RELEASES](configuration.md#releases) | integer |
+| Variable name | Description | Data type |
+| ------------- | ------------ | --------- |
+|NINIT | Number of species for which initial concentration is specified | integer |
+|SPECNUM_REL | List of species of length NSPEC set in [RELEASES](configuration.md#releases) | integer |
+
+<br/>
 
 2) &INITCONC
 
-	| Variable name | Description | Data type |
-	| ------------- | ------------ | --------- |
-	|PATH_NAME | Path to initial concentration files | character string |
-	|FILE_NAME | Name of the receptor point | character string |
-	|VAR_NAME | Generic name of file (using YYYY[MM][DD]) for dates  | character string |
-	|HYA_NAME | Name of concentration variable in file  | character string |
-	|HYB_NAME | Name of hybrid pressure coord A (use "" if none)| character string |
-	|PS_NAME | Name of surface pressure variable (use "" if none)  | character string |
-	|Q_NAME | Name of specific humidity variable (use "" if none, then assumes dry air mixing ratio) | character string |
-	|PRS_NAME | Name of vertical pressure coordinate (use "" if none) | character string |
-	|ALT_NAME | Name of altitude coordinate (use "" if none) | character string |
-	|COEFF | Coefficient from input unit to ppbv | real |
+| Variable name | Description | Data type |
+| ------------- | ------------ | --------- |
+|PATH_NAME | Path to initial concentration files | character string |
+|FILE_NAME | Name of the receptor point | character string |
+|VAR_NAME | Generic name of file (using YYYY[MM][DD]) for dates  | character string |
+|HYA_NAME | Name of concentration variable in file  | character string |
+|HYB_NAME | Name of hybrid pressure coord A (use "" if none)| character string |
+|PS_NAME | Name of surface pressure variable (use "" if none)  | character string |
+|Q_NAME | Name of specific humidity variable (use "" if none, then assumes dry air mixing ratio) | character string |
+|PRS_NAME | Name of vertical pressure coordinate (use "" if none) | character string |
+|ALT_NAME | Name of altitude coordinate (use "" if none) | character string |
+|COEFF | Coefficient from input unit to ppbv | real |
 
 
 <br/>
@@ -280,6 +284,9 @@ The file should contain two namelist:
 Each property can also be printed out as an average instead of an instantaneous value. For example, if one makes internal time steps of 600 seconds each,
 and writes properties to files every hour, the outputted value will be the average of the 6 previous values of the particle of the past hour. Note that this comes with an additional computational cost.
 
+If the particle output is switched on (IPOUT=1), terminated particles are kept in the simulation, but values associated with them are set to`NaN' instead of being overwritten by newly released particles in the NetCDF output.
+This comes with no additional computational cost, but it may need more memory than when running without the particle output option switched on. 
+As some applications might use a large number of short-lived particles during a longer simulation, the behaviour of overwriting terminated particles can be restored by removing \texttt{ipout.eq.0} from the \texttt{get\_newpart\_index} subroutine, located in the \texttt{particle\_mod.f90}.
 <br/>
 
 ### <a name="reagents"></a>REAGENTS

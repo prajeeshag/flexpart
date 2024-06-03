@@ -1075,9 +1075,7 @@ subroutine init_domainfill
   ! information, which is stored as a 3-d field
   !*****************************************************************************
 
-      do kz=1,nz
-        pp(kz)=prs(lix,ljy,kz,1)!rho(lix,ljy,kz,1)*r_air*tt(lix,ljy,kz,1)
-      end do
+      pp(:)=prs(lix,ljy,:,1)!rho(lix,ljy,kz,1)*r_air*tt(lix,ljy,kz,1)
 
 
       deltacol=(pp(1)-pp(nz))/real(ncolumn)

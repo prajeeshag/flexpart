@@ -2696,7 +2696,7 @@ subroutine readspecies(id_spec,pos_spec)
   real :: pcrain_aero, pcsnow_aero, pccn_aero, pin_aero
   real :: pohcconst,pohdconst,pohnconst ! deprecated
   real :: parea_dow(7), parea_hour(24), ppoint_dow(7), ppoint_hour(24)
-  integer :: pndia
+  !integer :: pndia
   integer :: ios
   integer :: pshape,porient
   ! Daria Tatsii: species shape properties
@@ -2706,12 +2706,12 @@ subroutine readspecies(id_spec,pos_spec)
   namelist /species_params/ &
        pspecies, pdecay, pweta_gas, pwetb_gas, &
        pcrain_aero, pcsnow_aero, pccn_aero, pin_aero, &
-       preldiff, phenry, pf0, pdensity, pdquer, &
-       pdsigma, pndia, pdryvel, pweightmolar, pohnconst, &
+       preldiff, phenry, pf0, pdensity, pdquer, pdia, &
+       pdsigma, pdryvel, pweightmolar, pohnconst, &
        preactions, pcconst, pdconst, pnconst, pohcconst, pohdconst, &
        pemis_path, pemis_file, pemis_name, pemis_unit, pemis_coeff, &
        parea_dow, parea_hour, ppoint_dow, ppoint_hour, &
-       pshape, paspectratio, pla, pia, psa, porient
+       pshape, paspectratio, pla, pia, psa, porient !pndia, 
 
   ! allocate reaction variables
   allocate(preactions(maxreagent))
@@ -2741,13 +2741,13 @@ subroutine readspecies(id_spec,pos_spec)
   pccn_aero=-9.9E-09
   pin_aero=-9.9E-09
   preldiff=-9.9
-  phenry=0.0
+  phenry=-9.9
   pf0=0.0
   pdensity=-9.9E09
   pdquer=0.0
-  pdia=0.0
+  pdia=-9.9
   pdsigma=0.0
-  pndia=1
+  !pndia=1
   pdryvel=-9.99
   preactions(:)=""
   pcconst(:)=-9.99e-9
@@ -2815,7 +2815,8 @@ subroutine readspecies(id_spec,pos_spec)
   endif
 
   if ((pohcconst.ne.-9.99).or.(pohdconst.ne.-9.99).or.(pohnconst.ne.-9.99)) then
-    write(*,*) "WARNING: POHCCONST,POHDCONST, and POHNCONST in SPECIES file are deprecated."
+    write(*,*) "ERROR: POHCCONST,POHDCONST, and POHNCONST in SPECIES file are deprecated."
+    error stop
   endif
   species(pos_spec)=pspecies
   decay(pos_spec)=pdecay
@@ -2829,9 +2830,16 @@ subroutine readspecies(id_spec,pos_spec)
   henry(pos_spec)=phenry
   f0(pos_spec)=pf0
   density(pos_spec)=pdensity
-  dquer(pos_spec)=pdquer
+  if (pdia.ne.0.0) then
+    dquer(pos_spec)=pdia
+  else if (pdquer.ne.0.0) then
+    write(*,*) 'WARNING: PDQUER will be depricated, please use PDIA instead.'
+    dquer(pos_spec)=pdquer ! For backwards compatibility
+  else
+    dquer(pos_spec)=0.0
+  endif
   dsigma(pos_spec)=pdsigma
-  ndia(pos_spec)=pndia
+  ! ndia(pos_spec)=pndia
   dryvel(pos_spec)=pdryvel
   weightmolar(pos_spec)=pweightmolar
   emis_path(pos_spec)=pemis_path
@@ -3074,11 +3082,10 @@ subroutine readspecies(id_spec,pos_spec)
     end if
   end if
 
-  if (ndia(pos_spec).gt.maxndia) then
-    maxndia=ndia(pos_spec)
-    ! write(*,*) 'NDIA in SPECIES file', pos_spec, 'set to', ndia(pos_spec), 'larger than maxndia', &
-    !   maxndia, 'set in par_mod.f90'
-  endif
+  !if (ndia(pos_spec).gt.maxndia) then
+  !  maxndia=ndia(pos_spec)
+  !endif
+  ndia(pos_spec)=maxndia ! Setting all ndia to maxndia (par_mod.f90)
   !  if (dsigma(i).eq.0.) dsigma(i)=1.0001   ! avoid floating exception
   if (dquer(i).gt.0 .and. dsigma(i).le.1.) then !dsigma(i)=1.0001   ! avoid floating exception
     !write(*,*) '#### FLEXPART MODEL ERROR!                      ####'

@@ -15,7 +15,7 @@
 
 module com_mod
 
-  use par_mod, only: dp, numpath, maxnests, &
+  use par_mod, only: dp, numpath, maxnests, maxndia, &
        numclass, maxcolumn, maxrand, numwfmem, numpf, &
        maxreagent, maxrecsample
 
@@ -451,7 +451,7 @@ module com_mod
   integer :: numpart=0
   integer :: numparticlecount
   integer :: maxspec ! Number of chemical species per release
-  integer :: maxndia ! Number of diameter bins
+  !integer :: maxndia ! Number of diameter bins (now set in par_mod.f90)
   !real, allocatable, dimension(:,:) :: xscav_frac1
 
   !****************************************************************

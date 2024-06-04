@@ -472,74 +472,40 @@ subroutine get_wetscav_belowcld_aerosol_rain(ks,prec,wetscav)
   ! PS note that solid precip is usually expected for T<Tf, not T<273
   ! also, if freezing/melting point is desired, why not 273.2?
 
-  if (bcscheme .eq. 1) then
-  ! ZHG 2014: Particle rain scavenging coefficient based on Laakso et al 2003, 
-  ! scaling factor Crain (=crain_aero) is read from SPECIES file
-
-  ! Laakso et al. 2003 eq. 6 + 7
-    wetscav = &
-      crain_aero(ks)*10**( &
-        bclr(1) + &
-        bclr(2) * log10(dquer_m)**(-4) + &
-        bclr(3) * log10(dquer_m)**(-3) + &
-        bclr(4) * log10(dquer_m)**(-2) + &
-        bclr(5) * log10(dquer_m)**(-1) + &
-        bclr(6) * prec**0.5 &
-        )
-          
-  elseif (bcscheme .eq. 2 .or. bcscheme .eq. 3) then
   ! AT parameterization after WANG ET AL 2014   
   !    unit of dquer is in um
   !    unit of precip is in mm/h
-    ! Wang et al. 2014: eq 6+7
-    ldquer = log10(dquer(ks))
-    if (dquer(ks) .le. 2.) then
-     logAd = bclr_a(1)              + &
-             bclr_a(2) * ldquer     + &
-             bclr_a(3) * ldquer**2. + & 
-             bclr_a(4) * ldquer**3.
-       
-     B     = bclr_c(1) + bclr_c(2)*ldquer
-      
-    else ! dquer .gt. 2.
-     logAd = bclr_b(1)              + &
-             bclr_b(2) * ldquer     + &
-             bclr_b(3) * ldquer**2. + &
-             bclr_b(4) * ldquer**3. + &
-             bclr_b(5) * ldquer**4. + &
-             bclr_b(6) * ldquer**5. + &
-             bclr_b(7) * ldquer**6.
-              
-     B    = bclr_e(1)              + &
-            bclr_e(2) * ldquer     + &
-            bclr_e(3) * ldquer**2. + &
-            bclr_e(4) * ldquer**3. + &
-            bclr_e(5) * ldquer**4. + &
-            bclr_e(6) * ldquer**5. + &
-            bclr_e(7) * ldquer**6.
-
-    endif ! dquer
-
-    ! Wang et al. 2014: eq. 4
-    wetscav = 10**(logAd+B*log10(prec))
-
-    if (bcscheme .eq. 3) then
-    ! this is a fix to avoid the scavenging gap
-     ldquer = log10(2.)
-     logAd = bclr_a(1)              + &
-             bclr_a(2) * ldquer     + &
-             bclr_a(3) * ldquer**2. + & 
-             bclr_a(4) * ldquer**3.
-       
-     B     = bclr_c(1) + bclr_c(2)*ldquer
+  ! Wang et al. 2014: eq 6+7
+  ldquer = log10(dquer(ks))
+  if (dquer(ks) .le. 2.) then
+   logAd = bclr_a(1)              + &
+           bclr_a(2) * ldquer     + &
+           bclr_a(3) * ldquer**2. + & 
+           bclr_a(4) * ldquer**3.
      
-     wetscavlim = 10**(logAd+B*log10(prec))
-     
-     wetscav = max(wetscav, wetscavlim)
-     
-    endif
-   
-  endif ! bcscheme Laakso or Wang                  
+   B     = bclr_c(1) + bclr_c(2)*ldquer
+    
+  else ! dquer .gt. 2.
+   logAd = bclr_b(1)              + &
+           bclr_b(2) * ldquer     + &
+           bclr_b(3) * ldquer**2. + &
+           bclr_b(4) * ldquer**3. + &
+           bclr_b(5) * ldquer**4. + &
+           bclr_b(6) * ldquer**5. + &
+           bclr_b(7) * ldquer**6.
+            
+   B    = bclr_e(1)              + &
+          bclr_e(2) * ldquer     + &
+          bclr_e(3) * ldquer**2. + &
+          bclr_e(4) * ldquer**3. + &
+          bclr_e(5) * ldquer**4. + &
+          bclr_e(6) * ldquer**5. + &
+          bclr_e(7) * ldquer**6.
+
+  endif ! dquer
+
+  ! Wang et al. 2014: eq. 4
+  wetscav = 10**(logAd+B*log10(prec))           
 
 end subroutine get_wetscav_belowcld_aerosol_rain
 
@@ -567,90 +533,50 @@ subroutine get_wetscav_belowcld_aerosol_snow(ks,prec,wetscav)
   ! TODO check whether warning is written by readrelease for d > 10 um
   dquer_m = min( 10.e-6, dquer_m )
 
-        
-  if (bcscheme .eq. 1) then
-  ! ZHG 2014 : Particle snow scavenging coefficient based on Kyro et al 2009, 
-  ! scaling factor Csnow (=csnow_aero) is read from SPECIES file
-
-    wetscav = &
-      csnow_aero(ks) * 10**( &
-        bcls(1) + &
-        bcls(2) * log10(dquer_m)**(-4) + &
-        bcls(3) * log10(dquer_m)**(-3) + &
-        bcls(4) * log10(dquer_m)**(-2) + &
-        bcls(5) * log10(dquer_m)**(-1) + &
-        bcls(6) * prec**0.5 &
-        )
-          
-  elseif (bcscheme .eq. 2 .or. bcscheme .eq. 3) then
   ! AT parameterization after WANG ET AL 2014   
   !    unit of dquer is in um
   !    unit of precip is in mm/h
-    ldquer = log10(dquer(ks))
-    ! Wang et al. 2014: eq. 8+9
-    if (dquer(ks) .le. 1.44) then   
-     logAd = bcls_a(1)               + &
-             bcls_a(2)  * ldquer     + &
-             bcls_a(3)  * ldquer**2. + &
-             bcls_a(4)  * ldquer**3. + &
-             bcls_a(5)  * ldquer**4. + &
-             bcls_a(6)  * ldquer**5. + &
-             bcls_a(7)  * ldquer**6.
-       
-     B     = bcls_c(1)              + &
-             bcls_c(2) * ldquer     + &
-             bcls_c(3) * ldquer**2. + &
-             bcls_c(4) * ldquer**3. + &
-             bcls_c(5) * ldquer**4. + &
-             bcls_c(6) * ldquer**5. + &
-             bcls_c(7) * ldquer**6.
-       
-    else ! dquer .gt. 1.44
-     logAd = bcls_b(1)              + &
-             bcls_b(2) * ldquer     + &
-             bcls_b(3) * ldquer**2. + &
-             bcls_b(4) * ldquer**3. + &
-             bcls_b(5) * ldquer**4. + &
-             bcls_b(6) * ldquer**5. + &
-             bcls_b(7) * ldquer**6.
-               
-     B    = bcls_e(1)              + &
-            bcls_e(2) * ldquer     + &
-            bcls_e(3) * ldquer**2. + &
-            bcls_e(4) * ldquer**3. + &
-            bcls_e(5) * ldquer**4. + &
-            bcls_e(6) * ldquer**5. + &
-            bcls_e(7) * ldquer**6.
+  ldquer = log10(dquer(ks))
+  ! Wang et al. 2014: eq. 8+9
+  if (dquer(ks) .le. 1.44) then   
+   logAd = bcls_a(1)               + &
+           bcls_a(2)  * ldquer     + &
+           bcls_a(3)  * ldquer**2. + &
+           bcls_a(4)  * ldquer**3. + &
+           bcls_a(5)  * ldquer**4. + &
+           bcls_a(6)  * ldquer**5. + &
+           bcls_a(7)  * ldquer**6.
      
-    endif ! dquer
+   B     = bcls_c(1)              + &
+           bcls_c(2) * ldquer     + &
+           bcls_c(3) * ldquer**2. + &
+           bcls_c(4) * ldquer**3. + &
+           bcls_c(5) * ldquer**4. + &
+           bcls_c(6) * ldquer**5. + &
+           bcls_c(7) * ldquer**6.
+     
+  else ! dquer .gt. 1.44
+   logAd = bcls_b(1)              + &
+           bcls_b(2) * ldquer     + &
+           bcls_b(3) * ldquer**2. + &
+           bcls_b(4) * ldquer**3. + &
+           bcls_b(5) * ldquer**4. + &
+           bcls_b(6) * ldquer**5. + &
+           bcls_b(7) * ldquer**6.
+             
+   B    = bcls_e(1)              + &
+          bcls_e(2) * ldquer     + &
+          bcls_e(3) * ldquer**2. + &
+          bcls_e(4) * ldquer**3. + &
+          bcls_e(5) * ldquer**4. + &
+          bcls_e(6) * ldquer**5. + &
+          bcls_e(7) * ldquer**6.
+   
+  endif ! dquer
 
-    ! Wang et al. 2014: eq. 4
-    wetscav = 10**(logAd+B*log10(prec))
+  ! Wang et al. 2014: eq. 4
+  wetscav = 10**(logAd+B*log10(prec))
 
-    if (bcscheme .eq. 3) then
-     ldquer = log10(1.44)
-     logAd = bcls_a(1)               + &
-             bcls_a(2)  * ldquer     + &
-             bcls_a(3)  * ldquer**2. + &
-             bcls_a(4)  * ldquer**3. + &
-             bcls_a(5)  * ldquer**4. + &
-             bcls_a(6)  * ldquer**5. + &
-             bcls_a(7)  * ldquer**6.
-       
-     B     = bcls_c(1)              + &
-             bcls_c(2) * ldquer     + &
-             bcls_c(3) * ldquer**2. + &
-             bcls_c(4) * ldquer**3. + &
-             bcls_c(5) * ldquer**4. + &
-             bcls_c(6) * ldquer**5. + &
-             bcls_c(7) * ldquer**6.
-     
-     wetscavlim = 10**(logAd+B*log10(prec))
-     wetscav = max(wetscav, wetscavlim)
-    endif
-     
-  endif ! bcscheme Laakso or Wang
-    
 end subroutine get_wetscav_belowcld_aerosol_snow
 
 subroutine get_wetscav_incld_aerosol(ks,gridfract,prec,cl,cc,t_particle,wetscav)

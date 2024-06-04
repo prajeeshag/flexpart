@@ -426,8 +426,6 @@ subroutine readcommand
   !     HSO, 1 July 2014                                                       *
   !     Added optional namelist input                                          *
   !                                                                            * 
-  !     June 2023 Anne Tipka                                                   * 
-  !     Added new parameter bcscheme for selcting below cloud scheme           *
   !                                                                            *
   !     January 2024 Rona Thompson                                             *
   !     Added new variables for LCM                                            *
@@ -529,7 +527,6 @@ subroutine readcommand
   maxthreadgrid, &
   maxfilesize, &
   logvertinterp, &
-  bcscheme, &
   ohfields_path, &
   lcmoutput, &
   itsplit  ! deprecated: only for IO back compatibility  
@@ -576,7 +573,6 @@ subroutine readcommand
   maxthreadgrid=1
   maxfilesize=10000
   logvertinterp=0
-  bcscheme=2
   ohfields_path=''
   lcmoutput=0
   itsplit=999999999 ! deprecated: only for IO back compatibility  

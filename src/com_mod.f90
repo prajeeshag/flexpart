@@ -194,11 +194,6 @@ module com_mod
   integer(selected_int_kind(16)),allocatable,dimension(:) :: icnt_belowcld, &
        &icnt_incld
 
-  integer :: bcscheme ! AT 2021
-  ! = 1 for below cloud scheme of Grythe et al 2017 (based on Laakso and Kyro)
-  ! = 2 for below-cloud scheme of Tipka et al 2023 (based on Wang et al 2014)
-  ! = 3 for below-cloud scheme of Tipka et al 2023 (based on modified Wang et al 2014)
-
   !*********************************************************************
   ! Variables defining the release locations, released species and their
   ! properties, etc.

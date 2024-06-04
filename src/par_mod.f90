@@ -216,14 +216,6 @@ module par_mod
   ! aerosol below-cloud scavenging removal polynomial constants for rain & snow
   !**************************************************************************
 
-  ! for bcscheme = 1
-  ! rain (Laakso et al 2003, figure 7) Size range: 10-510 nm
-  real, parameter :: bclr(6) = &
-      (/274.35758, 332839.59273, 226656.57259, 58005.91340, 6588.38582, 0.244984/)
-  ! snow (Kyro et al 2009) Size range: 10nm-1um
-  real, parameter :: bcls(6) = (/22.7, 0.0, 0.0, 1321.0, 381.0, 0.0/) 
-  
-  ! for bcscheme = 2 & 3
   ! AT (after Wang et al 2014, Table 8)
   ! rain
   real, parameter :: bclr_a(4) = &

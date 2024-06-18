@@ -14,10 +14,11 @@ default:
 
 setup:
   stage: build
-  cache:
+  artifacts:
     paths:
       - tests/testdata/
-    untracked: true
+    expire_in: 30 min
+    when: on_success
   script:
     - mkdir tests/testdata/
     - wget -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -P tests/testdata/ "https://webdata.wolke.img.univie.ac.at/flexpart/"
@@ -38,7 +39,7 @@ alma8-build:
     paths:
       - ./src/FLEXPART
       - ./src/FLEXPART_ETA
-    expire_in: 1d
+    expire_in: 30 mins
 
 rocky9-build:
   stage: build
@@ -54,12 +55,13 @@ rocky9-build:
     paths:
       - ./src/FLEXPART
       - ./src/FLEXPART_ETA
-    expire_in: 1d
+    expire_in: 30 mins
 
 options-test:
   stage: test
   needs:
     - rocky9-build
+    - setup
 
   script:
     - ulimit -s unlimited
@@ -72,7 +74,7 @@ options-test:
       - ./tests/output_bkw
       - ./tests/output_settling_eta
       - ./tests/output_bkw_eta
-    expire_in: 5 mins
+    expire_in: 10 mins
 
 nests-test:
   stage: test
@@ -87,12 +89,13 @@ nests-test:
     when: on_success
     paths:
       - ./tests/output_nests
-    expire_in: 5 mins
+    expire_in: 10 mins
 
 openmp-simulation:
   stage: test
   needs:
     - rocky9-build
+    - setup
 
   script:
     - ulimit -s unlimited
@@ -105,7 +108,7 @@ openmp-simulation:
       - ./tests/output_omp32
       - ./tests/output_omp1_eta
       - ./tests/output_omp32_eta
-    expire_in: 5 mins
+    expire_in: 10 mins
 
 etex-simulation:
   stage: test

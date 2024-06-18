@@ -1,5 +1,6 @@
 stages:
   - build
+  - setup
   - test
   - compare
   # - container
@@ -50,7 +51,7 @@ rocky9-build:
     policy: pull
 
 setup:
-  stage: test
+  stage: setup
   image: harbor.wolke.img.univie.ac.at/flexpart/rockylinux9:latest
   script:
     - mkdir ./tests/testdata && cd ./tests/testdata

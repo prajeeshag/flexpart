@@ -11,6 +11,9 @@ default:
 
 cache:
   key: testdata
+  paths:
+    - ./tests/testdata
+  policy: pull-push
 
 alma8-build:
   image: harbor.wolke.img.univie.ac.at/flexpart/almalinux8:latest
@@ -54,10 +57,6 @@ setup:
   script:
     - mkdir ./tests/testdata
     - wget -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -P ./tests/testdata "https://webdata.wolke.img.univie.ac.at/flexpart/"
-  cache:
-    key: testdata
-    paths:
-      - ./tests/testdata
 
 options-test:
   # image: harbor.wolke.img.univie.ac.at/flexpart/almalinux8:latest

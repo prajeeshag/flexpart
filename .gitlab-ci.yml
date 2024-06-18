@@ -11,16 +11,21 @@ default:
 
   tags:
     - podman
+
+setup:
+  stage: build
   cache:
     paths:
-      - testdata/
-  before_script:
-    - mkdir testdata/
-    - wget -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -P testdata/ "https://webdata.wolke.img.univie.ac.at/flexpart/"
+      - tests/testdata/
+    untracked: true
+  script:
+    - mkdir tests/testdata/
+    - wget -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -P tests/testdata/ "https://webdata.wolke.img.univie.ac.at/flexpart/"
 
 alma8-build:
   image: harbor.wolke.img.univie.ac.at/flexpart/almalinux8:latest
   stage: build
+  when: manual
 
   script:
     - export FC=gfortran
@@ -51,16 +56,14 @@ rocky9-build:
       - ./src/FLEXPART_ETA
     expire_in: 1d
 
-
-
 options-test:
   stage: test
   needs:
-    - alma8-build
-    - rocky9-build
+    - build
+
   script:
     - ulimit -s unlimited
-    - cd tests && ln -s ../testdata/ testdata && cd ..
+    - ls /tests/testdata
     - bash ./tests/run_default_options_test.sh
   artifacts:
     when: on_success
@@ -75,8 +78,7 @@ nests-test:
   stage: test
   when: manual
   needs:
-    - alma8-build
-    - rocky9-build
+    - build
 
   script:
     - ulimit -s unlimited
@@ -90,8 +92,7 @@ nests-test:
 openmp-simulation:
   stage: test
   needs:
-    - alma8-build
-    - rocky9-build
+    - build
 
   script:
     - ulimit -s unlimited
@@ -110,8 +111,7 @@ etex-simulation:
   stage: test
   when: manual
   needs:
-    - alma8-build
-    - rocky9-build
+    - build
 
   script:
     - ulimit -s unlimited

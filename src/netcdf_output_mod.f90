@@ -2357,10 +2357,14 @@ subroutine partoutput_netcdf(itime,field,np,imass,ncid)
         call nf90_err(nf90_put_var(ncid,tempIDend,oro(0:nx-1,0:ny-1), (/ 1,1 /),(/ nx,ny /)))
         topo_written=.true.
       endif
-    else !HM or TR
+    else if (partopt(np)%name.eq.'HM') then !HM
       call nf90_err(nf90_inq_varid(ncid=ncid,name=trim(partopt(np)%short_name),varid=tempIDend))
       call nf90_err(nf90_put_var(ncid,tempIDend,hmix(0:nx-1,0:ny-1,1,memind(1)), &
         (/ tpointer_part,1,1 /),(/ 1,nx,ny /)))
+    else !TR
+      call nf90_err(nf90_inq_varid(ncid=ncid,name=trim(partopt(np)%short_name),varid=tempIDend))
+      call nf90_err(nf90_put_var(ncid,tempIDend,tropopause(0:nx-1,0:ny-1,1,memind(1)), &
+        (/ tpointer_part,1,1 /),(/ 1,nx,ny /)))      
     endif
 
   else if (partopt(np)%name.eq.'MA') then

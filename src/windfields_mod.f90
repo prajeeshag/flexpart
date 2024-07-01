@@ -1882,11 +1882,8 @@ subroutine gridcheck_nest
 
   ! Allocate memory for windfields using nxmax, nymaxn, numbnest
   !*************************************************************
-  if (numbnests.ge.1) then
-    ! If nested wind fields are used, allocate arrays
-    !************************************************
-    call alloc_windfields_nest
-  endif
+  call alloc_windfields_nest
+
 
 
   return
@@ -4303,8 +4300,6 @@ subroutine alloc_windfields_nest
   if (stat.ne.0) error stop "Could not allocate tropopausen"
   allocate(olin(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
   if (stat.ne.0) error stop "Could not allocate olin"
-  allocate(vdepn(0:nxmaxn-1,0:nymaxn-1,maxspec,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate vdepn"
 
   ! Initialise
   !************  
@@ -4362,7 +4357,7 @@ subroutine dealloc_windfields_nest
 #endif
 
   deallocate(psn,sdn,msln,tccn,u10n,v10n,tt2n,td2n,lsprecn,convprecn, &
-    sshfn,ssrn,sfcstressn,ustarn,wstarn,hmixn,tropopausen,olin,vdepn)
+    sshfn,ssrn,sfcstressn,ustarn,wstarn,hmixn,tropopausen,olin)
 
   deallocate(xresoln,yresoln,xln,yln,xrn,yrn)
 end subroutine dealloc_windfields_nest

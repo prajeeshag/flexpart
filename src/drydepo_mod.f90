@@ -38,18 +38,25 @@ subroutine alloc_drydepo
   if (.not. drydep) return
   write(*,*) 'allocate drydepo fields'
   allocate(xlanduse(0:nxmax-1,0:nymax-1,numclass),      &
-           xlandusen(0:nxmaxn-1,0:nymaxn-1,numclass,numbnests), &
            vdep(0:nxmax-1,0:nymax-1,maxspec,numwfmem), &
-           z0_drydep(0:nxmax-1,0:nymax-1), &
-           z0_drydepn(0:nxmax-1,0:nymax-1,numbnests), stat=stat)
+           z0_drydep(0:nxmax-1,0:nymax-1), stat=stat)
   if (stat.ne.0) error stop "Could not allocate drydepo fields"
+  if (numbnests.ge.1) then
+    allocate(xlandusen(0:nxmaxn-1,0:nymaxn-1,numclass,numbnests), &
+           vdepn(0:nxmaxn-1,0:nymaxn-1,maxspec,numwfmem,numbnests), &
+           z0_drydepn(0:nxmaxn-1,0:nymaxn-1,numbnests), stat=stat)
+    if (stat.ne.0) error stop "Could not allocate drydepo fields"
+  endif  
            
 end subroutine alloc_drydepo
 
 subroutine dealloc_drydepo
 
   if (.not. drydep) return
-  deallocate(xlanduse,xlandusen,vdep,z0_drydep,z0_drydepn)
+  deallocate(xlanduse,vdep,z0_drydep)
+  if (numbnests.ge.1) then
+    deallocate(xlandusen,vdepn,z0_drydepn)
+  endif
 
 end subroutine dealloc_drydepo
 

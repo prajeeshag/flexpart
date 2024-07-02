@@ -136,8 +136,8 @@ subroutine find_grid_indices(xt,yt)
     ! jy=int(ytn)
     ! nix=nint(xtn)
     ! njy=nint(ytn)
-    nix=max(min(nint(xtn),nxn(ngrid)-1),0)
-    njy=max(min(nint(ytn),nyn(ngrid)-1),0)
+    nix=max(min(int(xtn),nxn(ngrid)-1),0)
+    njy=max(min(int(ytn),nyn(ngrid)-1),0)
     ix=nix
     jy=njy
     ixp=ix+1

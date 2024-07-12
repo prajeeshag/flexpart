@@ -13,7 +13,7 @@
 module particle_mod
   use com_mod, only: maxspec,DRYDEP,WETDEP,DRYBKDEP,WETBKDEP,iout, &
     n_average,nspec,ipout,ipin
-  use par_mod, only: dp
+  use par_mod, only: dp,ispeed
 
   implicit none
   
@@ -395,7 +395,7 @@ contains
 
     count%alive=j-1
 
-    if (ipin.le.1 .and. ipout.eq.0) call rewrite_iterm
+    if (ipin.le.1 .and. ipout.eq.0 .and. ispeed.eq.0) call rewrite_iterm
   end subroutine rewrite_ialive
 
   subroutine rewrite_iterm()

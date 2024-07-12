@@ -311,4 +311,7 @@ module par_mod
   ! Particle dump: one file per field or all in one netcdf file
   logical,parameter :: lpartoutputperfield=.false.
 
+  ! To save memory, terminated particles can be overwritted, but this can cause overhead.
+  ! set ispeed=1 to decrease this overhead, but increasing the memory footprint
+  integer,parameter :: ispeed=0
 end module par_mod

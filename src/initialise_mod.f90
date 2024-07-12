@@ -128,7 +128,7 @@ subroutine releaseparticles(itime)
   !***************************************************************************
   ! First allocate all particles that are going to be in the simulation
   ! If ipin==0,1, and ipout==0, then dead particles can be overwritten to save memory
-  if (ipin.gt.1 .or. ipout.ne.0) then
+  if (ipin.gt.1 .or. ipout.ne.0 .or. ispeed.eq.1) then
     if (itime.eq.0) then
       totpart=0
       do i=1,numpoint
@@ -145,7 +145,7 @@ subroutine releaseparticles(itime)
   endif
 
   call get_totalpart_num(istart)
-  if (ipin.le.1 .and. ipout.eq.0) call rewrite_iterm()
+  if (ipin.le.1 .and. ipout.eq.0 .and. ispeed.eq.0) call rewrite_iterm()
   minpart=1
   do i=1,numpoint
     if ((itime.ge.ireleasestart(i)).and. &! are we within release interval?
@@ -212,7 +212,7 @@ subroutine releaseparticles(itime)
       yaux=ypoint2(i)-ypoint1(i)
       zaux=zpoint2(i)-zpoint1(i)
 
-      if (ipin.le.1 .and. ipout.eq.0) then
+      if (ipin.le.1 .and. ipout.eq.0 .and. ispeed.eq.0 ) then
         call rewrite_iterm()
         totpart = numrel-count%iterm_max
         if (totpart.gt.0) call alloc_particles(totpart)
@@ -286,7 +286,7 @@ subroutine releaseparticles(itime)
     endif ! releasepoint
   end do ! numpoint
 
-  if (ipin.le.1 .and. ipout.eq.0) call rewrite_iterm()
+  if (ipin.le.1 .and. ipout.eq.0 .and. ispeed.eq.0 ) call rewrite_iterm()
 
   call get_totalpart_num(iend)
 
@@ -1418,7 +1418,7 @@ subroutine boundcond_domainfill(itime,loutend)
   ! Terminate trajectories that have left the domain, if domain-filling
   ! trajectory calculation domain is not global
   !********************************************************************
-  if (ipin.le.1 .and. ipout.eq.0) call rewrite_iterm()
+  if (ipin.le.1 .and. ipout.eq.0 .and. ispeed.eq.0) call rewrite_iterm()
 
   iterminate=0
   do i=1,count%allocated
@@ -1875,7 +1875,7 @@ subroutine boundcond_domainfill(itime,loutend)
   end do ! north south
 ! !$OMP END DO
 ! !$OMP END PARALLEL
-  if (ipin.le.1 .and. ipout.eq.0) call rewrite_iterm()
+  if (ipin.le.1 .and. ipout.eq.0 .and. ispeed.eq.0) call rewrite_iterm()
   numparticlecount = numparticlecount_tmp
   ! If particles shall be dumped, then accumulated masses at the domain boundaries
   ! must be dumped, too, to be used for later runs

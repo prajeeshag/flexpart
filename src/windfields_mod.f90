@@ -93,7 +93,7 @@ module windfields_mod
     ctwc                                    ! ESO: =icloud_stats(:,:,4,:) total cloud water content
   integer,allocatable,dimension(:,:,:) ::    & ! new scavenging AT 2021
     icloudbot,                            & ! cloud bottom height [m/eta]
-	  icloudtop                               ! cloud top [m/eta]
+    icloudtop                               ! cloud top [m/eta]
 
   ! 3d nested fields
   !*****************
@@ -129,7 +129,7 @@ module windfields_mod
     ctwcn                                    ! ESO: =icloud_stats(:,:,4,:) total cloud water content
   integer,allocatable,dimension(:,:,:,:) :: & ! new scavenging AT 2021
     icloudbotn,                             & ! cloud bottom height [m/eta]
-  	icloudtopn                                ! cloud thickness [m/eta]
+    icloudtopn                                ! cloud thickness [m/eta]
 
   ! 2d fields
   !**********
@@ -152,11 +152,11 @@ module windfields_mod
     oli                                   ! inverse Obukhov length (1/L) [m]
 
   ! 2d fields
-  !**********	
+  !**********
   real, allocatable,dimension(:,:,:,:,:) :: & ! newWetDepoScheme, extra precip dimension AT 2021
     lsprec,                                 & ! large scale total precipitation [mm/h]
     convprec                                  ! convective precipitation [mm/h]
-	
+
   ! 2d nested fields
   !*******************
   real, allocatable,dimension(:,:,:,:,:) :: &
@@ -179,11 +179,11 @@ module windfields_mod
     vdepn                                     !
 
   ! 2d fields
-  !**********	
+  !**********
   real, allocatable,dimension(:,:,:,:,:,:) :: & ! newWetDepoScheme, extra precip dimension AT 2021
     lsprecn,                                 & ! large scale total precipitation [mm/h]
     convprecn                                  ! convective precipitation [mm/h]
-	
+
   integer :: metdata_format  ! storing the input data type (ECMWF/NCEP)
 
   !****************************************************************************
@@ -443,19 +443,19 @@ subroutine gridcheck_ecmwf
       !read the grib2 identifiers
       call grib_get_int(igrib,'discipline',discipl,iret)
       call grib_check(iret,thisSubr,gribErrorMsg)
-	  
+
       call grib_get_int(igrib,'parameterCategory',parCat,iret)
       call grib_check(iret,thisSubr,gribErrorMsg)
-	  
+
       call grib_get_int(igrib,'parameterNumber',parNum,iret)
       call grib_check(iret,thisSubr,gribErrorMsg)
-	  
+
       call grib_get_int(igrib,'typeOfFirstFixedSurface',typSfc,iret)
       call grib_check(iret,thisSubr,gribErrorMsg)
-	  
+
       call grib_get_int(igrib,'level',k,iret)
       call grib_check(iret,thisSubr,gribErrorMsg)
-	  
+
       call grib_get_int(igrib,'paramId',parId,iret)
       call grib_check(iret,thisSubr,gribErrorMsg)
 
@@ -1882,11 +1882,8 @@ subroutine gridcheck_nest
 
   ! Allocate memory for windfields using nxmax, nymaxn, numbnest
   !*************************************************************
-  if (numbnests.ge.1) then
-    ! If nested wind fields are used, allocate arrays
-    !************************************************
-    call alloc_windfields_nest
-  endif
+  call alloc_windfields_nest
+
 
 
   return
@@ -4303,8 +4300,6 @@ subroutine alloc_windfields_nest
   if (stat.ne.0) error stop "Could not allocate tropopausen"
   allocate(olin(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
   if (stat.ne.0) error stop "Could not allocate olin"
-  allocate(vdepn(0:nxmaxn-1,0:nymaxn-1,maxspec,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate vdepn"
 
   ! Initialise
   !************  
@@ -4362,7 +4357,7 @@ subroutine dealloc_windfields_nest
 #endif
 
   deallocate(psn,sdn,msln,tccn,u10n,v10n,tt2n,td2n,lsprecn,convprecn, &
-    sshfn,ssrn,sfcstressn,ustarn,wstarn,hmixn,tropopausen,olin,vdepn)
+    sshfn,ssrn,sfcstressn,ustarn,wstarn,hmixn,tropopausen,olin)
 
   deallocate(xresoln,yresoln,xln,yln,xrn,yrn)
 end subroutine dealloc_windfields_nest

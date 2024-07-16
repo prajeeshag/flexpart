@@ -273,8 +273,8 @@ subroutine outgrid_init
           if (ngrid.gt.0) then
             xtn=(xl-xln(ngrid))*xresoln(ngrid)
             ytn=(yl-yln(ngrid))*yresoln(ngrid)
-            ix=max(min(nint(xtn),nxn(ngrid)-1),0)
-            jy=max(min(nint(ytn),nyn(ngrid)-1),0)
+            ix=max(min(int(xtn),nxn(ngrid)-1),0)
+            jy=max(min(int(ytn),nyn(ngrid)-1),0)
             ! ix=int(xtn)
             ! jy=int(ytn)
             ddy=ytn-real(jy)

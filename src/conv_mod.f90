@@ -438,7 +438,7 @@ subroutine convmix(itime)
   ! Now visit all grid columns where particles are present
   ! by going through the sorted particles
 !$OMP PARALLEL PRIVATE (igrold,kpart,ipart,igr,jy,ix,kz,lconv, &
-!$OMP ktop,ztold,nage,ipconv,itage,lcalcflux)
+!$OMP ktop,ztold,nage,ipconv,itage,lcalcflux,ithread)
     igrold = -1
 #if (defined _OPENMP)
     ithread = OMP_GET_THREAD_NUM()+1 ! Starts at 1

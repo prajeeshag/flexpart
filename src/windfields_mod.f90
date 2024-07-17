@@ -2444,11 +2444,11 @@ subroutine readwind_ecmwf(indj,n,uuh,vvh,wwh)
       lcwsum=.true.
 !$OMP END CRITICAL
 
-  end select
+    end select
 
-  call grib_release(igrib(ii))
+    call grib_release(igrib(ii))
 
-  deallocate( zsec4 )
+    if (is6.ne.-1) deallocate( zsec4 )
   end do fieldloop
 !$OMP END DO
 

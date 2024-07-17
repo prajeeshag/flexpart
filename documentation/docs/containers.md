@@ -372,7 +372,8 @@ variables:
 
 Interactive shells can be launched into containers, to have a look at configurations and to better understand what might go wrong. Podman/Docker allows to alter files inside of the container and save these changes. Singularity/Apptainer containers are not writeable, but acts like a normal executable with access to host files.
 
-```sh title="interactive containers"
+
+```sh
 # using podman 
 $ podman run -it localhost/flexpartv11-master:2464aef /bin/bash
 Welcome, running FLEXPART 

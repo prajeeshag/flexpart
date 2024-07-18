@@ -12,7 +12,7 @@ Other references:
 
 * This repository contains versions of the Lagrangian model FLEXPART
 * Development versions
-* Issues on the FLEXPART model, [tickets](./-/issues)/[mail](mailto:flexpart-support.img-wien@univie.ac.at)
+* Issues on the FLEXPART model, [tickets](https://gitlab.phaidra.org/flexpart/flexpart/-/issues)/[mail](mailto:flexpart-support.img-wien@univie.ac.at)
 * Feature requests for future versions
 
 ## Getting started with Flexpart

@@ -196,8 +196,8 @@ base:
   image: quay.io/podman/stable
   when: manual
   script:
-    - podman build -t "harbor.wolke.img.univie.ac.at/flexpart/rockylinux9:latest" -f ./tests/Dockerfile
-    - podman push "harbor.wolke.img.univie.ac.at/flexpart/rockylinux9:latest"
+    - podman build -t "harbor.wolke.img.univie.ac.at/flexpart/rockylinux9:$(date +"v%Y.%m")" -t "harbor.wolke.img.univie.ac.at/flexpart/rockylinux9:latest" -f ./tests/Dockerfile
+    - podman push --all-tags "harbor.wolke.img.univie.ac.at/flexpart/rockylinux9"
 
 post:
   stage: container

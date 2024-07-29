@@ -223,3 +223,4 @@ flexpart:
   script:
     - podman build -t "harbor.wolke.img.univie.ac.at/flexpart/flexpart${MAJOR_VERSION}-${CI_COMMIT_REF_NAME}:${CI_COMMIT_SHA:0:8}" --build-arg COMMIT=${CI_COMMIT_SHA:0:8} -f ./containers/Dockerfile .
     - podman push "harbor.wolke.img.univie.ac.at/flexpart/flexpart${MAJOR_VERSION}-${CI_COMMIT_REF_NAME}:${CI_COMMIT_SHA:0:8}"
+    - podman push "harbor.wolke.img.univie.ac.at/flexpart/flexpart${MAJOR_VERSION}-${CI_COMMIT_REF_NAME}:${CI_COMMIT_SHA:0:8}" "harbor.wolke.img.univie.ac.at/flexpart/flexpart${MAJOR_VERSION}-${CI_COMMIT_REF_NAME}:latest"

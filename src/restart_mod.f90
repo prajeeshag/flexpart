@@ -214,10 +214,15 @@ subroutine readrestart
   read(unitpartin) outnum_init
 
   count%alive=numpart
-  count%spawned=numpart
+  if (ipin.eq.1) then
+    count%spawned=imax
+  else
+    count%spawned=numpart
+  endif
   if (count%allocated.lt.imax) call alloc_particles(imax-count%allocated)
   do i=1,numpart
     read(unitpartin) ipart
+    if (ipout.gt.0) ipart=i ! No need to keep dead particle spots when no part dump
     read(unitpartin) part(ipart)%xlon,part(ipart)%ylat,part(ipart)%z, &
 #ifdef ETA
       part(ipart)%zeta, &
@@ -309,8 +314,8 @@ subroutine readrestart
   close(unitpartin)
 
   iterminate=0
-  do i=1,numpart
-    if (.not. part(i)%alive) then
+  do i=1,imax
+    if ((part(i)%spawned .eqv. .true.) .and. (.not. part(i)%alive)) then
       if (part(i)%tstart.le.itime_init) then
         call terminate_particle(i,part(i)%tend)
         iterminate=iterminate+1
@@ -319,7 +324,7 @@ subroutine readrestart
   end do
 
   call rewrite_ialive()
-  count%spawned=count%spawned-iterminate
+  !count%spawned=count%spawned-iterminate
   numpart=count%spawned
   
   julin=juldate(ibdate,ibtime)+real(itime_init,kind=dp)/86400._dp

@@ -170,6 +170,11 @@ subroutine output_restart(itime,loutnext,lrecoutnext,outnum)
           end do 
         endif
       end do
+      if (numreceptor.gt.0) then 
+        do n=1,numreceptor
+          read(unitpartin) creceptor(n,ks)
+        end do
+      endif
     end do
   endif
   close(unitrestart)

@@ -195,7 +195,7 @@ ford:
   image: docker.io/library/python:3.10-slim
   stage: build
   rules:
-    - '$CI_COMMIT_REF_NAME == "master"'
+    - if: '$CI_COMMIT_REF_NAME == "master"'
   script:
     - pip install --no-cache-dir ford
     - |

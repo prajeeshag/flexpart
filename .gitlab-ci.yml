@@ -197,6 +197,7 @@ ford:
   rules:
     - if: '$CI_COMMIT_REF_NAME == "master"'
   script:
+    - apk add --update --no-cache openssh sshpass rsync
     - pip install --no-cache-dir ford
     - |
       cat > project.md <<EOF

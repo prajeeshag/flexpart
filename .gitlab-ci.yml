@@ -192,7 +192,7 @@ documentation:
     - sshpass -p "$WOLKE_PASSWORD" rsync -autv --delete -e "ssh -o StrictHostKeyChecking=no" /tmp/cr-site/* "$WOLKE_USER@wolke.img.univie.ac.at:/var/www/flexpart/docs"
 
 ford:
-  image: docker.io/library/python:3.10-slim
+  image: docker.io/library/python:3.10-alpine
   stage: build
   rules:
     - if: '$CI_COMMIT_REF_NAME == "master"'

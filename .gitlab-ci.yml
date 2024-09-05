@@ -191,6 +191,25 @@ documentation:
     - cd ./documentation && mkdocs build -c --verbose
     - sshpass -p "$WOLKE_PASSWORD" rsync -autv --delete -e "ssh -o StrictHostKeyChecking=no" /tmp/cr-site/* "$WOLKE_USER@wolke.img.univie.ac.at:/var/www/flexpart/docs"
 
+ford:
+  image: docker.io/library/python:3.10-slim
+  stage: build
+  rules:
+    - '$CI_COMMIT_REF_NAME == "master"'
+  script:
+    - pip install --no-cache-dir ford
+    - |
+      cat > project.md <<EOF
+      ---
+      project: FLEXPART
+      author: FLEXPART community
+      ---
+
+      This is an automated documentation build from the Fortran source code.
+      EOF
+    - ford project.md -o ./ford
+    - sshpass -p "$WOLKE_PASSWORD" rsync -autv --delete -e "ssh -o StrictHostKeyChecking=no" ./ford/* "$WOLKE_USER@wolke.img.univie.ac.at:/var/www/flexpart/ford"
+
 base:
   stage: container
   image: quay.io/podman/stable

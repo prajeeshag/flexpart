@@ -222,7 +222,7 @@ contains
     integer, intent(inout) :: iterm_index
     integer :: i
 
-    if (ipin.le.1 .and. ipout.eq.0) then
+    if (ipin.le.1 .and. ipout.eq.0 .and. ispeed.eq.0 ) then
       if ((ipin.eq.0 .and. count%terminated.eq.0) .or. &
         (count%allocated.gt.count%spawned)) then
         ipart = count%spawned + 1

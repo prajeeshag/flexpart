@@ -79,6 +79,7 @@ from a particle netCDF file written in a previous run (only works when the corre
 | <a name="MAXTHREADGRID"></a>MAXTHREADGRID | Set maximum number of threads for doing grid computations. Recommended to set this to max 16. High numbers create more overhead and a larger memory footprint  | **1 (default=no parallelisation on grid)** integer |
 | <a name="MAXFILESIZE"></a>MAXFILESIZE | Maximum output of each partoutput NetCDF-4 file in Mb before a new one is created  | *10000 (default=10GB)** integer |
 | <a name="LOGVERTINTERP"></a>LOGVERTINTERP| Flag to set all vertical interpolation to logarithmic instead of linear  | *0=off (default)**, 1=on |
+| <a name="NXSHIFT"></a>NXSHIFT|  Shift of the global meteorological data by number of grid cells. | Default 359 for ECMWF and 0 for GFS if not given |
 
 <br/>
 
@@ -104,7 +105,7 @@ And for each release:
 |ITIME1 | Release start time in UTC | integers in the form of HHMISS: HH hours, MI=minutes, SS=seconds|
 |IDATE2 | Release end date | same as IDATE1|
 |ITIME2 | Release end time | same as ITIME1|
-|LON1 | Left longitude of release box -180 < LON1 <180| real |
+|LON1 | Left longitude of release box -180(NXSHIFT$\Delta$lon) < LON1 <180(NXSHIFT$\Delta$lon)| real |
 |LON2 | Right longitude of release box, same as LON1| real |
 |LAT1 | Lower latitude of release box, -90 < LAT1 < 90| real |
 |LAT2 | Upper latitude of release box same format as LAT1 | real |
@@ -327,6 +328,8 @@ When using nested areas, the third and fourth line can be repeated with the resp
 ## <a name="available"></a>AVAILABLE files
 The meteorological input data, one file for each input time, are stored in GRIB format in a common directory (specified in line 3 of pathnames). To enable FLEXPART to find these files, a file usually named AVAILABLE (given in line 4 of pathnames) contains a list of all available meteorological input files and their corresponding time stamps. Additional files containing nested input data may also be provided. In this case, a separate file containing the input file names (e.g., named AVAILABLE_NESTED) must be given. Date and time entries in the AVAILABLE* files for mother and nested
 fields must be identical.
+
+ECMWF data can be retrieved using [flex_extract](https://flexpart.img.univie.ac.at/flexextract/index.html)
 
 ## <a name="ic"></a>User-defined initial conditions
 A simulation can be started using a NetCDF file listing all particles to be released. This option can be switched on by specifying [IPIN](configuration.md#ipin)=3 in the [COMMAND](configuration.md#command) option file. This file should be called **part_ic.nc** and located in the output directory defined in [Pathnames file](configuration.md#pathnames). It should have the following structure:

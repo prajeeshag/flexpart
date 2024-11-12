@@ -32,7 +32,7 @@ alma8-build:
     - export FC=gfortran
     - export LIBRARY_PATH=/usr/lib64:/usr/local/lib64
     - export CPATH=/usr/include:/usr/local/include:/usr/lib64/gfortran/modules
-    - echo "ECcodes: $(codes_info -v)"
+    - codes_info -v
     - nc-config --version
     - nf-config --version
     - h5dump --version
@@ -54,7 +54,7 @@ rocky9-build:
     - export FC=gfortran
     - export LIBRARY_PATH=/usr/lib64:/usr/local/lib64
     - export CPATH=/usr/include:/usr/local/include:/usr/lib64/gfortran/modules
-    - echo "ECcodes: $(codes_info -v)"
+    - codes_info -v
     - nc-config --version
     - nf-config --version
     - h5dump --version

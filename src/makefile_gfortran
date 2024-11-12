@@ -88,6 +88,8 @@ O_LEV_DBG = g # [0,g]
 #
 ifeq ($(arch), generic)
 	FUSER = -g -fopenmp -march=core-avx2
+else ifeq ($(arch), x86-64)
+	FUSER = -g -fopenmp -march=x86-64
 else ifeq ($(arch), skylake)
 	FUSER = -g -fopenmp -march=skylake-avx512
 else

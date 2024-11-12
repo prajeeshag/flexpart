@@ -11,7 +11,6 @@ default:
 
   tags:
     - podman
-    - x8
 
 setup:
   stage: build
@@ -38,8 +37,8 @@ alma8-build:
     - nc-config --version
     - nf-config --version
     - h5dump --version
-    - make -j -C src -f makefile_gfortran eta=no arch=generic
-    - make -j -C src -f makefile_gfortran arch=generic
+    - make -j -C src -f makefile_gfortran eta=no arch=x86-64
+    - make -j -C src -f makefile_gfortran arch=x86-64
   artifacts:
     when: on_success
     paths:
@@ -60,8 +59,8 @@ rocky9-build:
     - nc-config --version
     - nf-config --version
     - h5dump --version
-    - make -j -C src -f makefile_gfortran eta=no arch=generic
-    - make -j -C src -f makefile_gfortran arch=generic
+    - make -j -C src -f makefile_gfortran eta=no arch=x86-64
+    - make -j -C src -f makefile_gfortran arch=x86-64
   artifacts:
     when: on_success
     paths:

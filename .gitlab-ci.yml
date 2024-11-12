@@ -11,7 +11,7 @@ default:
 
   tags:
     - podman
-    - dev
+    - x8
 
 setup:
   stage: build

@@ -2001,7 +2001,12 @@ end subroutine redist
       if (fmass(j,i,ithread).gt.EPSILON) nconvtop=MAX(nconvtop,i,j)
     end do
   end do
-  nconvtop=nconvtop+1
+  if (nconvtop < nconvlevmax-1) then 
+    nconvtop=nconvtop+1
+  else
+    write(*,'(A,I5,A)') ' WARNING: Convection reaches top level of input data.'&
+    // ' More than', nconvlevmax, ' levels are needed.'
+  end if
   RETURN
   !
 END SUBROUTINE CONVECT

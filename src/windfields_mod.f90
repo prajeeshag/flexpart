@@ -2892,7 +2892,7 @@ subroutine readwind_gfs(indj,n,uuh,vvh,wwh)
       isec1(7)=102         ! indicatorOfTypeOfLevel
       isec1(8)=0
       xsec18=real(0)
-    elseif ((parCat.eq.3).and.(parNum.eq.0).and.(typSfc.eq.1)) then ! SP
+    elseif ((parCat.eq.3).and.(parNum.eq.0).and.(typSfc.eq.1).and.(discipl.eq.0)) then ! SP
       isec1(6)=1           ! indicatorOfParameter
       isec1(7)=1           ! indicatorOfTypeOfLevel
       isec1(8)=0

@@ -11,8 +11,13 @@ Since version 11, FLEXPART is also available as a container. There is a Dockerfi
 
 Specifications:
 - compiled using `march=core-avx2`, compatible with CPUs above AVX2 (since Haswell or Zen)
-- ecCodes
+- ECCodes (from package manager or manual build a specific version)
 
+## Building the container image
+
+The first step is always to build the container image.
+
+Building the docker/podman container
 
 ```sh
 # build container using podman (adjust for docker)
@@ -29,7 +34,11 @@ COMMIT flexpartv11-master:2464aef
 Successfully tagged localhost/flexpartv11-master:2464aef
 200844128a6919007417f3fa905221c8dbdea4bb285895ef80e89d3df80274b6
 # finished
+```
 
+Building the singularity/apptainer image
+
+```sh
 # using singularity/apptainer for running FLEXPART
 # there might be some warnings about EPERM (can be ignored)
 $ ./containers/build.sh apptainer
@@ -45,17 +54,31 @@ INFO:    Build complete: flexpartv11-master-2464aef.sif
 # finished
 ```
 
-running it using podman/docker or singularity/apptainer:
+## Running the container image
+
+running using podman/docker, can be used without a mount to the local directory, because docker/podmann containers have writable temporary spaces. The outputs will be only inside the container. Create a volume mount point to map the outputs, inputs to the host.
 
 ```sh
 # simple run the container with default settings
 podman run localhost/flexpartv11-master:2464aef
+```
+
+running using the singularity/apptainer, requires a mount (bind) point. The container image can not be changed during runtime. Outputs need to be written to the host. 
+
+```sh
 # running the container requires a writable output directory
 # mounting the local directory to /output inside the container
 apptainer run -B .:/output flexpartv11-master-2464aef.sif
 ```
 
+it is possible to run FLEXPART (no ETA) and FLEXPART_ETA (default), because both executables are being build. To launch FLEXPART without ETA run:
 
+```sh
+# using podman
+podman run localhost/flexpartv11-master:2464aef FLEXPART
+# using apptainer
+apptainer run -B .:/output flexpartv11-master-2464aef.sif FLEXPART
+```
 
 <details>
 <summary>podman/docker flexpart run log</summary>
@@ -370,8 +393,11 @@ variables:
 </pre>
 </details>
 
+## interactive shells
+
 Interactive shells can be launched into containers, to have a look at configurations and to better understand what might go wrong. Podman/Docker allows to alter files inside of the container and save these changes. Singularity/Apptainer containers are not writeable, but acts like a normal executable with access to host files.
 
+using the podman image with an interactive shell:
 
 ```sh
 # using podman 
@@ -392,8 +418,30 @@ bash-5.1#
 bash-5.1# pwd
 /src
 # important directories are /input, /output, /src, /options
+# it is possible to make changes in the podman container using
+# podman commit 
+bash-5.1# ./FLEXPART /pathnames
+```
+
+using the apptainer image with an interactive shell:
+
+```sh
 
 #
 # using singularity/apptainer
-$ apptainer run 
+$ apptainer run -B .:/output flexpartv11-master-2464aef.sif /bin/bash
+# Check the directory, where you are and notice that FLEXPART and FLEXPART_ETA are available
+$ pwd
+/src
+# run the example again
+$ ./FLEXPART /pathnames
+
+# or use (but this does not put you into /src)
+$ apptainer shell -B .:/output flexpartv11-master-2464aef.sif
+# check the directory, and notice that you are in the same directory as you where on your host.
+$ pwd
+/home/user/flexpart/or/so
+# run the example again
+$ /src/FLEXPART /pathnames
 ```
+

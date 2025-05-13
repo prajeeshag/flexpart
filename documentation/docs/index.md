@@ -24,12 +24,16 @@
 - [**Containers**](containers.md): Available containers.
 - [**Trouble Shooting**](troubleshooting.md): A list of common problems. <br />
 
-This manual covers FLEXPART 11 ([Bakels et al. 2024](https://egusphere.copernicus.org/preprints/2024/egusphere-2024-1713/)).
-Although this manual might proof useful for earlier versions as well, please refer and cite the correct documentation when using an older version:
+This manual covers FLEXPART 11 ([Bakels et al. 2024](https://gmd.copernicus.org/articles/17/7595/2024/)). Please cite as:
+
+> Bakels, L., Tatsii, D., Tipka, A., Thompson, R., Dütsch, M., Blaschek, M., Seibert, P., Baier, K., Bucci, S., Cassiani, M., Eckhardt, S., Groot Zwaaftink, C., Henne, S., Kaufmann, P., Lechner, V., Maurer, C., Mulder, M. D., Pisso, I., Plach, A., Subramanian, R., Vojta, M., and Stohl, A.: FLEXPART version 11: improved accuracy, efficiency, and flexibility, Geosci. Model Dev., 17, 7595–7627, https://doi.org/10.5194/gmd-17-7595-2024, 2024.
+
+
+Although this manual might proof useful for earlier versions as well, please refer and cite the correct documentation when using an older version of FLEXPART:
 
 - [FLEXPART 10.4](https://gmd.copernicus.org/articles/12/4955/2019/)
-- [FLEXPART 9](https://www.flexpart.eu/export/87d96843f7f85bb599c0f7cdfb7f1f42731b9eaf/flexpart.git/doc/latex-manual/flexpart9.3.pdf)
-- [FLEXPART 8](https://www.flexpart.eu/export/43c86848adb64a2282787e3e7edec499b823078a/flexpart.git/documentation/flexpart8.pdf)
+- [FLEXPART 9](https://gitlab.phaidra.org/flexpart/flexpart/-/blob/94106e2601162f779375849576d4326202e4a37a/doc/latex-manual/flexpart9.3.pdf)
+- [FLEXPART 8](https://www.flexpart.eu/downloads/26)
 - [FLEXPART 6.2](https://acp.copernicus.org/articles/5/2461/2005/)
 - [FLEXPART 3.1](https://folk.nilu.no/~andreas/flexpart/flexpart61.pdf)
 - [FLEXPART 1](https://www.sciencedirect.com/science/article/pii/S1352231098001848)

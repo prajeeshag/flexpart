@@ -5,7 +5,7 @@ There are two options to download _FLEXPART_:
 
   - **tar ball**
 
-    You can download a tar ball with the latest release from the [_FLEXPART_ page](https://www.flexpart.eu/wiki/FpRoadmap) and then untar the file:
+    You can download a tar ball with the latest release from the [_FLEXPART_ page](https://www.flexpart.eu/roadmap.html) and then untar the file:
 
         $ tar -xvf <flexpart_vX.X.tar>
 

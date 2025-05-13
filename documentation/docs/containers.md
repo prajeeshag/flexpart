@@ -426,7 +426,6 @@ bash-5.1# ./FLEXPART /pathnames
 using the apptainer image with an interactive shell:
 
 ```sh
-
 #
 # using singularity/apptainer
 $ apptainer run -B .:/output flexpartv11-master-2464aef.sif /bin/bash

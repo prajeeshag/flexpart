@@ -74,7 +74,7 @@ setup:
     when: on_success
   script:
     - mkdir tests/testdata/
-    - wget -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -P tests/testdata/ "https://webdata.wolke.img.univie.ac.at/flexpart/"
+    - wget -r -nH --cut-dirs=2 --no-parent --reject="index.html*" --accept="EC2009*" -P tests/testdata/ "https://webdata.wolke.img.univie.ac.at/flexpart/"
 
 options-test:
   image: registry.phaidra.org/flexpart/flexpart/rockylinux${OS_VERSION}:${IMAGE_TAG}
@@ -141,6 +141,7 @@ etex-simulation:
     - setup
 
   script:
+    - wget -r -nH --cut-dirs=2 --no-parent --reject="index.html*" --accept="EC1994*" -P tests/testdata/ "https://webdata.wolke.img.univie.ac.at/flexpart/"
     - ulimit -s unlimited
     - bash ./tests/run_etex_test.sh
 

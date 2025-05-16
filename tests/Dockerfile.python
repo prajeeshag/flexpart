@@ -1,4 +1,5 @@
-FROM mambaorg/micromamba:latest
+# FROM docker.io/mambaorg/micromamba:latest
+FROM ghcr.io/mamba-org/micromamba:latest
 # There is no specific version that does not work, so we use the latest at 3.9
 LABEL maintainer="Flexpart Developers"
 # Install dependencies

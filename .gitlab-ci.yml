@@ -37,22 +37,6 @@ post:
     - podman push "registry.phaidra.org/flexpart/flexpart/python${PY_VERSION}:$(date +"v%Y.%m")" 
     - podman push "registry.phaidra.org/flexpart/flexpart/python${PY_VERSION}:${IMAGE_TAG}"
 
-setup:
-  stage: build
-  image: registry.phaidra.org/flexpart/flexpart/rockylinux${OS_VERSION}:${IMAGE_TAG}
-  rules:
-    - changes:
-        - src/*
-        - tests/*
-  artifacts:
-    paths:
-      - tests/testdata/
-    expire_in: 30 min
-    when: on_success
-  script:
-    - mkdir tests/testdata/
-    - wget -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -P tests/testdata/ "https://webdata.wolke.img.univie.ac.at/flexpart/"
-
 rocky-build:
   stage: build
   image: registry.phaidra.org/flexpart/flexpart/rockylinux${OS_VERSION}:${IMAGE_TAG}
@@ -77,6 +61,20 @@ rocky-build:
       - ./src/FLEXPART
       - ./src/FLEXPART_ETA
     expire_in: 30 mins
+
+setup:
+  stage: test
+  image: registry.phaidra.org/flexpart/flexpart/rockylinux${OS_VERSION}:${IMAGE_TAG}
+  needs:
+    - rocky-build
+  artifacts:
+    paths:
+      - tests/testdata/
+    expire_in: 30 min
+    when: on_success
+  script:
+    - mkdir tests/testdata/
+    - wget -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -P tests/testdata/ "https://webdata.wolke.img.univie.ac.at/flexpart/"
 
 options-test:
   image: registry.phaidra.org/flexpart/flexpart/rockylinux${OS_VERSION}:${IMAGE_TAG}
@@ -103,6 +101,7 @@ nests-test:
   when: manual
   needs:
     - rocky-build
+    - setup
 
   script:
     - ulimit -s unlimited
@@ -139,6 +138,7 @@ etex-simulation:
   when: manual
   needs:
     - rocky-build
+    - setup
 
   script:
     - ulimit -s unlimited

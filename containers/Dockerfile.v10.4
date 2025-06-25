@@ -9,7 +9,7 @@ FROM almalinux:8-minimal
 # jasper was used in FP 10.4 (eccodes, emoslib)
 #
 RUN microdnf install -y epel-release && \
-	microdnf install -y --enablerepo=powertools make netcdf-fortran-devel.x86_64 netcdf.x86_64 cmake tar gcc-c++ perl jasper-libs.x86_64 && \
+	microdnf install -y --enablerepo=powertools make git wget netcdf-fortran-devel.x86_64 netcdf.x86_64 cmake tar gcc-c++ perl jasper-libs.x86_64 && \
 	microdnf clean all -y
 
 #
@@ -26,6 +26,8 @@ RUN mkdir build && \
 # set environment variables
 #
 ENV FC=gfortran
+ENV F90=gfortran
+ENV F77=gfortran
 ENV LIBRARY_PATH=/usr/lib64:/usr/local/lib64
 ENV CPATH=/usr/include:/usr/local/include:/usr/lib64/gfortran/modules
 
@@ -35,20 +37,25 @@ RUN git clone --branch v10.4.1 --single-branch https://gitlab.phaidra.org/flexpa
 	&& cp -r flexpart/src /src
 
 ENV COMMIT=v10.4
-COPY ./tests/default_options /options
-
+#COPY ./tests/default_options /options
 # since the new data set is larger, we download the data for the container
-RUN wget  -r --no-parent -A 'EC*' -P /inputs "https://webdata.wolke.img.univie.ac.at/flexpart/"
+RUN  wget  -r -np -nd -A 'EC2009*' -P /inputs "https://webdata.wolke.img.univie.ac.at/flexpart/"
+# fix example release and command files
+RUN cp -rf /flexpart/options/ /options && \
+	sed -i 's/20120101/20090101/g' /options/COMMAND && \
+	sed -i 's/060000/000000/g' /options/COMMAND && \
+	sed -i 's/120000/030000/g' /options/COMMAND && \
+	sed -i 's/20120101/20090101/g' /options/RELEASES 
 COPY ./AVAILABLE /inputs/
 # Entrypoint script (user tips)
-COPY ./entrypoint.sh /entrypoint.sh
+COPY ./containers/entrypoint.sh /entrypoint.sh
 WORKDIR /src
 #
 # compile using a subset of microarch
 # need to fix march to x86_64_v3 , remove mtune
 # here generic means core_avx2
-RUN make -f makefile_gfortran eta=no arch=generic \
-	&& make -f makefile_gfortran arch=generic \
+RUN make eta=no arch=generic \
+	&& make arch=generic \
 	&& mkdir -p /output \
 	&& echo -e "/options/\n/output/\n/inputs/\n/inputs/AVAILABLE" > /pathnames
 # In the Dockerfile, the ENTRYPOINT command defines the executable, 

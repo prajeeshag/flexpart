@@ -79,36 +79,57 @@ O_LEV = 3 # [0,1,2,3,g,s,fast]
 O_LEV_DBG = g # [0,g]
 # -fopenmp #-pg -fbacktrace -fcheck=all -fbounds-check #-fopenmp#-p -fbacktrace -fopenmp #-tau_options=-optCompInst -tau_makefile=/home/lucie/Codes/Tau/x86_64/lib/Makefile.tau-mpi-pdt-openmp-opari#-fdefault-real-8# -freal-8-real-4#-pg -fcheck=all
 #
+
+# Allow to compile in serial or parallel mode using OpenMP
+# if SERIAL is set to yes, then OpenMP is not used
+# if SERIAL is set to no, then OpenMP is used
+ifeq ($(SERIAL), yes)
+	omp = -fopenmp_stubs
+else
+	omp = -fopenmp
+endif
 # Different CPU microarchitectures
 # check https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
 # using generic (AVX2)
 # using skylake (AVX512)
 # using native is the default, which will use whatever it can 
 # (defined by the machine where you are compiling it)
-#
 ifeq ($(arch), generic)
-	FUSER = -g -fopenmp -march=core-avx2
+	FUSER = -g $(omp) -march=core-avx2
 else ifeq ($(arch), x86-64)
-	FUSER = -g -fopenmp -march=x86-64
+	FUSER = -g $(omp) -march=x86-64
 else ifeq ($(arch), skylake)
-	FUSER = -g -fopenmp -march=skylake-avx512
+	FUSER = -g $(omp) -march=skylake-avx512
 else
-	FUSER = -g -fopenmp -march=native -mtune=native
+	FUSER = -g $(omp) -march=native -mtune=native
+endif
+# MPI 
+# if we use MPI, then we need to add the -Dusempi flag
+ifeq ($(mpi), yes)
+	FUSER := $(FUSER) -Dusempi
+else
+	FUSER := $(FUSER) -Duseomp
+endif
+# mpi: FUSER := $(FUSER) -Dusempi #-MM -MT -MD
+#
+## LIBRARIES
+# 
+LIBS = -leccodes -leccodes_f90 -lm $(NCOPT) $(ETAOPT) 
+FFLAGS   = $(INC) -O$(O_LEV) -m64 -cpp -mcmodel=large $(NCOPT) $(ETAOPT) $(FUSER)  #-convert little_endian -fpp -WB -check all
+# DEBUG FLAGS
+DBGFLAGS = $(INC) -O$(O_LEV_DBG) -g3 -ggdb3 -cpp -m64 -mcmodel=large -fconvert=little-endian -frecord-marker=4 -fmessage-length=0 -flto -O$(O_LEV_DBG) $(NCOPT) $(ETAOPT) -fbacktrace   -Wall  -fdump-core $(FUSER)  #  -ffpe-trap=invalid,overflow,denormal,underflow,zero  -Warray-bounds -fcheck=all
+
+# Libraries and flags for linking
+# -Wl,-rpath, adds the path to the library to the runtime search path
+LDFLAGS  = $(FFLAGS) $(LIBPATH) $(LIBRPATH) $(LIBS) 
+# Debug linking flags
+LDDEBUG  = $(DBGFLAGS) $(LIBPATH) $(LIBRPATH) $(LIBS)
+
+ifeq ($(DEBUG), yes)
+	FFLAGS := $(DBGFLAGS)
+	LDFLAGS := $(LDDEBUG)
 endif
 
-# To compile in serial
-#FUSER = -g -fopenmp_stubs -march=skylake-avx512
-
-mpi: FUSER := $(FUSER) -Dusempi #-MM -MT -MD
-## LIBRARIES
-LIBS = -leccodes -leccodes_f90 -lm $(NCOPT) $(ETAOPT) #MD -ljasper
-
-FFLAGS   = $(INC) -O$(O_LEV) -m64 -cpp -mcmodel=large $(NCOPT) $(ETAOPT) $(FUSER)  #-convert little_endian -fpp -WB -check all
-
-DBGFLAGS = $(INC) -O$(O_LEV_DBG) -g3 -ggdb3 -cpp -m64 -mcmodel=large -fconvert=little-endian -frecord-marker=4 -fmessage-length=0 -flto=jobserver -O$(O_LEV_DBG) $(NCOPT) $(ETAOPT) -fbacktrace   -Wall  -fdump-core $(FUSER)  #  -ffpe-trap=invalid,overflow,denormal,underflow,zero  -Warray-bounds -fcheck=all
-
-LDFLAGS  = $(FFLAGS) $(LIBPATH) $(LIBRPATH) $(LIBS) 
-LDDEBUG  = $(DBGFLAGS) $(LIBPATH) $(LIBRPATH) $(LIBS)
 
 MODOBJS = \
 advance_mod.o 		binary_output_mod.o \

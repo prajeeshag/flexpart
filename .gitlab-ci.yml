@@ -19,6 +19,7 @@ base:
   rules:
     - changes:
       - tests/Dockerfile
+    - if: '$CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME == "development"'
   script:
     - podman build -t "registry.phaidra.org/flexpart/flexpart/rockylinux${OS_VERSION}:$(date +"v%Y.%m")" -t "registry.phaidra.org/flexpart/flexpart/rockylinux${OS_VERSION}:${IMAGE_TAG}" --build-arg RL_RELEASE=$OS_VERSION -f ./tests/Dockerfile
     - podman login registry.phaidra.org -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
@@ -31,6 +32,7 @@ post:
   rules:
     - changes: 
       - tests/Dockerfile.python
+    - if: '$CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME == "development"'
   script:
     - podman build -t "registry.phaidra.org/flexpart/flexpart/python${PY_VERSION}:$(date +"v%Y.%m")" -t "registry.phaidra.org/flexpart/flexpart/python${PY_VERSION}:${IMAGE_TAG}" -f ./tests/Dockerfile.python
     - podman login registry.phaidra.org -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD

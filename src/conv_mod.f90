@@ -129,7 +129,7 @@ subroutine set_conv_top()
   if (nconvlev.gt.nconvlevmax-1) then
     nconvlev=nconvlevmax-1
     write(*,*) 'INFORMATION: Convection only calculated up to ', &
-         akz(nconvlev)+bkz(nconvlev)*1013.25,' hPa'
+         akz(nconvlev)/100.+bkz(nconvlev)*1013.25,' hPa'
   endif  
 
 end subroutine set_conv_top

@@ -9,3 +9,5 @@ FLEXPART_MPI
 *.sif
 FLEXPART_ETA
 gitversion.txt
+work/
+build/

@@ -14,7 +14,7 @@
   !*****************************************************************************
 
 module getfields_mod
-  
+
   use par_mod
   use com_mod
   use windfields_mod
@@ -23,8 +23,8 @@ module getfields_mod
   implicit none
 
   real,allocatable,dimension(:,:,:) ::    &
-    uuh,                                  & ! wind components in x-direction [m/s] 
-    vvh,                                  & ! wind components in y-direction [m/s] 
+    uuh,                                  & ! wind components in x-direction [m/s]
+    vvh,                                  & ! wind components in y-direction [m/s]
     pvh,                                  & ! potential vorticity
     wwh                                     ! wind components in y-direction [m/s]
   real,allocatable,dimension(:,:,:,:) ::  & ! Same for nexted grids
@@ -32,7 +32,7 @@ module getfields_mod
     vvhn,                                 & !
     pvhn,                                 & !
     wwhn,                                 & !
-    pwater                                  ! RLT added partial pressure water vapor 
+    pwater                                  ! RLT added partial pressure water vapor
   real,allocatable,dimension(:,:,:) ::    & ! For calcpv
     ppml,                                 & !
     ppmk                                    !
@@ -194,12 +194,7 @@ subroutine getfields(itime,nstop)
         call readwind_nest(indj+1,memind(2),uuhn,vvhn,wwhn)
         call calcpar(memind(2))
         call calcpar_nest(memind(2))
-        if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-          call verttransform_ecmwf(memind(2),uuh,vvh,wwh,pvh)
-        else
           call verttransform_gfs(memind(2),uuh,vvh,wwh,pvh)
-        end if
-        call verttransform_nest(memind(2),uuhn,vvhn,wwhn,pvhn)
         memtime(2)=wftime(indj+1)
         nstop = 1
         exit
@@ -226,7 +221,7 @@ subroutine getfields(itime,nstop)
               (r_air*tt(ix,jy,kz,memind(1)))
             rho_dry(ix,jy,kz,memind(2))=(prs(ix,jy,kz,memind(2))-pwater(ix,jy,kz,memind(2)))/ &
               (r_air*tt(ix,jy,kz,memind(2)))
-          end do 
+          end do
         end do
       end do
       ! pwater=qv*prs/((r_air/r_water)*(1.-qv)+qv)
@@ -235,7 +230,7 @@ subroutine getfields(itime,nstop)
 !$OMP END PARALLEL
     endif
   else
- 
+
   ! No wind fields, which can be used, are currently in memory
   ! -> read both wind fields
   !***********************************************************
@@ -257,33 +252,14 @@ subroutine getfields(itime,nstop)
         call calcpar(memind(1))
         call calcpar_nest(memind(1))
 
-        if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-          call verttransform_ecmwf(memind(1),uuh,vvh,wwh,pvh)
-        else
-          call verttransform_gfs(memind(1),uuh,vvh,wwh,pvh)
-        end if
+        call verttransform_gfs(memind(1),uuh,vvh,wwh,pvh)
 
-        call verttransform_nest(memind(1),uuhn,vvhn,wwhn,pvhn)
         memtime(1)=wftime(indj)
         memind(2)=2
-        if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-          call SYSTEM_CLOCK(count_clock, count_rate, count_max)
-          s_temp = (count_clock - count_clock0)/real(count_rate)
-          call readwind_ecmwf(indj+1,memind(2),uuh,vvh,wwh)
-          call SYSTEM_CLOCK(count_clock, count_rate, count_max)
-          s_readwind = s_readwind + ((count_clock - count_clock0)/real(count_rate)-s_temp)
-        else
-          call readwind_gfs(indj+1,memind(2),uuh,vvh,wwh)
-        end if
-        call readwind_nest(indj+1,memind(2),uuhn,vvhn,wwhn)
+        call readwind_gfs(indj+1,memind(2),uuh,vvh,wwh)
         call calcpar(memind(2))
         call calcpar_nest(memind(2))
-        if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-          call verttransform_ecmwf(memind(2),uuh,vvh,wwh,pvh)
-        else
-          call verttransform_gfs(memind(2),uuh,vvh,wwh,pvh)
-        end if
-        call verttransform_nest(memind(2),uuhn,vvhn,wwhn,pvhn)
+        call verttransform_gfs(memind(2),uuh,vvh,wwh,pvh)
         memtime(2)=wftime(indj+1)
         nstop = 1
         exit
@@ -310,7 +286,7 @@ subroutine getfields(itime,nstop)
               (r_air*tt(ix,jy,kz,memind(1)))
             rho_dry(ix,jy,kz,memind(2))=(prs(ix,jy,kz,memind(2))-pwater(ix,jy,kz,memind(2)))/ &
               (r_air*tt(ix,jy,kz,memind(2)))
-          end do 
+          end do
         end do
       end do
       ! pwater=qv*prs/((r_air/r_water)*(1.-qv)+qv)
@@ -600,7 +576,7 @@ subroutine calcpv(n)
       end do
     end do
   end do
-!$OMP END DO 
+!$OMP END DO
 !$OMP END PARALLEL
   !
   ! Fill in missing PV values on poles, if present
@@ -652,7 +628,7 @@ subroutine calcpv_nest(l,n)
   ! Constants:                                                                 *
   !                                                                            *
   !*****************************************************************************
-  
+
   implicit none
 
   integer :: n,ix,jy,i,j,k,kl,ii,jj,klvrp,klvrm,klpt,kup,kdn,kch
@@ -766,7 +742,7 @@ subroutine calcpv_nest(l,n)
               k=kdn
               thdn=tthn(ivr,jy,k,n,l)*ppmk(ivr,jy,k)
               thup=tthn(ivr,jy,k+1,n,l)*ppmk(ivr,jy,k+1)
-              
+
               if (((thdn.ge.theta).and.(thup.le.theta)).or. &
               ((thdn.le.theta).and.(thup.ge.theta))) then
                 dt1=abs(theta-thdn)
@@ -910,7 +886,7 @@ subroutine calcpar(n)
   !                                                                            *
   ! Variables:                                                                 *
   ! n                  temporal index for meteorological fields (1 to 3)       *
-  ! metdata_format     format of metdata (ecmwf/gfs)                           * 
+  ! metdata_format     format of metdata (ecmwf/gfs)                           *
   !                                                                            *
   ! Constants:                                                                 *
   !                                                                            *
@@ -1036,7 +1012,7 @@ subroutine calcpar(n)
         error stop 'calcpar: richardson computation failed'
       endif
 9500      format( 'calcpar - richardson ', a, ' - ix,jy=', 2i5 )
-      
+
       if(lsubgrid.eq.1) then
         subsceff=min(excessoro(ix,jy),hmixplus)
       else
@@ -1485,7 +1461,7 @@ subroutine richardson(psfc,ust,ttlev,qvlev,ulev,vlev,nuvz, &
   !     instead of first model level.                                         *
   !     New input variables tt2, td2 introduced.                              *
   !                                                                           *
-  !     CHANGE: 17/11/2005 Caroline Forster NCEP GFS version                  * 
+  !     CHANGE: 17/11/2005 Caroline Forster NCEP GFS version                  *
   !                                                                           *
   !     Unified ECMWF and GFS builds                                          *
   !     Marian Harustak, 12.5.2017                                            *
@@ -1521,7 +1497,7 @@ subroutine richardson(psfc,ust,ttlev,qvlev,ulev,vlev,nuvz, &
   integer,intent(in)  ::            &
     nuvz                              ! Upper vertical level
   real,intent(in) ::                &
-    psfc,                           & ! surface pressure at point (xt,yt) [Pa] 
+    psfc,                           & ! surface pressure at point (xt,yt) [Pa]
     ust,                            & ! Scale velocity
     hf,                             & ! Surface sensible heat flux
     tt2,td2                           ! Temperature

@@ -182,16 +182,7 @@ subroutine getfields(itime,nstop)
 
     do indj=indmin,numbwf-1
       if (ldirect*wftime(indj+1).gt.ldirect*itime) then
-        if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-          call SYSTEM_CLOCK(count_clock, count_rate, count_max)
-          s_temp = (count_clock - count_clock0)/real(count_rate)
-          call readwind_ecmwf(indj+1,memind(2),uuh,vvh,wwh)
-          call SYSTEM_CLOCK(count_clock, count_rate, count_max)
-          s_readwind = s_readwind + ((count_clock - count_clock0)/real(count_rate)-s_temp)
-        else
           call readwind_gfs(indj+1,memind(2),uuh,vvh,wwh)
-        end if
-        call readwind_nest(indj+1,memind(2),uuhn,vvhn,wwhn)
         call calcpar(memind(2))
         call calcpar_nest(memind(2))
           call verttransform_gfs(memind(2),uuh,vvh,wwh,pvh)
@@ -239,16 +230,7 @@ subroutine getfields(itime,nstop)
       if ((ldirect*wftime(indj).le.ldirect*itime).and. &
            (ldirect*wftime(indj+1).gt.ldirect*itime)) then
         memind(1)=1
-        if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-          call SYSTEM_CLOCK(count_clock, count_rate, count_max)
-          s_temp = (count_clock - count_clock0)/real(count_rate)
-          call readwind_ecmwf(indj,memind(1),uuh,vvh,wwh)
-          call SYSTEM_CLOCK(count_clock, count_rate, count_max)
-          s_readwind = s_readwind + ((count_clock - count_clock0)/real(count_rate)-s_temp)
-        else
           call readwind_gfs(indj,memind(1),uuh,vvh,wwh)
-        end if
-        call readwind_nest(indj,memind(1),uuhn,vvhn,wwhn)
         call calcpar(memind(1))
         call calcpar_nest(memind(1))
 

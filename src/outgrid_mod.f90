@@ -26,8 +26,8 @@ module outgrid_mod
   real,allocatable, dimension (:,:,:) :: areaeast
   real,allocatable, dimension (:,:,:) :: areanorth
   real,allocatable, dimension (:,:,:) :: densityoutgrid
-  real,allocatable, dimension (:,:,:) :: densitydrygrid ! added RLT 
-  real,allocatable, dimension (:,:,:) :: factor_drygrid ! added RLT 
+  real,allocatable, dimension (:,:,:) :: densitydrygrid ! added RLT
+  real,allocatable, dimension (:,:,:) :: factor_drygrid ! added RLT
   real,allocatable, dimension (:,:,:) :: factor3d
   real,allocatable, dimension (:,:,:) :: grid
   real(dep_prec),allocatable, dimension (:,:) :: wetgrid
@@ -259,27 +259,11 @@ subroutine outgrid_init
 
           ngrid=0
           ! Temporary fix for nested layer edges: replaced eps with dxn and dyn (LB)
-          do j=numbnests,1,-1
-            if ((xl.gt.xln(j)+dxn(j)).and.(xl.lt.xrn(j)-dxn(j)).and. &
-                 (yl.gt.yln(j)+dyn(j)).and.(yl.lt.yrn(j)-dyn(j))) then
-              ngrid=j
-              exit
-            endif
-          end do
 
   ! Determine (nested) grid coordinates and auxiliary parameters used for interpolation
   !*****************************************************************************
 
           if (ngrid.gt.0) then
-            xtn=(xl-xln(ngrid))*xresoln(ngrid)
-            ytn=(yl-yln(ngrid))*yresoln(ngrid)
-            ix=max(min(int(xtn),nxn(ngrid)-1),0)
-            jy=max(min(int(ytn),nyn(ngrid)-1),0)
-            ! ix=int(xtn)
-            ! jy=int(ytn)
-            ddy=ytn-real(jy)
-            ddx=xtn-real(ix)
-
           else
             ix=int(xl)
             jy=int(yl)
@@ -296,10 +280,10 @@ subroutine outgrid_init
           p4=ddx*ddy
 
           if (ngrid.gt.0) then
-            oroh=oroh+p1*oron(ix ,jy ,ngrid) &
-                 + p2*oron(ixp,jy ,ngrid) &
-                 + p3*oron(ix ,jyp,ngrid) &
-                 + p4*oron(ixp,jyp,ngrid)
+            !oroh=oroh+p1*oron(ix ,jy ,ngrid) &
+            !     + p2*oron(ixp,jy ,ngrid) &
+            !     + p3*oron(ix ,jyp,ngrid) &
+            !     + p4*oron(ixp,jyp,ngrid)
           else
             oroh=oroh+p1*oro(ix ,jy) &
                  + p2*oro(ixp,jy) &
@@ -340,7 +324,7 @@ subroutine outgrid_init
   endif
   ! Deposition fields
   if (ldirect.gt.0) then
-    if ((ipin.ne.1).and.(ipin.ne.4)) then 
+    if ((ipin.ne.1).and.(ipin.ne.4)) then
       wetgridunc(:,:,:,:,:,:)=0.
       drygridunc(:,:,:,:,:,:)=0.
     endif
@@ -384,7 +368,7 @@ subroutine outgrid_init_nest
 
   use unc_mod
   use windfields_mod, only: nxmax
-  
+
   implicit none
 
   integer :: ix,jy,kz,ks,kp,nage,l,iix,jjy,ixp,jyp,i1,j1,j,ngrid
@@ -470,25 +454,11 @@ subroutine outgrid_init_nest
   !*****************************
 
           ngrid=0
-          do j=numbnests,1,-1
-            ! Temporary fix for nested layer edges: replaced eps with dxn and dyn (LB)
-            if ((xl.gt.xln(j)+dxn(j)).and.(xl.lt.xrn(j)-dxn(j)).and. &
-                 (yl.gt.yln(j)+dyn(j)).and.(yl.lt.yrn(j)-dyn(j))) then
-              ngrid=j
-              exit
-            endif
-          end do
 
   ! Determine (nested) grid coordinates and auxiliary parameters used for interpolation
   !*****************************************************************************
 
           if (ngrid.gt.0) then
-            xtn=(xl-xln(ngrid))*xresoln(ngrid)
-            ytn=(yl-yln(ngrid))*yresoln(ngrid)
-            ix=int(xtn)
-            jy=int(ytn)
-            ddy=ytn-real(jy)
-            ddx=xtn-real(ix)
           else
             ix=int(xl)
             jy=int(yl)
@@ -505,10 +475,10 @@ subroutine outgrid_init_nest
           p4=ddx*ddy
 
           if (ngrid.gt.0) then
-            oroh=oroh+p1*oron(ix ,jy ,ngrid) &
-                 + p2*oron(ixp,jy ,ngrid) &
-                 + p3*oron(ix ,jyp,ngrid) &
-                 + p4*oron(ixp,jyp,ngrid)
+            !oroh=oroh+p1*oron(ix ,jy ,ngrid) &
+            !     + p2*oron(ixp,jy ,ngrid) &
+            !     + p3*oron(ix ,jyp,ngrid) &
+            !     + p4*oron(ixp,jyp,ngrid)
           else
             oroh=oroh+p1*oro(ix ,jy) &
                  + p2*oro(ixp,jy) &

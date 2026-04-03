@@ -274,11 +274,6 @@ subroutine read_options_and_initialise_flexpart
   !*************************************************************
   call set_conv_top
 
-  if (numbnests.ge.1) then
-  ! If nested wind fields are used, allocate arrays
-  !************************************************
-    call alloc_nest_properties
-  endif
 
   ! Read the output grid specifications if requested by user
   !*********************************************************
@@ -373,9 +368,6 @@ subroutine read_options_and_initialise_flexpart
   !************************************************************
   if (lconvection.eq.1) then
     cbaseflux(0:nxmin1,0:nymin1,:)=0.
-    do inest=1,numbnests
-      cbasefluxn(0:nxn(inest)-1,0:nyn(inest)-1,inest,:)=0.
-    end do
   endif
 
   ! Allocating nan_count for CBL option

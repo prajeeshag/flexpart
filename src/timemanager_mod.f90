@@ -116,7 +116,7 @@ subroutine timemanager
 
   implicit none
   real, parameter ::        &
-    e_inv = 1.0/exp(1.0)  
+    e_inv = 1.0/exp(1.0)
   integer ::                &
     j,i,                    & ! loop variables
     iterminate,             & ! Keep track of terminated particles per timestep
@@ -130,7 +130,7 @@ subroutine timemanager
     lrecoutstart,lrecoutend,& ! receptor calculation interval start and end time
     ldeltat,                & ! radioactive decay time
     itage,nage,inage,       & ! related to age classes
-    i_nan=0,ii_nan,total_nan_intl=0, &  !added by mc to check instability in CBL scheme 
+    i_nan=0,ii_nan,total_nan_intl=0, &  !added by mc to check instability in CBL scheme
     stat,                   & ! Check if allocation was successful
     thread                    ! openmp thread number
   ! logical ::                &
@@ -183,7 +183,7 @@ subroutine timemanager
 
   filesize=0.
   ! active_per_rel=.false.
-  
+
   do itime=itime_init,ideltas,lsynctime
 
   ! Computation of wet deposition, OH reaction and mass transfer
@@ -197,12 +197,12 @@ subroutine timemanager
   !********************************************************************
 
   ! Write basic information on the simulation to a file "header" for the
-  ! first time step and open files that are to be kept open throughout 
+  ! first time step and open files that are to be kept open throughout
   ! the simulation.
   ! In addition, open new particle dump files if required and keep track
   ! of the size of these files.
   !*********************************************************************
-    
+
     write(*,*) 'Time: ', itime, 'seconds. Total spawned:',count%spawned, 'alive:',count%alive, 'terminated:',count%terminated
 
     if (itime.eq.itime_init) then
@@ -224,7 +224,7 @@ subroutine timemanager
       call wetdepo(itime,lsynctime,loutnext)
     endif
 
-  ! compute chemical losses 
+  ! compute chemical losses
   !************************
 
     if (CLREA .and. (itime.ne.0) .and. (numpart.gt.0)) then
@@ -239,7 +239,7 @@ subroutine timemanager
       call convmix(itime)
     endif
 
-  ! Get chemical fields if not available 
+  ! Get chemical fields if not available
   !*************************************
 
     if (CLREA) then
@@ -247,7 +247,7 @@ subroutine timemanager
       call getchemhourly(itime)
     endif
 
-        
+
   ! Get emission fields if not available
   !*************************************
 
@@ -271,8 +271,8 @@ subroutine timemanager
   ! Release particles
   !******************
     if (mdomainfill.ge.1) then
-      if (itime.eq.itime_init) then 
-        if (llcmoutput) then  
+      if (itime.eq.itime_init) then
+        if (llcmoutput) then
 
           call init_domainfill_ncf
 
@@ -284,11 +284,11 @@ subroutine timemanager
         if (ipin.eq.2) then
           ! Particles initialized from partoutput
         endif
-      else 
+      else
         call boundcond_domainfill(itime,loutend)
       endif
     else if ((ipin.eq.3).or.(ipin.eq.4)) then
-      ! If reading from user defined initial conditions, check which particles are 
+      ! If reading from user defined initial conditions, check which particles are
       ! to be activated
       if (count%allocated.le.0) error stop 'Something is going wrong reading the part_ic.nc file!'
 
@@ -446,7 +446,7 @@ subroutine timemanager
 
   ! RECEPTOR: dry/wet depovel
   !****************************
-  ! Before the particle is moved 
+  ! Before the particle is moved
   ! the calculation of the scavenged mass shall only be done once after release
   ! xscav_frac1 was initialised with a negative value
 
@@ -555,7 +555,7 @@ subroutine timemanager
 
     ! Skip check on mass fraction when npoint represents particle number
           if (mdomainfill.eq.0.and.mquasilag.eq.0) then
-            if (ipin.eq.3 .or. ipin.eq.4) then 
+            if (ipin.eq.3 .or. ipin.eq.4) then
               if (mass_init(j,ks).gt.0) &
                 xmassfract = max( xmassfract, &
                                   mass(j,ks) / mass_init(j,ks) )
@@ -568,8 +568,8 @@ subroutine timemanager
           end if
 
         end do
-        
-        if (xmassfract.le.minmassfrac) then 
+
+        if (xmassfract.le.minmassfrac) then
           ! flag all particles carrying less mass for termination after parallel region
           part(j)%nstop=.true.
         endif
@@ -605,7 +605,7 @@ subroutine timemanager
 !$OMP END DO
     if (DRYDEP) deallocate(drytmp)
 !$OMP END PARALLEL
-  
+
     ! Terminating particles flagged due to insufficient mass or exceeded max age
     iterminate=0
     do i=1,count%allocated
@@ -654,19 +654,19 @@ subroutine timemanager
   ! Counter of "unstable" particle velocity during a time scale of
   ! maximumtl=20 minutes (defined in com_mod)
   !***************************************************************
-    
+
     total_nan_intl=0
     i_nan=i_nan+1 ! added by mc to count nan during a time of maxtl (i.e. maximum tl fixed here to 20 minutes, see com_mod)
     do i=1,numthreads
       sum_nan_count(i_nan)=sum_nan_count(i_nan)+nan_count(i)
     end do
     if (i_nan > maxtl/lsynctime) i_nan=1 !lsynctime must be <= maxtl
-    do ii_nan=1, (maxtl/lsynctime) 
+    do ii_nan=1, (maxtl/lsynctime)
       total_nan_intl=total_nan_intl+sum_nan_count(ii_nan)
     end do
   ! Output to keep track of the numerical instabilities in CBL simulation and if
   ! they are compromising the final result (or not)
-    if (cblflag.eq.1) print *,j,itime,'nan_synctime',sum_nan_count(i_nan),'nan_tl',total_nan_intl  
+    if (cblflag.eq.1) print *,j,itime,'nan_synctime',sum_nan_count(i_nan),'nan_tl',total_nan_intl
 
     if (itime.eq.itime_init) then
       call SYSTEM_CLOCK(count_clock, count_rate, count_max)
@@ -710,7 +710,6 @@ subroutine timemanager
   call dealloc_getfields
   call dealloc_interpol
   call dealloc_random
-  if (numbnests.ge.1) call dealloc_windfields_nest
   if (iflux.eq.1) deallocate(flux)
   if (ipin.ne.3 .and. ipin.ne.4) deallocate(xmasssave)
   if (CLREA) then

@@ -28,10 +28,6 @@ module getfields_mod
     pvh,                                  & ! potential vorticity
     wwh                                     ! wind components in y-direction [m/s]
   real,allocatable,dimension(:,:,:,:) ::  & ! Same for nexted grids
-    uuhn,                                 & !
-    vvhn,                                 & !
-    pvhn,                                 & !
-    wwhn,                                 & !
     pwater                                  ! RLT added partial pressure water vapor
   real,allocatable,dimension(:,:,:) ::    & ! For calcpv
     ppml,                                 & !
@@ -43,7 +39,7 @@ module getfields_mod
     vlev,                                 & !
     zlev                                    !
 
-  private :: obukhov,richardson,scalev,calcpar,calcpar_nest,calcpv,calcpv_nest
+  private :: obukhov,richardson,scalev,calcpar,calcpv
 
   public :: getfields
 contains
@@ -60,14 +56,6 @@ subroutine alloc_getfields
   if (stat.ne.0) write(*,*)'ERROR: could not allocate pvh'
   allocate(wwh(0:nxmax-1,0:nymax-1,nwzmax),stat=stat)
   if (stat.ne.0) write(*,*)'ERROR: could not allocate wwh'
-  allocate(uuhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numbnests),stat=stat)
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate uuhn'
-  allocate(vvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numbnests),stat=stat)
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate vvhn'
-  allocate(pvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numbnests),stat=stat)
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate pvhn'
-  allocate(wwhn(0:nxmaxn-1,0:nymaxn-1,nwzmax,numbnests),stat=stat)
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate wwhn'
   allocate(pwater(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
   if (stat.ne.0) write(*,*)'ERROR: could not allocate pwater'
 
@@ -79,7 +67,7 @@ end subroutine alloc_getfields
 
 subroutine dealloc_getfields
   implicit none
-  deallocate(uuh,vvh,pvh,wwh,uuhn,vvhn,pvhn,wwhn,pwater)
+  deallocate(uuh,vvh,pvh,wwh,pwater)
   deallocate(ppml,ppmk)
   deallocate(ttlev,qvlev,ulev,vlev,zlev)
 end subroutine dealloc_getfields
@@ -184,7 +172,6 @@ subroutine getfields(itime,nstop)
       if (ldirect*wftime(indj+1).gt.ldirect*itime) then
           call readwind_gfs(indj+1,memind(2),uuh,vvh,wwh)
         call calcpar(memind(2))
-        call calcpar_nest(memind(2))
           call verttransform_gfs(memind(2),uuh,vvh,wwh,pvh)
         memtime(2)=wftime(indj+1)
         nstop = 1
@@ -232,7 +219,6 @@ subroutine getfields(itime,nstop)
         memind(1)=1
           call readwind_gfs(indj,memind(1),uuh,vvh,wwh)
         call calcpar(memind(1))
-        call calcpar_nest(memind(1))
 
         call verttransform_gfs(memind(1),uuh,vvh,wwh,pvh)
 
@@ -240,7 +226,6 @@ subroutine getfields(itime,nstop)
         memind(2)=2
         call readwind_gfs(indj+1,memind(2),uuh,vvh,wwh)
         call calcpar(memind(2))
-        call calcpar_nest(memind(2))
         call verttransform_gfs(memind(2),uuh,vvh,wwh,pvh)
         memtime(2)=wftime(indj+1)
         nstop = 1
@@ -592,248 +577,6 @@ subroutine calcpv(n)
   end if
 end subroutine calcpv
 
-subroutine calcpv_nest(l,n)
-  !                     i i  i    i    o
-  !*****************************************************************************
-  !                                                                            *
-  !  Calculation of potential vorticity on 3-d nested grid                     *
-  !                                                                            *
-  !     Author: P. James                                                       *
-  !     22 February 2000                                                       *
-  !                                                                            *
-  !*****************************************************************************
-  !                                                                            *
-  ! Variables:                                                                 *
-  ! n                  temporal index for meteorological fields (1 to 2)       *
-  ! l                  index of current nest                                   *
-  !                                                                            *
-  ! Constants:                                                                 *
-  !                                                                            *
-  !*****************************************************************************
-
-  implicit none
-
-  integer :: n,ix,jy,i,j,k,kl,ii,jj,klvrp,klvrm,klpt,kup,kdn,kch
-  integer :: jyvp,jyvm,ixvp,ixvm,jumpx,jumpy,jux,juy,ivrm,ivrp,ivr
-  integer :: nlck,l
-  real :: vx(2),uy(2),phi,tanphi,cosphi,dvdx,dudy,f
-  real :: theta,thetap,thetam,dthetadp,dt1,dt2,dt
-  real :: thup,thdn
-  real,parameter :: eps=1.e-5,p0=101325
-
-  ! Set number of levels to check for adjacent theta
-  nlck=nuvz/3
-  !
-  ! Loop over entire grid
-  !**********************
-  do kl=1,nuvz
-    do jy=0,nyn(l)-1
-      do ix=0,nxn(l)-1
-         ppml(ix,jy,kl)=akz(kl)+bkz(kl)*psn(ix,jy,1,n,l)
-      enddo
-    enddo
-  enddo
-  !  ppmk=(100000./ppml)**kappa
-  ppmk(0:nxn(l)-1,0:nyn(l)-1,1:nuvz)=(100000./ppml(0:nxn(l)-1,0:nyn(l)-1,1:nuvz))**kappa
-
-  do jy=0,nyn(l)-1
-    phi = (ylat0n(l) + jy * dyn(l)) * pi / 180.
-    f = 0.00014585 * sin(phi)
-    tanphi = tan(phi)
-    cosphi = cos(phi)
-  ! Provide a virtual jy+1 and jy-1 in case we are on domain edge (Lat)
-      jyvp=jy+1
-      jyvm=jy-1
-      if (jy.eq.0) jyvm=0
-      if (jy.eq.nyn(l)-1) jyvp=nyn(l)-1
-  ! Define absolute gap length
-      jumpy=2
-      if (jy.eq.0.or.jy.eq.nyn(l)-1) jumpy=1
-      juy=jumpy
-  !
-    do ix=0,nxn(l)-1
-  ! Provide a virtual ix+1 and ix-1 in case we are on domain edge (Long)
-      ixvp=ix+1
-      ixvm=ix-1
-      jumpx=2
-      if (ix.eq.0) ixvm=0
-      if (ix.eq.nxn(l)-1) ixvp=nxn(l)-1
-      ivrp=ixvp
-      ivrm=ixvm
-  ! Define absolute gap length
-      if (ix.eq.0.or.ix.eq.nxn(l)-1) jumpx=1
-      jux=jumpx
-  !
-  ! Loop over the vertical
-  !***********************
-
-      do kl=1,nuvz
-        theta=tthn(ix,jy,kl,n,l)*ppmk(ix,jy,kl)
-        klvrp=kl+1
-        klvrm=kl-1
-        klpt=kl
-  ! If top or bottom level, dthetadp is evaluated between the current
-  ! level and the level inside, otherwise between level+1 and level-1
-  !
-        if (klvrp.gt.nuvz) klvrp=nuvz
-        if (klvrm.lt.1) klvrm=1
-        thetap=tthn(ix,jy,klvrp,n,l)*ppmk(ix,jy,klvrp)
-        thetam=tthn(ix,jy,klvrm,n,l)*ppmk(ix,jy,klvrm)
-        dthetadp=(thetap-thetam)/(ppml(ix,jy,klvrp)-ppml(ix,jy,klvrm))
-
-  ! Compute vertical position at pot. temperature surface on subgrid
-  ! and the wind at that position
-  !*****************************************************************
-  ! a) in x direction
-        ii=0
-        x_loop: do i=ixvm,ixvp,jumpx
-          ivr=i
-          ii=ii+1
-  ! Search adjacent levels for current theta value
-  ! Spiral out from current level for efficiency
-          kup=klpt-1
-          kdn=klpt
-          kch=0
-          x_lev_loop: do while (kch.lt.nlck)
-  ! Upward branch
-            kup=kup+1
-            if (kup.lt.nuvz) then
-              kch=kch+1
-              k=kup
-              thdn=tthn(ivr,jy,k,n,l)*ppmk(ivr,jy,k)
-              thup=tthn(ivr,jy,k+1,n,l)*ppmk(ivr,jy,k+1)
-
-              if (((thdn.ge.theta).and.(thup.le.theta)).or. &
-              ((thdn.le.theta).and.(thup.ge.theta))) then
-                dt1=abs(theta-thdn)
-                dt2=abs(theta-thup)
-                dt=dt1+dt2
-                if (dt.lt.eps) then   ! Avoid division by zero error
-                  dt1=0.5             ! G.W., 10.4.1996
-                  dt2=0.5
-                  dt=1.0
-                endif
-                vx(ii)=(vvhn(ivr,jy,k,l)*dt2+vvhn(ivr,jy,k+1,l)*dt1)/dt
-                cycle x_loop
-              endif
-            endif
-  ! Downward branch
-            kdn=kdn-1
-            if (kdn.ge.1) then
-              kch=kch+1
-              k=kdn
-              thdn=tthn(ivr,jy,k,n,l)*ppmk(ivr,jy,k)
-              thup=tthn(ivr,jy,k+1,n,l)*ppmk(ivr,jy,k+1)
-
-              if (((thdn.ge.theta).and.(thup.le.theta)).or. &
-              ((thdn.le.theta).and.(thup.ge.theta))) then
-                dt1=abs(theta-thdn)
-                dt2=abs(theta-thup)
-                dt=dt1+dt2
-                if (dt.lt.eps) then   ! Avoid division by zero error
-                  dt1=0.5             ! G.W., 10.4.1996
-                  dt2=0.5
-                  dt=1.0
-                endif
-                vx(ii)=(vvhn(ivr,jy,k,l)*dt2+vvhn(ivr,jy,k+1,l)*dt1)/dt
-                cycle x_loop
-              endif
-            endif
-          end do x_lev_loop
-  ! This section used when no values were found
-  ! Must use vv at current level and long. jux becomes smaller by 1
-          vx(ii)=vvhn(ix,jy,kl,l)
-          jux=jux-1
-  ! Otherwise OK
-        end do x_loop
-        if (jux.gt.0) then
-          dvdx=(vx(2)-vx(1))/real(jux)/(dxn(l)*pi/180.)
-        else
-          dvdx=vvhn(ivrp,jy,kl,l)-vvhn(ivrm,jy,kl,l)
-          dvdx=dvdx/real(jumpx)/(dxn(l)*pi/180.)
-  ! Only happens if no equivalent theta value
-  ! can be found on either side, hence must use values
-  ! from either side, same pressure level.
-        end if
-
-  ! b) in y direction
-
-        jj=0
-        y_loop: do j=jyvm,jyvp,jumpy
-          jj=jj+1
-  ! Search adjacent levels for current theta value
-  ! Spiral out from current level for efficiency
-          kup=klpt-1
-          kdn=klpt
-          kch=0
-          y_lev_loop: do while (kch.lt.nlck)
-  ! Upward branch
-            kup=kup+1
-            if (kup.lt.nuvz) then
-              kch=kch+1
-              k=kup
-              thdn=tthn(ix,j,k,n,l)*ppmk(ix,j,k)
-              thup=tthn(ix,j,k+1,n,l)*ppmk(ix,j,k+1)
-              if (((thdn.ge.theta).and.(thup.le.theta)).or. &
-              ((thdn.le.theta).and.(thup.ge.theta))) then
-                dt1=abs(theta-thdn)
-                dt2=abs(theta-thup)
-                dt=dt1+dt2
-                if (dt.lt.eps) then   ! Avoid division by zero error
-                  dt1=0.5             ! G.W., 10.4.1996
-                  dt2=0.5
-                  dt=1.0
-                endif
-                uy(jj)=(uuhn(ix,j,k,l)*dt2+uuhn(ix,j,k+1,l)*dt1)/dt
-                cycle y_loop
-              endif
-            endif
-  ! Downward branch
-            kdn=kdn-1
-            if (kdn.ge.1) then
-              kch=kch+1
-              k=kdn
-              thdn=tthn(ix,j,k,n,l)*ppmk(ix,j,k)
-              thup=tthn(ix,j,k+1,n,l)*ppmk(ix,j,k+1)
-              if (((thdn.ge.theta).and.(thup.le.theta)).or. &
-              ((thdn.le.theta).and.(thup.ge.theta))) then
-                dt1=abs(theta-thdn)
-                dt2=abs(theta-thup)
-                dt=dt1+dt2
-                if (dt.lt.eps) then   ! Avoid division by zero error
-                  dt1=0.5             ! G.W., 10.4.1996
-                  dt2=0.5
-                  dt=1.0
-                endif
-                uy(jj)=(uuhn(ix,j,k,l)*dt2+uuhn(ix,j,k+1,l)*dt1)/dt
-                cycle y_loop
-              endif
-            endif
-          end do y_lev_loop
-  ! This section used when no values were found
-  ! Must use uu at current level and lat. juy becomes smaller by 1
-          uy(jj)=uuhn(ix,jy,kl,l)
-          juy=juy-1
-  ! Otherwise OK
-        end do y_loop
-        if (juy.gt.0) then
-          dudy=(uy(2)-uy(1))/real(juy)/(dyn(l)*pi/180.)
-        else
-          dudy=uuhn(ix,jyvp,kl,l)-uuhn(ix,jyvm,kl,l)
-          dudy=dudy/real(jumpy)/(dyn(l)*pi/180.)
-        end if
-
-        pvhn(ix,jy,kl,l)=dthetadp*(f+(dvdx/cosphi-dudy &
-             +uuhn(ix,jy,kl,l)*tanphi)/r_earth)*(-1.e6)*9.81
-
-  ! Resest jux and juy
-        jux=jumpx
-        juy=jumpy
-      end do
-    end do
-  end do
-end subroutine calcpv_nest
-
 subroutine calcpar(n)
   !                   i  i   i   o
   !*****************************************************************************
@@ -1107,244 +850,6 @@ subroutine calcpar(n)
 
   call calcpv(n)
 end subroutine calcpar
-
-subroutine calcpar_nest(n)
-  !                         i  i    i    o
-  !*****************************************************************************
-  !                                                                            *
-  !     Computation of several boundary layer parameters needed for the        *
-  !     dispersion calculation and calculation of dry deposition velocities.   *
-  !     All parameters are calculated over the entire grid.                    *
-  !     This routine is similar to calcpar, but is used for the nested grids.  *
-  !                                                                            *
-  !     Author: A. Stohl                                                       *
-  !                                                                            *
-  !     8 February 1999                                                        *
-  !                                                                            *
-  !*****************************************************************************
-  !     Petra Seibert, Feb 2000:                                               *
-  !     convection scheme:                                                     *
-  !     new variables in call to richardson                                    *
-  !                                                                            *
-  !*****************************************************************************
-  !  Changes, Bernd C. Krueger, Feb. 2001:                                     *
-  !   Variables tth and qvh (on eta coordinates) in common block               *
-  !                                                                            *
-  !   Unified ECMWF and GFS builds                                             *
-  !   Marian Harustak, 12.5.2017                                               *
-  !*****************************************************************************
-  !  Changes Anne Tipka June 2023:                                             *
-  !    sum up precipitation fields over number of available fields in a single *
-  !    time interval (newWetDepoScheme)                                        *
-  !*****************************************************************************
-  !                                                                            *
-  ! Variables:                                                                 *
-  ! n                  temporal index for meteorological fields (1 to 3)       *
-  ! metdata_format     format of metdata (ecmwf/gfs)                           *
-  !                                                                            *
-  ! Constants:                                                                 *
-  !                                                                            *
-  !                                                                            *
-  ! Functions:                                                                 *
-  ! scalev             computation of ustar                                    *
-  ! obukhov            computatio of Obukhov length                            *
-  !                                                                            *
-  !*****************************************************************************
-
-  use drydepo_mod
-  use qvsat_mod
-
-  implicit none
-
-  integer :: n,ix,jy,i,l,kz,lz,kzmin,ierr,stat
-  real :: ol,hmixplus,dummyakzllev
-  real :: rh,subsceff,ylat
-  real :: altmin,tvold,pold,zold,pint,tv
-  real,allocatable,dimension(:) :: vd
-  real,parameter :: const=r_air/ga
-
-
-  ! Loop over all nests
-  !********************
-
-  do l=1,numbnests
-
-  ! Loop over entire grid
-  !**********************
-!$OMP PARALLEL DEFAULT(SHARED) &
-!$OMP PRIVATE(i,ix,jy,kz,lz,kzmin,tvold,pold,zold,zlev,tv,pint, &
-!$OMP rh,ierr,subsceff,ulev,vlev,ttlev,qvlev,ol,altmin,ylat,hmixplus, &
-!$OMP dummyakzllev,stat,vd )
-
-  allocate( vd(maxspec),stat=stat)
-  if (stat.ne.0) write(*,*)'ERROR: could not allocate vd inside of OMP loop'
-
-!$OMP DO
-  do jy=0,nyn(l)-1
-
-  ! Set minimum height for tropopause
-  !**********************************
-
-    ylat=ylat0n(l)+real(jy)*dyn(l)
-    if ((ylat.ge.-20.).and.(ylat.le.20.)) then
-      altmin = 5000.
-    else
-      if ((ylat.gt.20.).and.(ylat.lt.40.)) then
-        altmin=2500.+(40.-ylat)*125.
-      else if ((ylat.gt.-40.).and.(ylat.lt.-20.)) then
-        altmin=2500.+(40.+ylat)*125.
-      else
-        altmin=2500.
-      endif
-    endif
-
-    do ix=0,nxn(l)-1
-
-  ! 1) Calculation of friction velocity
-  !************************************
-
-      ustarn(ix,jy,1,n,l)=scalev(psn(ix,jy,1,n,l),tt2n(ix,jy,1,n,l), &
-           td2n(ix,jy,1,n,l),sfcstressn(ix,jy,1,n,l))
-      if (ustarn(ix,jy,1,n,l).le.1.e-8) ustarn(ix,jy,1,n,l)=1.e-8
-
-  ! 2) Calculation of inverse Obukhov length scale
-  !***********************************************
-
-      ol=obukhov(psn(ix,jy,1,n,l),tt2n(ix,jy,1,n,l), &
-           td2n(ix,jy,1,n,l),tthn(ix,jy,2,n,l),ustarn(ix,jy,1,n,l), &
-           sshfn(ix,jy,1,n,l),akm,bkm,dummyakzllev)
-      if (ol.ne.0.) then
-        olin(ix,jy,1,n,l)=1./ol
-      else
-        olin(ix,jy,1,n,l)=99999.
-      endif
-
-
-  ! 3) Calculation of convective velocity scale and mixing height
-  !**************************************************************
-
-      do i=1,nuvz
-        ulev(i)=uuhn(ix,jy,i,l)
-        vlev(i)=vvhn(ix,jy,i,l)
-        ttlev(i)=tthn(ix,jy,i,n,l)
-        qvlev(i)=qvhn(ix,jy,i,n,l)
-      end do
-
-      call richardson(psn(ix,jy,1,n,l),ustarn(ix,jy,1,n,l),ttlev, &
-           qvlev,ulev,vlev,nuvz,akz,bkz,sshfn(ix,jy,1,n,l), &
-           tt2n(ix,jy,1,n,l),td2n(ix,jy,1,n,l),hmixn(ix,jy,1,n,l), &
-           wstarn(ix,jy,1,n,l),hmixplus,ierr)
-      if (ierr.lt.0) then
-        write(*,9500) 'failure', ix, jy, l
-        error stop 'calcpar_nest: richardson computation failed'
-      endif
-9500      format( 'calcparn - richardson ', a, ' - ix,jy=', 2i5 )
-
-      if(lsubgrid.eq.1) then
-        subsceff=min(excessoron(ix,jy,l),hmixplus)
-      else
-        subsceff=0.0
-      endif
-  !
-  ! CALCULATE HMIX EXCESS ACCORDING TO SUBGRIDSCALE VARIABILITY AND STABILITY
-  !
-      hmixn(ix,jy,1,n,l)=hmixn(ix,jy,1,n,l)+subsceff
-      hmixn(ix,jy,1,n,l)=max(hmixmin,hmixn(ix,jy,1,n,l)) ! minim PBL height
-      hmixn(ix,jy,1,n,l)=min(hmixmax,hmixn(ix,jy,1,n,l)) ! maxim PBL height
-
-
-  ! 4) Calculation of dry deposition velocities
-  !********************************************
-
-      if (DRYDEP) then
-        ! z0(4)=0.016*ustarn(ix,jy,1,n,l)*ustarn(ix,jy,1,n,l)/ga
-        ! z0(9)=0.016*ustarn(ix,jy,1,n,l)*ustarn(ix,jy,1,n,l)/ga
-        z0_drydepn(ix,jy,l)=0.016*ustarn(ix,jy,1,n,l)*ustarn(ix,jy,1,n,l)/ga
-
-  ! Calculate relative humidity at surface
-  !***************************************
-        rh=ew(td2n(ix,jy,1,n,l),psn(ix,jy,1,n,l))/ew(tt2n(ix,jy,1,n,l),psn(ix,jy,1,n,l))
-
-        call getvdep_nest(n,ix,jy,ustarn(ix,jy,1,n,l), &
-             tt2n(ix,jy,1,n,l),psn(ix,jy,1,n,l),1./olin(ix,jy,1,n,l), &
-             ssrn(ix,jy,1,n,l),rh,sum(lsprecn(ix,jy,1,:,n,l))+ &
-             sum(convprecn(ix,jy,1,:,n,l)),sdn(ix,jy,1,n,l),vd,l)
-
-        do i=1,nspec
-          vdepn(ix,jy,i,n,l)=vd(i)
-        end do
-
-      endif
-
-  !******************************************************
-  ! Calculate height of thermal tropopause (Hoinka, 1997)
-  !******************************************************
-
-  ! 1) Calculate altitudes of ECMWF model levels
-  !*********************************************
-
-      tvold=tt2n(ix,jy,1,n,l)*(1.+0.378*ew(td2n(ix,jy,1,n,l),psn(ix,jy,1,n,l))/ &
-           psn(ix,jy,1,n,l))
-      pold=psn(ix,jy,1,n,l)
-      zold=0.
-      do kz=2,nuvz
-        pint=akz(kz)+bkz(kz)*psn(ix,jy,1,n,l)  ! pressure on model layers
-        tv=tthn(ix,jy,kz,n,l)*(1.+0.608*qvhn(ix,jy,kz,n,l))
-
-        if (abs(tv-tvold).gt.0.2) then
-         zlev(kz)=zold+const*log(pold/pint)*(tv-tvold)/log(tv/tvold)
-        else
-          zlev(kz)=zold+const*log(pold/pint)*tv
-        endif
-        tvold=tv
-        pold=pint
-        zold=zlev(kz)
-      end do
-
-  ! 2) Define a minimum level kzmin, from which upward the tropopause is
-  !    searched for. This is to avoid inversions in the lower troposphere
-  !    to be identified as the tropopause
-  !************************************************************************
-      kzmin=1
-      do kz=1,nuvz
-        if (zlev(kz).ge.altmin) then
-          kzmin=kz
-          exit
-        endif
-      end do
-
-  ! 3) Search for first stable layer above minimum height that fulfills the
-  !    thermal tropopause criterion
-  !************************************************************************
-
-      kzloop : do kz=kzmin,nuvz
-        lzloop : do lz=kz+1,nuvz
-          if ((zlev(lz)-zlev(kz)).gt.2000.) then
-            if (((tthn(ix,jy,kz,n,l)-tthn(ix,jy,lz,n,l))/ &
-                 (zlev(lz)-zlev(kz))).lt.0.002) then
-              tropopausen(ix,jy,1,n,l)=zlev(kz)
-              exit kzloop
-            endif
-            exit lzloop
-          endif
-        end do lzloop
-      end do kzloop
-
-    end do
-  end do
-
-!$OMP END DO
-
-  deallocate(vd)
-!$OMP END PARALLEL
-
-  ! Calculation of potential vorticity on 3-d grid
-  !***********************************************
-
-  call calcpv_nest(l,n)
-
-  end do
-end subroutine calcpar_nest
 
 real function obukhov(ps,tsfc,tdsfc,tlev,ustar,hf,akm,bkm,plev)
 

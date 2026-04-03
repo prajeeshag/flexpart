@@ -339,14 +339,14 @@ subroutine kindz_to_z(ipart)
     presspart=real(part(ipart)%z)
     do kz=1,nz
       if (ngrid.gt.0) then
-        r=p1*rhon(ix ,jy ,kz,2,ngrid) &
-             +p2*rhon(ixp,jy ,kz,2,ngrid) &
-             +p3*rhon(ix ,jyp,kz,2,ngrid) &
-             +p4*rhon(ixp,jyp,kz,2,ngrid)
-        t=p1*ttn(ix ,jy ,kz,2,ngrid) &
-             +p2*ttn(ixp,jy ,kz,2,ngrid) &
-             +p3*ttn(ix ,jyp,kz,2,ngrid) &
-             +p4*ttn(ixp,jyp,kz,2,ngrid)
+        !r=p1*rhon(ix ,jy ,kz,2,ngrid) &
+        !     +p2*rhon(ixp,jy ,kz,2,ngrid) &
+        !     +p3*rhon(ix ,jyp,kz,2,ngrid) &
+        !     +p4*rhon(ixp,jyp,kz,2,ngrid)
+        !t=p1*ttn(ix ,jy ,kz,2,ngrid) &
+        !     +p2*ttn(ixp,jy ,kz,2,ngrid) &
+        !     +p3*ttn(ix ,jyp,kz,2,ngrid) &
+        !     +p4*ttn(ixp,jyp,kz,2,ngrid)
       else
         r=p1*rho(ix ,jy ,kz,2) &
              +p2*rho(ixp,jy ,kz,2) &
@@ -380,10 +380,10 @@ subroutine kindz_to_z(ipart)
 
   else if (kindz(part(ipart)%npoint).eq.2) then
     if (ngrid.gt.0) then
-      topo=p1*oron(ix ,jy ,ngrid) &
-           + p2*oron(ixp,jy ,ngrid) &
-           + p3*oron(ix ,jyp,ngrid) &
-           + p4*oron(ixp,jyp,ngrid)
+      !topo=p1*oron(ix ,jy ,ngrid) &
+      !     + p2*oron(ixp,jy ,ngrid) &
+      !     + p3*oron(ix ,jyp,ngrid) &
+      !     + p4*oron(ixp,jyp,ngrid)
     else
       topo=p1*oro(ix ,jy) &
            + p2*oro(ixp,jy) &
@@ -445,12 +445,12 @@ subroutine init_mass_conversion(ipart,ipoint)
     call find_vert_vars_lin(height,real(part(ipart)%z),indz,dz1,dz2,lbounds)
 
     if (ngrid.gt.0) then
-      do n=1,2
-        rhoaux(n)=p1*rhon(ix ,jy ,indz+n-1,2,ngrid) &
-             +p2*rhon(ixp,jy ,indz+n-1,2,ngrid) &
-             +p3*rhon(ix ,jyp,indz+n-1,2,ngrid) &
-             +p4*rhon(ixp,jyp,indz+n-1,2,ngrid)
-      end do
+      !do n=1,2
+      !  rhoaux(n)=p1*rhon(ix ,jy ,indz+n-1,2,ngrid) &
+      !       +p2*rhon(ixp,jy ,indz+n-1,2,ngrid) &
+      !       +p3*rhon(ix ,jyp,indz+n-1,2,ngrid) &
+      !       +p4*rhon(ixp,jyp,indz+n-1,2,ngrid)
+      !end do
     else
       do n=1,2
         rhoaux(n)=p1*rho(ix ,jy ,indz+n-1,2) &

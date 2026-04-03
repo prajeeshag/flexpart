@@ -48,8 +48,8 @@ module netcdf_output_mod
   use com_mod
 
   use windfields_mod, only: oro,rho,nxmax,height,nxmin1,nymin1,nz,nx,ny,hmix, &
-                       ! for concoutput_netcdf and concoutput_nest_netcdf 
-                       tropopause,oron,rhon,xresoln,yresoln,xrn,xln,yrn,yln,nxn,nyn
+                       ! for concoutput_netcdf and concoutput_nest_netcdf
+                       tropopause
   use mean_mod
 
   implicit none
@@ -151,7 +151,7 @@ subroutine output_units(units)
      if (ind_source.eq.1) then
         if (ind_receptor.eq.1) then
            units = 's'
-        else 
+        else
            units = 's m3 kg-1'
         endif
      else
@@ -166,11 +166,11 @@ end subroutine output_units
 
 
 !****************************************************************
-! write metadata to netCDF file 
+! write metadata to netCDF file
 !****************************************************************
 subroutine writemetadata(ncid,lnest)
-  
-  implicit none 
+
+  implicit none
 
   integer, intent(in) :: ncid
   logical, intent(in) :: lnest
@@ -178,11 +178,11 @@ subroutine writemetadata(ncid,lnest)
   character(5)        :: zone
   character(255)      :: login_name, host_name
 
-  ! gather system information 
+  ! gather system information
   call date_and_time(date,time,zone)
   call getlog(login_name)
   call hostnm(host_name)
-  
+
   ! hes CF convention requires these attributes
   call nf90_err(nf90_put_att(ncid, nf90_global, 'Conventions', 'CF-1.6'))
   call nf90_err(nf90_put_att(ncid, nf90_global, 'title', 'FLEXPART model output'))
@@ -275,7 +275,7 @@ subroutine writeheader_netcdf(lnest)
   integer :: volID, areaID
   integer :: rellng1ID, rellng2ID, rellat1ID, rellat2ID, relzz1ID, relzz2ID
   integer :: relcomID, relkindzID, relstartID, relendID, relpartID, relxmassID
-  integer :: nnx, nny 
+  integer :: nnx, nny
   integer, dimension(6)       :: dIDs
   integer, dimension(5)       :: depdIDs
   character(len=255)          :: fname
@@ -295,16 +295,16 @@ subroutine writeheader_netcdf(lnest)
 
 
   ! Check if output directory exists (the netcdf library will
-  ! otherwise give an error which can look confusing). 
+  ! otherwise give an error which can look confusing).
   ! *********************************************************************
   open(unit=unittmp,file=trim(path(2)(1:length(2)))//'test_dir.txt',status='replace',&
        &err=100)
   close (unittmp, status='delete')
   goto 101
-100 write(*,FMT='(80("#"))') 
+100 write(*,FMT='(80("#"))')
   write(*,*) 'ERROR: output directory ', trim(path(2)(1:length(2))), ' does not exist&
-       & (or failed to write there).' 
-  write(*,*) 'EXITING' 
+       & (or failed to write there).'
+  write(*,*) 'EXITING'
   write(*,FMT='(80("#"))')
   error stop
 101 continue
@@ -352,7 +352,7 @@ subroutine writeheader_netcdf(lnest)
   !   size_type x nx x ny x nz
   ! create file
   call nf90_err(nf90_create(trim(fname), cmode = nf90_hdf5, ncid = ncid, &
-    cache_size = cache_size))  
+    cache_size = cache_size))
 
   ! create dimensions:
   !*************************
@@ -421,7 +421,7 @@ subroutine writeheader_netcdf(lnest)
   ! volume
   if (write_vol) call nf90_err(nf90_def_var(ncid, 'volume', nf90_float, &
        &(/ lonDimID, latDimID, levDimID /), volID))
-  ! area 
+  ! area
   if (write_area) call nf90_err(nf90_def_var(ncid, 'area', nf90_float, &
        &(/ lonDimID, latDimID /), areaID))
 
@@ -483,7 +483,7 @@ subroutine writeheader_netcdf(lnest)
          relxmassID))
     call nf90_err(nf90_put_att(ncid, relxmassID, 'long_name', 'total release particle mass'))
   end if
- 
+
   ! age classes
   call nf90_err(nf90_def_var(ncid, 'LAGE', nf90_int, (/ nageclassDimID /), lageID))
   call nf90_err(nf90_put_att(ncid, lageID, 'units', 'seconds'))
@@ -511,9 +511,9 @@ subroutine writeheader_netcdf(lnest)
      depdimids = depdIDs
   endif
 
-  ! set chunksizes according to largest written portion of data in an individual call to 
+  ! set chunksizes according to largest written portion of data in an individual call to
   ! nf90_put_var
-  if (int(nnx,kind=8)*int(nny,kind=8)*int(numzgrid,kind=8).gt.2147483647) then ! Larger than an 
+  if (int(nnx,kind=8)*int(nny,kind=8)*int(numzgrid,kind=8).gt.2147483647) then ! Larger than an
     chunksizes = (/ nnx, nny, 1, 1, 1, 1 /)
   else
 !    chunksizes = (/ nnx, nny, numzgrid, 1, 1, 1 /)
@@ -693,7 +693,7 @@ subroutine writeheader_netcdf(lnest)
          call nf90_err(nf90_put_var(ncid, relcomID, compoint(i), (/1,i/), (/45,1/)))
        else
          call nf90_err(nf90_put_var(ncid, relcomID, 'NA', (/1,i/), (/45,1/)))
-       endif 
+       endif
        call nf90_err(nf90_put_var(ncid, relxmassID, xmass(i,1:nspec), (/i,1/), (/1,nspec/)))
     end do
   end if
@@ -701,7 +701,7 @@ subroutine writeheader_netcdf(lnest)
   ! age classes
   call nf90_err(nf90_put_var(ncid, lageID, lage(1:nageclass)))
 
-  ! orography 
+  ! orography
   if (.not. min_size) then
     if (lnest) then
       call nf90_err(nf90_put_var(ncid, oroID, orooutn(0:(nnx-1), 0:(nny-1))))
@@ -716,7 +716,7 @@ subroutine writeheader_netcdf(lnest)
 end subroutine writeheader_netcdf
 
 subroutine read_grid_id(lnest)
-  
+
   implicit none
   logical, intent(in) :: lnest
 
@@ -768,7 +768,7 @@ subroutine read_grid_id(lnest)
       if ((ldirect.eq.1).and.(drydep)) then
         call nf90_err(nf90_inq_varid(ncid=ncid,name='DD_spec'//anspec,varid=ddspecIDn(i)))
       endif
-    end do 
+    end do
   endif
 
   call nf90_err(nf90_close(ncid))
@@ -776,7 +776,7 @@ subroutine read_grid_id(lnest)
 end subroutine read_grid_id
 
 subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridtotalunc)
-     
+
   !                          i     i          o             o
   !       o
   !*****************************************************************************
@@ -868,7 +868,7 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
   ! write time
   tpointer = tpointer + 1
   call nf90_err(nf90_put_var( ncid, timeID, itime, (/ tpointer /)))
-  
+
   ! For forward simulations, output fields have dimension MAXSPEC,
   ! for backward simulations, output fields have dimension MAXPOINT.
   ! Thus, make loops either about nspec, or about numpoint
@@ -907,7 +907,7 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
   ! data to that altitude
   !
   ! Note:
-  !  llcmoutput = true: grid is mass_spec/mass_air  
+  !  llcmoutput = true: grid is mass_spec/mass_air
   !                     for iout 1,3, or 5 multiply by rho
   !                     for iout 2 multiply by 1
   !  llcmoutput = false: grid is mass_spec/V
@@ -947,13 +947,13 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
           yl=(yl-ylat0)/dx
 
           ngrid=0
-          do jj=numbnests,1,-1
-            if ( xl.gt.xln(jj)+eps .and. xl.lt.xrn(jj)-eps .and. &
-                   yl.gt.yln(jj)+eps .and. yl.lt.yrn(jj)-eps ) then
-              ngrid=jj
-              exit 
-            end if
-          end do
+          !do jj=numbnests,1,-1
+          !  if ( xl.gt.xln(jj)+eps .and. xl.lt.xrn(jj)-eps .and. &
+          !         yl.gt.yln(jj)+eps .and. yl.lt.yrn(jj)-eps ) then
+          !    ngrid=jj
+          !    exit
+          !  end if
+          !end do
 
           if (ngrid.eq.0) then
             iix=max(min(nint(xl),nxmin1),0) ! if output grid cell is outside mother domain
@@ -962,13 +962,13 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
             densityoutgrid(ix,jy,kz)=(rho(iix,jjy,kzz,memind(2))*dz1+ &
               rho(iix,jjy,kzz-1,memind(2))*dz2)/dz
           else
-            xl=(xl-xln(ngrid))*xresoln(ngrid)
-            yl=(yl-yln(ngrid))*yresoln(ngrid)
-            iix=max(min(nint(xl),nxn(ngrid)-1),0)
-            jjy=max(min(nint(yl),nyn(ngrid)-1),0)
+            !xl=(xl-xln(ngrid))*xresoln(ngrid)
+            !yl=(yl-yln(ngrid))*yresoln(ngrid)
+            !iix=max(min(nint(xl),nxn(ngrid)-1),0)
+            !jjy=max(min(nint(yl),nyn(ngrid)-1),0)
 
-            densityoutgrid(ix,jy,kz)=(rhon(iix,jjy,kzz,memind(2), ngrid)*dz1+ &
-              rhon(iix,jjy,kzz-1,memind(2), ngrid)*dz2)/dz
+            !densityoutgrid(ix,jy,kz)=(rhon(iix,jjy,kzz,memind(2), ngrid)*dz1+ &
+            !  rhon(iix,jjy,kzz-1,memind(2), ngrid)*dz2)/dz
           endif
         end do
       end do
@@ -1135,7 +1135,7 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
           call nf90_err(nf90_put_var(ncid,specID(ks),grid(0:numxgrid-1,0:numygrid-1,&
              1:numzwrite)*factor3d(0:numxgrid-1,0:numygrid-1,1:numzwrite)/tot_mu(ks,kp),&
                (/ 1,1,1,tpointer,kp,nage /), (/ numxgrid,numygrid,numzwrite,1,1,1 /) ))
- 
+
         endif !  concentration output
 
         ! Mixing ratio output
@@ -1191,10 +1191,10 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
 
   ! Reinitialization of grid
   !*************************
-  gridunc(:,:,:,1:nspec,:,:,1:nageclass) = 0.  
+  gridunc(:,:,:,1:nspec,:,:,1:nageclass) = 0.
   gridcnt(:,:,:) = 0.
 
-  gridunc_omp(:,:,:,:,:,:,:,:) = 0.  
+  gridunc_omp(:,:,:,:,:,:,:,:) = 0.
   gridcnt_omp(:,:,:,:) = 0.
 
 
@@ -1202,7 +1202,7 @@ end subroutine concoutput_netcdf
 
 
 subroutine concoutput_nest_netcdf(itime,outnum)
-  !                               i     i 
+  !                               i     i
   !*****************************************************************************
   !                                                                            *
   !     Output of the concentration grid and the concentrations.               *
@@ -1240,7 +1240,7 @@ subroutine concoutput_nest_netcdf(itime,outnum)
   !*****************************************************************************
 
   use unc_mod, only: griduncn,drygriduncn,wetgriduncn,drygriduncn0,wetgriduncn0
- 
+
   implicit none
 
   integer, intent(in) :: itime
@@ -1265,7 +1265,7 @@ subroutine concoutput_nest_netcdf(itime,outnum)
 
   ! write time (do not increase time counter here, done in main output domain)
   call nf90_err(nf90_put_var( ncid, timeID, itime, (/ tpointer /)))
-  
+
   ! For forward simulations, output fields have dimension MAXSPEC,
   ! for backward simulations, output fields have dimension MAXPOINT.
   ! Thus, make loops either about nspec, or about numpoint
@@ -1319,13 +1319,13 @@ subroutine concoutput_nest_netcdf(itime,outnum)
         yl=(yl-ylat0)/dy
 
         ngrid=0
-        do jj=numbnests,1,-1
-          if ( xl.gt.xln(jj)+eps .and. xl.lt.xrn(jj)-eps .and. &
-                 yl.gt.yln(jj)+eps .and. yl.lt.yrn(jj)-eps ) then
-            ngrid=jj
-            exit 
-          end if
-        end do
+        !do jj=numbnests,1,-1
+        !  if ( xl.gt.xln(jj)+eps .and. xl.lt.xrn(jj)-eps .and. &
+        !         yl.gt.yln(jj)+eps .and. yl.lt.yrn(jj)-eps ) then
+        !    ngrid=jj
+        !    exit
+        !  end if
+        !end do
 
         if (ngrid.eq.0) then
           iix=max(min(nint(xl),nxmin1),0)
@@ -1334,12 +1334,12 @@ subroutine concoutput_nest_netcdf(itime,outnum)
           densityoutgrid(ix,jy,kz)=(rho(iix,jjy,kzz,memind(2))*dz1+ &
              rho(iix,jjy,kzz-1,memind(2))*dz2)/dz
         else
-          xl=(xl-xln(ngrid))*xresoln(ngrid)
-          yl=(yl-yln(ngrid))*yresoln(ngrid)
-          iix=max(min(nint(xl),nxn(ngrid)-1),0)
-          jjy=max(min(nint(yl),nyn(ngrid)-1),0)
-          densityoutgrid(ix,jy,kz)=(rhon(iix,jjy,kzz,memind(2), ngrid)*dz1+ &
-             rhon(iix,jjy,kzz-1,memind(2), ngrid)*dz2)/dz
+          !xl=(xl-xln(ngrid))*xresoln(ngrid)
+          !yl=(yl-yln(ngrid))*yresoln(ngrid)
+          !iix=max(min(nint(xl),nxn(ngrid)-1),0)
+          !jjy=max(min(nint(yl),nyn(ngrid)-1),0)
+          !densityoutgrid(ix,jy,kz)=(rhon(iix,jjy,kzz,memind(2), ngrid)*dz1+ &
+          !   rhon(iix,jjy,kzz-1,memind(2), ngrid)*dz2)/dz
         endif
 
       end do
@@ -1479,7 +1479,7 @@ subroutine concoutput_nest_netcdf(itime,outnum)
           call nf90_err(nf90_put_var(ncid,specIDn(ks),grid(0:numxgridn-1,0:numygridn-1,&
              1:numzwrite)*factor3d(0:numxgridn-1,0:numygridn-1,1:numzwrite)/tot_mu(ks,kp),&
                (/ 1,1,1,tpointer,kp,nage /), (/ numxgridn,numygridn,numzwrite,1,1,1 /)))
- 
+
         endif !  concentration output
 
         ! Mixing ratio output
@@ -1528,7 +1528,7 @@ subroutine concoutput_nest_netcdf(itime,outnum)
   ! Reinitialization of grid
   !*************************
 
-  griduncn(:,:,:,1:nspec,:,:,1:nageclass) = 0.  
+  griduncn(:,:,:,1:nspec,:,:,1:nageclass) = 0.
 
 end subroutine concoutput_nest_netcdf
 
@@ -1583,7 +1583,7 @@ subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
 
   ! create dimensions:
   !*************************
-  
+
   ! particle
   partinitpointer=0
   call nf90_err(nf90_def_dim(ncid, 'particle', nf90_unlimited, partDimID))
@@ -1606,7 +1606,7 @@ subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
   call nf90_err(nf90_put_att(ncid, tIDi, 'calendar', 'proleptic_gregorian'))
   call nf90_err(nf90_put_att(ncid, tIDi, 'description', 'time of release'))
 
-  ! lon  
+  ! lon
   call write_to_file(ncid,'lon',nf90_float,(/ partDimID /),lonIDi,(/ 1 /), &
     'degrees_east',.false.,'longitude','longitude in degree east')
   call nf90_err(nf90_put_att(ncid, lonIDi, 'axis', 'Lon'))
@@ -1658,8 +1658,8 @@ subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
           ! Masses
           write(anspec, '(i3.3)') j
           call write_to_file(ncid,trim(partopt(np)%short_name)//anspec,nf90_float,(/ partDimID /),massIDi(j), &
-            (/ 1 /),'kg',.true.,'mass'//anspec,'mass for nspec'//anspec) 
-        end do        
+            (/ 1 /),'kg',.true.,'mass'//anspec,'mass for nspec'//anspec)
+        end do
       case ('TO')
         call write_to_file(ncid,trim(partopt(np)%short_name),nf90_float,(/ partDimID /),topoIDi,(/ 1 /), &
           'meters',.false.,'topography','topography above sealevel')
@@ -1668,7 +1668,7 @@ subroutine create_particles_initialoutput(itime,idate,itime_start,idate_start)
           'meters',.true.,'htropo','height above ground of tropopause')
       case ('HM') ! Mixing layer height
         call write_to_file(ncid,trim(partopt(np)%short_name),nf90_float,(/ partDimID /),hmixIDi,(/ 1 /), &
-          'meters',.true.,'hmix','height above ground of mixing layer')        
+          'meters',.true.,'hmix','height above ground of mixing layer')
       case default
         cycle
     end select
@@ -1830,7 +1830,7 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
   write(atime,'(i6.6)') itime
   write(adate_start,'(i8.8)') idate_start
   write(atime_start,'(i6.6)') itime_start
-  
+
   timeunit = 'seconds since '//adate_start(1:4)//'-'//adate_start(5:6)// &
        '-'//adate_start(7:8)//' '//atime_start(1:2)//':'//atime_start(3:4)
 
@@ -1867,7 +1867,7 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
       endif
     end do
     first_time=.false.
-  else 
+  else
     if (first_time) then
       ncfname_part = path(2)(1:length(2))//trim(fprefix_part)//'_init.nc'
       first_time=.false.
@@ -1875,7 +1875,7 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
       ncfname_part = path(2)(1:length(2))//trim(fprefix_part)//'.nc'
     endif
     call nf90_err(nf90_create(trim(ncfname_part), cmode = nf90_hdf5, ncid = ncid))!, &
-      ! cache_size = cache_size))    
+      ! cache_size = cache_size))
   endif
 
   write(*,*) 'Write header, nspec,numpart,totpart: ', nspec,numpart,totpart
@@ -1903,10 +1903,10 @@ subroutine writeheader_partoutput(itime,idate,itime_start,idate_start)!,irelease
   endif
 
   return
-110 write(*,FMT='(80("#"))') 
+110 write(*,FMT='(80("#"))')
   write(*,*) 'ERROR: output directory ', trim(path(2)(1:length(2))), ' does not exist&
-       & (or failed to write there).' 
-  write(*,*) 'EXITING' 
+       & (or failed to write there).'
+  write(*,*) 'EXITING'
   write(*,FMT='(80("#"))')
   error stop
 end subroutine writeheader_partoutput
@@ -1936,7 +1936,7 @@ subroutine writeheader_partoutput_dims(np,ncid,timeunit,timeDimID,partDimID,latD
     (partopt(np)%name.eq.'HM') .or. &
     (partopt(np)%name.eq.'TR'))) then
     call writeheader_partoutput_grid(ncid,lonDimID,latDimID)
-  else 
+  else
     if (.not. lpartoutputperfield .and. (mdomainfill.eq.1)) then
       call writeheader_partoutput_grid(ncid,lonDimID,latDimID)
     endif
@@ -2026,13 +2026,13 @@ subroutine writeheader_partoutput_vars(np,ncid,totpart,timeDimID,partDimID,latDi
         varid,(/ 1,totpart /),'kg/m3',.true.,'density_average','averaged density')
     case ('TT') ! Temperature
       call write_to_file(ncid,trim(partopt(np)%short_name),nf90_float,(/ timeDimID,partDimID /), &
-        varid,(/ 1,totpart /),'K',.true.,'temperature','temperature') 
+        varid,(/ 1,totpart /),'K',.true.,'temperature','temperature')
     case ('tt') ! Temperature averaged
       call write_to_file(ncid,trim(partopt(np)%short_name),nf90_float,(/ timeDimID,partDimID /), &
-        varid,(/ 1,totpart /),'K',.true.,'temperature_average','averaged temperature') 
+        varid,(/ 1,totpart /),'K',.true.,'temperature_average','averaged temperature')
     case ('UU')
       call write_to_file(ncid,trim(partopt(np)%short_name),nf90_float,(/ timeDimID,partDimID /), &
-        varid,(/ 1,totpart /),'m/s',.false.,'u','longitudinal velocity')    
+        varid,(/ 1,totpart /),'m/s',.false.,'u','longitudinal velocity')
     case ('uu')
       call write_to_file(ncid,trim(partopt(np)%short_name),nf90_float,(/ timeDimID,partDimID /), &
         varid,(/ 1,totpart /),'m/s',.false.,'u_av','averaged longitudinal velocity')
@@ -2085,7 +2085,7 @@ subroutine writeheader_partoutput_vars(np,ncid,totpart,timeDimID,partDimID,latDi
           ! Masses averaged
           write(anspec, '(i3.3)') j
           call write_to_file(ncid,trim(partopt(np)%short_name)//anspec,nf90_float,(/ timeDimID,partDimID /),varid, &
-            (/ 1,totpart /),'kg',.true.,'mass'//anspec,'averaged mass for nspec'//anspec) 
+            (/ 1,totpart /),'kg',.true.,'mass'//anspec,'averaged mass for nspec'//anspec)
         end do
       endif
     case ('WD') ! Cumulative mass of wet deposition
@@ -2093,14 +2093,14 @@ subroutine writeheader_partoutput_vars(np,ncid,totpart,timeDimID,partDimID,latDi
         ! Masses
         write(anspec, '(i3.3)') j
         call write_to_file(ncid,trim(partopt(np)%short_name)//anspec,nf90_float,(/ timeDimID,partDimID /),varid, &
-          (/ 1,totpart /),'kg',.true.,'mass'//anspec,'cumulative wet deposition for nspec'//anspec) 
+          (/ 1,totpart /),'kg',.true.,'mass'//anspec,'cumulative wet deposition for nspec'//anspec)
       end do
     case ('DD') ! Cumulative mass of dry deposition
       do j=1,nspec
         ! Masses
         write(anspec, '(i3.3)') j
         call write_to_file(ncid,trim(partopt(np)%short_name)//anspec,nf90_float,(/ timeDimID,partDimID /),varid, &
-          (/ 1,totpart /),'kg',.true.,'mass'//anspec,'cumulative dry deposition for nspec'//anspec) 
+          (/ 1,totpart /),'kg',.true.,'mass'//anspec,'cumulative dry deposition for nspec'//anspec)
       end do
     case ('TO')  ! Topography, written to grid if domainfill
       if (mdomainfill.lt.1) then
@@ -2119,7 +2119,7 @@ subroutine writeheader_partoutput_vars(np,ncid,totpart,timeDimID,partDimID,latDi
           'meters',.true.,'hmix','height above ground of mixing layer')
       else
         call write_to_file(ncid,trim(partopt(np)%short_name),nf90_float,(/ timeDimID,lonDimID,latDimID /),varid,(/ 1,nx,ny /), &
-          'meters',.true.,'hmix','height above ground of mixing layer')  
+          'meters',.true.,'hmix','height above ground of mixing layer')
       endif
     case ('hm') ! Mixing layer height averaged
       call write_to_file(ncid,trim(partopt(np)%short_name),nf90_float,(/ timeDimID,partDimID /),varid,(/ 1,totpart /), &
@@ -2207,7 +2207,7 @@ subroutine write_to_file(ncid,short_name,xtype,dimids,varid,chunksizes,units,l_p
   call nf90_err(nf90_put_att(ncid, varid, 'units', units))
   if(xtype.eq.nf90_float) then
     call nf90_err(nf90_put_att(ncid, varid, '_FillValue', -1.))
-  else 
+  else
     call nf90_err(nf90_put_att(ncid, varid, '_FillValue', -1))
   endif
   if(l_positive) call nf90_err(nf90_put_att(ncid, varid, 'positive', 'up'))
@@ -2216,8 +2216,8 @@ subroutine write_to_file(ncid,short_name,xtype,dimids,varid,chunksizes,units,l_p
 end subroutine write_to_file
 
 subroutine open_partoutput_file(ncid,np)
-  
-  implicit none 
+
+  implicit none
 
   integer, intent(out)               :: ncid
   integer, intent(in),optional         :: np
@@ -2231,8 +2231,8 @@ subroutine open_partoutput_file(ncid,np)
 end subroutine open_partoutput_file
 
 subroutine close_partoutput_file(ncid)
-  
-  implicit none 
+
+  implicit none
 
   integer                        :: ncid
 
@@ -2240,8 +2240,8 @@ subroutine close_partoutput_file(ncid)
 end subroutine close_partoutput_file
 
 subroutine open_partinit_file(ncid)
-  
-  implicit none 
+
+  implicit none
 
   integer, intent(inout)         :: ncid
 
@@ -2276,11 +2276,11 @@ subroutine update_partoutput_pointers(itime,ncid)
   ! Particles
   newpart = count%allocated - ppointer_part
 
-  if (tpointer_part.eq.1) then 
+  if (tpointer_part.eq.1) then
     allocate ( partindices(count%allocated) )
-    do j=1,count%allocated 
+    do j=1,count%allocated
       partindices(j)=j
-    end do 
+    end do
     if (lpartoutputperfield) then
       do np=1,num_partopt
         if (.not. partopt(np)%print) cycle
@@ -2322,19 +2322,19 @@ subroutine update_partoutput_pointers(itime,ncid)
     deallocate (partindices)
 
     ppointer_part = count%allocated
-  endif 
+  endif
 
 end subroutine update_partoutput_pointers
 
 subroutine partoutput_netcdf(itime,field,np,imass,ncid)
 
-  
+
   use particle_mod
   !*****************************************************************************
   !                                                                            *
   !   Writing a field from PARTOPTIONS to partoutput_xxx.nc created in         *
   !   writeheader_partoutput                                                   *
-  !                                                                            *  
+  !                                                                            *
   !   Author: L. Bakels 2021                                                   *
   !                                                                            *
   !*****************************************************************************
@@ -2364,12 +2364,12 @@ subroutine partoutput_netcdf(itime,field,np,imass,ncid)
     else !TR
       call nf90_err(nf90_inq_varid(ncid=ncid,name=trim(partopt(np)%short_name),varid=tempIDend))
       call nf90_err(nf90_put_var(ncid,tempIDend,tropopause(0:nx-1,0:ny-1,1,memind(1)), &
-        (/ tpointer_part,1,1 /),(/ 1,nx,ny /)))      
+        (/ tpointer_part,1,1 /),(/ 1,nx,ny /)))
     endif
 
   else if (partopt(np)%name.eq.'MA') then
     if ((mdomainfill.ge.1).and.(imass.eq.1).and.(nspec.eq.1)) then
-      if (mass_written.eqv..false.) then 
+      if (mass_written.eqv..false.) then
         call nf90_err(nf90_inq_varid(ncid=ncid,name=trim(partopt(np)%short_name),varid=tempIDend))
         call nf90_err(nf90_put_var(ncid=ncid,varid=tempIDend,values=field(1)))
       endif
@@ -2381,7 +2381,7 @@ subroutine partoutput_netcdf(itime,field,np,imass,ncid)
     endif
   else if (partopt(np)%name.eq.'ma') then
     if ((mdomainfill.ge.1).and.(imass.eq.1).and.(nspec.eq.1)) then
-      if (mass_written.eqv..false.) then 
+      if (mass_written.eqv..false.) then
         call nf90_err(nf90_inq_varid(ncid=ncid,name=trim(partopt(np)%short_name),varid=tempIDend))
         call nf90_err(nf90_put_var(ncid,tempIDend,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
       endif
@@ -2395,7 +2395,7 @@ subroutine partoutput_netcdf(itime,field,np,imass,ncid)
     write(anspec, '(i3.3)') imass
     call nf90_err(nf90_inq_varid(ncid=ncid,name=trim(partopt(np)%short_name)//anspec,varid=tempIDend))
     call nf90_err(nf90_put_var(ncid,tempIDend,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
-  else 
+  else
     call nf90_err(nf90_inq_varid(ncid=ncid,name=trim(partopt(np)%short_name),varid=tempIDend))
     call nf90_err(nf90_put_var(ncid,tempIDend,field, (/ tpointer_part,1 /),(/ 1,count%allocated /)))
   endif
@@ -2419,7 +2419,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   use particle_mod
   use date_mod
 
-  implicit none 
+  implicit none
 
   integer, intent(in) :: ibtime,ibdate
   integer             :: ncidend,tIDend,pIDend,tempIDend
@@ -2433,10 +2433,10 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
 
   write(adate,'(i8.8)') ibdate
   write(atime,'(i6.6)') ibtime
-  
-  if (mquasilag.ne.0) then 
+
+  if (mquasilag.ne.0) then
     write(*,*) 'Combination of ipin, netcdf partoutput, and mquasilag!=0 does not work yet'
-    error stop 
+    error stop
   endif
 
   ! Open partoutput_end.nc file
@@ -2464,11 +2464,11 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   read(atime_start,*) itime_start
   julin = juldate(idate_start,itime_start)+real(tend,kind=dp)/86400._dp
   julcommand = juldate(ibdate,ibtime)
-  if (abs(julin-julcommand).gt.1.e-5) then 
+  if (abs(julin-julcommand).gt.1.e-5) then
     write(*,*) 'ERROR: The given starting time and date do not correspond to'
     write(*,*) 'the last timestep of partoutput_end.nc:'
     write(*,*) julin,julcommand,tend
-    error stop 
+    error stop
   endif
 
   !! testing
@@ -2485,17 +2485,17 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
   ! And give them the correct positions
   ! Longitude
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='lon',varid=tempIDend))
-  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%xlon, & 
+  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%xlon, &
     start=(/ tlen, 1 /),count=(/ 1, plen /)))
   part(:)%xlon=(part(:)%xlon-xlon0)/dx
   ! Latitude
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='lat',varid=tempIDend))
-  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%ylat, & 
+  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%ylat, &
     start=(/ tlen, 1 /),count=(/ 1, plen /)))
   part(:)%ylat=(part(:)%ylat-ylat0)/dx
   ! Height
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='z',varid=tempIDend))
-  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%z, & 
+  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%z, &
     start=(/ tlen, 1 /),count=(/ 1, plen /)))
   ! Mass
   ! allocate(mass_temp(count%allocated), stat=stat)
@@ -2504,7 +2504,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
     do j=1,nspec
       write(anspec, '(i3.3)') j
       call nf90_err(nf90_inq_varid(ncid=ncidend,name='m'//anspec,varid=tempIDend))
-      call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=mass(:,j), & 
+      call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=mass(:,j), &
         start=(/ tlen, 1 /),count=(/ 1, plen /)))
       ! do i=1,count%allocated
       !   part(i)%mass(j)=mass_temp(i)
@@ -2515,7 +2515,7 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
 
   iterminate=0
   do i=1,plen
-    if (part(i)%z.lt.0) then 
+    if (part(i)%z.lt.0) then
       call terminate_particle(i,0)
       if (mdomainfill.eq.0) then
         write(*,*) 'Particle ',i,'is not alive in the restart file.'
@@ -2523,13 +2523,13 @@ subroutine readpartpositions_netcdf(ibtime,ibdate)
       iterminate=iterminate+1
     endif
     part(i)%nclass=min(int(ran1(idummy,0)*real(nclassunc))+1, &
-         nclassunc)    
+         nclassunc)
     part(i)%idt=mintime
     part(i)%npoint=1
   end do
 
   if (iterminate.gt.0) call rewrite_ialive()
-  
+
   call nf90_err(nf90_close(ncidend))
 
   !! testing
@@ -2558,7 +2558,7 @@ subroutine readinitconditions_netcdf()
   use readoptions_mod
   use drydepo_mod
 
-  implicit none 
+  implicit none
 
   integer             :: ncidend,pIDend,tempIDend,stat
   integer             :: plen,i,j,release_max,nsp
@@ -2570,10 +2570,10 @@ subroutine readinitconditions_netcdf()
   logical :: lstart=.true.
 
   integer :: idummy = -8
-  
-  if (mquasilag.ne.0) then 
+
+  if (mquasilag.ne.0) then
     write(*,*) 'Combination of ipin, netcdf partoutput, and mquasilag!=0 does not work yet'
-    error stop 
+    error stop
   endif
 
   ! Open part_ic.nc file
@@ -2588,7 +2588,7 @@ subroutine readinitconditions_netcdf()
 
   ! Read number of fields that need to be output. This needs to happen after maxspec is defined
   ! but before particles are allocated (n_average is necessary).
-  if (ipout.ne.0) call readpartoptions 
+  if (ipout.ne.0) call readpartoptions
 
   ! allocate with maxspec for first input loop
   allocate(specnum_rel(maxspec),stat=stat)
@@ -2690,7 +2690,7 @@ subroutine readinitconditions_netcdf()
         write (*,*) '  In-cloud scavenging: ON'
       end if
     else
-      if (lroot) write (*,*) '  In-cloud scavenging: OFF' 
+      if (lroot) write (*,*) '  In-cloud scavenging: OFF'
     endif
 
     if (any(reaccconst(:,:).gt.0.)) then
@@ -2706,7 +2706,7 @@ subroutine readinitconditions_netcdf()
     deallocate(vsh,fracth,schmih)
   end do ! end loop over species
 
-  if (WETDEP.or.DRYDEP) then 
+  if (WETDEP.or.DRYDEP) then
    DEP=.true.
   endif
 
@@ -2726,25 +2726,25 @@ subroutine readinitconditions_netcdf()
   ! And give them the correct positions
   ! Longitude
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='longitude',varid=tempIDend))
-  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%xlon, & 
+  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%xlon, &
     start=(/ 1 /),count=(/ plen /)))
   part(:)%xlon=(part(:)%xlon-xlon0)/dx
   ! Latitude
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='latitude',varid=tempIDend))
-  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%ylat, & 
+  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%ylat, &
     start=(/ 1 /),count=(/ plen /)))
   part(:)%ylat=(part(:)%ylat-ylat0)/dx
   ! Height
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='height',varid=tempIDend))
-  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%z, & 
+  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%z, &
     start=(/ 1 /),count=(/ plen /)))
   ! Spawning time
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='time',varid=tempIDend))
-  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%tstart, & 
+  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%tstart, &
     start=(/ 1 /),count=(/ plen /)))
   ! Mass
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='mass',varid=tempIDend))
-  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=mass, & 
+  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=mass, &
     start=(/ 1,1 /),count=(/ plen,nspec /)))
   ! do i=1,plen
   !   do nsp=1,nspec
@@ -2778,12 +2778,12 @@ subroutine readinitconditions_netcdf()
     if (part(i)%tstart*ldirect.lt.0) then
       if (lstart) then
         write(*,*) "WARNING: (some) particles have a starting time of", part(i)%tstart, "in"
-        if (ldirect.le.0) then 
+        if (ldirect.le.0) then
           write(*,*) "backward mode, please only use negative values."
           write(*,*) "time array in part_ic.nc should be given in seconds after the"
           write(*,*) "start of your simulation. Positive values will be converted to"
           write(*,*) "negative starting times..."
-        else 
+        else
           write(*,*) "forward mode, please only use positive values."
           write(*,*) "time array in part_ic.nc should be given in seconds after the"
           write(*,*) "start of your simulation. Negative values will be converted to"
@@ -2796,16 +2796,16 @@ subroutine readinitconditions_netcdf()
   end do
   ! Release
   call nf90_err(nf90_inq_varid(ncid=ncidend,name='release',varid=tempIDend))
-  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%npoint, & 
+  call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%npoint, &
     start=(/ 1 /),count=(/ plen /)))
   ! ! Species
   ! call nf90_err(nf90_inq_varid(ncid=ncidend,name='species',varid=tempIDend))
-  ! call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%species, & 
+  ! call nf90_err(nf90_get_var(ncid=ncidend,varid=tempIDend,values=part(:)%species, &
   !   start=(/ 1 /),count=(/ plen /)))
 
   ! Count number of releases
   numpoint=0
-  ! Allocate plen of numpoint_max, since each particle could in principle have 
+  ! Allocate plen of numpoint_max, since each particle could in principle have
   ! a unique release number
   allocate(numpoint_max(plen), stat=stat)
   if (stat.ne.0) error stop "Could not allocate numpoint_max"
@@ -2823,7 +2823,7 @@ subroutine readinitconditions_netcdf()
     numpoint = numpoint+1 ! Counting the number of releases
     numpoint_max(numpoint)=part(i)%npoint ! Save the release numbers
     ! Save maximum release number
-    if (part(i)%npoint.gt.release_max) release_max=part(i)%npoint 
+    if (part(i)%npoint.gt.release_max) release_max=part(i)%npoint
   end do l1
 
   if (numpoint.eq.0) numpoint=1
@@ -2834,7 +2834,7 @@ subroutine readinitconditions_netcdf()
   ! Above sea-level or ground?
   call nf90_err(nf90_inquire_attribute(ncid=ncidend,name='kindz',varid=NF90_GLOBAL))
   call nf90_err(nf90_get_att(ncid=ncidend,varid=NF90_GLOBAL,name='kindz',values=zkind))
-  
+
   kindz=zkind
   do j=1,numpoint
     if ((kindz(j).le.0).or.(kindz(j).ge.4)) then
@@ -2917,9 +2917,9 @@ subroutine readinitconditions_netcdf()
       if (part(i)%npoint.eq.j) then
          do nsp=1,nspec
            xmass(j,nsp) = xmass(j,nsp)+mass(i,nsp)
-         end do 
+         end do
       endif
-      if (part(i)%npoint.eq.j) then 
+      if (part(i)%npoint.eq.j) then
         npart(j)=npart(j)+1
         if ((ireleasestart(j).gt.part(i)%tstart*ldirect).or.(ireleasestart(j).eq.-1)) &
           ireleasestart(j)=part(i)%tstart

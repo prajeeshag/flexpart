@@ -31,10 +31,6 @@ module windfields_mod
   character(len=255),allocatable,dimension(:) :: &
     wfname        ! file names of wind fields
 
-  ! Nested equivalents
-  !*******************
-  character(len=255),allocatable,dimension(:,:) :: &
-    wfnamen                                          ! nested wind field names
 
   !Windfield parameters
   !********************
@@ -46,13 +42,6 @@ module windfields_mod
     oro,                              & ! orography of the ECMWF model
     excessoro,                        & ! excess orography mother domain
     lsm                                 ! land sea mask of the ECMWF model
-
-  ! Nested fields, unchangeable with time
-  !**************************************
-  real, allocatable,dimension(:,:,:) :: &
-    oron,                               & ! orography of the ECMWF model
-    excessoron,                         & ! excess orography mother domain
-    lsmn                                  ! land sea mask of the ECMWF model
 
 
   ! 3d fields
@@ -82,41 +71,6 @@ module windfields_mod
     icloudbot,                            & ! cloud bottom height [m/eta]
     icloudtop                               ! cloud top [m/eta]
 
-  ! 3d nested fields
-  !*****************
-  real,allocatable,dimension(:,:,:,:,:) :: &
-    uun, vvn, wwn,                         & ! wind components in x,y and z direction [m/s]
-    ttn, tthn,                             & ! temperature data on internal and half model levels [K]
-    qvn, qvhn,                             & ! specific humidity data on internal and half model levels
-    pvn,                                   & ! potential vorticity
-    rhon,                                  & ! air density [kg/m3]
-    prsn,                                   & ! air pressure RLT
-    drhodzn                                  ! vertical air density gradient [kg/m2]
-
-  ! ETA equivalents
-  real,allocatable,dimension(:,:,:,:,:) :: &
-    uuetan,vvetan,                         & ! wind components on half model levels in x and y direction [m/s]
-    wwetan,                                & ! wind component on model levels in z direction [eta/s]
-    ttetan,                                & ! temperature data on half model levels [K]
-    pvetan,                                & ! potential vorticity on half model levels
-    rhoetan,                               & ! air density on half model levels [kg/m3]
-    prsetan,                               & ! air pressure on half model levels
-    drhodzetan,                            & ! vertical air density gradient on half model levels [kg/m2]
-    !tvirtualn,                             & ! Virtual temperature on half model levels
-    etauvheightn,etawheightn                 ! Saved half model and model heights for ETA coordinate system [m]
-
-
-  ! Nested cloud properties
-  real,allocatable,dimension(:,:,:,:,:) :: &
-    clwcn,                                 & ! liquid   [kg/kg] ZHG
-    ciwcn,                                 & ! ice      [kg/kg] ZHG
-    clwchn,                                & ! original eta level liquid [kg/kg] ZHG
-    ciwchn                                   ! original eta level ice [kg/kg] ZHG
-  real,allocatable,dimension(:,:,:,:) ::   &
-    ctwcn                                    ! ESO: =icloud_stats(:,:,4,:) total cloud water content
-  integer,allocatable,dimension(:,:,:,:) :: & ! new scavenging AT 2021
-    icloudbotn,                             & ! cloud bottom height [m/eta]
-    icloudtopn                                ! cloud thickness [m/eta]
 
   ! 2d fields
   !**********
@@ -143,33 +97,6 @@ module windfields_mod
   real, allocatable,dimension(:,:,:,:,:) :: & ! newWetDepoScheme, extra precip dimension AT 2021
     lsprec,                                 & ! large scale total precipitation [mm/h]
     convprec                                  ! convective precipitation [mm/h]
-
-  ! 2d nested fields
-  !*******************
-  real, allocatable,dimension(:,:,:,:,:) :: &
-    psn,                                    & ! surface pressure
-    sdn,                                    & ! snow depth
-    msln,                                   & ! mean sea level pressure
-    tccn,                                   & ! total cloud cover
-    u10n,                                   & ! 10 meter u
-    v10n,                                   & ! 10 meter v
-    tt2n,                                   & ! 2 meter temperature
-    td2n,                                   & ! 2 meter dew point
-    sshfn,                                  & ! surface sensible heat flux
-    ssrn,                                   & ! surface solar radiation
-    sfcstressn,                             & ! surface stress
-    ustarn,                                 & ! friction velocity [m/s]
-    wstarn,                                 & ! convective velocity scale [m/s]
-    hmixn,                                  & ! mixing height [m]
-    tropopausen,                            & ! altitude of thermal tropopause [m]
-    olin,                                   & ! inverse Obukhov length (1/L) [m]
-    vdepn                                     !
-
-  ! 2d fields
-  !**********
-  real, allocatable,dimension(:,:,:,:,:,:) :: & ! newWetDepoScheme, extra precip dimension AT 2021
-    lsprecn,                                 & ! large scale total precipitation [mm/h]
-    convprecn                                  ! convective precipitation [mm/h]
 
   integer :: metdata_format  ! storing the input data type (ECMWF/NCEP)
 
@@ -202,25 +129,6 @@ module windfields_mod
     akz,bkz,                       & ! model discretization coefficients at the centre of the layers
     aknew,bknew                      ! model discretization coefficients at the interpolated levels
 
-  !*********************************************************************
-  ! Variables characterizing size and location of the nested wind fields
-  !*********************************************************************
-
-  integer,allocatable,dimension(:) :: &
-    nxn,nyn                             ! actual dimensions of nested wind fields in x and y direction
-  real,allocatable,dimension(:) ::    &
-    dxn,dyn,                          & ! grid distances in x,y direction for the nested grids
-    xlon0n,                           & ! geographical longitude of lower left grid point of nested wind fields
-    ylat0n                              ! geographical latitude of lower left grid point of nested wind fields
-
-  !*************************************************
-  ! Certain auxiliary variables needed for the nests
-  !*************************************************
-
-  real,allocatable,dimension(:) :: &
-    xresoln,yresoln,               & ! Factors by which the resolutions in the nests
-                                     ! are enhanced compared to mother grid
-    xln,yln,xrn,yrn                  ! Corner points of nested grids in grid coordinates of mother grid
 
 contains
 
@@ -360,20 +268,6 @@ subroutine gridcheck_gfs
   !HSO  grib api error messages
   character(len=24) :: gribErrorMsg = 'Error reading grib file'
   character(len=20) :: gribFunction = 'gridcheckwind_gfs'
-
-!  real(kind=4),allocatable,dimension(:) :: zsec4
-!  integer :: iret,size1,size2,stat
-
-
-
-!
-  if (numbnests.ge.1) then
-  write(*,*) ' ###########################################'
-  write(*,*) ' FLEXPART ERROR SUBROUTINE GRIDCHECK:'
-  write(*,*) ' NO NESTED WINDFIELDAS ALLOWED FOR GFS!      '
-  write(*,*) ' ###########################################'
-  error stop
-  endif
 
   iumax=0
   iwmax=0
@@ -1821,17 +1715,6 @@ subroutine alloc_fixedfields
   if (stat.ne.0) error stop "Could not allocate lsm"
 end subroutine alloc_fixedfields
 
-subroutine alloc_fixedfields_nest
-  implicit none
-  integer :: stat
-
-  allocate(oron(0:nxmaxn-1,0:nymaxn-1,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate oron"
-  allocate(excessoron(0:nxmaxn-1,0:nymaxn-1,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate excessoron"
-  allocate(lsmn(0:nxmaxn-1,0:nymaxn-1,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate lsmn"
-end subroutine alloc_fixedfields_nest
 
 subroutine alloc_windfields
   implicit none
@@ -1941,160 +1824,6 @@ subroutine alloc_windfields
     aknew(nzmax),bknew(nzmax),stat=stat)
   if (stat.ne.0) error stop "Could not allocate model level parameters"
 end subroutine alloc_windfields
-
-subroutine alloc_windfields_nest
-  !*******************************************************************************
-  ! Dynamic allocation of arrays
-  !
-  ! For nested wind fields.
-  !
-  !*******************************************************************************
-  implicit none
-  integer :: stat
-
-  allocate(uun(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate uun"
-  allocate(vvn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate vvn"
-  allocate(wwn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate wwn"
-  allocate(ttn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate ttn"
-  allocate(qvn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate qvn"
-  allocate(pvn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate pvn"
-  allocate(clwcn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate clwcn"
-  allocate(ciwcn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate ciwcn"
-
-  ! ETA equivalents
-  allocate(etauvheightn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate etauvheightn"
-  allocate(etawheightn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate etawheightn"
-
-  allocate(icloudbotn(0:nxmax-1,0:nymax-1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate icloudbotn"
-  allocate(icloudtopn(0:nxmax-1,0:nymax-1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate icloudtopn"
-  allocate(prsn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate prsn"
-  allocate(rhon(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate rhon"
-  allocate(drhodzn(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate drhodzn"
-  allocate(tthn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate tthn"
-  allocate(qvhn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate qvhn"
-  allocate(clwchn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate clwchn"
-  allocate(ciwchn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate ciwchn"
-  allocate(ctwcn(0:nxmaxn-1,0:nymaxn-1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate ctwcn"
-
-  ! 2d fields
-  !***********
-  allocate(psn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate psn"
-  allocate(sdn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate sdn"
-  allocate(msln(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate msln"
-  allocate(tccn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate tccn"
-  allocate(u10n(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate u10n"
-  allocate(v10n(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate v10n"
-  allocate(tt2n(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate tt2n"
-  allocate(td2n(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate td2n"
-  allocate(lsprecn(0:nxmaxn-1,0:nymaxn-1,1,numpf,numwfmem,maxnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate lsprecn"
-  allocate(convprecn(0:nxmaxn-1,0:nymaxn-1,1,numpf,numwfmem,maxnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate convprecn"
-  allocate(sshfn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate sshfn"
-  allocate(ssrn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate ssrn"
-  allocate(sfcstressn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate sfcstressn"
-  allocate(ustarn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate ustarn"
-  allocate(wstarn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate wstarn"
-  allocate(hmixn(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate hmixn"
-  allocate(tropopausen(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate tropopausen"
-  allocate(olin(0:nxmaxn-1,0:nymaxn-1,1,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate olin"
-
-  ! Initialise
-  !************
-  clwcn(:,:,:,:,:)=0.
-  ciwcn(:,:,:,:,:)=0.
-  clwchn(:,:,:,:,:)=0.
-  ciwchn(:,:,:,:,:)=0.
-end subroutine alloc_windfields_nest
-
-subroutine alloc_nest_properties
-  implicit none
-  integer :: stat
-
-  allocate(nxn(numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate nxn"
-  allocate(nyn(numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate nyn"
-  allocate(dxn(numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate dxn"
-  allocate(dyn(numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate dyn"
-  allocate(xlon0n(numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate xlon0n"
-  allocate(ylat0n(numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate ylat0n"
-
-  allocate(xresoln(0:numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate xresoln"
-  allocate(yresoln(0:numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate yresoln"
-  allocate(xln(numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate xln"
-  allocate(yln(numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate yln"
-  allocate(xrn(numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate xrn"
-  allocate(yrn(numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate yrn"
-end subroutine alloc_nest_properties
-
-subroutine dealloc_windfields_nest
-
-  deallocate(wfnamen)
-
-  deallocate(nxn,nyn,dxn,dyn,xlon0n,ylat0n)
-
-  deallocate(oron,excessoron,lsmn)
-
-  deallocate(uun,vvn,wwn,ttn,qvn,pvn,clwcn,ciwcn, &
-    rhon,prsn,drhodzn,tthn,qvhn,clwchn,ciwchn,ctwcn,etauvheightn,etawheightn)
-
-
-
-
-
-
-  deallocate(psn,sdn,msln,tccn,u10n,v10n,tt2n,td2n,lsprecn,convprecn, &
-    sshfn,ssrn,sfcstressn,ustarn,wstarn,hmixn,tropopausen,olin)
-
-  deallocate(xresoln,yresoln,xln,yln,xrn,yrn)
-end subroutine dealloc_windfields_nest
 
 subroutine dealloc_windfields
   implicit none

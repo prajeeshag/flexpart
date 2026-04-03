@@ -7,49 +7,49 @@
 
 module cmapf_mod
 
-  use par_mod, only: dp
+   use par_mod, only: dp
 
-  implicit none
-  private
+   implicit none
+   private
 
-  public :: cc2gll, cll2xy, cgszll, cxy2ll, stlmbr, stcm2p
+   public :: cc2gll, cll2xy, cgszll, cxy2ll, stlmbr, stcm2p
 
-  real,parameter :: rearth=6371.2, almst1=.9999999
+   real, parameter :: rearth = 6371.2, almst1 = .9999999
 
-  real,parameter :: pi=3.14159265358979
-  real,parameter :: radpdg=pi/180., dgprad=180./pi
+   real, parameter :: pi = 3.14159265358979
+   real, parameter :: radpdg = pi/180., dgprad = 180./pi
 
 contains
 
-subroutine cc2gll (strcmp, xlat,xlong, ue,vn, ug,vg)
-  !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
+   subroutine cc2gll(strcmp, xlat, xlong, ue, vn, ug, vg)
+      !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
 
-  use par_mod, only: dp
+      use par_mod, only: dp
 
-  implicit none
+      implicit none
 
-  real :: strcmp(9), xlat, xlong, ue, vn, ug, vg,xpolg,ypolg
+      real :: strcmp(9), xlat, xlong, ue, vn, ug, vg, xpolg, ypolg
 
-  real(kind=dp) :: along,slong,clong,rot
+      real(kind=dp) :: along, slong, clong, rot
 
-  along = cspanf( xlong - strcmp(2), -180., 180.)
-  if (xlat.gt.89.985) then
-  !*  North polar meteorological orientation: "north" along prime meridian
-    rot = - strcmp(1) * along + xlong - 180.
-  elseif (xlat.lt.-89.985) then
-  !*  South polar meteorological orientation: "north" along prime meridian
-    rot = - strcmp(1) * along - xlong
-  else
-    rot = - strcmp(1) * along
-  endif
-  slong = sin( radpdg * rot )
-  clong = cos( radpdg * rot )
-  xpolg = real(slong * strcmp(5) + clong * strcmp(6))
-  ypolg = real(clong * strcmp(5) - slong * strcmp(6))
-  ug = ypolg * ue + xpolg * vn
-  vg = ypolg * vn - xpolg * ue
-  return
-end subroutine cc2gll
+      along = cspanf(xlong - strcmp(2), -180., 180.)
+      if (xlat .gt. 89.985) then
+         !*  North polar meteorological orientation: "north" along prime meridian
+         rot = -strcmp(1)*along + xlong - 180.
+      elseif (xlat .lt. -89.985) then
+         !*  South polar meteorological orientation: "north" along prime meridian
+         rot = -strcmp(1)*along - xlong
+      else
+         rot = -strcmp(1)*along
+      end if
+      slong = sin(radpdg*rot)
+      clong = cos(radpdg*rot)
+      xpolg = real(slong*strcmp(5) + clong*strcmp(6))
+      ypolg = real(clong*strcmp(5) - slong*strcmp(6))
+      ug = ypolg*ue + xpolg*vn
+      vg = ypolg*vn - xpolg*ue
+      return
+   end subroutine cc2gll
 
 ! subroutine ccrvll (strcmp, xlat,xlong, gx,gy)
 !   !*  Written on 9/20/94 by Dr. Albion Taylor  NOAA / OAR / ARL
@@ -187,241 +187,240 @@ end subroutine cc2gll
 !   return
 ! end subroutine cg2cxy
 
-real function cgszll (strcmp, xlat)
-  !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
+   real function cgszll(strcmp, xlat)
+      !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
 
-  use par_mod, only: dp
+      use par_mod, only: dp
 
-  implicit none
+      implicit none
 
-  real :: strcmp(9), xlat
+      real :: strcmp(9), xlat
 
-  real(kind=dp) :: slat,ymerc,efact
+      real(kind=dp) :: slat, ymerc, efact
 
-  if (xlat .gt. 89.985) then
-  !* Close to north pole
-    if (strcmp(1) .gt. 0.9999) then
-  !* and to gamma == 1.
-      cgszll = 2. * strcmp(7)
+      if (xlat .gt. 89.985) then
+         !* Close to north pole
+         if (strcmp(1) .gt. 0.9999) then
+            !* and to gamma == 1.
+            cgszll = 2.*strcmp(7)
+            return
+         end if
+         efact = cos(radpdg*xlat)
+         if (efact .le. 0.) then
+            cgszll = 0.
+            return
+         else
+            ymerc = -log(efact/(1.+sin(radpdg*xlat)))
+         end if
+      else if (xlat .lt. -89.985) then
+         !* Close to south pole
+         if (strcmp(1) .lt. -0.9999) then
+            !* and to gamma == -1.0
+            cgszll = 2.*strcmp(7)
+            return
+         end if
+         efact = cos(radpdg*xlat)
+         if (efact .le. 0.) then
+            cgszll = 0.
+            return
+         else
+            ymerc = log(efact/(1.-sin(radpdg*xlat)))
+         end if
+      else
+         slat = sin(radpdg*xlat)
+         ymerc = log((1.+slat)/(1.-slat))*0.5
+         !efact = exp(ymerc)
+         !cgszll = 2. * strcmp(7) * exp (strcmp(1) * ymerc)
+         !c             / (efact + 1./efact)
+      end if
+      cgszll = strcmp(7)*cos(radpdg*xlat)*exp(strcmp(1)*real(ymerc))
       return
-    endif
-    efact = cos(radpdg * xlat)
-    if (efact .le. 0.) then
-      cgszll = 0.
+   end function cgszll
+
+   real function cgszxy(strcmp, x, y)
+      !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
+
+      use par_mod, only: dp
+
+      implicit none
+
+      real :: strcmp(9), x, y
+      real(kind=dp) :: ymerc, efact, radial, temp
+      real(kind=dp) :: xi0, eta0, xi, eta
+
+      xi0 = (x - strcmp(3))*strcmp(7)/rearth
+      eta0 = (y - strcmp(4))*strcmp(7)/rearth
+      xi = xi0*strcmp(5) - eta0*strcmp(6)
+      eta = eta0*strcmp(5) + xi0*strcmp(6)
+      radial = 2.*eta - strcmp(1)*(xi*xi + eta*eta)
+      efact = strcmp(1)*radial
+      if (efact .gt. almst1) then
+         if (strcmp(1) .gt. almst1) then
+            cgszxy = 2.*strcmp(7)
+         else
+            cgszxy = 0.
+         end if
+         return
+      end if
+      if (abs(efact) .lt. 1.e-2) then
+         temp = (efact/(2.-efact))**2
+         ymerc = radial/(2.-efact)*(1.+temp* &
+                                    (1./3.+temp* &
+                                     (1./5.+temp* &
+                                      (1./7.))))
+      else
+         ymerc = -log(1.-efact)*0.5/strcmp(1)
+      end if
+      if (ymerc .gt. 6.) then
+         if (strcmp(1) .gt. almst1) then
+            cgszxy = 2.*strcmp(7)
+         else
+            cgszxy = 0.
+         end if
+      else if (ymerc .lt. -6.) then
+         if (strcmp(1) .lt. -almst1) then
+            cgszxy = 2.*strcmp(7)
+         else
+            cgszxy = 0.
+         end if
+      else
+         efact = exp(ymerc)
+         cgszxy = 2.*strcmp(7)*exp(strcmp(1)*real(ymerc)) &
+                  /real(efact + 1./efact)
+      end if
       return
-    else
-      ymerc = - log( efact /(1. + sin(radpdg * xlat)))
-    endif
-  else if (xlat .lt. -89.985) then
-  !* Close to south pole
-    if (strcmp(1) .lt. -0.9999) then
-  !* and to gamma == -1.0
-      cgszll = 2. * strcmp(7)
+   end function cgszxy
+
+   subroutine cll2xy(strcmp, xlat, xlong, x, y)
+      !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
+
+      implicit none
+
+      real :: strcmp(9), xlat, xlong, x, y, xi, eta
+
+      call cnllxy(strcmp, xlat, xlong, xi, eta)
+      x = strcmp(3) + rearth/strcmp(7)* &
+          (xi*strcmp(5) + eta*strcmp(6))
+      y = strcmp(4) + rearth/strcmp(7)* &
+          (eta*strcmp(5) - xi*strcmp(6))
       return
-    endif
-    efact = cos(radpdg * xlat)
-    if (efact .le. 0.) then
-      cgszll = 0.
+   end subroutine cll2xy
+
+   subroutine cnllxy(strcmp, xlat, xlong, xi, eta)
+      !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
+      !  main transformation routine from latitude-longitude to
+      !  canonical (equator-centered, radian unit) coordinates
+
+      use par_mod, only: dp
+
+      implicit none
+
+      real :: strcmp(9), xlat, xlong, xi, eta, &
+              gdlong, sndgam, csdgam, rhog1, gamma, dlong
+      real(kind=dp) :: dlat, slat, mercy, gmercy
+
+      gamma = real(strcmp(1))
+      dlat = xlat
+      dlong = real(cspanf(xlong - strcmp(2), -180., 180.))
+      dlong = dlong*radpdg
+      gdlong = gamma*real(dlong)
+      if (abs(gdlong) .lt. .01) then
+         !  Code for gamma small or zero.  This avoids round-off error or divide-
+         !  by zero in the case of mercator or near-mercator projections.
+         gdlong = gdlong*gdlong
+         sndgam = dlong*(1.-1./6.*gdlong* &
+                         (1.-1./20.*gdlong* &
+                          (1.-1./42.*gdlong)))
+         csdgam = dlong*dlong*.5* &
+                  (1.-1./12.*gdlong* &
+                   (1.-1./30.*gdlong* &
+                    (1.-1./56.*gdlong)))
+      else
+         ! Code for moderate values of gamma
+         sndgam = sin(gdlong)/gamma
+         csdgam = (1.-cos(gdlong))/gamma/gamma
+      end if
+      slat = sin(radpdg*dlat)
+      if ((slat .ge. almst1) .or. (slat .le. -almst1)) then
+         eta = 1./strcmp(1)
+         xi = 0.
+         return
+      end if
+      mercy = .5*log((1.+slat)/(1.-slat))
+      gmercy = gamma*mercy
+      if (abs(gmercy) .lt. .001) then
+         !  Code for gamma small or zero.  This avoids round-off error or divide-
+         !  by zero in the case of mercator or near-mercator projections.
+         rhog1 = real(mercy*(1.-.5*gmercy* &
+                             (1.-1./3.*gmercy* &
+                              (1.-1./4.*gmercy))))
+      else
+         ! Code for moderate values of gamma
+         rhog1 = (1.-real(exp(-gmercy)))/gamma
+      end if
+      eta = rhog1 + (1.-gamma*rhog1)*gamma*csdgam
+      xi = (1.-gamma*rhog1)*sndgam
+   end subroutine cnllxy
+
+   subroutine cnxyll(strcmp, xi, eta, xlat, xlong)
+      !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
+      !  main transformation routine from canonical (equator-centered,
+      !  radian unit) coordinates
+
+      use par_mod, only: dp
+
+      implicit none
+
+      real :: strcmp(9), xlat, xlong !, odist
+      real(kind=dp) :: gamma, temp, arg1, arg2, ymerc, along, gxi, cgeta
+      real(kind=dp) :: xi, eta
+
+      gamma = strcmp(1)
+      !  Calculate equivalent mercator coordinate
+      !odist = xi*xi + eta*eta
+      arg2 = 2.*eta - gamma*(xi*xi + eta*eta)
+      arg1 = gamma*arg2
+      ! Change by A. Stohl to avoid problems close to the poles
+      ! if (arg1 .ge. almst1) then
+      !  distance to north (or south) pole is zero (or imaginary ;) )
+      ! xlat = sign(90.,strcmp(1))
+      ! xlong = strcmp(2)
+      ! return
+      ! endif
+      if (abs(arg1) .lt. .01) then
+         !  Code for gamma small or zero.  This avoids round-off error or divide-
+         !  by zero in the case of mercator or near-mercator projections.
+         temp = (arg1/(2.-arg1))**2
+         ymerc = arg2/(2.-arg1)*(1.+temp* &
+                                 (1./3.+temp* &
+                                  (1./5.+temp* &
+                                   (1./7.))))
+      else
+         ! Code for moderate values of gamma
+         ymerc = -log(1.-arg1)*0.5/gamma
+      end if
+      ! Convert ymerc to latitude
+      temp = exp(-abs(ymerc))
+      xlat = real(sign(atan2((1.-temp)*(1.+temp), 2.*temp), ymerc))
+      ! Find longitudes
+      gxi = gamma*xi
+      cgeta = 1.-gamma*eta
+      if (abs(gxi) .lt. .01*cgeta) then
+         !  Code for gamma small or zero.  This avoids round-off error or divide-
+         !  by zero in the case of mercator or near-mercator projections.
+         temp = (gxi/cgeta)**2
+         along = xi/cgeta*(1.-temp* &
+                           (1./3.-temp* &
+                            (1./5.-temp* &
+                             (1./7.))))
+      else
+         ! Code for moderate values of gamma
+         along = atan2(gxi, cgeta)/gamma
+      end if
+      xlong = sngl(strcmp(2) + dgprad*along)
+      xlat = xlat*dgprad
       return
-    else
-      ymerc = log( efact /(1. - sin(radpdg * xlat)))
-    endif
-  else
-  slat = sin(radpdg * xlat)
-  ymerc = log((1. + slat) / (1. - slat))*0.5
-  !efact = exp(ymerc)
-  !cgszll = 2. * strcmp(7) * exp (strcmp(1) * ymerc)
-  !c             / (efact + 1./efact)
-  endif
-  cgszll = strcmp(7) * cos(radpdg * xlat) * exp(strcmp(1) *real(ymerc))
-  return
-end function cgszll
-
-real function cgszxy (strcmp, x,y)
-  !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
-
-  use par_mod, only: dp
-
-  implicit none
-
-  real :: strcmp(9) , x, y
-  real(kind=dp) :: ymerc,efact, radial, temp
-  real(kind=dp) :: xi0,eta0,xi,eta
-
-
-  xi0 = ( x - strcmp(3) ) * strcmp(7) / rearth
-  eta0 = ( y - strcmp(4) ) * strcmp(7) /rearth
-  xi = xi0 * strcmp(5) - eta0 * strcmp(6)
-  eta = eta0 * strcmp(5) + xi0 * strcmp(6)
-  radial = 2. * eta - strcmp(1) * (xi*xi + eta*eta)
-  efact = strcmp(1) * radial
-  if (efact .gt. almst1) then
-    if (strcmp(1).gt.almst1) then
-      cgszxy = 2. * strcmp(7)
-    else
-      cgszxy = 0.
-    endif
-    return
-  endif
-  if (abs(efact) .lt. 1.e-2) then
-    temp = (efact / (2. - efact) )**2
-    ymerc = radial / (2. - efact) * (1.    + temp * &
-         (1./3. + temp * &
-         (1./5. + temp * &
-         (1./7. ))))
-  else
-    ymerc = - log( 1. - efact ) *0.5 /strcmp(1)
-  endif
-  if (ymerc .gt. 6.) then
-    if (strcmp(1) .gt. almst1) then
-      cgszxy = 2. * strcmp(7)
-    else
-      cgszxy = 0.
-    endif
-  else if (ymerc .lt. -6.) then
-    if (strcmp(1) .lt. -almst1) then
-      cgszxy = 2. * strcmp(7)
-    else
-      cgszxy = 0.
-    endif
-  else
-    efact = exp(ymerc)
-    cgszxy = 2. * strcmp(7) * exp (strcmp(1) * real(ymerc)) &
-         / real(efact + 1./efact)
-  endif
-  return
-end function cgszxy
-
-subroutine cll2xy (strcmp, xlat,xlong, x,y)
-  !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
-
-  implicit none
-
-  real :: strcmp(9) , xlat, xlong, x, y, xi, eta
-
-  call cnllxy(strcmp, xlat,xlong, xi,eta)
-  x = strcmp(3) + rearth/strcmp(7) * &
-       (xi * strcmp(5) + eta * strcmp(6) )
-  y = strcmp(4) + rearth/strcmp(7) * &
-       (eta * strcmp(5) - xi * strcmp(6) )
-  return
-end subroutine cll2xy
-
-subroutine cnllxy (strcmp, xlat,xlong, xi,eta)
-  !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
-  !  main transformation routine from latitude-longitude to
-  !  canonical (equator-centered, radian unit) coordinates
-
-  use par_mod, only: dp
-
-  implicit none
-
-  real :: strcmp(9), xlat, xlong, xi, eta, &
-       gdlong, sndgam, csdgam, rhog1, gamma, dlong
-  real(kind=dp) :: dlat,slat,mercy,gmercy
-
-  gamma = real(strcmp(1))
-  dlat = xlat
-  dlong = real(cspanf(xlong - strcmp(2), -180., 180.))
-  dlong = dlong * radpdg
-  gdlong = gamma * real(dlong)
-  if (abs(gdlong) .lt. .01) then
-  !  Code for gamma small or zero.  This avoids round-off error or divide-
-  !  by zero in the case of mercator or near-mercator projections.
-    gdlong = gdlong * gdlong
-    sndgam = dlong * (1. - 1./6. * gdlong * &
-         (1. - 1./20. * gdlong * &
-         (1. - 1./42. * gdlong )))
-    csdgam = dlong * dlong * .5 * &
-         (1. - 1./12. * gdlong * &
-         (1. - 1./30. * gdlong * &
-         (1. - 1./56. * gdlong )))
-  else
-  ! Code for moderate values of gamma
-    sndgam = sin (gdlong) /gamma
-    csdgam = (1. - cos(gdlong) )/gamma /gamma
-  endif
-  slat = sin(radpdg * dlat)
-  if ((slat .ge. almst1) .or. (slat .le. -almst1)) then
-    eta = 1./strcmp(1)
-    xi = 0.
-    return
-  endif
-  mercy = .5 * log( (1. + slat) / (1. - slat) )
-  gmercy = gamma * mercy
-  if (abs(gmercy) .lt. .001) then
-  !  Code for gamma small or zero.  This avoids round-off error or divide-
-  !  by zero in the case of mercator or near-mercator projections.
-    rhog1 = real( mercy * (1. - .5 * gmercy * &
-         (1. - 1./3. * gmercy * &
-         (1. - 1./4. * gmercy ) ) ) )
-  else
-  ! Code for moderate values of gamma
-    rhog1 = (1. - real(exp(-gmercy))) / gamma
-  endif
-  eta = rhog1 + (1. - gamma * rhog1) * gamma * csdgam
-  xi = (1. - gamma * rhog1 ) * sndgam
-end subroutine cnllxy
-
-subroutine cnxyll (strcmp, xi,eta, xlat,xlong)
-  !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
-  !  main transformation routine from canonical (equator-centered,
-  !  radian unit) coordinates
-
-  use par_mod, only: dp
-
-  implicit none
-
-  real :: strcmp(9), xlat, xlong !, odist
-  real(kind=dp) :: gamma,temp,arg1,arg2,ymerc,along,gxi,cgeta
-  real(kind=dp) :: xi,eta
-
-  gamma = strcmp(1)
-  !  Calculate equivalent mercator coordinate
-  !odist = xi*xi + eta*eta
-  arg2 = 2. * eta - gamma * (xi*xi + eta*eta)
-  arg1 = gamma * arg2
-  ! Change by A. Stohl to avoid problems close to the poles
-  ! if (arg1 .ge. almst1) then
-  !  distance to north (or south) pole is zero (or imaginary ;) )
-  ! xlat = sign(90.,strcmp(1))
-  ! xlong = strcmp(2)
-  ! return
-  ! endif
-  if (abs(arg1) .lt. .01) then
-  !  Code for gamma small or zero.  This avoids round-off error or divide-
-  !  by zero in the case of mercator or near-mercator projections.
-    temp = (arg1 / (2. - arg1) )**2
-    ymerc = arg2 / (2. - arg1) * (1.    + temp * &
-         (1./3. + temp * &
-         (1./5. + temp * &
-         (1./7. ))))
-  else
-  ! Code for moderate values of gamma
-    ymerc = - log ( 1. - arg1 ) *0.5 / gamma
-  endif
-  ! Convert ymerc to latitude
-  temp = exp( - abs(ymerc) )
-  xlat = real(sign(atan2((1. - temp) * (1. + temp), 2. * temp), ymerc))
-  ! Find longitudes
-  gxi = gamma*xi
-  cgeta = 1. - gamma * eta
-  if ( abs(gxi) .lt. .01*cgeta ) then
-  !  Code for gamma small or zero.  This avoids round-off error or divide-
-  !  by zero in the case of mercator or near-mercator projections.
-    temp = ( gxi /cgeta )**2
-    along = xi / cgeta * (1.    - temp * &
-         (1./3. - temp * &
-         (1./5. - temp * &
-         (1./7.   ))))
-  else
-  ! Code for moderate values of gamma
-    along = atan2( gxi, cgeta) / gamma
-  endif
-  xlong = sngl(strcmp(2) + dgprad * along)
-  xlat = xlat * dgprad
-  return
-end subroutine cnxyll
+   end subroutine cnxyll
 
 ! subroutine cpolll (strcmp, xlat,xlong, enx,eny,enz)
 !   !*  Written on 11/23/94 by Dr. Albion Taylor  NOAA / OAR / ARL
@@ -490,88 +489,88 @@ end subroutine cnxyll
 !   return
 ! end subroutine cpolxy
 
-real function cspanf (value, begin, end)
-  !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
-  !* real function cspanf returns a value in the interval (begin,end]
-  !* which is equivalent to value, mod (end - begin).  It is used to
-  !* reduce periodic variables to a standard range.  It adjusts for the
-  !* behavior of the mod function which provides positive results for
-  !* positive input, and negative results for negative input
-  !* input:
-  !*       value - real number to be reduced to the span
-  !*       begin - first value of the span
-  !*       end   - last value of the span
-  !* returns:
-  !*       the reduced value
-  !* examples:
-  !*      along = cspanf(xlong, -180., +180.)
-  !*      dir  = cspanf(angle, 0., 360.)
+   real function cspanf(value, begin, end)
+      !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
+      !* real function cspanf returns a value in the interval (begin,end]
+      !* which is equivalent to value, mod (end - begin).  It is used to
+      !* reduce periodic variables to a standard range.  It adjusts for the
+      !* behavior of the mod function which provides positive results for
+      !* positive input, and negative results for negative input
+      !* input:
+      !*       value - real number to be reduced to the span
+      !*       begin - first value of the span
+      !*       end   - last value of the span
+      !* returns:
+      !*       the reduced value
+      !* examples:
+      !*      along = cspanf(xlong, -180., +180.)
+      !*      dir  = cspanf(angle, 0., 360.)
 
-  implicit none
+      implicit none
 
-  real :: first,last, value, begin, end, val
+      real :: first, last, value, begin, end, val
 
-  first = min(begin,end)
-  last = max(begin,end)
-  val = mod( value - first , last - first)
-  if ( val .le. 0.) then
-    cspanf = val + last
-  else
-    cspanf = val + first
-  endif
-  return
-end function cspanf
+      first = min(begin, end)
+      last = max(begin, end)
+      val = mod(value - first, last - first)
+      if (val .le. 0.) then
+         cspanf = val + last
+      else
+         cspanf = val + first
+      end if
+      return
+   end function cspanf
 
-subroutine cxy2ll (strcmp, x,y, xlat,xlong)
-  !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
+   subroutine cxy2ll(strcmp, x, y, xlat, xlong)
+      !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
 
-  use par_mod, only: dp
+      use par_mod, only: dp
 
-  implicit none
+      implicit none
 
-  real(kind=dp) :: xi0,eta0,xi,eta
-  real :: strcmp(9), x, y, xlat, xlong
+      real(kind=dp) :: xi0, eta0, xi, eta
+      real :: strcmp(9), x, y, xlat, xlong
 
-  xi0 = ( x - strcmp(3) ) * strcmp(7) / rearth
-  eta0 = ( y - strcmp(4) ) * strcmp(7) /rearth
-  xi = xi0 * strcmp(5) - eta0 * strcmp(6)
-  eta = eta0 * strcmp(5) + xi0 * strcmp(6)
-  call cnxyll(strcmp, xi,eta, xlat,xlong)
-  xlong = cspanf(xlong, -180., 180.)
-  return
-end subroutine cxy2ll
+      xi0 = (x - strcmp(3))*strcmp(7)/rearth
+      eta0 = (y - strcmp(4))*strcmp(7)/rearth
+      xi = xi0*strcmp(5) - eta0*strcmp(6)
+      eta = eta0*strcmp(5) + xi0*strcmp(6)
+      call cnxyll(strcmp, xi, eta, xlat, xlong)
+      xlong = cspanf(xlong, -180., 180.)
+      return
+   end subroutine cxy2ll
 
-real function eqvlat (xlat1,xlat2)
-  !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
+   real function eqvlat(xlat1, xlat2)
+      !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
 
-  implicit none
+      implicit none
 
-  real :: xlat1, xlat2, x, ssind, sinl1, sinl2, al1, al2, tau
+      real :: xlat1, xlat2, x, ssind, sinl1, sinl2, al1, al2, tau
 
-  ssind(x) = sin (radpdg*x)
-  sinl1 = ssind (xlat1)
-  sinl2 = ssind (xlat2)
-  if (abs(sinl1 - sinl2) .gt. .001) then
-    al1 = log((1. - sinl1)/(1. - sinl2))
-    al2 = log((1. + sinl1)/(1. + sinl2))
-  else
-  !  Case lat1 near or equal to lat2
-    tau = - (sinl1 - sinl2)/(2. - sinl1 - sinl2)
-    tau = tau*tau
-    al1  = 2. / (2. - sinl1 - sinl2) * (1.    + tau * &
-         (1./3. + tau * &
-         (1./5. + tau * &
-         (1./7.))))
-    tau =   (sinl1 - sinl2)/(2. + sinl1 + sinl2)
-    tau = tau*tau
-    al2  = -2. / (2. + sinl1 + sinl2) * (1.    + tau * &
-         (1./3. + tau * &
-         (1./5. + tau * &
-         (1./7.))))
-  endif
-  eqvlat = asin((al1 + al2) / (al1 - al2))/radpdg
-  return
-end function eqvlat
+      ssind(x) = sin(radpdg*x)
+      sinl1 = ssind(xlat1)
+      sinl2 = ssind(xlat2)
+      if (abs(sinl1 - sinl2) .gt. .001) then
+         al1 = log((1.-sinl1)/(1.-sinl2))
+         al2 = log((1.+sinl1)/(1.+sinl2))
+      else
+         !  Case lat1 near or equal to lat2
+         tau = -(sinl1 - sinl2)/(2.-sinl1 - sinl2)
+         tau = tau*tau
+         al1 = 2./(2.-sinl1 - sinl2)*(1.+tau* &
+                                      (1./3.+tau* &
+                                       (1./5.+tau* &
+                                        (1./7.))))
+         tau = (sinl1 - sinl2)/(2.+sinl1 + sinl2)
+         tau = tau*tau
+         al2 = -2./(2.+sinl1 + sinl2)*(1.+tau* &
+                                       (1./3.+tau* &
+                                        (1./5.+tau* &
+                                         (1./7.))))
+      end if
+      eqvlat = asin((al1 + al2)/(al1 - al2))/radpdg
+      return
+   end function eqvlat
 
 ! subroutine stcm1p(strcmp, x1,y1, xlat1,xlong1, &
 !        xlatg,xlongg, gridsz, orient)
@@ -599,37 +598,37 @@ end function eqvlat
 !   return
 ! end subroutine stcm1p
 
-subroutine stcm2p(strcmp, x1,y1, xlat1,xlong1, &
-       x2,y2, xlat2,xlong2)
-  !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
+   subroutine stcm2p(strcmp, x1, y1, xlat1, xlong1, &
+                     x2, y2, xlat2, xlong2)
+      !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
 
-  implicit none
+      implicit none
 
-  real :: strcmp(9), x1, y1, xlat1, xlong1, &
-       x2, y2, xlat2, xlong2
+      real :: strcmp(9), x1, y1, xlat1, xlong1, &
+              x2, y2, xlat2, xlong2
 
-  integer :: k
-  real    :: x1a, y1a, x2a, y2a, den, dena
+      integer :: k
+      real    :: x1a, y1a, x2a, y2a, den, dena
 
-  do k=3,6
-    strcmp (k) = 0.
-  enddo
-  strcmp (5) = 1.
-  strcmp (7) = 1.
-  call cll2xy (strcmp, xlat1,xlong1, x1a,y1a)
-  call cll2xy (strcmp, xlat2,xlong2, x2a,y2a)
-  den = sqrt( (x1 - x2)**2 + (y1 - y2)**2 )
-  dena = sqrt( (x1a - x2a)**2 + (y1a - y2a)**2 )
-  strcmp(5) = ((x1a - x2a)*(x1 - x2) + (y1a - y2a) * (y1 - y2)) &
-       /den /dena
-  strcmp(6) = ((y1a - y2a)*(x1 - x2) - (x1a - x2a) * (y1 - y2)) &
-       /den /dena
-  strcmp (7) = strcmp(7) * dena / den
-  call cll2xy (strcmp, xlat1,xlong1, x1a,y1a)
-  strcmp(3) = strcmp(3) + x1 - x1a
-  strcmp(4) = strcmp(4) + y1 - y1a
-  return
-end subroutine stcm2p
+      do k = 3, 6
+         strcmp(k) = 0.
+      end do
+      strcmp(5) = 1.
+      strcmp(7) = 1.
+      call cll2xy(strcmp, xlat1, xlong1, x1a, y1a)
+      call cll2xy(strcmp, xlat2, xlong2, x2a, y2a)
+      den = sqrt((x1 - x2)**2 + (y1 - y2)**2)
+      dena = sqrt((x1a - x2a)**2 + (y1a - y2a)**2)
+      strcmp(5) = ((x1a - x2a)*(x1 - x2) + (y1a - y2a)*(y1 - y2)) &
+                  /den/dena
+      strcmp(6) = ((y1a - y2a)*(x1 - x2) - (x1a - x2a)*(y1 - y2)) &
+                  /den/dena
+      strcmp(7) = strcmp(7)*dena/den
+      call cll2xy(strcmp, xlat1, xlong1, x1a, y1a)
+      strcmp(3) = strcmp(3) + x1 - x1a
+      strcmp(4) = strcmp(4) + y1 - y1a
+      return
+   end subroutine stcm2p
 
 !*  General conformal map routines for meteorological modelers
 !*  written on 3/31/94 by
@@ -780,36 +779,36 @@ end subroutine stcm2p
 !*    the proper range.  It adds to value whatever multiple of
 !*    (end - begin) is needed to return a number begin < cspanf <= end
 
-subroutine stlmbr(strcmp, tnglat, xlong)
-  !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
+   subroutine stlmbr(strcmp, tnglat, xlong)
+      !*  Written on 3/31/94 by Dr. Albion Taylor  NOAA / OAR / ARL
 
-  implicit none
+      implicit none
 
-  real :: strcmp(9), tnglat, xlong
+      real :: strcmp(9), tnglat, xlong
 
-  real :: eta, xi
+      real :: eta, xi
 
-  strcmp(1) = sin(radpdg * tnglat)
-  !*  gamma = sine of the tangent latitude
-  strcmp(2) = cspanf( xlong, -180., +180.)
-  !* lambda_0 = reference longitude
-  strcmp(3) = 0.
-  !* x_0 = x- grid coordinate of origin (xi,eta) = (0.,0.)
-  strcmp(4) = 0.
-  !* y_0 = y-grid coordinate of origin (xi,eta) = (0.,0.)
-  strcmp(5) = 1.
-  !* Cosine of rotation angle from xi,eta to x,y
-  strcmp(6) = 0.
-  !* Sine of rotation angle from xi,eta to x,y
-  strcmp(7) = rearth
-  !* Gridsize in kilometers at the equator
-  call cnllxy(strcmp, 89.,xlong, xi,eta)
-  strcmp(8) = 2. * eta - strcmp(1) * eta * eta
-  !* Radial coordinate for 1 degree from north pole
-  call cnllxy(strcmp, -89.,xlong, xi,eta)
-  strcmp(9) = 2. * eta - strcmp(1) * eta * eta
-  !* Radial coordinate for 1 degree from south pole
-  return
-end subroutine stlmbr
+      strcmp(1) = sin(radpdg*tnglat)
+      !*  gamma = sine of the tangent latitude
+      strcmp(2) = cspanf(xlong, -180., +180.)
+      !* lambda_0 = reference longitude
+      strcmp(3) = 0.
+      !* x_0 = x- grid coordinate of origin (xi,eta) = (0.,0.)
+      strcmp(4) = 0.
+      !* y_0 = y-grid coordinate of origin (xi,eta) = (0.,0.)
+      strcmp(5) = 1.
+      !* Cosine of rotation angle from xi,eta to x,y
+      strcmp(6) = 0.
+      !* Sine of rotation angle from xi,eta to x,y
+      strcmp(7) = rearth
+      !* Gridsize in kilometers at the equator
+      call cnllxy(strcmp, 89., xlong, xi, eta)
+      strcmp(8) = 2.*eta - strcmp(1)*eta*eta
+      !* Radial coordinate for 1 degree from north pole
+      call cnllxy(strcmp, -89., xlong, xi, eta)
+      strcmp(9) = 2.*eta - strcmp(1)*eta*eta
+      !* Radial coordinate for 1 degree from south pole
+      return
+   end subroutine stlmbr
 
 end module cmapf_mod

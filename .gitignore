@@ -7,3 +7,5 @@ output
 FLEXPART
 FLEXPART_MPI
 *.sif
+FLEXPART_ETA
+gitversion.txt

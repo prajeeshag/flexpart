@@ -73,7 +73,7 @@ program flexpart
     pathfile=arg1
     if (arg1(1:1).eq.'-') then
       write(pathfile,'(a11)') './pathnames'
-      inline_options=arg1 
+      inline_options=arg1
     endif
   case (0)
     write(pathfile,'(a11)') './pathnames'
@@ -119,9 +119,9 @@ program flexpart
 
   CALL SYSTEM_CLOCK(count_clock, count_rate, count_max)
   s_total = (count_clock - count_clock0)/real(count_rate) - s_total
-  
+
   if (verbosity.gt.0) then
-! NIK 16.02.2005 
+! NIK 16.02.2005
     do i=1,nspec
       if (icnt_incld(i).gt.0) then
          write(*,*) '**********************************************'
@@ -134,7 +134,7 @@ program flexpart
       endif
     end do
   endif
-  
+
   write(*,*) 'Read wind fields: ', s_readwind, ' seconds'
   write(*,*) 'Timemanager: ', s_timemanager, ' seconds,', 'first timestep: ',s_firstt, 'seconds'
   write(*,*) 'Write particle files: ', s_writepart, ' seconds'
@@ -194,7 +194,7 @@ subroutine read_options_and_initialise_flexpart
   ! Read pathnames from file in working director that specify I/O directories
   !**************************************************************************
   call readpaths
-  
+
   ! Read the user specifications for the current model run
   !*******************************************************
   call readcommand
@@ -216,7 +216,7 @@ subroutine read_options_and_initialise_flexpart
     write(*,*) "* FLEXPART running in parallel mode                   *"
     write(*,*) "* Number of uncertainty classes in                    *"
     write(*,901) " * set to number of threads:            ", &
-      numthreads_grid, "          *" 
+      numthreads_grid, "          *"
     write(*,901) " * All other computations are done with ",&
       numthreads, " threads. *"
     write(*,*) "*******************************************************"
@@ -268,11 +268,7 @@ subroutine read_options_and_initialise_flexpart
   ! Read the model grid specifications,
   ! both for the mother domain and eventual nests
   !**********************************************
-  if (metdata_format.eq.GRIBFILE_CENTRE_ECMWF) then
-    call gridcheck_ecmwf
-  else 
-    call gridcheck_gfs
-  endif
+  call gridcheck_gfs
 
   ! Set the upper level for where the convection will be working
   !*************************************************************
@@ -282,7 +278,6 @@ subroutine read_options_and_initialise_flexpart
   ! If nested wind fields are used, allocate arrays
   !************************************************
     call alloc_nest_properties
-    call gridcheck_nest
   endif
 
   ! Read the output grid specifications if requested by user
@@ -318,7 +313,7 @@ subroutine read_options_and_initialise_flexpart
   call readreagents
 
 
-  ! For continuation of previous run or from user defined initial 
+  ! For continuation of previous run or from user defined initial
   ! conditions, read in particle positions
   !*************************************************************************
   call initialise_particles
@@ -431,10 +426,10 @@ subroutine initialise_particles
   !**********************************************
   itime_init=0
 
-  if (ipin.le.2) then 
+  if (ipin.le.2) then
     call readreleases
     ! needs to be called after maxspec is defined in readreleases or readinitconditions
-    if (ipout.ne.0) call readpartoptions 
+    if (ipout.ne.0) call readpartoptions
   else
 
     call readinitconditions_netcdf
@@ -448,7 +443,7 @@ subroutine initialise_particles
     call alloc_grid_unc
     if (nested_output.eq.1) call alloc_grid_unc_nest
   endif
-  
+
   if ((ipin.eq.1).or.(ipin.eq.4)) then ! Restarting from restart.bin file
     call readrestart
   else if (ipin.eq.2) then ! Restarting from netcdf partoutput file

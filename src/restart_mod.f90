@@ -11,15 +11,15 @@ module restart_mod
   !*****************************************************************************
 
   use particle_mod
-#ifdef ETA
-  use coord_ecmwf_mod
-#endif
+
+
+
   use outgrid_mod
   use unc_mod
   use date_mod
-#ifdef USE_NCF
+
   use netcdf_output_mod
-#endif
+
 
   character(len=256) :: restart_filename1,restart_filename2,restart_filename3
 
@@ -48,19 +48,6 @@ subroutine output_restart(itime,loutnext,lrecoutnext,outnum)
 
   write(*,*) 'Writing Restart file:', trim(restart_filename1)
 
-#ifdef ETA
-!$OMP PARALLEL PRIVATE(i,j)
-!$OMP DO
-  do j=1,count%alive
-    i=count%ialive(j)
-    if (part(i)%alive) then
-      call update_zeta_to_z(itime,i)
-      call update_z_to_zeta(itime,i)
-    endif
-  end do
-!$OMP END DO
-!$OMP END PARALLEL
-#endif
 
   open(unitrestart,file=restart_filename1,form='unformatted')
 
@@ -96,9 +83,9 @@ subroutine output_restart(itime,loutnext,lrecoutnext,outnum)
     endif
     write(unitrestart) ipart
     write(unitrestart) part(ipart)%xlon,part(ipart)%ylat,part(ipart)%z, &
-#ifdef ETA
-      part(ipart)%zeta, &
-#endif
+
+
+
       part(ipart)%npoint,part(ipart)%nclass,part(ipart)%idt,part(ipart)%tend, &
       part(ipart)%tstart,part(ipart)%alive,part(ipart)%turbvel%u, &
       part(ipart)%turbvel%v,part(ipart)%turbvel%w,part(ipart)%mesovel%u, &
@@ -109,9 +96,9 @@ subroutine output_restart(itime,loutnext,lrecoutnext,outnum)
     if ((drybkdep).or.(wetbkdep)) write(unitrestart) (xscav_frac1(ipart,j),j=1,nspec)
   end do
   if (iout.gt.0) then
-#ifdef USE_NCF
+
     if (lnetcdfout.eq.1) write(unitrestart) tpointer
-#endif
+
 
     do ks=1,nspec
       do kp=1,maxpointspec_act
@@ -229,9 +216,9 @@ subroutine readrestart
     read(unitpartin) ipart
     if (ipout.gt.0) ipart=i ! No need to keep dead particle spots when no part dump
     read(unitpartin) part(ipart)%xlon,part(ipart)%ylat,part(ipart)%z, &
-#ifdef ETA
-      part(ipart)%zeta, &
-#endif
+
+
+
       part(ipart)%npoint,part(ipart)%nclass,part(ipart)%idt,part(ipart)%tend, &
       part(ipart)%tstart,part(ipart)%alive,part(ipart)%turbvel%u, &
       part(ipart)%turbvel%v,part(ipart)%turbvel%w,part(ipart)%mesovel%u, &
@@ -242,16 +229,16 @@ subroutine readrestart
     if (drydep) read(unitpartin) (drydeposit(ipart,j),j=1,nspec)
     if ((drybkdep).or.(wetbkdep)) read(unitpartin) (xscav_frac1(ipart,j),j=1,nspec)
 
-#ifdef ETA
-    part(ipart)%etaupdate=.true.
-    part(ipart)%meterupdate=.true.
-#endif
+
+
+
+
   end do
 
   if (iout.gt.0) then 
-#ifdef USE_NCF
+
     if (lnetcdfout.eq.1) read(unitpartin) tpointer
-#endif
+
     do ks=1,nspec
       do kp=1,maxpointspec_act
         do nage=1,nageclass

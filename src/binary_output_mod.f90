@@ -1461,10 +1461,10 @@ subroutine concoutput(itime,outnum,gridtotalunc,wetgridtotalunc, &
 
   gridunc(:,:,:,:,:,:,:)=0.
   gridcnt(:,:,:) = 0.
-#ifdef _OPENMP
+
   gridunc_omp(:,:,:,:,:,:,:,:) = 0.
   gridcnt_omp(:,:,:,:) = 0.
-#endif  
+
 
 end subroutine concoutput
 
@@ -1989,9 +1989,9 @@ subroutine concoutput_nest(itime,outnum)
   close(unitoutfactor)
 
   griduncn(:,:,:,:,:,:,:)=0.
-#ifdef _OPENMP
+
   griduncn_omp(:,:,:,:,:,:,:,:) = 0.
-#endif
+
 
 end subroutine concoutput_nest
 

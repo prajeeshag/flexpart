@@ -16,12 +16,12 @@ module initialise_mod
   use particle_mod
   use windfields_mod
   use random_mod
-#ifdef ETA
-  use coord_ecmwf_mod
-#endif
-#ifdef USE_NCF
+
+
+
+
   use netcdf_output_mod
-#endif
+
 
   implicit none
 
@@ -54,7 +54,7 @@ subroutine alloc_domainfill
   implicit none
   allocate(numcolumn_we(2,0:nymax-1),numcolumn_sn(2,0:nxmax-1))
   allocate(zcolumn_we(2,0:nymax-1,maxcolumn),zcolumn_sn(2,0:nxmax-1,maxcolumn), &
-    acc_mass_we(2,0:nymax-1,maxcolumn),acc_mass_sn(2,0:nxmax-1,maxcolumn))              
+    acc_mass_we(2,0:nymax-1,maxcolumn),acc_mass_sn(2,0:nxmax-1,maxcolumn))
 end subroutine alloc_domainfill
 
 subroutine dealloc_domainfill
@@ -113,7 +113,7 @@ subroutine releaseparticles(itime)
   eps=nxmax/3.e5
 
 
-  ! Determine the actual date and time in Greenwich 
+  ! Determine the actual date and time in Greenwich
   ! (i.e., UTC + correction for daylight savings time)
   !***************************************************
 
@@ -141,7 +141,7 @@ subroutine releaseparticles(itime)
         totpart = totpart+npart(i)
       end do
       if (totpart.gt.count%allocated) call alloc_particles(totpart-count%allocated)
-    end if 
+    end if
   endif
 
   call get_totalpart_num(istart)
@@ -272,17 +272,17 @@ subroutine releaseparticles(itime)
         ! if necessary
         !************************************************************************************
         call kindz_to_z(ipart)
-#ifdef ETA
-        call z_to_zeta(itime,part(ipart)%xlon,part(ipart)%ylat,part(ipart)%z,part(ipart)%zeta)
-        part(ipart)%etaupdate = .true. ! The z(meter) coordinate is up to date
-        part(ipart)%meterupdate = .true.
-#endif
-        
+
+
+
+
+
+
         call init_mass_conversion(ipart,i)
 
         call get_totalpart_num(numpart)
 
-      end do  ! numrel 
+      end do  ! numrel
     endif ! releasepoint
   end do ! numpoint
 
@@ -290,13 +290,6 @@ subroutine releaseparticles(itime)
 
   call get_totalpart_num(iend)
 
-  ! NetCDF only: write initial positions of new particles
-! #ifdef USE_NCF
-!   if ((iend-istart.gt.0).and.(ipout.ge.1)) then 
-!     call wrt_part_initialpos(itime,istart,iend)
-!     call output_particles(itime,.true.)
-!   endif
-! #endif
   return
 
 ! 996   continue
@@ -338,7 +331,7 @@ subroutine kindz_to_z(ipart)
 
   if (kindz(part(ipart)%npoint).eq.1) return ! Nothing needs to happen
 
-  ! If starting height is in pressure coordinates, retrieve pressure profile and 
+  ! If starting height is in pressure coordinates, retrieve pressure profile and
   ! convert zpart1 to meters
   !*****************************************************************************
 
@@ -408,7 +401,7 @@ subroutine kindz_to_z(ipart)
       zpoint2(part(ipart)%npoint)=real(part(ipart)%z)
     if (part(ipart)%z.lt.zpoint1(part(ipart)%npoint)) &
       zpoint1(part(ipart)%npoint)=real(part(ipart)%z)
-  endif    
+  endif
 
 end subroutine kindz_to_z
 
@@ -511,12 +504,12 @@ subroutine readpartpositions
 
   ! Open header file of dumped particle data
   !*****************************************
-#ifdef USE_NCF
+
     call readpartpositions_netcdf(ibtime,ibdate)
     call get_totalpart_num(numpart)
     numparticlecount=numpart
     return
-#endif
+
 
   open(unitpartin,file=path(2)(1:length(2))//'header', &
        form='unformatted',err=998)
@@ -553,7 +546,7 @@ subroutine readpartpositions
     write(*,*) ' #### FLEXPART MODEL WARNING IN READPARTPOSITIONS#### '
     write(*,*) ' #### NUMBER OF RELEASE LOCATIONS DOES NOT     #### '
     write(*,*) ' #### AGREE WITH CURRENT SETTINGS!             #### '
-  end if 
+  end if
   do i=1,numpointin
     read(unitpartin)
     read(unitpartin)
@@ -579,9 +572,9 @@ subroutine readpartpositions
   close(unitpartin)
   open(unitpartin,file=path(2)(1:length(2))//'partposit_end', &
        form='unformatted',err=998)
-  
 
-  do 
+
+  do
     read(unitpartin,iostat=ios) itimein
     if (ios.lt.0) exit
     i=0
@@ -706,11 +699,11 @@ subroutine init_particle(itime,ipart,ithread)
   xt = real(part(ipart)%xlon)
   yt = real(part(ipart)%ylat)
   zt = real(part(ipart)%z)
-#ifdef ETA
-  zteta = real(part(ipart)%zeta)
-#else
+
+
+
   zteta = 0.
-#endif
+
 
   !******************************
   ! 2. Interpolate necessary data
@@ -727,7 +720,7 @@ subroutine init_particle(itime,ipart,ithread)
   ! or internal mass conversion for wet and dry backward depostion.
   !************************************************************************
   if ((iout.eq.4).or.(iout.eq.5)) call init_mass_conversion(ipart,part(ipart)%npoint)
-  
+
   h=max(hmix(ix ,jy,1,memind(1)), &
        hmix(ixp,jy ,1,memind(1)), &
        hmix(ix ,jyp,1,memind(1)), &
@@ -865,11 +858,11 @@ subroutine init_particle(itime,ipart,ithread)
     if (nrand+2.gt.maxrand) nrand=1
     part(ipart)%mesovel%u=rannumb(nrand)*usig
     part(ipart)%mesovel%v=rannumb(nrand+1)*vsig
-#ifdef ETA
-    part(ipart)%mesovel%w=rannumb(nrand+2)*wsigeta
-#else
+
+
+
     part(ipart)%mesovel%w=rannumb(nrand+2)*wsig
-#endif
+
   endif
 end subroutine init_particle
 
@@ -971,7 +964,7 @@ subroutine init_domainfill
   ! see Netz, Formeln der Mathematik, 5. Auflage (1983), p.90
   !************************************************************
   ! First for the south pole
-  
+
   if (sglobal) then
     ylat=ylat0
     ylatp=ylat+0.5*dy
@@ -1012,7 +1005,7 @@ subroutine init_domainfill
 
 !$OMP PARALLEL PRIVATE(ljy,ylat,ylatp,ylatm,hzone,cosfactp,cosfactm,pp,lix) &
 !$OMP REDUCTION(+:colmasstotal)
-  
+
   allocate( pp(nzmax),stat=stat)
   if (stat.ne.0) write(*,*)'ERROR: could not allocate pp inside of OMP loop'
 
@@ -1041,7 +1034,7 @@ subroutine init_domainfill
 
   ! Calculate total mass of each grid column and of the whole atmosphere
   !*********************************************************************
-!$OMP DO 
+!$OMP DO
   do ljy=ny_sn(1),ny_sn(2)          ! loop about latitudes
     do lix=nx_we(1),nx_we(2)      ! loop about longitudes
       pp(1)=prs(lix,ljy,1,1) !rho(lix,ljy,1,1)*r_air*tt(lix,ljy,1,1)
@@ -1084,8 +1077,8 @@ subroutine init_domainfill
       do j=1,ncolumn ! looping over the number of particles within the column
 
         ! For columns with many particles (i.e. around the equator), distribute
-        ! the particles equally (1 on a random position within the deltacol range), 
-        ! for columns with few particles (i.e. around the poles), 
+        ! the particles equally (1 on a random position within the deltacol range),
+        ! for columns with few particles (i.e. around the poles),
         ! distribute the particles randomly
         !***********************************************************************
 
@@ -1106,7 +1099,7 @@ subroutine init_domainfill
 
             ! Assign particle position
             !*************************
-            ! Do the following steps only if particles are not read in 
+            ! Do the following steps only if particles are not read in
             ! from previous model run
             !**********************************************************
             if (ipin.eq.0) then
@@ -1126,9 +1119,9 @@ subroutine init_domainfill
               call set_z(numpart+jj,height_tmp)
               if (real(part(numpart+jj)%z).gt.height(nz)-0.5) &
                 call set_z(numpart+jj, height(nz)-0.5)
-#ifdef ETA
-              call update_z_to_zeta(0, numpart+jj)
-#endif
+
+
+
               ! Interpolate PV to the particle position
               !****************************************
               ixm=int(part(numpart+jj)%xlon)
@@ -1168,7 +1161,7 @@ subroutine init_domainfill
               if (ylat.lt.0.) pvpart=-1.*pvpart
 
 
-              ! For domain-filling option 2 (stratospheric O3), 
+              ! For domain-filling option 2 (stratospheric O3),
               ! do the rest only in the stratosphere
               !************************************************
 
@@ -1206,7 +1199,7 @@ subroutine init_domainfill
   ! terminated_tmp=count%terminated
 
 ! !$OMP PARALLEL PRIVATE(j) REDUCTION(+:alive_tmp,spawned_tmp,allocated_tmp,terminated_tmp)
- 
+
   ! Make sure that all particles are within domain
   !***********************************************
 ! !$OMP DO
@@ -1379,9 +1372,9 @@ subroutine boundcond_domainfill(itime,loutend)
   !*****************************************************************************
 
   use point_mod
-#ifdef _OPENMP
+
   use omp_lib
-#endif
+
   implicit none
 
   real :: dz,dz1,dz2,dt1,dt2,dtt,ylat,cosfact,accmasst
@@ -1449,11 +1442,6 @@ subroutine boundcond_domainfill(itime,loutend)
 ! !$OMP rddy,p1,p2,p3,p4,indzm,mm,indzh,pvpart,ylat,ix,cosfact,ipart) &
 ! !$OMP REDUCTION(+:numactiveparticles,numparticlecount_tmp,accmasst)
 
-! #ifdef _OPENMP
-!   ithread = OMP_GET_THREAD_NUM()
-! #else
-!   ithread = 0
-! #endif
   ithread=0
   iterm_index=1
 ! !$OMP DO
@@ -1593,9 +1581,9 @@ subroutine boundcond_domainfill(itime,loutend)
             call set_z(ipart,zcolumn_we(k,jy,j-1)+ran1(idummy,ithread)* &
                  (zcolumn_we(k,jy,j+1)-zcolumn_we(k,jy,j-1)))
           endif
-#ifdef ETA
-          call update_z_to_zeta(itime, ipart)
-#endif
+
+
+
   ! Interpolate PV to the particle position
   !****************************************
           ixm=int(part(ipart)%xlon)
@@ -1786,7 +1774,7 @@ subroutine boundcond_domainfill(itime,loutend)
         do m=1,mmass
           call get_newpart_index(ipart,iterm_index)
           call spawn_particle(itime, ipart)
-  
+
   ! Assign particle positions
   !**************************
           call set_ylat(ipart,real(ny_sn(k),kind=dp))
@@ -1807,9 +1795,9 @@ subroutine boundcond_domainfill(itime,loutend)
             call set_z(ipart,zcolumn_sn(k,ix,j-1)+ran1(idummy,ithread)* &
                  (zcolumn_sn(k,ix,j+1)-zcolumn_sn(k,ix,j-1)))
           endif
-#ifdef ETA
-          call update_z_to_zeta(itime, ipart)
-#endif
+
+
+
   ! Interpolate PV to the particle position
   !****************************************
           ixm=int(part(ipart)%xlon)

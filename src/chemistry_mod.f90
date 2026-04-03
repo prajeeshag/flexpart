@@ -624,9 +624,9 @@ module chemistry_mod
     real, parameter       :: smallnum = tiny(0.0) ! smallest number that can be handled
     real(kind=dp)         :: jul
     real                  :: lonjrx,latjry
-#ifdef _OPENMP
+
     real(kind=dp), allocatable, dimension(:,:,:) :: chem_loss_tmp
-#endif
+
 
     ! use middle of synchronisation time step
     interp_time=nint(itime+0.5*lsynctime)
@@ -637,10 +637,10 @@ module chemistry_mod
     ! initialization
     chem_loss(:,:)=0d0
 
-#ifdef _OPENMP
+
     allocate( chem_loss_tmp(nreagent,nspec,numthreads) )
     chem_loss_tmp(:,:,:) = 0d0
-#endif
+
 
     ! Loop over particles
     !*****************************************
@@ -650,11 +650,11 @@ module chemistry_mod
 !$OMP   xlon,ylat,clx,cly,clz,clzm,kz,altCLtop,dz1,dz2,dzz,nr,i, &
 !$OMP   cl_cur,indz,temp,ks,clrate,restmass,clreacted,ithread) 
 
-#ifdef _OPENMP
+
     ithread = OMP_GET_THREAD_NUM()+1 ! Starts with 1
-#else
-    ithread = 1
-#endif
+
+
+
 
 !$OMP DO
     do ii=1,count%alive
@@ -763,11 +763,11 @@ module chemistry_mod
                 clreacted=mass(jpart,ks)
                 mass(jpart,ks)=0.
               endif
-#ifdef _OPENMP
+
               chem_loss_tmp(nr,ks,ithread)=chem_loss_tmp(nr,ks,ithread)+real(clreacted,kind=dp)
-#else
-              chem_loss(nr,ks)=chem_loss(nr,ks)+real(clreacted,kind=dp)
-#endif
+
+
+
             endif
           end do  ! nspec
         endif   
@@ -779,12 +779,12 @@ module chemistry_mod
 
 !$OMP END PARALLEL
 
-#ifdef _OPENMP
+
   do ithread=1,numthreads
     chem_loss(:,:) = chem_loss(:,:)+chem_loss_tmp(:,:,ithread)
   end do
   deallocate( chem_loss_tmp )
-#endif
+
 
   end subroutine chemreaction
 

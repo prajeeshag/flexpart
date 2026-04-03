@@ -23,10 +23,10 @@ module particle_mod
       ylat                          ! latitude in grid coordinates
     real          ::              &
       z                             ! height in meters
-#ifdef ETA
-    real          ::              &
-      zeta                          ! height in eta (ECMWF) coordinates
-#endif
+
+
+
+
   end type coordinates
 
   type :: velocities
@@ -34,10 +34,10 @@ module particle_mod
       u,                          & ! x velocity
       v,                          & ! y velocity
       w                             ! z velocity
-#ifdef ETA
-    real               ::         &
-      weta                          ! z velocity in eta (ECMWF) coordinates
-#endif
+
+
+
+
   end type velocities
 
   type :: particle
@@ -47,11 +47,11 @@ module particle_mod
       xlon_prev, ylat_prev,       & ! Keeping the previous positions in memory
       z,                          & ! height in meters
       z_prev                        ! Previous position
-#ifdef ETA
-    real(kind=dp)      ::         &
-      zeta,                       & ! Height in eta (ECMWF) coordinates
-      zeta_prev                     ! Previous position
-#endif
+
+
+
+
+
     type(velocities)   ::         &
       !vel,                        & ! Velocities from interpolated windfields
       turbvel,                    & ! Random turbulent velocities
@@ -62,11 +62,11 @@ module particle_mod
       alive=.false.,              & ! Flag to show if the particle is still in the running
       spawned=.false.,            & ! Flag to show that particle has spawned (includes terminated parts)
       nstop=.false.                 ! Flag to stop particle (used in advance, stopped in timemanager)
-#ifdef ETA
-    logical            ::         &
-      etaupdate=.false.,          & ! If false, z(meter) is more up-to-date than z(eta)
-      meterupdate=.false.           ! If false, z(eta) is more up-to-date than z(meter)
-#endif
+
+
+
+
+
     integer(kind=2)    ::         &
       icbt                          ! Forbidden state flag   
     integer            ::         &
@@ -183,15 +183,6 @@ module particle_mod
     procedure set_z_dp,set_z_sp
   end interface set_z
 
-#ifdef ETA
-  interface update_zeta
-    procedure update_zeta_dp,update_zeta_sp
-  end interface update_zeta
-
-  interface set_zeta
-    procedure set_zeta_dp,set_zeta_sp
-  end interface set_zeta
-#endif
 contains
 
   logical function particle_allocated(ipart)
@@ -808,10 +799,10 @@ contains
     real(kind=dp), intent(in)  :: zchange
 
     part(ipart)%z = part(ipart)%z + zchange
-#ifdef ETA
-    part(ipart)%meterupdate=.false.
-    part(ipart)%etaupdate=.true.
-#endif
+
+
+
+
   end subroutine update_z_dp
 
   subroutine update_z_sp(ipart,zchange)
@@ -824,41 +815,12 @@ contains
     real, intent(in)       :: zchange
 
     part(ipart)%z = part(ipart)%z + real(zchange,kind=dp)
-#ifdef ETA
-    part(ipart)%meterupdate=.false.
-    part(ipart)%etaupdate=.true.
-#endif
+
+
+
+
   end subroutine update_z_sp  
 
-#ifdef ETA
-  subroutine update_zeta_dp(ipart,zchange)
-    !**************************************
-    ! Updates the height of the particle
-    !**************************************
-    implicit none
-
-    integer, intent(in)        :: ipart  ! particle index
-    real(kind=dp), intent(in)  :: zchange
-
-    part(ipart)%zeta = part(ipart)%zeta + zchange
-    part(ipart)%etaupdate=.false.
-    part(ipart)%meterupdate=.true.
-  end subroutine update_zeta_dp
-
-  subroutine update_zeta_sp(ipart,zchange)
-    !**************************************
-    ! Updates the height of the particle
-    !**************************************
-    implicit none
-
-    integer, intent(in)    :: ipart  ! particle index
-    real, intent(in)       :: zchange
-
-    part(ipart)%zeta = part(ipart)%zeta + real(zchange,kind=dp)
-    part(ipart)%etaupdate=.false.
-    part(ipart)%meterupdate=.true.
-  end subroutine update_zeta_sp
-#endif
 ! End update z positions
 
 ! Update z positions
@@ -872,10 +834,10 @@ contains
     real(kind=dp), intent(in)  :: zvalue
 
     part(ipart)%z = zvalue
-#ifdef ETA
-    part(ipart)%meterupdate=.false.
-    part(ipart)%etaupdate=.true.
-#endif
+
+
+
+
   end subroutine set_z_dp  
 
   subroutine set_z_sp(ipart,zvalue)
@@ -888,41 +850,12 @@ contains
     real, intent(in)       :: zvalue
 
     part(ipart)%z = real(zvalue,kind=dp)
-#ifdef ETA
-    part(ipart)%meterupdate=.false.
-    part(ipart)%etaupdate=.true.
-#endif
+
+
+
+
   end subroutine set_z_sp
 
-#ifdef ETA
-  subroutine set_zeta_dp(ipart,zvalue)
-    !**************************************
-    ! Updates the height of the particle
-    !**************************************
-    implicit none
-
-    integer, intent(in)        :: ipart  ! particle index
-    real(kind=dp), intent(in)  :: zvalue
-
-    part(ipart)%zeta = zvalue
-    part(ipart)%etaupdate=.false.
-    part(ipart)%meterupdate=.true.
-  end subroutine set_zeta_dp
-
-  subroutine set_zeta_sp(ipart,zvalue)
-    !**************************************
-    ! Updates the height of the particle
-    !**************************************
-    implicit none
-
-    integer, intent(in)    :: ipart  ! particle index
-    real, intent(in)       :: zvalue
-
-    part(ipart)%zeta = real(zvalue,kind=dp)
-    part(ipart)%etaupdate=.false.
-    part(ipart)%meterupdate=.true.
-  end subroutine set_zeta_sp
-#endif
 ! End update z positions
 
 end module particle_mod

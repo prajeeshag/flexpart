@@ -30,23 +30,23 @@ module interpol_mod
   integer :: ix,jy,ixp,jyp,ngrid,indz,indzp
   integer :: induv,indpuv
   logical :: lbounds(2) ! marking particles below or above bounds
-#ifdef ETA
-  real,allocatable,dimension(:,:) :: wprofeta ! ,wsigprofeta
-  real :: ueta,veta,weta,wsigeta
-  integer :: indzeta,indzpeta
-  logical :: lbounds_w(2),lbounds_uv(2) ! marking particles below or above bounds
-#endif
 
-#ifdef ETA
-  private :: interpol_wind_eta,stdev_eta,interpol_partoutput_val_eta
-#else
+
+
+
+
+
+
+
+
+
   private :: interpol_wind_meter,stdev_meter,interpol_partoutput_val_meter
-#endif
+
 
   interface hor_interpol
     procedure hor_interpol_4d,hor_interpol_2d
   end interface hor_interpol
-  
+
   interface hor_interpol_nest
     procedure hor_interpol_4d_nest,hor_interpol_2d_nest
   end interface hor_interpol_nest
@@ -57,27 +57,18 @@ module interpol_mod
 
 ! uprof,vprof,wprof,usigprof,vsigprof,wsigprof,indzindicator, wsigprofeta,
 ! rhoprof,rhogradprof,wprofeta,depoindicator,
-#ifdef ETA
-!$OMP THREADPRIVATE( &
-!$OMP u,v,w,usig,vsig,wsig, &
-!$OMP p1,p2,p3,p4,ddx,ddy,rddx,rddy,dtt,dt1,dt2,ix,jy,ixp,jyp, &
-!$OMP ngrid,indz,indzp, &
-!$OMP induv,indpuv,lbounds,lbounds_w,lbounds_uv, &
-!$OMP indzeta,indzpeta,ueta,veta,weta,wsigeta, &
-!$OMP xtn,ytn,nix,njy,dz1out,dz2out)
-#else
 !$OMP THREADPRIVATE( &
 !$OMP u,v,w,usig,vsig,wsig, &
 !$OMP p1,p2,p3,p4,ddx,ddy,rddx,rddy,dtt,dt1,dt2,ix,jy,ixp,jyp, &
 !$OMP ngrid,indz,indzp, &
 !$OMP induv,indpuv,lbounds,xtn,ytn,nix,njy,dz1out,dz2out)
-#endif
+
 
 
 contains
 
 subroutine alloc_interpol ! wsigprofeta(nzmax,numthreads),
-  implicit none 
+  implicit none
   integer :: stat
 
   allocate( uprof(nzmax,numthreads),vprof(nzmax,numthreads),wprof(nzmax,numthreads),      &
@@ -85,10 +76,10 @@ subroutine alloc_interpol ! wsigprofeta(nzmax,numthreads),
     rhoprof(nzmax,numthreads),rhogradprof(nzmax,numthreads), &
     indzindicator(nzmax,numthreads),stat=stat)
   if (stat.ne.0) error stop "Could not allocate interpol prof arrays"
-#ifdef ETA
-  allocate( wprofeta(nzmax,numthreads),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate wprofeta"
-#endif
+
+
+
+
   if (DRYDEP) then
     allocate( depoindicator(maxspec,numthreads),stat=stat)
     if (stat.ne.0) error stop "Could not allocate depoindicator"
@@ -99,9 +90,9 @@ subroutine dealloc_interpol ! wsigprofeta,
   deallocate(uprof,vprof,wprof,      &
     usigprof,vsigprof,wsigprof,  &
     rhoprof,rhogradprof,indzindicator)
-#ifdef ETA
-  deallocate(wprofeta)
-#endif
+
+
+
   if (DRYDEP) deallocate( depoindicator )
 end subroutine dealloc_interpol
 
@@ -167,7 +158,7 @@ end subroutine find_grid_indices
 
 subroutine find_grid_distances(xt,yt)
 
-  implicit none 
+  implicit none
 
   real, intent(in) :: xt,yt                 ! particle positions
 
@@ -190,10 +181,10 @@ end subroutine find_grid_distances
 subroutine find_time_vars(itime)
 
   integer, intent(in) :: itime             ! time step
-  
+
   dt1=real(itime-memtime(1))
   dt2=real(memtime(2)-itime)
-  dtt=1./(dt1+dt2)  
+  dtt=1./(dt1+dt2)
 
 end subroutine find_time_vars
 
@@ -203,12 +194,12 @@ subroutine find_z_level(zt,zteta)
     zt,                   & ! height in meters
     zteta                   ! height in eta
 
-#ifdef ETA
+
+
+
+
     call find_z_level_meters(zt)
-    call find_z_level_eta(zteta)
-#else
-    call find_z_level_meters(zt)
-#endif
+
 
 end subroutine find_z_level
 
@@ -241,76 +232,6 @@ subroutine find_z_level_meters(zt)
 
 end subroutine find_z_level_meters
 
-#ifdef ETA
-subroutine find_z_level_eta(zteta)
-
-  real, intent(in)       :: zteta    ! height in eta coordinates
-
-  call find_z_level_eta_w(zteta)
-
-  call find_z_level_eta_uv(zteta)
-
-end subroutine find_z_level_eta
-
-subroutine find_z_level_eta_w(zteta)
-
-  real, intent(in)       :: zteta    ! height in eta coordinates
-  integer                :: i        ! loop variable
-
-  indzeta=nz-1
-  indzpeta=nz
-  ! Flag particles that are above or below bounds
-  if (zteta.ge.wheight(1)) then
-    lbounds_w(1)=.true.
-    lbounds_w(2)=.false.
-    indzeta=1
-    indzpeta=2
-  else if (zteta.le.wheight(nz)) then
-    lbounds_w(1)=.false.
-    lbounds_w(2)=.true.
-  else
-    lbounds_w(1)=.false.
-    lbounds_w(2)=.false.
-    do i=2,nz
-      if (wheight(i).lt.zteta) then
-        indzeta=i-1
-        indzpeta=i
-        exit
-      endif
-    end do
-  endif
-
-end subroutine find_z_level_eta_w
-
-subroutine find_z_level_eta_uv(zteta)
-
-  real, intent(in)       :: zteta    ! height in eta coordinates
-  integer                :: i        ! loop variable
-
-  induv=nz-1
-  indpuv=nz
-  if (zteta.gt.uvheight(1)) then
-    lbounds_uv(1)=.true.
-    lbounds_uv(2)=.false.
-    induv=1 
-    indpuv=2
-  else if (zteta.lt.uvheight(nz)) then
-    lbounds_uv(1)=.false.
-    lbounds_uv(2)=.true.
-  else
-    lbounds_uv(1)=.false.
-    lbounds_uv(2)=.false.
-    do i=2,nz
-      if (uvheight(i).lt.zteta) then
-        induv=i-1
-        indpuv=i
-        exit
-      endif
-    end do
-  endif
-
-end subroutine find_z_level_eta_uv
-#endif
 
 subroutine find_vert_vars(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
 
@@ -326,11 +247,11 @@ subroutine find_vert_vars(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
   real, intent(in)    :: zpos             ! verticle particle position
   integer, intent(in) :: zlevel           ! vertical level of interest
   logical, intent(in) :: bounds(2),wlevel ! flag marking if particles are
-                                          ! outside bounds  
-  real, intent(inout) :: dz1,dz2          ! fractional distance to point 1 
+                                          ! outside bounds
+  real, intent(inout) :: dz1,dz2          ! fractional distance to point 1
                                           ! (closer to ground) and 2
   real                :: dz,dh1,dh,pfact
-  real                :: psint1(2),psint,pr1,pr2,pr_test 
+  real                :: psint1(2),psint,pr1,pr2,pr_test
                                           ! pressure of encompassing levels
   integer             :: m
 
@@ -341,7 +262,7 @@ subroutine find_vert_vars(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
     call find_vert_vars_lin(vertlevels,zpos,zlevel,dz1,dz2,bounds)
     return
   endif
-  
+
   ! To check if taking the logarithm is safe
   if (wlevel) then
     pr_test=akm(zlevel+1)+bkm(zlevel+1)
@@ -358,7 +279,7 @@ subroutine find_vert_vars(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
     dz1=1.
     dz2=0.
 
-  ! Instead of the linear z variables, we need the ones that correspond to 
+  ! Instead of the linear z variables, we need the ones that correspond to
   ! the pressure of the height of the particle in relation to the model levels
   !***************************************************************************
   else if (pr_test.eq.0) then
@@ -385,9 +306,9 @@ subroutine find_vert_vars(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
       pr1=akz(zlevel) + bkz(zlevel)*psint
       pr2=akz(zlevel+1) + bkz(zlevel+1)*psint
     endif
-    pfact = log(pr2/pr1)*dh1/dh  
+    pfact = log(pr2/pr1)*dh1/dh
     dz = 1./(pr2-pr1)
-    dz1 = pr1*(exp(pfact)-1.)*dz 
+    dz1 = pr1*(exp(pfact)-1.)*dz
     dz2 = 1.-dz1
   endif
   ! else if ((vertlevels(zlevel).eq.0).or.(vertlevels(zlevel+1).eq.0)) then
@@ -395,7 +316,7 @@ subroutine find_vert_vars(vertlevels,zpos,zlevel,dz1,dz2,bounds,wlevel)
   !   dz=1./(vertlevels(zlevel+1)-vertlevels(zlevel))
   !   dz1=(zpos-vertlevels(zlevel))*dz
   !   dz2=(vertlevels(zlevel+1)-zpos)*dz
-  ! else 
+  ! else
   !   ! Logaritmic interpolation
   !   dz=1./(log(vertlevels(zlevel+1))-log(vertlevels(zlevel)))
   !   dz1=(log(zpos)-log(vertlevels(zlevel)))*dz
@@ -409,7 +330,7 @@ subroutine find_vert_vars_lin(vertlevels,zpos,zlevel,dz1,dz2,bounds)
   real, intent(in)    :: zpos            ! verticle particle position
   integer, intent(in) :: zlevel          ! vertical level of interest
   logical, intent(in) :: bounds(2)       ! flag marking if particles are outside
-                                         ! bounds  
+                                         ! bounds
   real, intent(inout) :: dz1,dz2         ! fractional distance to point 1
                                          ! (closer to ground) and 2
   real                :: dz
@@ -431,7 +352,7 @@ end subroutine find_vert_vars_lin
 
 subroutine find_ngrid_dp(xt,yt)
 
-  real eps           
+  real eps
   real(kind=dp), intent(in) :: xt,yt ! particle positions on grid
   integer :: j
 
@@ -451,12 +372,12 @@ subroutine find_ngrid_dp(xt,yt)
       endif
     end do
   endif
-  
+
 end subroutine find_ngrid_dp
 
 subroutine find_ngrid_sp(xt,yt)
 
-  real :: eps           
+  real :: eps
   real, intent(in) :: xt,yt ! particle positions on grid
   integer :: j
 
@@ -481,7 +402,7 @@ end subroutine find_ngrid_sp
 subroutine hor_interpol_4d(field,output,zlevel,indexh,ztot)
 
   integer, intent(in) :: zlevel,ztot,indexh   ! interpolation z level, z
-  real, intent(in)    :: field(0:nxmax-1,0:nymax-1,ztot,numwfmem) 
+  real, intent(in)    :: field(0:nxmax-1,0:nymax-1,ztot,numwfmem)
    ! input field to interpolate
   real, intent(inout) :: output  ! interpolated values
 
@@ -492,7 +413,7 @@ subroutine hor_interpol_4d(field,output,zlevel,indexh,ztot)
 end subroutine hor_interpol_4d
 
 subroutine hor_interpol_2d(field,output)
-  implicit none 
+  implicit none
 
   real, intent(in)    :: field(0:nxmax-1,0:nymax-1)       ! 2D imput field
   real, intent(inout) :: output                           ! Interpolated value
@@ -506,8 +427,8 @@ end subroutine hor_interpol_2d
 subroutine hor_interpol_4d_nest(field,output,zlevel,indexh,ztot)
 
   integer, intent(in) :: zlevel,ztot,indexh   ! interpolation z level, z
-  real, intent(in)    :: field(0:nxmaxn-1,0:nymaxn-1,ztot,numwfmem,numbnests) 
-                                              ! input field to interpolate 
+  real, intent(in)    :: field(0:nxmaxn-1,0:nymaxn-1,ztot,numwfmem,numbnests)
+                                              ! input field to interpolate
   real, intent(inout) :: output               ! interpolated values
 
   output=p1*field(ix ,jy ,zlevel,indexh,ngrid) &
@@ -518,7 +439,7 @@ end subroutine hor_interpol_4d_nest
 
 subroutine hor_interpol_2d_nest(field,output)
 
-  real, intent(in)    :: field(0:nxmaxn-1,0:nymaxn-1,numbnests) 
+  real, intent(in)    :: field(0:nxmaxn-1,0:nymaxn-1,numbnests)
                                           ! input field to interpolate
   real, intent(inout) :: output           ! interpolated values
 
@@ -530,7 +451,7 @@ end subroutine hor_interpol_2d_nest
 
 subroutine temporal_interpolation(time1,time2,output)
 
-  real, intent(in)    :: time1,time2     ! input data at two timesteps 
+  real, intent(in)    :: time1,time2     ! input data at two timesteps
   real, intent(inout) :: output          ! interpolated data
 
   output=(time1*dt2+time2*dt1)*dtt
@@ -538,7 +459,7 @@ end subroutine temporal_interpolation
 
 subroutine vert_interpol(input1,input2,dz1,dz2,output)
 
-  real, intent(in)    :: input1,input2   ! input data at two vertical levels, 
+  real, intent(in)    :: input1,input2   ! input data at two vertical levels,
                                          ! 1 being closer to ground
   real, intent(in)    :: dz1,dz2         ! logarithmic interpolation values
   real, intent(inout) :: output          ! interpolated data
@@ -549,7 +470,7 @@ end subroutine vert_interpol
 subroutine bilin_spatial_interpol(field,output,zlevel,dz1,dz2,ztot)
 
   integer, intent(in) :: zlevel,ztot        ! interpolation z level
-  real, intent(in)    :: field(0:nxmax-1,0:nymax-1,ztot,numwfmem)  
+  real, intent(in)    :: field(0:nxmax-1,0:nymax-1,ztot,numwfmem)
                                             ! input field to interpolate
   real, intent(in)    :: dz1,dz2
   real, intent(inout) :: output(2)          ! interpolated values
@@ -557,25 +478,25 @@ subroutine bilin_spatial_interpol(field,output,zlevel,dz1,dz2,ztot)
   real                :: output1(2)
 
   do m=1,2
-    
+
     do n=1,2
       indzh=zlevel+n-1
       call hor_interpol_4d(field,output1(n),indzh,memind(m),ztot)
     end do
-    
+
     !**********************************
     ! 2.) Linear vertical interpolation on logarithmic scale
-    !**********************************    
+    !**********************************
     call vert_interpol(output1(1),output1(2),dz1,dz2,output(m))
-    
+
   end do
-  
+
 end subroutine bilin_spatial_interpol
 
 subroutine bilin_spatial_interpol_nest(field,output,zlevel,dz1,dz2,ztot)
 
   integer, intent(in) :: zlevel,ztot       ! interpolation z level
-  real, intent(in)    :: field(0:nxmaxn-1,0:nymaxn-1,ztot,numwfmem,numbnests)  
+  real, intent(in)    :: field(0:nxmaxn-1,0:nymaxn-1,ztot,numwfmem,numbnests)
                                            ! input field to interpolate
   real, intent(in)    :: dz1,dz2
   real, intent(inout) :: output(2)         ! interpolated values
@@ -583,25 +504,25 @@ subroutine bilin_spatial_interpol_nest(field,output,zlevel,dz1,dz2,ztot)
   real                :: output1(2)
 
   do m=1,2
-  
+
     do n=1,2
       indzh=zlevel+n-1
       call hor_interpol_4d_nest(field,output1(n),indzh,memind(m),ztot)
     end do
-    
+
     !**********************************
     ! 2.) Linear vertical interpolation on logarithmic scale
-    !**********************************    
+    !**********************************
     call vert_interpol(output1(1),output1(2),dz1,dz2,output(m))
-    
+
   end do
-  
+
 end subroutine bilin_spatial_interpol_nest
 
 subroutine compute_sl_sq(field,sl,sq,zlevel,indexh,ztot)
 
   integer, intent(in) :: zlevel,ztot,indexh   ! interpolation z levels
-  real, intent(in)    :: field(0:nxmax-1,0:nymax-1,ztot,numwfmem) 
+  real, intent(in)    :: field(0:nxmax-1,0:nymax-1,ztot,numwfmem)
                                               ! input field to interpolate
   real, intent(inout) :: sl,sq                ! standard deviation
 
@@ -617,7 +538,7 @@ end subroutine compute_sl_sq
 
 subroutine compute_sl_sq_nest(field,sl,sq,zlevel,indexh,ztot)
   integer, intent(in) :: zlevel,ztot,indexh   ! interpolation z levels
-  real, intent(in)    :: field(0:nxmaxn-1,0:nymaxn-1,ztot,numwfmem,numbnests) 
+  real, intent(in)    :: field(0:nxmaxn-1,0:nymaxn-1,ztot,numwfmem,numbnests)
                                               ! input field to interpolate
   real, intent(inout) :: sl,sq                ! standard deviation
 
@@ -729,7 +650,7 @@ subroutine interpol_pbl(itime,xt,yt,zt,zteta,ithread)
       call hor_interpol_nest(wstarn,wst1(m),1,memind(m),1)
       call hor_interpol_nest(olin,oli1(m),1,memind(m),1)
     end do
-  endif    
+  endif
 
   ! b) Temporal interpolation
   call temporal_interpolation(ust1(1),ust1(2),ust)
@@ -755,25 +676,25 @@ subroutine interpol_pbl(itime,xt,yt,zt,zteta,ithread)
 
   ! w(eta) velocities are necessary for the Petterssen correction
   !**************************************************************
-#ifdef ETA
-    call find_z_level_eta(zteta)
-    iweta(:)=(/ indzeta, indzpeta /)
-#endif
+
+
+
+
 
   !**************************************
   ! 1.) Bilinear horizontal interpolation
   ! 2.) Temporal interpolation (linear)
   !**************************************
-  
+
   ! Loop over 2 time steps and indz levels
   !***************************************
   if (ngrid.le.0) then ! No nest
     do n=1,2
       do m=1,2
         call hor_interpol(ww,wh1(m),iw(n),memind(m),nzmax)
-#ifdef ETA
-        call hor_interpol(wweta,wetah1(m),iweta(n),memind(m),nzmax)
-#endif
+
+
+
         call hor_interpol(rho,rho1(m),iw(n),memind(m),nzmax)
         call hor_interpol(drhodz,rhograd1(m),iw(n),memind(m),nzmax)
         if (ngrid.lt.0) then
@@ -785,9 +706,9 @@ subroutine interpol_pbl(itime,xt,yt,zt,zteta,ithread)
         endif
       end do
       call temporal_interpolation(wh1(1),wh1(2),wprof(iw(n),ithread))
-#ifdef ETA
-      call temporal_interpolation(wetah1(1),wetah1(2),wprofeta(iweta(n),ithread))
-#endif      
+
+
+
       call temporal_interpolation(uh1(1),uh1(2),uprof(iw(n),ithread))
       call temporal_interpolation(vh1(1),vh1(2),vprof(iw(n),ithread))
       call temporal_interpolation(rho1(1),rho1(2),rhoprof(iw(n),ithread))
@@ -797,18 +718,18 @@ subroutine interpol_pbl(itime,xt,yt,zt,zteta,ithread)
     do n=1,2
       do m=1,2
         call hor_interpol_nest(wwn,wh1(m),iw(n),memind(m),nzmax)
-#ifdef ETA
-        call hor_interpol_nest(wwetan,wetah1(m),iweta(n),memind(m),nzmax)
-#endif
+
+
+
         call hor_interpol_nest(uun,uh1(m),iw(n),memind(m),nzmax)
         call hor_interpol_nest(vvn,vh1(m),iw(n),memind(m),nzmax)
         call hor_interpol_nest(rhon,rho1(m),iw(n),memind(m),nzmax)
         call hor_interpol_nest(drhodzn,rhograd1(m),iw(n),memind(m),nzmax)
       end do
       call temporal_interpolation(wh1(1),wh1(2),wprof(iw(n),ithread))
-#ifdef ETA
-      call temporal_interpolation(wetah1(1),wetah1(2),wprofeta(iweta(n),ithread))
-#endif
+
+
+
       call temporal_interpolation(uh1(1),uh1(2),uprof(iw(n),ithread))
       call temporal_interpolation(vh1(1),vh1(2),vprof(iw(n),ithread))
       call temporal_interpolation(rho1(1),rho1(2),rhoprof(iw(n),ithread))
@@ -819,12 +740,12 @@ subroutine interpol_pbl(itime,xt,yt,zt,zteta,ithread)
   endif
 
   ! Only necessary for the Petterssen correction
-#ifdef ETA
-  call find_vert_vars(wheight,zteta,indzeta, &
-    dz1weta,dz2weta,lbounds_w,.true.)
-  call vert_interpol(wprofeta(indzeta,ithread),wprofeta(indzpeta,ithread), &
-    dz1weta,dz2weta,weta)
-#endif
+
+
+
+
+
+
 
 end subroutine interpol_pbl
 
@@ -902,7 +823,7 @@ subroutine interpol_pbl_misslev(ithread)
 end subroutine interpol_pbl_misslev
 
 subroutine interpol_pbl_short(zt,rhoa,rhograd,ithread)
-  implicit none 
+  implicit none
 
   integer,intent(in)  :: ithread ! number of OMP thread starting at 1
   real, intent(in)    :: zt
@@ -923,9 +844,9 @@ subroutine interpol_mesoscale(xt,yt,zt,zteta)
   use turbulence_mod
 
   real, intent(in)    :: xt,yt,zt,zteta
-#ifdef ETA
-  integer             :: iuv(2),iweta(2)
-#endif
+
+
+
   integer             :: iw(2)
 
   ! Where in the grid? Stereographic (ngrid<0) or nested (ngrid>0)
@@ -938,16 +859,16 @@ subroutine interpol_mesoscale(xt,yt,zt,zteta)
   !***********************************************
   call find_z_level_meters(zt)
   iw(:)=(/ indz, indzp /)
-  
-#ifdef ETA
-  call find_z_level_eta(zteta)
-  iuv(:)=(/ induv, indpuv /)
-  iweta(:)=(/ indzeta, indzpeta /)
-  call stdev_eta(iw,iuv,iweta)
-#else
+
+
+
+
+
+
+
   iw(:)=(/ indz, indzp /)
   call stdev_meter(iw)
-#endif
+
 
 end subroutine interpol_mesoscale
 
@@ -982,11 +903,11 @@ subroutine interpol_wind(itime,xt,yt,zt,zteta)
 
   integer, intent(in) :: itime
   real, intent(in)    :: xt,yt,zt,zteta
-#ifdef ETA
-  integer             :: iuv(2),iweta(2)
-#else
+
+
+
   integer             :: iw(2)
-#endif
+
 
   ! Where in the grid? Stereographic (ngrid<0) or nested (ngrid>0)
   !***************************************************************
@@ -1007,16 +928,6 @@ subroutine interpol_wind(itime,xt,yt,zt,zteta)
   ! Interpolate over the windfields depending on the prefered
   ! coordinate system
   !**********************************************************
-#ifdef ETA
-  ! Same for eta coordinates
-  !*************************
-  call find_z_level_eta(zteta)
-
-  iuv(:)  = (/ induv, indpuv /)
-  iweta(:)= (/ indzeta, indzpeta /)
-  call interpol_wind_eta(zteta,iuv,iweta)
-  !call stdev_wind_eta(iw,iuv,iweta)
-#else
   ! Determine the level below the current position for u,v
   !*******************************************************
   call find_z_level_meters(zt)
@@ -1024,7 +935,7 @@ subroutine interpol_wind(itime,xt,yt,zt,zteta)
   iw(:)=(/ indz, indzp /)
   call interpol_wind_meter(zt,iw)
   !call stdev_wind_meter(iw)
-#endif
+
 
 end subroutine interpol_wind
 
@@ -1056,11 +967,11 @@ subroutine interpol_wind_short(itime,xt,yt,zt,zteta)
 
   integer, intent(in) :: itime
   real, intent(in) :: xt,yt,zt,zteta
-#ifdef ETA
-  integer             :: iuv(2),iweta(2)
-#else
+
+
+
   integer             :: iw(2)
-#endif
+
 
   !********************************************
   ! Multilinear interpolation in time and space
@@ -1079,17 +990,6 @@ subroutine interpol_wind_short(itime,xt,yt,zt,zteta)
   ! Interpolate over the windfields depending on the prefered
   ! coordinate system
   !**********************************************************
-#ifdef ETA
-  ! Determine the level below the current position for eta coordinates
-  !*******************************************************************
-  call find_z_level_eta(zteta)
-
-  iuv(:)=(/ induv, indpuv /)
-  iweta(:)=(/ indzeta, indzpeta /)
-  ! Interpolate the u, v, weta windfields
-  !**************************************
-  call interpol_wind_eta(zteta,iuv,iweta)
-#else
 
   ! Determine the level below the current position for u,v
   !*******************************************************
@@ -1097,7 +997,7 @@ subroutine interpol_wind_short(itime,xt,yt,zt,zteta)
 
   iw(:)=(/ indz, indzp /)
   call interpol_wind_meter(zt,iw)
-#endif
+
 
 end subroutine interpol_wind_short
 
@@ -1109,11 +1009,11 @@ subroutine interpol_partoutput_val(fieldname,output,j)
   ! Interpolate over the windfields depending on the prefered
   ! coordinate system
   !**********************************************************
-#ifdef ETA
-  call interpol_partoutput_val_eta(fieldname,output,j)
-#else
+
+
+
   call interpol_partoutput_val_meter(fieldname,output,j)
-#endif
+
 end subroutine interpol_partoutput_val
 
 subroutine interpol_htropo_hmix(tropop,h)
@@ -1153,7 +1053,7 @@ subroutine interpol_htropo_hmix(tropop,h)
     tropop=tropopausen(nix,njy,1,memind(1),ngrid)
   endif
 
-  if (interpolhmix) h= (h1(1)*dt2 + h1(2)*dt1)*dtt 
+  if (interpolhmix) h= (h1(1)*dt2 + h1(2)*dt1)*dtt
 
 end subroutine interpol_htropo_hmix
 
@@ -1171,25 +1071,10 @@ subroutine interpol_density(itime,ipart,output)
   call find_grid_distances(real(part(ipart)%xlon),real(part(ipart)%ylat))
   call find_time_vars(itime)
 
-  ! Take density from 2nd wind field in memory 
+  ! Take density from 2nd wind field in memory
   !(accurate enough, no time interpolation needed)
   !***********************************************
-  
-#ifdef ETA
-  call find_z_level_eta(real(part(ipart)%zeta))
-  call find_vert_vars(uvheight,real(part(ipart)%zeta),induv, &
-    dz1,dz2,lbounds_uv,.false.)
-  if (ngrid.le.0) then
-    do ind=induv,indpuv
-      call hor_interpol(rhoeta,rhoprof(ind-induv+1),ind,memind(2),nzmax)
-    end do
-  else
-    do ind=induv,indpuv
-      call hor_interpol_nest(rhoetan,rhoprof(ind-induv+1),ind,memind(2), &
-        nzmax)
-    end do
-  endif
-#else
+
   call find_z_level_meters(real(part(ipart)%z))
   call find_vert_vars(height,real(part(ipart)%z),indz, &
     dz1,dz2,lbounds,.false.)
@@ -1202,12 +1087,12 @@ subroutine interpol_density(itime,ipart,output)
       call hor_interpol_nest(rhon,rhoprof(ind-indz+1),ind,memind(2),nzmax)
     end do
   endif
-#endif
+
   call vert_interpol(rhoprof(1),rhoprof(2),dz1,dz2,output)
 end subroutine interpol_density
 
 subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,icmv)
-  !                       i     i   o     o     o     o     o     o      o     i   
+  !                       i     i   o     o     o     o     o     o      o     i
   !****************************************************************************
   !                                                                           *
   !  Interpolation of meteorological fields on 2-d model layers.              *
@@ -1256,7 +1141,7 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
   ! yint                 the final interpolated value                         *
   ! yt                   current y coordinate                                 *
   ! yy?(0:nxmax,0:nymax,nzx2d,3) meteorological field used for interpolation  *
-  ! yyt(0:nxmax,0:nymax,nzmax,3) tt field                                     * 
+  ! yyt(0:nxmax,0:nymax,nzmax,3) tt field                                     *
   ! iy1,iy2(0:nxmax,0:nymax,3) cloud bottom, thickness fields (integer)       *
   ! zt                   current z coordinate                                 *
   !                                                                           *
@@ -1274,7 +1159,7 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
   real :: ip1,ip2,ip3,ip4,ipsum
   real :: dt,dtp1,dtp2,rt
   real :: y1(2),y2(2),y3(2),y4(2),yi1(2),yi2(2),ytt(2) ! interpolated values
-  
+
   integer, dimension(2) :: ip, mp
 
   !**********************************************************************
@@ -1295,7 +1180,7 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
   !   ||___|___|___||___|___|___||
   !
   ! ip  1   2   3    1   2   3    1
-  ! m        1            2  
+  ! m        1            2
   !
   !-------------------------------------------------------------------------
 
@@ -1358,17 +1243,17 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
            + p2*tcc(ixp,jy ,1,mm) &
            + p3*tcc(ix ,jyp,1,mm) &
            + p4*tcc(ixp,jyp,1,mm)
-#ifdef ETA
-      ytt(m)=p1*tteta(ix ,jy ,kz,mm) &
-           + p2*tteta(ixp,jy ,kz,mm) &
-           + p3*tteta(ix ,jyp,kz,mm) &
-           + p4*tteta(ixp,jyp,kz,mm)
-#else
+
+
+
+
+
+
       ytt(m)=p1*tt(ix ,jy ,kz,mm) &
            + p2*tt(ixp,jy ,kz,mm) &
            + p3*tt(ix ,jyp,kz,mm) &
            + p4*tt(ixp,jyp,kz,mm)
-#endif
+
       if (lcw) &
         y4(m)= p1*ctwc(ix ,jy ,mm) &
            + p2*ctwc(ixp,jy ,mm) &
@@ -1409,10 +1294,10 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
   !        write(*,*) ip1,ip2,ip3,ip4,ipsum
   !        write(*,*) p1,p2,p3,p4
   !        write(*,*) iy1(ix ,jy ,mm), iy1(ixp,jy ,mm),  iy1(ix ,jyp,mm), iy1(ixp,jyp,mm)
-  !      endif            
-              
+  !      endif
+
       endif
-          
+
       ip1=1.
       ip2=1.
       ip3=1.
@@ -1461,17 +1346,17 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
            + p2*tccn(ixp,jy ,1,mm,ngrid) &
            + p3*tccn(ix ,jyp,1,mm,ngrid) &
            + p4*tccn(ixp,jyp,1,mm,ngrid)
-#ifdef ETA
-      ytt(m)=p1*ttetan(ix ,jy ,kz,mm,ngrid) &
-           + p2*ttetan(ixp,jy ,kz,mm,ngrid) &
-           + p3*ttetan(ix ,jyp,kz,mm,ngrid) &
-           + p4*ttetan(ixp,jyp,kz,mm,ngrid)
-#else
+
+
+
+
+
+
       ytt(m)=p1*ttn(ix ,jy ,kz,mm,ngrid) &
            + p2*ttn(ixp,jy ,kz,mm,ngrid) &
            + p3*ttn(ix ,jyp,kz,mm,ngrid) &
            + p4*ttn(ixp,jyp,kz,mm,ngrid)
-#endif
+
       if (lcw_nest(ngrid)) &
         y4(m)= p1*ctwcn(ix ,jy ,mm,ngrid) &
            + p2*ctwcn(ixp,jy ,mm,ngrid) &
@@ -1508,7 +1393,7 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
               + ip3*p3*icloudbotn(ix ,jyp,mm,ngrid) &
               + ip4*p4*icloudbotn(ixp,jyp,mm,ngrid))/ipsum
       endif
-          
+
       ip1=1.
       ip2=1.
       ip3=1.
@@ -1548,7 +1433,7 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
 
   yint1=(y1(1)*dtp2+y1(2)*dtp1)/dtt ! lsp
   yint2=(y2(1)*dtp2+y2(2)*dtp1)/dtt ! cp
-  
+
   yint3=(y3(1)*dt2+y3(2)*dt1)/dt
   yint4=(y4(1)*dt2+y4(2)*dt1)/dt
   ytint=(ytt(1)*dt2+ytt(2)*dt1)/dt
@@ -1563,8 +1448,8 @@ subroutine interpol_rain(itime,kz,yint1,yint2,yint3,ytint,yint4,intiy1,intiy2,ic
   intiy2=int((yi2(1)*dt2 + yi2(2)*dt1)/dt)
   if (int(yi2(1)) .eq. icmv) intiy2=int(yi2(2))
   if (int(yi2(2)) .eq. icmv) intiy2=int(yi2(1))
-  
-!  write(*,*) 'before cbot: ', intiy1, ' cthick: ', intiy2   
+
+!  write(*,*) 'before cbot: ', intiy1, ' cthick: ', intiy2
   if (intiy1 .ne. icmv .and. intiy2 .ne. icmv) then
     intiy2 = intiy2 !intiy1 + intiy2 ! convert cloud thickness to cloud top
   else
@@ -1586,67 +1471,6 @@ end subroutine interpol_rain
 !*********************
 ! Interpolation of wind fields
 !*****************************
-#ifdef ETA
-subroutine interpol_wind_eta(zteta,iuv,iweta)
-
-!* PRIVATE FUNCTION *
-
-  real, intent(in)    :: zteta
-  integer,intent(in)  :: iuv(2),iweta(2)
-  integer             :: n,m
-  real                :: uh(2),vh(2),wetah(2),uh1(2),vh1(2),wetah1(2)
-  real                :: dz1uv,dz2uv,dz1weta,dz2weta
-
-  !**********************************************************************
-  ! 1.) Bilinear horizontal interpolation
-  ! This has to be done separately for 6 fields (Temporal(2)*Vertical(3))
-  !**********************************************************************
-
-  ! Vertical distance to the level below and above current position
-  !****************************************************************
-  call find_vert_vars(uvheight,zteta,induv,dz1uv,dz2uv,lbounds_uv,.false.)
-  call find_vert_vars(wheight,zteta,indzeta,dz1weta,dz2weta,lbounds_w,.true.)
-
-  ! Loop over 2 time steps and 2 levels
-  !************************************
-  if (ngrid.le.0) then ! No nest
-    do m=1,2
-      do n=1,2
-        call hor_interpol(wweta,wetah1(n),iweta(n),memind(m),nzmax)
-        if (ngrid.lt.0) then
-          call hor_interpol(uupoleta,uh1(n),iuv(n),memind(m),nzmax)
-          call hor_interpol(vvpoleta,vh1(n),iuv(n),memind(m),nzmax)
-        else
-          call hor_interpol(uueta,uh1(n),iuv(n),memind(m),nzmax)
-          call hor_interpol(vveta,vh1(n),iuv(n),memind(m),nzmax)
-        endif
-      end do
-      call vert_interpol(uh1(1),uh1(2),dz1uv,dz2uv,uh(m))
-      call vert_interpol(vh1(1),vh1(2),dz1uv,dz2uv,vh(m))
-      call vert_interpol(wetah1(1),wetah1(2),dz1weta,dz2weta,wetah(m))
-    end do 
-  else ! Nest
-    do m=1,2
-      do n=1,2
-        
-        ! wetah1(n) = p1*wwetan(ix ,jy ,iweta(n),memind(m),ngrid) &
-        !           + p2*wwetan(ixp,jy ,iweta(n),memind(m),ngrid) &
-        !           + p3*wwetan(ix ,jyp,iweta(n),memind(m),ngrid) &
-        !           + p4*wwetan(ixp,jyp,iweta(n),memind(m),ngrid)
-        call hor_interpol_nest(wwetan,wetah1(n),iweta(n),memind(m),nzmax)
-        call hor_interpol_nest(uuetan,uh1(n),iuv(n),memind(m),nzmax)
-        call hor_interpol_nest(vvetan,vh1(n),iuv(n),memind(m),nzmax)
-      end do
-      call vert_interpol(uh1(1),uh1(2),dz1uv,dz2uv,uh(m))
-      call vert_interpol(vh1(1),vh1(2),dz1uv,dz2uv,vh(m))
-      call vert_interpol(wetah1(1),wetah1(2),dz1weta,dz2weta,wetah(m))
-    end do    
-  endif
-  call temporal_interpolation(uh(1),uh(2),u)
-  call temporal_interpolation(vh(1),vh(2),v)
-  call temporal_interpolation(wetah(1),wetah(2),weta)
-end subroutine interpol_wind_eta
-#else
 
 subroutine interpol_wind_meter(zt,iw)
 
@@ -1684,7 +1508,7 @@ subroutine interpol_wind_meter(zt,iw)
       call vert_interpol(wh1(1),wh1(2),dz1w,dz2w,wh(m))
       call vert_interpol(uh1(1),uh1(2),dz1w,dz2w,uh(m))
       call vert_interpol(vh1(1),vh1(2),dz1w,dz2w,vh(m))
-    end do 
+    end do
   else ! Nest
     do m=1,2
       do n=1,2
@@ -1695,92 +1519,14 @@ subroutine interpol_wind_meter(zt,iw)
       call vert_interpol(wh1(1),wh1(2),dz1w,dz2w,wh(m))
       call vert_interpol(uh1(1),uh1(2),dz1w,dz2w,uh(m))
       call vert_interpol(vh1(1),vh1(2),dz1w,dz2w,vh(m))
-    end do    
+    end do
   endif
   call temporal_interpolation(wh(1),wh(2),w)
   call temporal_interpolation(uh(1),uh(2),u)
   call temporal_interpolation(vh(1),vh(2),v)
 end subroutine interpol_wind_meter
-#endif
 
-#ifdef ETA
-subroutine interpol_partoutput_val_eta(fieldname,output,j)
-  implicit none
 
-  integer, intent(in)         :: j          ! particle number
-  character(2), intent(in)    :: fieldname  ! input field to interpolate over
-  real, intent(inout)         :: output
-  real                        :: field1(2)
-
-  if (int(dz1out).eq.-1) then
-    call find_z_level_eta(real(part(j)%zeta))
-    call find_vert_vars(uvheight,real(part(j)%zeta),induv,dz1out,dz2out, &
-      lbounds_uv,.false.)
-  endif
-
-  select case(fieldname)
-    case('PR','pr')
-      if (ngrid.le.0) then
-        call bilin_spatial_interpol(prseta,field1,induv,dz1out,dz2out,nzmax)
-      else
-        call bilin_spatial_interpol_nest(prsetan,field1,induv,dz1out,dz2out,nzmax)
-      endif
-      call temporal_interpolation(field1(1),field1(2),output)
-    case('PV','pv')
-      if (ngrid.le.0) then
-        call bilin_spatial_interpol(pveta,field1,induv,dz1out,dz2out,nzmax)
-      else
-        call bilin_spatial_interpol_nest(pvetan,field1,induv,dz1out,dz2out,nzmax)
-      endif
-      call temporal_interpolation(field1(1),field1(2),output)
-    case('QV','qv')
-      if (ngrid.le.0) then
-        call bilin_spatial_interpol(qv,field1,induv,dz1out,dz2out,nzmax)
-      else
-        call bilin_spatial_interpol_nest(qvn,field1,induv,dz1out,dz2out,nzmax)
-      endif
-      call temporal_interpolation(field1(1),field1(2),output)
-    case('TT','tt')
-      if (ngrid.le.0) then
-        call bilin_spatial_interpol(tteta,field1,induv,dz1out,dz2out,nzmax)
-      else
-        call bilin_spatial_interpol_nest(ttetan,field1,induv,dz1out,dz2out,nzmax)
-      endif
-      call temporal_interpolation(field1(1),field1(2),output)
-    case('UU','uu')
-      if (ngrid.le.0) then
-        call bilin_spatial_interpol(uueta,field1,induv,dz1out,dz2out,nzmax)
-      else
-        call bilin_spatial_interpol_nest(uuetan,field1,induv,dz1out,dz2out,nzmax)
-      endif
-      call temporal_interpolation(field1(1),field1(2),output)
-    case('VV','vv')
-      if (ngrid.le.0) then
-        call bilin_spatial_interpol(vveta,field1,induv,dz1out,dz2out,nzmax)
-      else
-        call bilin_spatial_interpol_nest(vvetan,field1,induv,dz1out,dz2out,nzmax)
-      endif
-      call temporal_interpolation(field1(1),field1(2),output)
-    case('WW','ww')
-      call find_z_level_meters(real(part(j)%z))
-      call find_vert_vars(height,real(part(j)%z),indz,dz1out,dz2out,lbounds,.false.)
-      if (ngrid.le.0) then
-        call bilin_spatial_interpol(ww,field1,induv,dz1out,dz2out,nzmax)
-      else
-        call bilin_spatial_interpol_nest(wwn,field1,induv,dz1out,dz2out,nzmax)
-      endif
-      call temporal_interpolation(field1(1),field1(2),output)
-      dz1out = -1
-    case('RH','rh')
-      if (ngrid.le.0) then
-        call bilin_spatial_interpol(rhoeta,field1,induv,dz1out,dz2out,nzmax)
-      else
-        call bilin_spatial_interpol_nest(rhoetan,field1,induv,dz1out,dz2out,nzmax)
-      endif
-      call temporal_interpolation(field1(1),field1(2),output)
-  end select
-end subroutine interpol_partoutput_val_eta
-#else
 
 subroutine interpol_partoutput_val_meter(fieldname,output,j)
   implicit none
@@ -1856,85 +1602,8 @@ subroutine interpol_partoutput_val_meter(fieldname,output,j)
       call temporal_interpolation(field1(1),field1(2),output)
   end select
 end subroutine interpol_partoutput_val_meter
-#endif
-! #ifdef ETA
-! subroutine interpol_pbl_eta(zt,zteta,rhoa,rhograd,ithread)
-  
-!   integer,intent(in)  :: ithread
-!   real, intent(in)    :: zt,zteta
-!   real, intent(inout) :: rhoa,rhograd
-!   real                :: dz1w,dz2w,dz1uv,dz2uv,dz1weta,dz2weta
 
-!   call find_vert_vars(height,zt,indz,dz1w,dz2w,lbounds,.false.)
-!   call find_vert_vars(uvheight,zteta,induv,dz1uv,dz2uv,lbounds_uv,.false.)
-!   call find_vert_vars(wheight,zteta,indzeta,dz1weta,dz2weta,lbounds_w,.true.)
 
-!   call vert_interpol(wprof(indz,ithread),wprof(indzp,ithread),dz1w,dz2w,w)
-!   call vert_interpol(uprof(induv,ithread),uprof(indpuv,ithread),dz1uv,dz2uv,u)
-!   call vert_interpol(vprof(induv,ithread),vprof(indpuv,ithread),dz1uv,dz2uv,v)
-!   call vert_interpol(rhoprof(induv,ithread),rhoprof(indpuv,ithread),dz1uv,dz2uv,rhoa)
-!   call vert_interpol(rhogradprof(induv,ithread),rhogradprof(indpuv,ithread),dz1uv,dz2uv,rhograd)
-!   call vert_interpol(wprofeta(indzeta,ithread),wprofeta(indzpeta,ithread),dz1weta,dz2weta,weta)
-! end subroutine interpol_pbl_eta
-! #endif
-
-#ifdef ETA
-subroutine stdev_eta(iw,iuv,iweta)
-
-!* PRIVATE FUNCTION *
-
-  ! Standard deviation of surrounding grid points
-  ! Only used in mesoscale turbulence calculations
-  !***********************************************
-
-  integer,intent(in)  :: iw(2),iuv(2),iweta(2)
-  real :: wsl,wsq,usl,usq,vsl,vsq,wetasl,wetasq
-  integer             :: n,m
-  real,parameter      :: eps=1.0e-30
-  
-  ! Standard deviations
-  !********************
-  wsl=0.
-  wsq=0.
-  usl=0.
-  usq=0.
-  vsl=0.
-  vsq=0.
-  wetasl=0.
-  wetasq=0.
-
-  if (ngrid.le.0) then ! No nest  
-    do m=1,2
-      do n=1,2
-        call compute_sl_sq(ww,wsl,wsq,iw(n),memind(m),nzmax)
-        call compute_sl_sq(wweta,wetasl,wetasq,iweta(n),memind(m),nzmax)
-        if (ngrid.lt.0) then
-          call compute_sl_sq(uupoleta,usl,usq,iuv(n),memind(m),nzmax)
-          call compute_sl_sq(vvpoleta,vsl,vsq,iuv(n),memind(m),nzmax)
-        else
-          call compute_sl_sq(uueta,usl,usq,iuv(n),memind(m),nzmax)
-          call compute_sl_sq(vveta,vsl,vsq,iuv(n),memind(m),nzmax)
-        endif
-      end do
-    end do
-  else ! Nest
-    do m=1,2
-      do n=1,2
-        call compute_sl_sq_nest(wwn,wsl,wsq,iw(n),memind(m),nzmax)
-        call compute_sl_sq_nest(wwetan,wetasl,wetasq,iweta(n),memind(m),nzmax)
-        call compute_sl_sq_nest(uuetan,usl,usq,iuv(n),memind(m),nzmax)
-        call compute_sl_sq_nest(vvetan,vsl,vsq,iuv(n),memind(m),nzmax)
-      end do
-    end do
-  endif
-
-  call stdev(wsl,wsq,16.,wsig)
-  call stdev(usl,usq,16.,usig)
-  call stdev(vsl,vsq,16.,vsig)
-  call stdev(wetasl,wetasq,16.,wsigeta)
-
-end subroutine stdev_eta
-#else
 
 subroutine stdev_meter(iw)
 
@@ -1958,7 +1627,7 @@ subroutine stdev_meter(iw)
   vsl=0.
   vsq=0.
 
-  if (ngrid.le.0) then ! No nest  
+  if (ngrid.le.0) then ! No nest
     do m=1,2
       do n=1,2
         call compute_sl_sq(ww,wsl,wsq,iw(n),memind(m),nzmax)
@@ -1986,5 +1655,5 @@ subroutine stdev_meter(iw)
   call stdev(vsl,vsq,16.,vsig)
 
 end subroutine stdev_meter
-#endif
+
 end module interpol_mod

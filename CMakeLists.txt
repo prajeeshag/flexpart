@@ -2,10 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(FLEXPART Fortran)
 
 # ── Build options ──────────────────────────────────────────────────────────────
-option(USE_NETCDF "Enable NetCDF output"          ON)
-option(USE_ETA    "Enable eta/ECMWF coordinates"  ON)
 option(SERIAL     "Disable OpenMP (serial build)" OFF)
-option(USE_MPI    "Enable MPI"                    OFF)
 set(ARCH "native" CACHE STRING
     "CPU architecture target: native | generic (AVX2) | x86-64 (AVX) | skylake (AVX512)")
 
@@ -62,18 +59,12 @@ if(NOT SERIAL)
   find_package(OpenMP REQUIRED Fortran)
 endif()
 
-# ── MPI ────────────────────────────────────────────────────────────────────────
-if(USE_MPI)
-  find_package(MPI REQUIRED Fortran)
-endif()
 
 # ── External libraries ─────────────────────────────────────────────────────────
 find_library(ECCODES_LIB     eccodes     REQUIRED)
 find_library(ECCODES_F90_LIB eccodes_f90 REQUIRED)
 
-if(USE_NETCDF)
-  find_library(NETCDFF_LIB netcdff REQUIRED)
-endif()
+find_library(NETCDFF_LIB netcdff REQUIRED)
 
 # ── Source files ───────────────────────────────────────────────────────────────
 # Order does not matter: CMake scans USE/MODULE statements and resolves
@@ -119,7 +110,6 @@ set(SOURCES
   src/FLEXPART.f90
 )
 
-if(USE_NETCDF)
   list(APPEND SOURCES
     src/netcdf_output_mod.f90
     src/chemistry_mod.f90
@@ -128,43 +118,17 @@ if(USE_NETCDF)
     src/receptor_netcdf_mod.f90
     src/emissions_mod.f90
   )
-endif()
 
-if(USE_ETA)
-  list(APPEND SOURCES src/coord_ecmwf_mod.f90)
-endif()
 
 # ── Executable name (mirrors original makefile conventions) ────────────────────
-if(USE_NETCDF AND USE_ETA)
-  set(EXE_NAME FLEXPART_ETA)
-elseif(USE_NETCDF)
-  set(EXE_NAME FLEXPART)
-elseif(USE_ETA)
-  set(EXE_NAME FLEXPART_ETA_BIN)
-else()
-  set(EXE_NAME FLEXPART_BIN)
-endif()
-
+set(EXE_NAME FLEXPART)
 add_executable(${EXE_NAME} ${SOURCES})
 
 # ── Preprocessor definitions ───────────────────────────────────────────────────
-if(USE_NETCDF)
-  target_compile_definitions(${EXE_NAME} PRIVATE USE_NCF)
-else()
-  target_compile_options(${EXE_NAME} PRIVATE -UUSE_NCF)
-endif()
+target_compile_definitions(${EXE_NAME} PRIVATE USE_NCF)
+target_compile_options(${EXE_NAME} PRIVATE -UETA)
 
-if(USE_ETA)
-  target_compile_definitions(${EXE_NAME} PRIVATE ETA)
-else()
-  target_compile_options(${EXE_NAME} PRIVATE -UETA)
-endif()
-
-if(USE_MPI)
-  target_compile_definitions(${EXE_NAME} PRIVATE usempi)
-else()
-  target_compile_definitions(${EXE_NAME} PRIVATE useomp)
-endif()
+target_compile_definitions(${EXE_NAME} PRIVATE useomp)
 
 # ── Include / library paths from environment variables ────────────────────────
 # Mirrors how the original makefiles consumed CPATH and LIBRARY_PATH
@@ -188,17 +152,12 @@ target_link_libraries(${EXE_NAME} PRIVATE
   m
 )
 
-if(USE_NETCDF)
-  target_link_libraries(${EXE_NAME} PRIVATE ${NETCDFF_LIB})
-endif()
+target_link_libraries(${EXE_NAME} PRIVATE ${NETCDFF_LIB})
 
 if(NOT SERIAL)
   target_link_libraries(${EXE_NAME} PRIVATE OpenMP::OpenMP_Fortran)
 endif()
 
-if(USE_MPI)
-  target_link_libraries(${EXE_NAME} PRIVATE MPI::MPI_Fortran)
-endif()
 
 # ── Git version stamp ──────────────────────────────────────────────────────────
 find_package(Git QUIET)
@@ -223,9 +182,6 @@ message(STATUS "FLEXPART build configuration:")
 message(STATUS "  Compiler   : ${CMAKE_Fortran_COMPILER_ID} ${CMAKE_Fortran_COMPILER_VERSION}")
 message(STATUS "  Build type : ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Executable : ${EXE_NAME}")
-message(STATUS "  NetCDF     : ${USE_NETCDF}")
-message(STATUS "  ETA coords : ${USE_ETA}")
 message(STATUS "  OpenMP     : ${OPENMP_FOUND} (SERIAL=${SERIAL})")
-message(STATUS "  MPI        : ${USE_MPI}")
 message(STATUS "  Arch       : ${ARCH}")
 message(STATUS "")

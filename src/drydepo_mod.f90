@@ -416,13 +416,13 @@ subroutine drydepokernel(nunc,deposit,x,y,nage,kp,thread)
       if ((abs(deposit(ks)).gt.0).and.DRYDEPSPEC(ks)) then
         if ((ix.ge.0).and.(jy.ge.0).and.(ix.le.numxgrid-1).and. &
              (jy.le.numygrid-1)) then
-#ifdef _OPENMP
+
           gridunc_omp(ix,jy,1,ks,kp,nunc,nage,thread)= &
                gridunc_omp(ix,jy,1,ks,kp,nunc,nage,thread)+deposit(ks)
-#else
-          drygridunc(ix,jy,ks,kp,nunc,nage)= &
-               drygridunc(ix,jy,ks,kp,nunc,nage)+deposit(ks)
-#endif
+
+
+
+
         end if
       end if
     end do
@@ -438,49 +438,49 @@ subroutine drydepokernel(nunc,deposit,x,y,nage,kp,thread)
         if ((ix.ge.0).and.(jy.ge.0).and.(ix.le.numxgrid-1).and. &
           (jy.le.numygrid-1)) then
           w=wx*wy
-#ifdef _OPENMP
+
           gridunc_omp(ix,jy,1,ks,kp,nunc,nage,thread)= &
              gridunc_omp(ix,jy,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-          drygridunc(ix,jy,ks,kp,nunc,nage)= &
-             drygridunc(ix,jy,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
        endif
 
       if ((ixp.ge.0).and.(jyp.ge.0).and.(ixp.le.numxgrid-1).and. &
          (jyp.le.numygrid-1)) then
         w=(1.-wx)*(1.-wy)
-#ifdef _OPENMP
+
         gridunc_omp(ixp,jyp,1,ks,kp,nunc,nage,thread)= &
              gridunc_omp(ixp,jyp,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-        drygridunc(ixp,jyp,ks,kp,nunc,nage)= &
-             drygridunc(ixp,jyp,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
       endif
 
       if ((ixp.ge.0).and.(jy.ge.0).and.(ixp.le.numxgrid-1).and. &
          (jy.le.numygrid-1)) then
         w=(1.-wx)*wy
-#ifdef _OPENMP
+
         gridunc_omp(ixp,jy,1,ks,kp,nunc,nage,thread)= &
              gridunc_omp(ixp,jy,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-        drygridunc(ixp,jy,ks,kp,nunc,nage)= &
-             drygridunc(ixp,jy,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
       endif
 
       if ((ix.ge.0).and.(jyp.ge.0).and.(ix.le.numxgrid-1).and. &
          (jyp.le.numygrid-1)) then
         w=wx*(1.-wy)
-#ifdef _OPENMP
+
         gridunc_omp(ix,jyp,1,ks,kp,nunc,nage,thread)= &
              gridunc_omp(ix,jyp,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-        drygridunc(ix,jyp,ks,kp,nunc,nage)= &
-             drygridunc(ix,jyp,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
       endif
 
       endif ! deposit>0
@@ -554,49 +554,49 @@ subroutine drydepokernel_nest(nunc,deposit,x,y,nage,kp,thread)
       if ((ix.ge.0).and.(jy.ge.0).and.(ix.le.numxgridn-1).and. &
            (jy.le.numygridn-1)) then
         w=wx*wy
-#ifdef _OPENMP
+
         griduncn_omp(ix,jy,1,ks,kp,nunc,nage,thread)= &
              griduncn_omp(ix,jy,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-        drygriduncn(ix,jy,ks,kp,nunc,nage)= &
-             drygriduncn(ix,jy,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
       endif
 
       if ((ixp.ge.0).and.(jyp.ge.0).and.(ixp.le.numxgridn-1).and. &
            (jyp.le.numygridn-1)) then
         w=(1.-wx)*(1.-wy)
-#ifdef _OPENMP
+
         griduncn_omp(ixp,jyp,1,ks,kp,nunc,nage,thread)= &
              griduncn_omp(ixp,jyp,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-        drygriduncn(ixp,jyp,ks,kp,nunc,nage)= &
-             drygriduncn(ixp,jyp,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
       endif
 
       if ((ixp.ge.0).and.(jy.ge.0).and.(ixp.le.numxgridn-1).and. &
            (jy.le.numygridn-1)) then
         w=(1.-wx)*wy
-#ifdef _OPENMP
+
         griduncn_omp(ixp,jy,1,ks,kp,nunc,nage,thread)= &
              griduncn_omp(ixp,jy,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-        drygriduncn(ixp,jy,ks,kp,nunc,nage)= &
-             drygriduncn(ixp,jy,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
       endif
 
       if ((ix.ge.0).and.(jyp.ge.0).and.(ix.le.numxgridn-1).and. &
            (jyp.le.numygridn-1)) then
         w=wx*(1.-wy)
-#ifdef _OPENMP
+
         griduncn_omp(ix,jyp,1,ks,kp,nunc,nage,thread)= &
              griduncn_omp(ix,jyp,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-        drygriduncn(ix,jyp,ks,kp,nunc,nage)= &
-             drygriduncn(ix,jyp,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
       endif
 
     endif

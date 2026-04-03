@@ -330,11 +330,11 @@ subroutine convmix(itime)
 !$OMP PARALLEL PRIVATE(kk,jy,ix,tmarray,j,kz,ktop,lconv,kpart,ipart,&
 !$OMP ztold,nage,ipconv,itage,ithread,lcalcflux)
 
-#if (defined _OPENMP)
+
     ithread = OMP_GET_THREAD_NUM()+1 ! Starts at 1
-#else
-    ithread = 1
-#endif
+
+
+
 
 !$OMP DO SCHEDULE(dynamic)
   do ik=1,countconv
@@ -440,11 +440,11 @@ subroutine convmix(itime)
 !$OMP PARALLEL PRIVATE (igrold,kpart,ipart,igr,jy,ix,kz,lconv, &
 !$OMP ktop,ztold,nage,ipconv,itage,lcalcflux,ithread)
     igrold = -1
-#if (defined _OPENMP)
+
     ithread = OMP_GET_THREAD_NUM()+1 ! Starts at 1
-#else
-    ithread = 1
-#endif
+
+
+
 !$OMP DO SCHEDULE(dynamic)
     do kpart=1,alivepart
       igr = igrid(kpart)
@@ -715,9 +715,9 @@ subroutine redist(itime,ipart,ktop,ipconv,ithread)
   use random_mod
   use omp_lib
   use interpol_mod
-#ifdef ETA
-  use coord_ecmwf_mod
-#endif
+
+
+
   use particle_mod
   use qvsat_mod
 
@@ -734,9 +734,9 @@ subroutine redist(itime,ipart,ktop,ipconv,ithread)
   real :: rn, dlevfrac
   real :: ztold,ffraction, dlogp
   real :: dz, dz1, dz2
-#ifndef ETA
+
   real :: tv, tv1, tv2, tvold, pold, pint
-#endif
+
 
   ! ipart   ... number of particle to be treated
 
@@ -744,17 +744,6 @@ subroutine redist(itime,ipart,ktop,ipconv,ithread)
 
   ! !  determine vertical grid position of particle in the eta system
   ! !****************************************************************
-#ifdef ETA
-  ztold = real(part(abs(ipart))%zeta)
-  ! find old particle grid position
-  levold = nconvtop
-  do kz = 2, nconvtop
-    if (wheight(kz) .le. ztold ) then
-      levold = kz-1
-      exit
-    endif
-  end do
-#else
 
   ! determine height of the eta half-levels (uvzlev)
   ! do that only once for each grid column
@@ -831,7 +820,7 @@ subroutine redist(itime,ipart,ktop,ipconv,ithread)
       exit
     endif
   end do
-#endif
+
 
   ! If the particle is above the potentially convective domain, it will be skipped
   if (levold.ne.nconvtop) then
@@ -876,15 +865,6 @@ subroutine redist(itime,ipart,ktop,ipconv,ithread)
     end do loop1
 
     ! now assign new position to particle
-#ifdef ETA
-    if ((levnew.le.nconvtop).and.(levnew.ne.levold)) then
-      dlogp = (1.-dlevfrac) * (wheight(levnew+1)-wheight(levnew))
-      call set_zeta(ipart,wheight(levnew)+dlogp)
-      if (part(abs(ipart))%zeta.ge.1.) call set_zeta(ipart,1.-(part(abs(ipart))%zeta-1.))
-      if (part(abs(ipart))%zeta.eq.1.) call update_zeta(ipart,-1.e-4)
-      if (ipconv.gt.0) ipconv=-1
-    endif
-#else
     if ((levnew.le.nconvtop).and.(levnew.ne.levold)) then
       dlogp = (1.-dlevfrac)* (log(phconv(levnew+1,ithread))-log(phconv(levnew,ithread)))
       pint = log(phconv(levnew,ithread))+dlogp
@@ -895,7 +875,7 @@ subroutine redist(itime,ipart,ktop,ipconv,ithread)
       if (part(abs(ipart))%z.lt.0.) call set_z(ipart,-1.*part(abs(ipart))%z)
       if (ipconv.gt.0) ipconv=-1
     endif
-#endif
+
     ! displace particle according to compensating subsidence
     ! this is done to those particles, that were not redistributed
     ! by the matrix
@@ -932,27 +912,6 @@ subroutine redist(itime,ipart,ktop,ipconv,ithread)
           (phconv(levold+1,ithread))
 
       ! interpolate wsub to the vertical particle position
-#ifdef ETA
-      ztold = real(part(abs(ipart))%zeta)
-      dz1 = ztold - wheight(levold)
-      dz2 = wheight(levold+1) - ztold
-      dz = dz1 + dz2
-
-      ! Convert z(eta) to z(m) in order to add subsidence
-      call update_zeta_to_z(itime, ipart)
-      ! call zeta_to_z(itime,part(abs(ipart))%xlon,part(abs(ipart))%ylat, &
-      !   part(abs(ipart))%zeta,part(abs(ipart))%z)
-
-      wsubpart = (dz2*wsub(levold,ithread)+dz1*wsub(levold+1,ithread))/dz
-
-      call update_z(ipart,wsubpart*real(lsynctime))
-
-      if (part(abs(ipart))%z.lt.0.) call set_z(ipart,-1.*part(abs(ipart))%z)
-
-      ! Convert new z(m) back to z(eta)
-      call update_z_to_zeta(itime, ipart)
-          
-#else
       ztold = real(part(abs(ipart))%z)
       dz1 = ztold - uvzlev(levold,ithread)
       dz2 = uvzlev(levold+1,ithread) - ztold
@@ -964,19 +923,19 @@ subroutine redist(itime,ipart,ktop,ipconv,ithread)
 
       if (part(abs(ipart))%z.lt.0.) call set_z(ipart,-1.*part(abs(ipart))%z)
 
-#endif
+
     endif      !(levnew.le.nconvtop.and.levnew.eq.levold)
   endif
   ! Maximum altitude .5 meter below uppermost model level
   !*******************************************************
 
-#ifdef ETA
-  if (part(abs(ipart))%zeta .lt. uvheight(nz)) call set_zeta(ipart,uvheight(nz)+1.e-4)
-  if (part(abs(ipart))%zeta.ge.1.) call set_zeta(ipart,1.-(part(abs(ipart))%zeta-1.))
-  if (part(abs(ipart))%zeta.eq.1.) call update_zeta(ipart,-1.e-4)
-#else
+
+
+
+
+
   if (part(abs(ipart))%z .gt. height(nz)-0.5) call set_z(ipart,height(nz)-0.5)
-#endif
+
 
 end subroutine redist
 

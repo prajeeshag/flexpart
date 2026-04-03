@@ -90,9 +90,9 @@ subroutine timemanager
 !  use ohr_mod
   use par_mod
   use com_mod
-#ifdef ETA
-  use coord_ecmwf_mod
-#endif
+
+
+
   use particle_mod
   use conv_mod
   use windfields_mod
@@ -105,13 +105,13 @@ subroutine timemanager
   use output_mod
   use restart_mod
   use interpol_mod, only: alloc_interpol,dealloc_interpol
-#ifdef USE_NCF
+
   use chemistry_mod
   use initdomain_mod
   use receptor_netcdf_mod, only: readreceptors_satellite, verttransform_satellite
   use emissions_mod
   use totals_mod
-#endif
+
   use receptor_mod, only: receptoroutput
 
   implicit none
@@ -219,26 +219,6 @@ subroutine timemanager
 
   ! In case of ETA coordinates being read from file, convert the z positions to zeta
   !*********************************************************************************
-#ifdef ETA
-    if ((itime.eq.itime_init).and.((ipin.eq.1).or.(ipin.eq.3).or.(ipin.eq.4))) then 
-      
-      if (count%allocated.le.0) error stop 'Something is going wrong reading the old particle file! &
-        &No particles found.'
-!$OMP PARALLEL PRIVATE(i)
-!$OMP DO
-      do i=1,count%allocated ! Also includes particles that are not spawned yet
-        ! If kindz>1, vertical positions computation
-        if (ipin.eq.3 .or. ipin.eq.4) call kindz_to_z(i) 
-#ifdef ETA
-        call z_to_zeta(itime,part(i)%xlon,part(i)%ylat,part(i)%z,part(i)%zeta)
-        part(i)%etaupdate = .true.
-        part(i)%meterupdate = .true.
-#endif
-      end do
-!$OMP END DO
-!$OMP END PARALLEL
-    endif
-#endif
 
     if (WETDEP .and. (itime.ne.0) .and. (numpart.gt.0)) then
       call wetdepo(itime,lsynctime,loutnext)
@@ -246,11 +226,11 @@ subroutine timemanager
 
   ! compute chemical losses 
   !************************
-#ifdef USE_NCF
+
     if (CLREA .and. (itime.ne.0) .and. (numpart.gt.0)) then
       call chemreaction(itime)
     endif
-#endif
+
 
   ! compute convection for backward runs
   !*************************************
@@ -261,28 +241,28 @@ subroutine timemanager
 
   ! Get chemical fields if not available 
   !*************************************
-#ifdef USE_NCF
+
     if (CLREA) then
       call getchemfield(itime)
       call getchemhourly(itime)
     endif
-#endif
+
         
   ! Get emission fields if not available
   !*************************************
 
-#ifdef USE_NCF
+
     if (LEMIS.and.mdomainfill.eq.1) then
       call getemissions(itime)
     endif
-#endif
+
 
   ! Read satellite receptors
   !*************************
 
-#ifdef USE_NCF
+
   call readreceptors_satellite(itime)
-#endif
+
   if (.not.allocated(recoutnumsat)) then
     allocate(recoutnumsat(nlayermax,maxrecsample))
     recoutnumsat(:,:)=0.
@@ -293,26 +273,16 @@ subroutine timemanager
     if (mdomainfill.ge.1) then
       if (itime.eq.itime_init) then 
         if (llcmoutput) then  
-#ifdef USE_NCF
+
           call init_domainfill_ncf
-#else
-          call init_domainfill
-#endif
+
+
+
         else
           call init_domainfill
         endif
         if (ipin.eq.2) then
           ! Particles initialized from partoutput
-#ifdef ETA
-!$OMP PARALLEL PRIVATE(i,j)
-!$OMP DO
-          do i=1,count%alive
-            j=count%ialive(i)
-            call update_z_to_zeta(itime,j)
-          end do
-!$OMP END DO
-!$OMP END PARALLEL
-#endif
         endif
       else 
         call boundcond_domainfill(itime,loutend)
@@ -336,18 +306,6 @@ subroutine timemanager
         endif
       end do
 
-#ifdef ETA
-!$OMP PARALLEL PRIVATE(i,j)
-!$OMP DO
-      do i=1,count%alive
-        j=count%ialive(i)
-        if (part(j)%tstart.eq.itime) then
-          call update_z_to_zeta(itime,j)
-        end if
-      end do
-!$OMP END DO
-!$OMP END PARALLEL
-#endif
       call get_totalpart_num(numpart)
     else
       call releaseparticles(itime)
@@ -356,11 +314,11 @@ subroutine timemanager
   ! Inject emissions
   !*****************
 
-#ifdef USE_NCF
+
     if (LEMIS.and.mdomainfill.eq.1) then
       call emissions(itime)
     endif
-#endif
+
 
   ! Compute convective mixing for forward runs
   ! for backward runs it is done before next windfield is read in
@@ -442,11 +400,11 @@ subroutine timemanager
   ! LB, openmp following CTM version
 !$OMP PARALLEL PRIVATE(prob_rec,inage,nage,itage,ks,kp,thread,j,i,xmassfract)
 
-#if (defined _OPENMP)
+
     thread = OMP_GET_THREAD_NUM() ! Starts with 0
-#else
-    thread = 0
-#endif
+
+
+
 
 !$OMP DO SCHEDULE(dynamic,max(1,numpart/1000))
 ! SCHEDULE(dynamic, max(1,numpart/1000))
@@ -471,9 +429,9 @@ subroutine timemanager
   ! Initialize newly released particle
   !***********************************
       if ((part(j)%tstart.eq.itime).or.(itime.eq.0)) then
-#ifdef ETA
-        call update_zeta_to_z(itime, j)
-#endif
+
+
+
         call init_particle(itime,j,thread)
       endif
 
@@ -482,9 +440,9 @@ subroutine timemanager
       part(j)%xlon_prev=part(j)%xlon
       part(j)%ylat_prev=part(j)%ylat
       part(j)%z_prev=part(j)%z
-#ifdef ETA
-      part(j)%zeta_prev=part(j)%zeta
-#endif
+
+
+
 
   ! RECEPTOR: dry/wet depovel
   !****************************
@@ -495,9 +453,9 @@ subroutine timemanager
       if  (DRYBKDEP) then
         do ks=1,nspec
           if  ((xscav_frac1(j,ks).lt.0)) then
-#ifdef ETA
-            call update_zeta_to_z(itime,j)
-#endif
+
+
+
             call get_vdep_prob(itime,real(part(j)%xlon),real(part(j)%ylat), &
               real(part(j)%z),prob_rec,thread+1)
             if (DRYDEPSPEC(ks)) then        ! dry deposition
@@ -526,9 +484,9 @@ subroutine timemanager
 !$OMP END DO
 !$OMP END PARALLEL
 
-#ifdef _OPENMP
+
   call omp_set_num_threads(numthreads_grid)
-#endif
+
 
   ! Terminating particles flagged in advance call
   iterminate=0
@@ -545,11 +503,11 @@ subroutine timemanager
 
 !num_threads(numthreads_grid)
 
-#if (defined _OPENMP)
+
     thread = OMP_GET_THREAD_NUM() ! Starts with 0
-#else
-    thread = 0
-#endif
+
+
+
   if (DRYDEP) then
     allocate( drytmp(maxspec),stat=stat )
     if (stat.ne.0) write(*,*)'ERROR: could not allocate drytmp inside of OMP loop'
@@ -660,13 +618,13 @@ subroutine timemanager
 
   endif !(DRYDEP.or.WETDEP.or.LDECAY.or.(lagespectra.eq.1))
 
-#ifdef _OPENMP
+
   call omp_set_num_threads(numthreads)
-#endif
+
   ! OpenMP Reduction for dynamically allocated arrays. This is done manually since this
   ! is not yet supported in most OpenMP versions
   !************************************************************************************
-#ifdef _OPENMP
+
     if (iflux.eq.1) then
       do i=1,numthreads
         flux(:,:,:,:,:,:,:)=flux(:,:,:,:,:,:,:)+flux_omp(:,:,:,:,:,:,:,i)
@@ -691,7 +649,7 @@ subroutine timemanager
         end do
       endif
     endif
-#endif
+
   ! write(*,*) 'DRYGRIDUNC:',sum(drygridunc),drygridunc(20,270,1,1,1,1),drygridunc(19,269,1,1,1,1)
   ! Counter of "unstable" particle velocity during a time scale of
   ! maximumtl=20 minutes (defined in com_mod)
@@ -718,14 +676,14 @@ subroutine timemanager
     ! Output totals
     !**************
 
-#ifdef USE_NCF
+
     if ((mdomainfill.eq.1).and.(llcmoutput)) then
       do ks=1,nspec
         tot_mass(ks)=sum(real(mass(1:count%alive,ks),kind=dp))
       end do
       call totals_write(itime)
     endif
-#endif
+
 
   end do
 
@@ -736,11 +694,11 @@ subroutine timemanager
   ! Output residual emissions
   !**************************
 
-#ifdef USE_NCF
+
   if (LEMIS.and.(ipout.eq.2)) then
     call em_res_write
   endif
-#endif
+
 
   ! De-allocate memory and end
   !***************************
@@ -761,12 +719,12 @@ subroutine timemanager
   deallocate(reaccconst,reacdconst,reacnconst)
   deallocate(emis_path,emis_file,emis_name,emis_unit,emis_coeff)
   if (lnetcdfout.eq.1) then
-#ifdef USE_NCF
+
     call dealloc_netcdf
     if (LEMIS) then
       deallocate(em_field,em_res,em_area,mass_field)
     endif
-#endif 
+
   else
     inquire(unit=unitoutrecept, opened=itsopen)
     if (itsopen) close(unitoutrecept)
@@ -785,23 +743,23 @@ subroutine timemanager
     deallocate(oroout, area, volume)
     deallocate(gridunc)
     deallocate(gridcnt)
-#ifdef _OPENMP
+
     deallocate(gridunc_omp)
     deallocate(gridcnt_omp)
-#endif
+
     if (ldirect.gt.0) then
       deallocate(drygridunc,wetgridunc)
-#ifdef _OPENMP
+
       deallocate(drygridunc_omp,wetgridunc_omp)
-#endif
+
     endif
     if (nested_output.eq.1) then
       deallocate(orooutn, arean, volumen)
       if (ldirect.gt.0) then
         deallocate(griduncn,drygriduncn,wetgriduncn)
-#ifdef _OPENMP
+
         deallocate(griduncn_omp,drygriduncn_omp,wetgriduncn_omp)
-#endif
+
       endif
     endif
   endif

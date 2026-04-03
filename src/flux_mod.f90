@@ -55,9 +55,9 @@ subroutine calcfluxes(itime,nage,jpart,xold,yold,zold,thread)
   !*****************************************************************************
   
   use particle_mod
-#ifdef ETA
-  use coord_ecmwf_mod
-#endif
+
+
+
 
   implicit none
   integer, intent(in) :: thread ! for OMP, number of thread
@@ -75,9 +75,9 @@ subroutine calcfluxes(itime,nage,jpart,xold,yold,zold,thread)
      kp=1
   endif
 
-#ifdef ETA
-  call update_zeta_to_z(itime,jpart)
-#endif
+
+
+
   xmean=(xold+real(part(jpart)%xlon))*0.5
   ymean=(yold+real(part(jpart)%ylat))*0.5
 
@@ -105,26 +105,26 @@ subroutine calcfluxes(itime,nage,jpart,xold,yold,zold,thread)
 
     do k=1,nspec
       do kz=k1,k2-1
-#ifdef _OPENMP
+
         flux_omp(5,ixave,jyave,kz,k,kp,nage,thread)= &
              flux_omp(5,ixave,jyave,kz,k,kp,nage,thread)+ &
              mass(jpart,k)
-#else
-        flux(5,ixave,jyave,kz,k,kp,nage)= &
-             flux(5,ixave,jyave,kz,k,kp,nage)+ &
-             mass(jpart,k)
-#endif
+
+
+
+
+
       end do
       do kz=k2,k1-1
-#ifdef _OPENMP
+
         flux_omp(6,ixave,jyave,kz,k,kp,nage,thread)= &
              flux_omp(6,ixave,jyave,kz,k,kp,nage,thread)+ &
              mass(jpart,k)
-#else
-        flux(6,ixave,jyave,kz,k,kp,nage)= &
-             flux(6,ixave,jyave,kz,k,kp,nage)+ &
-             mass(jpart,k)
-#endif
+
+
+
+
+
       end do
     end do
   endif
@@ -144,28 +144,28 @@ subroutine calcfluxes(itime,nage,jpart,xold,yold,zold,thread)
       do k=1,nspec
         do ix=ix1,ix2-1
           if ((ix.ge.0).and.(ix.le.numxgrid-1)) then
-#ifdef _OPENMP
+
             flux_omp(1,ix,jyave,kzave,k,kp,nage,thread)= &
                  flux_omp(1,ix,jyave,kzave,k,kp,nage,thread) &
                  +mass(jpart,k)
-#else
-            flux(1,ix,jyave,kzave,k,kp,nage)= &
-                 flux(1,ix,jyave,kzave,k,kp,nage) &
-                 +mass(jpart,k)
-#endif
+
+
+
+
+
           endif
         end do
         do ix=ix2,ix1-1
           if ((ix.ge.0).and.(ix.le.numxgrid-1)) then
-#ifdef _OPENMP
+
             flux_omp(2,ix,jyave,kzave,k,kp,nage,thread)= &
                  flux_omp(2,ix,jyave,kzave,k,kp,nage,thread) &
                  +mass(jpart,k)
-#else
-            flux(2,ix,jyave,kzave,k,kp,nage)= &
-                 flux(2,ix,jyave,kzave,k,kp,nage) &
-                 +mass(jpart,k)
-#endif
+
+
+
+
+
           endif
         end do
       end do
@@ -179,27 +179,27 @@ subroutine calcfluxes(itime,nage,jpart,xold,yold,zold,thread)
       if ((ixs.ge.0).and.(ixs.le.numxgrid-1)) then
         if (xold.gt.part(jpart)%xlon) then       ! west-east flux
           do k=1,nspec
-#ifdef _OPENMP
+
             flux_omp(1,ixs,jyave,kzave,k,kp,nage,thread)= &
                  flux_omp(1,ixs,jyave,kzave,k,kp,nage,thread) &
                  +mass(jpart,k)
-#else
-            flux(1,ixs,jyave,kzave,k,kp,nage)= &
-                 flux(1,ixs,jyave,kzave,k,kp,nage) &
-                 +mass(jpart,k)
-#endif
+
+
+
+
+
           end do
         else                                 ! east-west flux
           do k=1,nspec
-#ifdef _OPENMP
+
             flux_omp(2,ixs,jyave,kzave,k,kp,nage,thread)= &
                  flux_omp(2,ixs,jyave,kzave,k,kp,nage,thread) &
                  +mass(jpart,k)
-#else
-            flux(2,ixs,jyave,kzave,k,kp,nage)= &
-                 flux(2,ixs,jyave,kzave,k,kp,nage) &
-                 +mass(jpart,k)
-#endif
+
+
+
+
+
           end do
         endif
       endif
@@ -218,28 +218,28 @@ subroutine calcfluxes(itime,nage,jpart,xold,yold,zold,thread)
     do k=1,nspec
       do jy=jy1,jy2-1
         if ((jy.ge.0).and.(jy.le.numygrid-1)) then
-#ifdef _OPENMP
+
           flux_omp(3,ixave,jy,kzave,k,kp,nage,thread)= &
                flux_omp(3,ixave,jy,kzave,k,kp,nage,thread) &
                +mass(jpart,k)
-#else
-          flux(3,ixave,jy,kzave,k,kp,nage)= &
-               flux(3,ixave,jy,kzave,k,kp,nage) &
-               +mass(jpart,k)
-#endif
+
+
+
+
+
         endif
       end do
       do jy=jy2,jy1-1
         if ((jy.ge.0).and.(jy.le.numygrid-1)) then
-#ifdef _OPENMP
+
           flux_omp(4,ixave,jy,kzave,k,kp,nage,thread)= &
                flux_omp(4,ixave,jy,kzave,k,kp,nage,thread) &
                +mass(jpart,k)
-#else
-          flux(4,ixave,jy,kzave,k,kp,nage)= &
-               flux(4,ixave,jy,kzave,k,kp,nage) &
-               +mass(jpart,k)
-#endif
+
+
+
+
+
         endif
       end do
     end do
@@ -535,9 +535,9 @@ subroutine fluxoutput(itime)
             do nage=1,nageclass
               do i=1,6
                 flux(i,ix,jy,kz,k,kp,nage)=0.
-#ifdef _OPENMP
+
                 flux_omp(i,ix,jy,kz,k,kp,nage,:)=0.
-#endif
+
               end do
             end do
           end do

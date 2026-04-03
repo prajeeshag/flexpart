@@ -66,11 +66,11 @@ subroutine alloc_grid
     allocate(flux(6,0:numxgrid-1,0:numygrid-1,numzgrid, &
          1:nspec,1:maxpointspec_act,1:nageclass),stat=stat)
     if (stat.ne.0) error stop 'ERROR: could not allocate flux array '
-#ifdef _OPENMP
+
     allocate(flux_omp(6,0:numxgrid-1,0:numygrid-1,numzgrid, &
          1:nspec,1:maxpointspec_act,1:nageclass,numthreads))
     if (stat.ne.0) error stop 'ERROR: could not allocate flux_omp array '
-#endif
+
   endif
 
   !write (*,*) 'Dimensions for fields', numxgrid,numygrid, &
@@ -133,11 +133,11 @@ subroutine alloc_grid
     allocate(init_cond(0:numxgrid-1,0:numygrid-1,numzgrid,maxspec, &
          maxpointspec_act),stat=stat)
     if (stat.ne.0) error stop 'ERROR: could not allocate init_cond'
-#ifdef _OPENMP
+
     allocate(init_cond_omp(0:numxgrid-1,0:numygrid-1,numzgrid,maxspec, &
          maxpointspec_act,numthreads),stat=stat)
     if (stat.ne.0) error stop 'ERROR: could not allocate init_cond_omp'
-#endif
+
   endif
 end subroutine alloc_grid
 
@@ -326,17 +326,17 @@ subroutine outgrid_init
   if (iflux.eq.1) then
     do i=1,5
       if ((ipin.ne.1).and.(ipin.ne.4)) flux(i,:,:,:,:,:,:)=0.
-#ifdef _OPENMP
+
       flux_omp(i,:,:,:,:,:,:,:)=0.
-#endif
+
     end do
   endif
   ! Initial condition field
   if ((nage.eq.1).and.(linit_cond.gt.0)) then
     if ((ipin.ne.1).and.(ipin.ne.4)) init_cond(:,:,:,:,:)=0.
-#ifdef _OPENMP
+
     init_cond_omp(:,:,:,:,:,:)=0.
-#endif
+
   endif
   ! Deposition fields
   if (ldirect.gt.0) then
@@ -344,19 +344,19 @@ subroutine outgrid_init
       wetgridunc(:,:,:,:,:,:)=0.
       drygridunc(:,:,:,:,:,:)=0.
     endif
-#ifdef _OPENMP
+
     wetgridunc_omp(:,:,:,:,:,:,:)=0.
     drygridunc_omp(:,:,:,:,:,:,:)=0.
-#endif
+
   endif
   ! Concentration fields
   if ((ipin.ne.1).and.(ipin.ne.4)) gridunc(:,:,:,:,:,:,:)=0.
   ! Weighting for LCM output
   gridcnt(:,:,:)=0.
-#ifdef _OPENMP
+
   gridunc_omp(:,:,:,:,:,:,:,:)=0.
   gridcnt_omp(:,:,:,:)=0.
-#endif
+
 
 end subroutine outgrid_init
 
@@ -539,10 +539,10 @@ subroutine outgrid_init_nest
               if (ldirect.gt.0) then
                 wetgriduncn(ix,jy,ks,kp,l,nage)=0.
                 drygriduncn(ix,jy,ks,kp,l,nage)=0.
-#ifdef _OPENMP
+
                 wetgriduncn_omp(ix,jy,ks,kp,l,nage,:)=0.
                 drygriduncn_omp(ix,jy,ks,kp,l,nage,:)=0.
-#endif
+
               endif
   ! Concentration fields
               do kz=1,numzgrid
@@ -571,9 +571,9 @@ subroutine initcond_calc(itime,i,thread)
   !*****************************************************************************
 
   use interpol_mod, only: interpol_density,ix,jy,ixp,jyp
-#ifdef ETA
-  use coord_ecmwf_mod
-#endif
+
+
+
   use particle_mod
 
   implicit none
@@ -596,9 +596,9 @@ subroutine initcond_calc(itime,i,thread)
 
 
   if (linit_cond.eq.1) then     ! mass unit
-#ifdef ETA
-    call update_zeta_to_z(itime,i)
-#endif
+
+
+
     call interpol_density(itime,i,rhoi)
   elseif (linit_cond.eq.2) then    ! mass mixing ratio unit
     rhoi=1.
@@ -645,15 +645,15 @@ subroutine initcond_calc(itime,i,thread)
       if ((ix.ge.0).and.(jy.ge.0).and.(ix.le.numxgrid-1).and. &
            (jy.le.numygrid-1)) then
         do ks=1,nspec
-#ifdef _OPENMP
+
           init_cond_omp(ix,jy,kz,ks,nrelpointer,thread)= &
                init_cond_omp(ix,jy,kz,ks,nrelpointer,thread)+ &
                mass(i,ks)/rhoi
-#else
-          init_cond(ix,jy,kz,ks,nrelpointer)= &
-               init_cond(ix,jy,kz,ks,nrelpointer)+ &
-               mass(i,ks)/rhoi
-#endif
+
+
+
+
+
         end do
       endif
 
@@ -685,28 +685,28 @@ subroutine initcond_calc(itime,i,thread)
         if ((jy.ge.0).and.(jy.le.numygrid-1)) then
           w=wx*wy
           do ks=1,nspec
-#ifdef _OPENMP
+
             init_cond_omp(ix,jy,kz,ks,nrelpointer,thread)= &
                  init_cond_omp(ix,jy,kz,ks,nrelpointer,thread) + &
                  mass(i,ks)/rhoi*w
-#else
-            init_cond(ix,jy,kz,ks,nrelpointer)= &
-                 init_cond(ix,jy,kz,ks,nrelpointer)+mass(i,ks)/rhoi*w
-#endif
+
+
+
+
           end do
         endif
 
         if ((jyp.ge.0).and.(jyp.le.numygrid-1)) then
           w=wx*(1.-wy)
           do ks=1,nspec
-#ifdef _OPENMP
+
             init_cond_omp(ix,jyp,kz,ks,nrelpointer,thread)= &
                  init_cond_omp(ix,jyp,kz,ks,nrelpointer,thread) + &
                  mass(i,ks)/rhoi*w
-#else
-            init_cond(ix,jyp,kz,ks,nrelpointer)= &
-                 init_cond(ix,jyp,kz,ks,nrelpointer)+mass(i,ks)/rhoi*w
-#endif
+
+
+
+
           end do
         endif
       endif
@@ -716,28 +716,28 @@ subroutine initcond_calc(itime,i,thread)
         if ((jyp.ge.0).and.(jyp.le.numygrid-1)) then
           w=(1.-wx)*(1.-wy)
           do ks=1,nspec
-#ifdef _OPENMP
+
             init_cond_omp(ixp,jyp,kz,ks,nrelpointer,thread)= &
                  init_cond_omp(ixp,jyp,kz,ks,nrelpointer,thread) + &
                  mass(i,ks)/rhoi*w
-#else
-            init_cond(ixp,jyp,kz,ks,nrelpointer)= &
-                 init_cond(ixp,jyp,kz,ks,nrelpointer)+mass(i,ks)/rhoi*w
-#endif
+
+
+
+
           end do
         endif
 
         if ((jy.ge.0).and.(jy.le.numygrid-1)) then
           w=(1.-wx)*wy
           do ks=1,nspec
-#ifdef _OPENMP
+
             init_cond_omp(ixp,jy,kz,ks,nrelpointer,thread)= &
                  init_cond_omp(ixp,jy,kz,ks,nrelpointer,thread) + &
                  mass(i,ks)/rhoi*w
-#else
-            init_cond(ixp,jy,kz,ks,nrelpointer)= &
-                 init_cond(ixp,jy,kz,ks,nrelpointer)+mass(i,ks)/rhoi*w
-#endif
+
+
+
+
           end do
         endif
       endif

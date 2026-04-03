@@ -473,9 +473,9 @@ module initdomain_mod
     use random_mod
     use outgrid_mod
     use particle_mod
-#ifdef ETA
-    use coord_ecmwf_mod
-#endif
+
+
+
     use initialise_mod, only: nx_we,ny_sn,numcolumn,numcolumn_we,numcolumn_sn, &
                               zcolumn_we,zcolumn_sn,acc_mass_we,acc_mass_sn, &
                               xmassperparticle,alloc_domainfill
@@ -791,9 +791,9 @@ module initdomain_mod
                 call set_z(numpart+jj,hgt_tmp)
                 if (real(part(numpart+jj)%z).gt.(height(nz)-0.5)) &
                      call set_z(numpart+jj,height(nz)-0.5)
-#ifdef ETA
-                call update_z_to_zeta(0, numpart+jj)
-#endif
+
+
+
                 ! Interpolate PV to the particle position
                 !****************************************
                 ixm=int(part(numpart+jj)%xlon)

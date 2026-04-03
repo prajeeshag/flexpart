@@ -55,9 +55,9 @@ subroutine wetdepo(itime,ltsample,loutnext)
   ! Constants:                                                                 *
   !                                                                            *
   !*****************************************************************************
-#ifdef _OPENMP
+
   use omp_lib
-#endif
+
   use unc_mod
 
   implicit none
@@ -81,18 +81,18 @@ subroutine wetdepo(itime,ltsample,loutnext)
   ! Loop over all particles
   !************************
 
-#ifdef _OPENMP
+
   call omp_set_num_threads(numthreads_grid)
-#endif
+
 
 !$OMP PARALLEL PRIVATE(jpart,itage,nage,inage,ks,kp,thread,wetscav,wettmp, &
 !$OMP restmass, gridfract)
 
-#if (defined _OPENMP)
+
     thread = OMP_GET_THREAD_NUM() ! Starts with 0
-#else
-    thread = 0
-#endif
+
+
+
 
   allocate( wettmp(nspec),stat=stat)
   if (stat.ne.0) write(*,*)'ERROR: could not allocate wettmp inside of OMP loop'
@@ -180,11 +180,11 @@ subroutine wetdepo(itime,ltsample,loutnext)
   deallocate(wettmp)
 !$OMP END PARALLEL
 
-#ifdef _OPENMP
-  call omp_set_num_threads(numthreads)
-#endif
 
-#ifdef _OPENMP
+  call omp_set_num_threads(numthreads)
+
+
+
     if ((ldirect.eq.1).and.(iout.ne.0)) then
       do ithread=1,numthreads_grid
         wetgridunc(:,:,:,:,:,:)=wetgridunc(:,:,:,:,:,:)+gridunc_omp(:,:,1,:,:,:,:,ithread)
@@ -197,7 +197,7 @@ subroutine wetdepo(itime,ltsample,loutnext)
         end do
       endif
     endif
-#endif
+
 
 end subroutine wetdepo
 
@@ -255,9 +255,9 @@ subroutine get_wetscav(itime,jpart,ks,gridfract,wetscav)
 
   use interpol_mod
   use windfields_mod
-#ifdef ETA
-  use coord_ecmwf_mod
-#endif
+
+
+
 
   implicit none
 
@@ -314,14 +314,14 @@ subroutine get_wetscav(itime,jpart,ks,gridfract,wetscav)
   call find_grid_indices(xts,yts)
   call find_grid_distances(xts,yts)
   
-#ifdef ETA
-  call update_zeta_to_z(itime,jpart)
-  call find_z_level_eta_uv(real(part(jpart)%zeta))
-  kz=induv
-#else
+
+
+
+
+
   call find_z_level_meters(real(part(jpart)%z))
   kz=indz
-#endif
+
   
   ! Interpolate cloud information
   call interpol_rain(itime,kz,lsp,convp,cc,t_particle,cl,icbot,ictop,icmv)
@@ -353,13 +353,13 @@ subroutine get_wetscav(itime,jpart,ks,gridfract,wetscav)
   ! PS: part of 2011/2012 fix 
   ! NOTE this is just for z coordinate
   ! Reverse sign for eta
-#ifdef ETA
-  if   (part(jpart)%zeta .gt. real(ictop)/eta_convert) then
-    if (part(jpart)%zeta .le. real(icbot)/eta_convert) then
-#else
+
+
+
+
   if   (part(jpart)%z .le. real(ictop)) then
     if (part(jpart)%z .gt. real(icbot)) then
-#endif
+
       indcloud = 2 ! in-cloud
     else
       indcloud = 1 ! below-cloud
@@ -829,13 +829,13 @@ subroutine wetdepokernel(nunc,deposit,x,y,nage,kp,thread)
     do ks=1,nspec
       if ((ix.ge.0).and.(jy.ge.0).and.(ix.le.numxgrid-1).and. &
            (jy.le.numygrid-1)) then
-#ifdef _OPENMP
+
         gridunc_omp(ix,jy,1,ks,kp,nunc,nage,thread)= &
              gridunc_omp(ix,jy,1,ks,kp,nunc,nage,thread)+deposit(ks)
-#else
-        wetgridunc(ix,jy,ks,kp,nunc,nage)= &
-             wetgridunc(ix,jy,ks,kp,nunc,nage)+deposit(ks)
-#endif
+
+
+
+
       end if
     end do
   else ! use kernel 
@@ -848,49 +848,49 @@ subroutine wetdepokernel(nunc,deposit,x,y,nage,kp,thread)
     if ((ix.ge.0).and.(jy.ge.0).and.(ix.le.numxgrid-1).and. &
        (jy.le.numygrid-1)) then
       w=wx*wy
-#ifdef _OPENMP
+
       gridunc_omp(ix,jy,1,ks,kp,nunc,nage,thread)= &
            gridunc_omp(ix,jy,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-      wetgridunc(ix,jy,ks,kp,nunc,nage)= &
-           wetgridunc(ix,jy,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
     endif
 
     if ((ixp.ge.0).and.(jyp.ge.0).and.(ixp.le.numxgrid-1).and. &
        (jyp.le.numygrid-1)) then
       w=(1.-wx)*(1.-wy)
-#ifdef _OPENMP
+
       gridunc_omp(ixp,jyp,1,ks,kp,nunc,nage,thread)= &
            gridunc_omp(ixp,jyp,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-      wetgridunc(ixp,jyp,ks,kp,nunc,nage)= &
-           wetgridunc(ixp,jyp,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
     endif
 
     if ((ixp.ge.0).and.(jy.ge.0).and.(ixp.le.numxgrid-1).and. &
        (jy.le.numygrid-1)) then
       w=(1.-wx)*wy
-#ifdef _OPENMP
+
       gridunc_omp(ixp,jy,1,ks,kp,nunc,nage,thread)= &
            gridunc_omp(ixp,jy,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-      wetgridunc(ixp,jy,ks,kp,nunc,nage)= &
-           wetgridunc(ixp,jy,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
     endif
 
     if ((ix.ge.0).and.(jyp.ge.0).and.(ix.le.numxgrid-1).and. &
        (jyp.le.numygrid-1)) then
       w=wx*(1.-wy)
-#ifdef _OPENMP
+
       gridunc_omp(ix,jyp,1,ks,kp,nunc,nage,thread)= &
            gridunc_omp(ix,jyp,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-      wetgridunc(ix,jyp,ks,kp,nunc,nage)= &
-           wetgridunc(ix,jyp,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
     endif
 
   end do
@@ -973,49 +973,49 @@ subroutine wetdepokernel_nest(nunc,deposit,x,y,nage,kp,thread)
     if ((ix.ge.0).and.(jy.ge.0).and.(ix.le.numxgridn-1).and. &
          (jy.le.numygridn-1)) then
       w=wx*wy
-#ifdef _OPENMP
+
       griduncn_omp(ix,jy,1,ks,kp,nunc,nage,thread)= &
            griduncn_omp(ix,jy,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-      wetgriduncn(ix,jy,ks,kp,nunc,nage)= &
-           wetgriduncn(ix,jy,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
     endif
 
     if ((ixp.ge.0).and.(jyp.ge.0).and.(ixp.le.numxgridn-1).and. &
          (jyp.le.numygridn-1)) then
       w=(1.-wx)*(1.-wy)
-#ifdef _OPENMP
+
       griduncn_omp(ixp,jyp,1,ks,kp,nunc,nage,thread)= &
            griduncn_omp(ixp,jyp,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-      wetgriduncn(ixp,jyp,ks,kp,nunc,nage)= &
-           wetgriduncn(ixp,jyp,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
     endif
 
     if ((ixp.ge.0).and.(jy.ge.0).and.(ixp.le.numxgridn-1).and. &
          (jy.le.numygridn-1)) then
       w=(1.-wx)*wy
-#ifdef _OPENMP
+
       griduncn_omp(ixp,jy,1,ks,kp,nunc,nage,thread)= &
            griduncn_omp(ixp,jy,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-      wetgriduncn(ixp,jy,ks,kp,nunc,nage)= &
-           wetgriduncn(ixp,jy,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
     endif
 
     if ((ix.ge.0).and.(jyp.ge.0).and.(ix.le.numxgridn-1).and. &
          (jyp.le.numygridn-1)) then
       w=wx*(1.-wy)
-#ifdef _OPENMP
+
       griduncn_omp(ix,jyp,1,ks,kp,nunc,nage,thread)= &
            griduncn_omp(ix,jyp,1,ks,kp,nunc,nage,thread)+deposit(ks)*w
-#else
-      wetgriduncn(ix,jyp,ks,kp,nunc,nage)= &
-           wetgriduncn(ix,jyp,ks,kp,nunc,nage)+deposit(ks)*w
-#endif
+
+
+
+
     endif
 
   end do

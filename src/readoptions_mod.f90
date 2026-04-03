@@ -762,7 +762,7 @@ subroutine readcommand
     endif
   endif
 
-! #ifndef USE_NCF
+! #ifndef 1
 !   if ((loutrestart.ne.-1).or.(ipin.ne.0)) then
 !     write(*,*) ' WARNING: restart option set with intervals'
 !     write(*,*) ' LOUTRESTART', loutrestart
@@ -801,20 +801,12 @@ subroutine readcommand
     iout = iout -8
   endif
   if (lnetcdfout.eq.1) then
-#ifndef USE_NCF
-    write(*,*) 'WARNING: netcdf output not activated during compile time &
-      &but switched on in COMMAND or set to default value 1.'
-    write(*,*) 'Please recompile with netcdf library (`make [...] ncf=yes`) &
-      &when requiring NetCDF output.'
-    write(*,*) 'LNETCDFOUT set to 0.'
-    lnetcdfout = 0
-#endif
   else
-#ifdef USE_NCF
+
     write(*,*) 'WARNING: Executable compiled using NetCDF libraries, but &
       &BINARY output is requested. If this was unintended, please add 8 &
       &to IOUT or set LOUTNETCDF=1 in the COMMAND file.'
-#endif
+
   endif
 
   if ((lnetcdfout.eq.1).and.((sfc_only.eq.1).or.(linversionout.eq.1))) then
@@ -823,13 +815,13 @@ subroutine readcommand
     lnetcdfout=0
   endif
 
-#ifndef USE_NCF
-  if (ipout.ne.0) then
-    write(*,*) 'ERROR: NETCDF missing! Please recompile with the netcdf'
-    write(*,*) 'library if you want the particle dump or set IPOUT=0.'
-    error stop 'FLEXPART not compiled with NetCDF'
-  endif
-#endif
+
+
+
+
+
+
+
 
   ! Check whether RECEPTOR commands are given, otherwise give them default values
   !******************************************************************************

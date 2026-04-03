@@ -1193,10 +1193,10 @@ subroutine concoutput_netcdf(itime,outnum,gridtotalunc,wetgridtotalunc,drygridto
   !*************************
   gridunc(:,:,:,1:nspec,:,:,1:nageclass) = 0.  
   gridcnt(:,:,:) = 0.
-#ifdef _OPENMP
+
   gridunc_omp(:,:,:,:,:,:,:,:) = 0.  
   gridcnt_omp(:,:,:,:) = 0.
-#endif
+
 
 end subroutine concoutput_netcdf
 

@@ -825,10 +825,10 @@ module receptor_netcdf_mod
       print*, 'readreceptors_satellite: allocating satellite variables'
       call alloc_satellite
       if (lnetcdfout.eq.1) then
-#ifdef USE_NCF
+
         print*, 'readreceptors_satellite: initialising output file'
         call satelliteout_init
-#endif
+
       else
         print*, 'readreceptors_satellite: initialising binary output file'
         call satelliteout_init_binary

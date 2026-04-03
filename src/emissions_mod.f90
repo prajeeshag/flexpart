@@ -96,14 +96,14 @@ module emissions_mod
 
     mass_field(:,:,:) = 0.
     allocate( em_neg(nspec-1,nxem,nyem) )
-#if _OPENMP
+
     allocate( mass_field_tmp(nspec,nxem,nyem,numthreads))
     allocate( em_neg_tmp(nspec-1,nxem,nyem,numthreads))
     allocate( tot_em_up_tmp(nspec,numthreads) )
     mass_field_tmp(:,:,:,:) = 0.
     em_neg_tmp(:,:,:,:) = 0.
     tot_em_up_tmp(:,:) = 0.
-#endif
+
     tot_em_up(:) = 0.
     mass_field(:,:,:) = 0.
     em_neg(:,:,:) = 0.
@@ -112,11 +112,11 @@ module emissions_mod
 !$OMP PRIVATE(ii,xlon,ylat,em_ix,em_jy,ix,jy,ixp,jyp,ddx,ddy, &
 !$OMP rddx,rddy,p1,p2,p3,p4,mm,hm,hmixi,ks,ithread) 
 
-#ifdef _OPENMP
+
     ithread = OMP_GET_THREAD_NUM()+1 ! Starts with 1
-#else
-    ithread = 1
-#endif
+
+
+
 
 !$OMP DO 
     do ii=1,count%alive  ! loop over all particles
@@ -159,26 +159,26 @@ module emissions_mod
       em_cond(ii) = part(ii)%z.le.hmixi
 
       if (em_cond(ii)) then
-#ifdef _OPENMP
+
         mass_field_tmp(1:nspec,em_ix,em_jy,ithread)= &
               mass_field_tmp(1:nspec,em_ix,em_jy,ithread) + &
               mass(ii,1:nspec)
-#else
-        mass_field(1:nspec,em_ix,em_jy)=mass_field(1:nspec,em_ix,em_jy) + &
-                                        mass(ii,1:nspec)
-#endif
+
+
+
+
       endif
 
     end do   ! end of particle loop
 !$OMP END DO
 !$OMP END PARALLEL
 
-#ifdef _OPENMP
+
     ! manual reduction of mass_field
     do ithread=1,numthreads
       mass_field(:,:,:) = mass_field(:,:,:)+mass_field_tmp(:,:,:,ithread)
     end do
-#endif
+
 
     f_m = exp(-1.*real(lsynctime)/tau_ipm)
 
@@ -189,11 +189,11 @@ module emissions_mod
 !$OMP PRIVATE(ii,xlon,ylat,em_ix,em_jy, &
 !$OMP ks,em_cur,tmp,ithread) 
 
-#ifdef _OPENMP
+
     ithread = OMP_GET_THREAD_NUM()+1 ! Starts with 1
-#else
-    ithread = 1
-#endif
+
+
+
 
 !$OMP DO
     do ii=1,count%alive ! loop over particles
@@ -227,35 +227,35 @@ module emissions_mod
           if (-1.*tmp.gt.mass(ii,ks)) then
             tmp = tmp + mass(ii,ks)
             ! subtract mass from atmosphere by setting it to zero below
-#ifdef _OPENMP
+
             tot_em_up_tmp(ks,ithread) = tot_em_up_tmp(ks,ithread) - real(mass(ii,ks),kind=dp)
-#else
-            tot_em_up(ks) = tot_em_up(ks) - real(mass(ii,ks),kind=dp)
-#endif
+
+
+
             mass(ii,ks) = 0.
             ! add remaining uptake to em_neg 
-#ifdef _OPENMP
+
             em_neg_tmp(ks-1,em_ix,em_jy,ithread) = em_neg_tmp(ks-1,em_ix,em_jy,ithread) + &
               tmp/mass(ii,1)*mass_field(1,em_ix,em_jy)
-#else
-            em_neg(ks-1, em_ix, em_jy) = em_neg(ks-1, em_ix, em_jy) + &
-              tmp/mass(ii,1)*mass_field(1,em_ix,em_jy)
-#endif
+
+
+
+
           else
             mass(ii,ks)=mass(ii,ks)+tmp
-#ifdef _OPENMP
+
             tot_em_up_tmp(ks,ithread) = tot_em_up_tmp(ks,ithread) + real(tmp,kind=dp)
-#else
-            tot_em_up(ks) = tot_em_up(ks) + real(tmp,kind=dp)
-#endif
+
+
+
           endif
         else
           mass(ii,ks)=mass(ii,ks)+tmp
-#ifdef _OPENMP
+
           tot_em_up_tmp(ks,ithread) = tot_em_up_tmp(ks,ithread) + real(tmp,kind=dp)
-#else
-          tot_em_up(ks) = tot_em_up(ks) + real(tmp,kind=dp)
-#endif
+
+
+
         endif ! negative emissions
 
       end do ! nspec
@@ -286,13 +286,13 @@ module emissions_mod
 !$OMP END PARALLEL
 
     ! manual reduction of em_neg and tot_em_up
-#ifdef _OPENMP
+
     do ithread=1,numthreads
       em_neg(:,:,:) = em_neg(:,:,:)+em_neg_tmp(:,:,:,ithread)
       tot_em_up(:) = tot_em_up(:) + tot_em_up_tmp(:,ithread)
     end do
     deallocate( mass_field_tmp, em_neg_tmp, tot_em_up_tmp )
-#endif
+
 
     ! update for negative emissions
     em_res(:,:,:) = em_res(:,:,:)+em_neg(:,:,:)

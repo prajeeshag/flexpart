@@ -16,7 +16,7 @@ module receptor_mod
   use particle_mod
   use date_mod
   use windfields_mod,      only: rho, prs, height, nzmax, nz !, qv
-#if USE_NCF
+
   use receptor_netcdf_mod, only: nc_id, concvar_id, uncvar_id, &
                                 recnamevar_id, timevar_id, &
                                 reclonvar_id, reclatvar_id, recaltvar_id, &
@@ -28,7 +28,7 @@ module receptor_mod
                                 receptor_output_netcdf, write_receptor_netcdf, &
                                 satellite_output_netcdf, write_satellite_netcdf, &
                                 close_receptor_netcdf, close_satellite_netcdf
-#endif
+
   use binary_output_mod,  only: receptorout_init_binary, write_receptor_binary, &
                                 satelliteout_init_binary, write_satellite_binary
 
@@ -157,14 +157,14 @@ module receptor_mod
         !***************************************************
 
         if (lnetcdfout.eq.1) then
-#ifdef USE_NCF
+
           if (numreceptor.gt.0) then
             call receptor_output_netcdf()
           endif
           if (numsatreceptor.gt.0) then
             call satellite_output_netcdf()
           endif
-#endif
+
         endif
 
         !! testing
@@ -175,11 +175,11 @@ module receptor_mod
         ! Initialize variables
         !*********************
 
-#if (defined _OPENMP)
+
         nthreads=OMP_GET_MAX_THREADS()
-#else
-        nthreads=1
-#endif
+
+
+
 
         !! testing
 !        print*, 'receptor_mod: nthread = ',nthreads
@@ -225,11 +225,11 @@ module receptor_mod
 !$OMP PRIVATE(n,k,nn,nr,ix,jy,ixp,jyp,ddx,ddy,rddx,rddy,p1,p2,p3,p4,indz,indzp,il,dz1,dz2,dz, &
 !$OMP         ind,rho_p,rhoi,densityoutrecept,ks,thread) 
 
-#if (defined _OPENMP)
+
         thread=OMP_GET_THREAD_NUM()+1 ! Starts with 1
-#else
-        thread=1
-#endif
+
+
+
 
         nr=0
 !$OMP DO
@@ -381,9 +381,9 @@ module receptor_mod
         ! write receptor output this time interval
         if (nr.gt.0) then
           if (lnetcdfout.eq.1) then
-#if USE_NCF
+
             call write_receptor_netcdf(crec,cunc,nnrec,xkrec,lonrec,latrec,altrec,timerec,namerec,nr)
-#endif
+
           else
             call write_receptor_binary(crec,cunc,nnrec,xkrec,lonrec,latrec,altrec,timerec,namerec,nr)
           endif
@@ -414,11 +414,11 @@ module receptor_mod
 !$OMP PRIVATE(n,nr,nn,nchar,k,ix,jy,ixp,jyp,ddx,ddy,rddx,rddy,p1,p2,p3,p4,kz,numsatlayer,zmid,indz,indzp, &
 !$OMP         il,dz1,dz2,dz,ind,rho_p,rhoi,densityoutrecept,ks,thread)
 
-#if (defined _OPENMP)
+
         thread=OMP_GET_THREAD_NUM()+1 ! Starts with 1
-#else
-        thread=1
-#endif
+
+
+
 
         nr=0
 !$OMP DO
@@ -565,9 +565,9 @@ module receptor_mod
         ! write satellite output this time interval
         if (nr.gt.0) then
           if (lnetcdfout.eq.1) then
-#if USE_NCF
+
             call write_satellite_netcdf(crec,cunc,nnrec,xkrec,lonrec,latrec,altrec,timerec,namesatrec,nr)
-#endif  
+
           else
             call write_satellite_binary(crec,cunc,nnrec,xkrec,lonrec,latrec,altrec,timerec,namesatrec,nr)
           endif
@@ -581,14 +581,14 @@ module receptor_mod
 
         ! close files
         if (lnetcdfout.eq.1) then
-#ifdef USE_NCF
+
           if (numreceptor.gt.0) then
             call close_receptor_netcdf
           endif
           if (numsatreceptor.gt.0) then
             call close_satellite_netcdf
           endif
-#endif
+
         endif
 
         deallocate(densityoutrecept)

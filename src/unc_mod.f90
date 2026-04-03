@@ -15,19 +15,19 @@ module unc_mod
 
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:) :: gridunc
   real(dep_prec),allocatable, dimension (:,:,:)         :: gridcnt
-#ifdef USE_MPIINPLACE
-#else
+
+
   ! If MPI_IN_PLACE option is not used in mpi_mod.f90::mpif_tm_reduce_grid(),
   ! then an aux array is needed for parallel grid reduction
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:) :: gridunc0
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:) :: griduncn0
-#endif
+
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:) :: griduncn
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:) :: drygridunc
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:) :: drygriduncn
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:) :: wetgridunc
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:) :: wetgriduncn
-#ifdef _OPENMP
+
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:,:) :: gridunc_omp
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:,:) :: griduncn_omp
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:) :: drygridunc_omp
@@ -35,7 +35,7 @@ module unc_mod
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:) :: wetgridunc_omp
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:,:) :: wetgriduncn_omp
   real(dep_prec),allocatable, dimension (:,:,:,:)       :: gridcnt_omp
-#endif
+
 ! For sum of individual contributions, used for the MPI version
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:) :: drygridunc0
   real(dep_prec),allocatable, dimension (:,:,:,:,:,:) :: drygriduncn0
@@ -57,7 +57,7 @@ subroutine alloc_grid_unc()
   if (stat.ne.0) write(*,*)'ERROR: could not allocate gridunc'
   allocate(gridcnt(0:numxgrid-1,0:numygrid-1,numzgrid),stat=stat)
   if (stat.ne.0) write(*,*)'ERROR: could not allocate gridcnt'
-#ifdef _OPENMP
+
   allocate(gridunc_omp(0:numxgrid-1,0:numygrid-1,numzgrid,nspec, &
        maxpointspec_act,nclassunc,nageclass,numthreads_grid),stat=stat)
   if (stat.ne.0) then
@@ -71,7 +71,7 @@ subroutine alloc_grid_unc()
     write(*,*)'increase the memory or reduce MAXTHREADGRID in COMMAND.'
     error stop
   endif
-#endif
+
   if (ldirect.gt.0) then
     allocate(wetgridunc(0:numxgrid-1,0:numygrid-1,nspec, &
          maxpointspec_act,nclassunc,nageclass),stat=stat)
@@ -79,18 +79,18 @@ subroutine alloc_grid_unc()
     allocate(drygridunc(0:numxgrid-1,0:numygrid-1,nspec, &
          maxpointspec_act,nclassunc,nageclass),stat=stat)
     if (stat.ne.0) write(*,*)'ERROR: could not allocate drygridunc'
-#ifdef _OPENMP
+
     allocate(wetgridunc_omp(0:numxgrid-1,0:numygrid-1,nspec, &
          maxpointspec_act,nclassunc,nageclass,numthreads_grid),stat=stat)
     if (stat.ne.0) write(*,*)'ERROR: could not allocate wetgridunc_omp'
     allocate(drygridunc_omp(0:numxgrid-1,0:numygrid-1,nspec, &
          maxpointspec_act,nclassunc,nageclass,numthreads_grid),stat=stat)
     if (stat.ne.0) write(*,*)'ERROR: could not allocate drygridunc_omp'
-#endif
+
   endif
 
-#ifdef USE_MPIINPLACE
-#else
+
+
 ! Extra field for totals at MPI root process
   if (lroot.and.mpi_mode.gt.0) then
 ! If MPI_IN_PLACE option is not used in mpi_mod.f90::mpif_tm_reduce_grid(),
@@ -102,7 +102,7 @@ subroutine alloc_grid_unc()
     allocate(gridunc0(1,1,1,1,1,1,1),stat=stat)
     if (stat.ne.0) write(*,*)'ERROR: could not allocate gridunc0'
   end if
-#endif
+
   if (ldirect.gt.0) then
     if (lroot.and.mpi_mode.gt.0) then
       allocate(wetgridunc0(0:numxgrid-1,0:numygrid-1,nspec, &
@@ -137,11 +137,11 @@ subroutine alloc_grid_unc_nest()
   allocate(griduncn(0:numxgridn-1,0:numygridn-1,numzgrid,nspec, &
        maxpointspec_act,nclassunc,nageclass),stat=stat)
   if (stat.ne.0) write(*,*)'ERROR:could not allocate nested gridunc'
-#ifdef _OPENMP
+
   allocate(griduncn_omp(0:numxgridn-1,0:numygridn-1,numzgrid,nspec, &
        maxpointspec_act,nclassunc,nageclass,numthreads_grid),stat=stat)
   if (stat.ne.0) write(*,*)'ERROR:could not allocate nested gridunc_omp'
-#endif
+
 
   if (ldirect.gt.0) then
     allocate(wetgriduncn(0:numxgridn-1,0:numygridn-1,nspec, &
@@ -150,18 +150,18 @@ subroutine alloc_grid_unc_nest()
     allocate(drygriduncn(0:numxgridn-1,0:numygridn-1,nspec, &
          maxpointspec_act,nclassunc,nageclass),stat=stat)
     if (stat.ne.0) write(*,*)'ERROR:could not allocate nested drygridunc'
-#ifdef _OPENMP
+
     allocate(wetgriduncn_omp(0:numxgridn-1,0:numygridn-1,nspec, &
          maxpointspec_act,nclassunc,nageclass,numthreads_grid),stat=stat)
     if (stat.ne.0) write(*,*)'ERROR:could not allocate nested wetgridunc_omp'
     allocate(drygriduncn_omp(0:numxgridn-1,0:numygridn-1,nspec, &
          maxpointspec_act,nclassunc,nageclass,numthreads_grid),stat=stat)
     if (stat.ne.0) write(*,*)'ERROR:could not allocate nested drygriduncn_omp'
-#endif
+
   endif
 
-#ifdef USE_MPIINPLACE
-#else
+
+
   ! Extra field for totals at MPI root process
   if (lroot.and.mpi_mode.gt.0) then
   ! If MPI_IN_PLACE option is not used in mpi_mod.f90::mpif_tm_reduce_grid_nest(),
@@ -173,7 +173,7 @@ subroutine alloc_grid_unc_nest()
   else if (.not.lroot.and.mpi_mode.gt.0) then
     allocate(griduncn0(1,1,1,1,1,1,1),stat=stat)
   end if
-#endif
+
   if (ldirect.gt.0) then
     if (lroot.and.mpi_mode.gt.0) then
       allocate(wetgriduncn0(0:numxgridn-1,0:numygridn-1,nspec, &

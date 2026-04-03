@@ -4059,28 +4059,6 @@ subroutine alloc_windfields
   integer :: stat
   ! Eta coordinates
   !****************
-#ifdef ETA
-  allocate(uueta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate uueta"
-  allocate(vveta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate vveta"
-  allocate(wweta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate wweta"
-  allocate(uupoleta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate uupoleta"
-  allocate(vvpoleta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate vvpoleta"
-  allocate(tteta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate tteta"
-  allocate(pveta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate pveta"
-  allocate(prseta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate prseta"
-  allocate(rhoeta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate rhoeta"
-  allocate(drhodzeta(0:nxmax-1,0:nymax-1,nzmax,numwfmem),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate drhodzeta"
-#endif
   allocate(etauvheight(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem),stat=stat)
   if (stat.ne.0) error stop "Could not allocate etauvheight"
   allocate(etawheight(0:nxmax-1,0:nymax-1,nuvzmax,numwfmem),stat=stat)
@@ -4218,24 +4196,6 @@ subroutine alloc_windfields_nest
   if (stat.ne.0) error stop "Could not allocate ciwcn"
 
   ! ETA equivalents
-#ifdef ETA
-  allocate(uuetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate uuetan"
-  allocate(vvetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate vvetan"
-  allocate(wwetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate wwetan"
-  allocate(ttetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate ttetan"
-  allocate(pvetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate pvetan"
-  allocate(prsetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests) ,stat=stat)
-  if (stat.ne.0) error stop "Could not allocate prsetan"
-  allocate(rhoetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate rhoetan"
-  allocate(drhodzetan(0:nxmaxn-1,0:nymaxn-1,nzmax,numwfmem,numbnests),stat=stat)
-  if (stat.ne.0) error stop "Could not allocate drhodzetan"
-#endif
   allocate(etauvheightn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
   if (stat.ne.0) error stop "Could not allocate etauvheightn"
   allocate(etawheightn(0:nxmaxn-1,0:nymaxn-1,nuvzmax,numwfmem,numbnests),stat=stat)
@@ -4351,10 +4311,10 @@ subroutine dealloc_windfields_nest
   deallocate(uun,vvn,wwn,ttn,qvn,pvn,clwcn,ciwcn, &
     rhon,prsn,drhodzn,tthn,qvhn,clwchn,ciwchn,ctwcn,etauvheightn,etawheightn)
 
-#ifdef ETA
-  deallocate(uuetan,vvetan,wwetan,ttetan,pvetan,prsetan,rhoetan, &
-    drhodzetan)
-#endif
+
+
+
+
 
   deallocate(psn,sdn,msln,tccn,u10n,v10n,tt2n,td2n,lsprecn,convprecn, &
     sshfn,ssrn,sfcstressn,ustarn,wstarn,hmixn,tropopausen,olin)
@@ -4368,10 +4328,10 @@ subroutine dealloc_windfields
   deallocate(wftime,wfname)
   deallocate(oro,excessoro,lsm)
 
-#ifdef ETA
-  deallocate(uueta,vveta,wweta,uupoleta,vvpoleta,tteta,pveta, &
-    prseta,rhoeta,drhodzeta)
-#endif
+
+
+
+
 
   deallocate(etauvheight,etawheight)
   

@@ -84,11 +84,11 @@ program flexpart
   print*,'Welcome to FLEXPART ', trim(flexversion)
   print*,"Git: ", trim(gitversion)
   print*,'FLEXPART is free software released under the GNU General Public License.'
-#ifdef ETA
-  write(*,*) 'FLEXPART is running with ETA coordinates.'
-#else
+
+
+
   write(*,*) 'FLEXPART is running with METER coordinates.'
-#endif
+
 
   ! Reading user specified options, allocating fields and checking bounds
   !**********************************************************************
@@ -174,11 +174,11 @@ subroutine read_options_and_initialise_flexpart
   use outgrid_mod
   use binary_output_mod
   use omp_lib,              only: OMP_GET_MAX_THREADS
-#ifdef USE_NCF
+
   use chemistry_mod,        only: readreagents
   use totals_mod
   use receptor_netcdf_mod,  only: read_satellite_info, receptorout_init
-#endif
+
   use receptor_mod,         only: alloc_receptor
 
   implicit none
@@ -201,14 +201,14 @@ subroutine read_options_and_initialise_flexpart
 
   ! Reading the number of threads available and print them for user
   !****************************************************************
-#ifdef _OPENMP
+
     numthreads = OMP_GET_MAX_THREADS()
     numthreads_grid = min(numthreads,maxthreadgrid)
     !numthreads = min(40,numthreads)
-#else
-    numthreads = 1
-    numthreads_grid = 1
-#endif
+
+
+
+
 
   if (numthreads.gt.1) then
     write(*,*)
@@ -300,9 +300,9 @@ subroutine read_options_and_initialise_flexpart
   numreceptor=0
   numsatreceptor=0
   nlayermax=1
-#ifdef USE_NCF
+
   call read_satellite_info
-#endif
+
   call readreceptors
 
   ! Read the landuse inventory
@@ -314,9 +314,9 @@ subroutine read_options_and_initialise_flexpart
   ! default settings
   nreagent=0
   reagents(:)=""
-#ifdef USE_NCF
+
   call readreagents
-#endif 
+
 
   ! For continuation of previous run or from user defined initial 
   ! conditions, read in particle positions
@@ -325,10 +325,10 @@ subroutine read_options_and_initialise_flexpart
 
   ! Initialize variables for totals calculations
   !*********************************************
-#ifdef USE_NCF
+
   call alloc_totals
   call totals_init
-#endif 
+
 
   ! Convert the release point coordinates from geografical to grid coordinates
   !***************************************************************************
@@ -344,9 +344,9 @@ subroutine read_options_and_initialise_flexpart
   call alloc_convect
   call alloc_getfields
   call alloc_interpol
-#ifdef USE_NCF
+
   if (lnetcdfout.eq.1) call alloc_netcdf
-#endif 
+
 
   ! Assign fractional cover of landuse classes to each ECMWF grid point
   !********************************************************************
@@ -364,9 +364,9 @@ subroutine read_options_and_initialise_flexpart
 
   call alloc_receptor
   if (lnetcdfout.eq.1) then
-#ifdef USE_NCF
+
     call receptorout_init
-#endif  
+
   else
     call receptorout_init_binary
   endif
@@ -415,9 +415,9 @@ subroutine initialise_particles
   use point_mod
   use com_mod
   use initialise_mod
-#ifdef USE_NCF  
+
   use netcdf_output_mod
-#endif
+
   use readoptions_mod
   use restart_mod
   use settling_mod
@@ -436,11 +436,11 @@ subroutine initialise_particles
     ! needs to be called after maxspec is defined in readreleases or readinitconditions
     if (ipout.ne.0) call readpartoptions 
   else
-#ifdef USE_NCF
+
     call readinitconditions_netcdf
-#else
-    error stop 'Compile with netCDF if you would like to use the ipin=3,4 options.'
-#endif
+
+
+
   endif
 
   if (iout.ne.0) then
@@ -452,11 +452,11 @@ subroutine initialise_particles
   if ((ipin.eq.1).or.(ipin.eq.4)) then ! Restarting from restart.bin file
     call readrestart
   else if (ipin.eq.2) then ! Restarting from netcdf partoutput file
-#ifdef USE_NCF
+
     call readpartpositions
-#else
-    error stop 'Compile with netCDF if you want to use the ipin=2 option.'
-#endif
+
+
+
   else if (ipin.eq.0) then
     ! Releases can only start and end at discrete times (multiples of lsynctime)
     !***************************************************************************

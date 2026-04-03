@@ -146,21 +146,6 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
 
   ! Create cloud fields
   !*********************
-#ifdef ETA
-    call verttransform_ecmwf_cloud(lcw,lcwsum,nxmin1,nymin1, &
-      ctwc(0:nxmin1,0:nymin1,n), &
-      clwc(0:nxmin1,0:nymin1,:,n), &
-      ciwc(0:nxmin1,0:nymin1,:,n), &
-      icloudbot(0:nxmin1,0:nymin1,n), &
-      icloudtop(0:nxmin1,0:nymin1,n), &
-      lsprec(0:nxmin1,0:nymin1,1,:,n), &
-      convprec(0:nxmin1,0:nymin1,1,:,n), &
-      rhoeta(0:nxmin1,0:nymin1,:,n), &
-      tteta(0:nxmin1,0:nymin1,:,n), &
-      qv(0:nxmin1,0:nymin1,:,n), &
-      etauvheight(0:nxmin1,0:nymin1,:,n), &
-      etawheight(0:nxmin1,0:nymin1,:,n))
-#else
     call verttransform_ecmwf_cloud(lcw,lcwsum,nxmin1,nymin1, &
       ctwc(0:nxmin1,0:nymin1,n),clwc(0:nxmin1,0:nymin1,:,n), &
       ciwc(0:nxmin1,0:nymin1,:,n), &
@@ -169,7 +154,7 @@ subroutine verttransform_ecmwf(n,uuh,vvh,wwh,pvh)
       rho(0:nxmin1,0:nymin1,:,n), tt(0:nxmin1,0:nymin1,:,n), &
       qv(0:nxmin1,0:nymin1,:,n), etauvheight(0:nxmin1,0:nymin1,:,n), &
       etawheight(0:nxmin1,0:nymin1,:,n)) 
-#endif
+
 end subroutine verttransform_ecmwf
 
 subroutine verttransform_nest(n,uuhn,vvhn,wwhn,pvhn)
@@ -272,15 +257,6 @@ subroutine verttransform_nest(n,uuhn,vvhn,wwhn,pvhn)
     ! Create cloud fields
     !*********************
 
-#ifdef ETA
-    call verttransform_ecmwf_cloud(lcw_nest(l),lcwsum_nest(l),nxm1,nym1,&
-      ctwcn(0:nxm1,0:nym1,n,l), clwcn(0:nxm1,0:nym1,:,n,l), ciwcn(0:nxm1,0:nym1,:,n,l), &
-      icloudbotn(0:nxm1,0:nym1,n,l), icloudtopn(0:nxm1,0:nym1,n,l), &
-      lsprecn(0:nxm1,0:nym1,1,:,n,l),convprecn(0:nxm1,0:nym1,1,:,n,l), &
-      rhoetan(0:nxm1,0:nym1,:,n,l),ttetan(0:nxm1,0:nym1,:,n,l), &
-      qvn(0:nxm1,0:nym1,:,n,l), etauvheightn(0:nxm1,0:nym1,:,n,l), &
-      etawheightn(0:nxm1,0:nym1,:,n,l))
-#else
     call verttransform_ecmwf_cloud(lcw_nest(l),lcwsum_nest(l),nxm1,nym1,&
       ctwcn(0:nxm1,0:nym1,n,l), clwcn(0:nxm1,0:nym1,:,n,l), ciwcn(0:nxm1,0:nym1,:,n,l), &
       icloudbotn(0:nxm1,0:nym1,n,l), icloudtopn(0:nxm1,0:nym1,n,l), &
@@ -288,7 +264,7 @@ subroutine verttransform_nest(n,uuhn,vvhn,wwhn,pvhn)
       rhon(0:nxm1,0:nym1,:,n,l),ttn(0:nxm1,0:nym1,:,n,l), &
       qvn(0:nxm1,0:nym1,:,n,l), etauvheightn(0:nxm1,0:nym1,:,n,l), &
       etawheightn(0:nxm1,0:nym1,:,n,l))
-#endif
+
       
   end do ! end loop over nests
 end subroutine verttransform_nest
@@ -427,54 +403,6 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
   real :: dzdx1,dzdx2,dzdy1,dzdy2
 
   ! Copy fields for ETA coordinate interpolations
-#ifdef ETA
-!$OMP PARALLEL PRIVATE(ix,jy,kz)
-!$OMP WORKSHARE
-  uueta(0:nxlim,0:nylim,:,n) = uuh(0:nxlim,0:nylim,:)
-  vveta(0:nxlim,0:nylim,:,n) = vvh(0:nxlim,0:nylim,:)
-  tteta(0:nxlim,0:nylim,:,n) = tth(0:nxlim,0:nylim,:,n)
-  qv(0:nxlim,0:nylim,:,n)    = qvh(0:nxlim,0:nylim,:,n)
-  pveta(0:nxlim,0:nylim,:,n) = pvh(0:nxlim,0:nylim,:)
-  rhoeta(0:nxlim,0:nylim,:,n) = rhoh(0:nxlim,0:nylim,:)
-  prseta(0:nxlim,0:nylim,:,n) = prsh(0:nxlim,0:nylim,:)
-
-  forall (ix=0:nxlim,jy=0:nylim,kz=2:nz-1)
-    drhodzeta(ix,jy,kz,n)= &
-         (rhoh(ix,jy,kz+1)-rhoh(ix,jy,kz-1))/ &
-         (height(kz+1)-height(kz-1)) 
-         ! Note that this is still in SI units and not in eta
-  end forall
-  drhodzeta(0:nxlim,0:nylim,1,n)=(rhoh(0:nxlim,0:nylim,2)-rhoh(0:nxlim,0:nylim,1))/(height(2)-height(1))
-  drhodzeta(0:nxlim,0:nylim,nz,n)=drhodzeta(0:nxlim,0:nylim,nz-1,n)
-
-  ! Convert w from Pa/s to eta/s, following FLEXTRA
-  !************************************************
-  ! z=1
-  wweta(0:nxlim,0:nylim,1,n)=wwh(0:nxlim,0:nylim,1)/ &
-    ((akm(2)-akm(1)+(bkm(2)-bkm(1))*ps(0:nxlim,0:nylim,1,n))/ &
-        (wheight(2)-wheight(1)))
-  ! z=nuvz-1
-  wweta(0:nxlim,0:nylim,nuvz-1,n)=wwh(0:nxlim,0:nylim,nuvz-1)/ &
-    ((akm(nuvz-1)-akm(nuvz-2)+(bkm(nuvz-1)-bkm(nuvz-2))*ps(0:nxlim,0:nylim,1,n))/ &
-        (wheight(nuvz-1)-wheight(nuvz-2)))
-  ! 1<z<nuvz-1
-  forall (ix=0:nxlim,jy=0:nylim,kz=2:nuvz-2)
-    wweta(ix,jy,kz,n)=wwh(ix,jy,kz)/ &
-      ((akm(kz+1)-akm(kz-1)+(bkm(kz+1)-bkm(kz-1))*ps(ix,jy,1,n))/ &
-        (wheight(kz+1)-wheight(kz-1)))
-  end forall
-!$OMP END WORKSHARE NOWAIT
-
-  if (lcw) then
-!$OMP DO
-    do kz=1,nz
-      clwc(0:nxlim,0:nylim,kz,n)=clwch(0:nxlim,0:nylim,kz,n)
-      if (.not. lcwsum) ciwc(0:nxlim,0:nylim,kz,n)=ciwch(0:nxlim,0:nylim,kz,n)
-    end do
-!$OMP END DO
-  endif
-!$OMP END PARALLEL
-#endif
 
 !$OMP PARALLEL PRIVATE(jy,ix,iz,kz,dz1,dz2,dz,ix1,jy1,ixp,jyp,dzdx1,dzdx2,dzdx, &
 !$OMP dzdy1,dzdy2,dzdy,dpdeta)
@@ -531,10 +459,10 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
   tt(0:nxlim,0:nylim,nz,n)=tth(0:nxlim,0:nylim,nuvz,n)
   pv(0:nxlim,0:nylim,1,n)=pvh(0:nxlim,0:nylim,1)
   pv(0:nxlim,0:nylim,nz,n)=pvh(0:nxlim,0:nylim,nuvz)
-#ifndef ETA
+
   qv(0:nxlim,0:nylim,1,n)=qvh(0:nxlim,0:nylim,1,n)
   qv(0:nxlim,0:nylim,nz,n)=qvh(0:nxlim,0:nylim,nuvz,n)
-#endif
+
   rho(0:nxlim,0:nylim,1,n)=rhoh(0:nxlim,0:nylim,1)
   rho(0:nxlim,0:nylim,nz,n)=rhoh(0:nxlim,0:nylim,nuvz)
   ! RLT add pressure
@@ -548,7 +476,7 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
   end forall
 !$OMP END WORKSHARE NOWAIT
 
-#ifndef ETA
+
   if (lcw) then !hg adding the cloud water 
 !$OMP WORKSHARE
     clwc(0:nxlim,0:nylim,1,n)=clwch(0:nxlim,0:nylim,1,n)
@@ -561,7 +489,7 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
 !$OMP END WORKSHARE NOWAIT
     endif
   endif
-#endif
+
 
 !$OMP BARRIER
 
@@ -578,14 +506,14 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
           pv(ix,jy,iz,n)=pv(ix,jy,nz,n)
           rho(ix,jy,iz,n)=rho(ix,jy,nz,n)
           prs(ix,jy,iz,n)=prs(ix,jy,nz,n)   ! RLT
-#ifndef ETA
+
           qv(ix,jy,iz,n)=qv(ix,jy,nz,n)
           !hg adding the cloud water
           if (lcw) then
             clwc(ix,jy,iz,n)=clwc(ix,jy,nz,n)
             if (.not.lcwsum) ciwc(ix,jy,iz,n)=ciwc(ix,jy,nz,n)
           end if
-#endif
+
         else
           kz=idx(ix,jy,iz)
           dz1=height(iz)-etauvheight(ix,jy,kz-1,n)
@@ -599,7 +527,7 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
           rho(ix,jy,iz,n)=(rhoh(ix,jy,kz-1)*dz2+rhoh(ix,jy,kz)*dz1)/dz
           ! RLT add pressure
           prs(ix,jy,iz,n)=(prsh(ix,jy,kz-1)*dz2+prsh(ix,jy,kz)*dz1)/dz
-#ifndef ETA
+
           qv(ix,jy,iz,n)=(qvh(ix,jy,kz-1,n)*dz2+qvh(ix,jy,kz,n)*dz1)/dz
           !hg adding the cloud water
           if  (lcw) then
@@ -608,7 +536,7 @@ subroutine verttransform_ecmwf_windfields(n,nxlim,nylim,uuh,vvh,wwh,pvh,rhoh,prs
             if (.not.lcwsum) ciwc(ix,jy,iz,n)= &
               (ciwch(ix,jy,kz-1,n)*dz2+ciwch(ix,jy,kz,n)*dz1)/dz
           end if
-#endif
+
         endif
         ! Levels, where w is given
         !*************************
@@ -693,11 +621,11 @@ subroutine verttransform_ecmwf_polar(n)
           call cc2gll(northpolemap,ylat,xlon,uu(ix,jy,iz,n), &
                vv(ix,jy,iz,n),uupol(ix,jy,iz,n), &
                vvpol(ix,jy,iz,n))
-#ifdef ETA
-          call cc2gll(northpolemap,ylat,xlon,uueta(ix,jy,iz,n), &
-               vveta(ix,jy,iz,n),uupoleta(ix,jy,iz,n), &
-               vvpoleta(ix,jy,iz,n))
-#endif
+
+
+
+
+
         end do
       end do
     end do
@@ -754,46 +682,6 @@ subroutine verttransform_ecmwf_polar(n)
         vvpol(ix,jy,iz,n)=vvpolaux
       end do
 
-#ifdef ETA
-      xlon=xlon0+real(nx/2-1)*dx
-      xlonr=xlon*pi/180.
-      ffpol=sqrt(uueta(nx/2-1,nymin1,iz,n)**2+ &
-           vveta(nx/2-1,nymin1,iz,n)**2)
-      if (vveta(nx/2-1,nymin1,iz,n).lt.0.) then
-        ddpol=atan(uueta(nx/2-1,nymin1,iz,n)/ &
-             vveta(nx/2-1,nymin1,iz,n))-xlonr
-      else if (vveta(nx/2-1,nymin1,iz,n).gt.0.) then
-        ddpol=pi+atan(uueta(nx/2-1,nymin1,iz,n)/ &
-             vveta(nx/2-1,nymin1,iz,n))-xlonr
-      else
-        ddpol=pi*0.5-xlonr
-      endif
-      if(ddpol.lt.0.) ddpol=2.0*pi+ddpol
-      if(ddpol.gt.2.0*pi) ddpol=ddpol-2.0*pi
-
-! CALCULATE U,V FOR 180 DEG, TRANSFORM TO POLAR STEREOGRAPHIC GRID
-      xlon=180.0
-      xlonr=xlon*pi/180.
-      ylat=90.0
-      uuaux=-ffpol*sin(xlonr+ddpol)
-      vvaux=-ffpol*cos(xlonr+ddpol)
-      call cc2gll(northpolemap,ylat,xlon,uuaux,vvaux,uupolaux, &
-           vvpolaux)
-
-      wdummy=0.
-      jy=ny-2
-      do ix=0,nxmin1
-        wdummy=wdummy+wweta(ix,jy,iz,n)
-      end do
-      wdummy=wdummy/real(nx)
-      jy=nymin1
-      do ix=0,nxmin1
-        wweta(ix,jy,iz,n)=wdummy
-        uupoleta(ix,jy,iz,n)=uupolaux
-        vvpoleta(ix,jy,iz,n)=vvpolaux
-      end do
-
-#endif
     end do
 !$OMP END DO
 !$OMP END PARALLEL
@@ -848,11 +736,11 @@ subroutine verttransform_ecmwf_polar(n)
           call cc2gll(southpolemap,ylat,xlon,uu(ix,jy,iz,n), &
                vv(ix,jy,iz,n),uupol(ix,jy,iz,n), &
                vvpol(ix,jy,iz,n))
-#ifdef ETA
-          call cc2gll(southpolemap,ylat,xlon,uueta(ix,jy,iz,n), &
-               vveta(ix,jy,iz,n),uupoleta(ix,jy,iz,n), &
-               vvpoleta(ix,jy,iz,n))
-#endif
+
+
+
+
+
         end do
       end do
     end do
@@ -908,49 +796,6 @@ subroutine verttransform_ecmwf_polar(n)
         vvpol(ix,jy,iz,n)=vvpolaux
       end do
 
-#ifdef ETA
-  ! CALCULATE FFPOL, DDPOL FOR CENTRAL GRID POINT
-  !
-  !   AMSnauffer Nov 18 2004 Added check for case vv=0
-  !
-      xlon=xlon0+real(nx/2-1)*dx
-      xlonr=xlon*pi/180.
-      ffpol=sqrt(uueta(nx/2-1,0,iz,n)**2+ &
-           vveta(nx/2-1,0,iz,n)**2)
-      if (vveta(nx/2-1,0,iz,n).lt.0.) then
-        ddpol=atan(uueta(nx/2-1,0,iz,n)/ &
-             vveta(nx/2-1,0,iz,n))+xlonr
-      else if (vveta(nx/2-1,0,iz,n).gt.0.) then
-        ddpol=pi+atan(uueta(nx/2-1,0,iz,n)/ &
-             vveta(nx/2-1,0,iz,n))+xlonr
-      else
-        ddpol=pi*0.5-xlonr
-      endif
-      if(ddpol.lt.0.) ddpol=2.0*pi+ddpol
-      if(ddpol.gt.2.0*pi) ddpol=ddpol-2.0*pi
-
-! CALCULATE U,V FOR 180 DEG, TRANSFORM TO POLAR STEREOGRAPHIC GRID
-      xlon=180.0
-      xlonr=xlon*pi/180.
-      ylat=-90.0
-      uuaux=+ffpol*sin(xlonr-ddpol)
-      vvaux=-ffpol*cos(xlonr-ddpol)
-      call cc2gll(northpolemap,ylat,xlon,uuaux,vvaux,uupolaux, &
-           vvpolaux)
-
-      wdummy=0.
-      jy=1
-      do ix=0,nxmin1
-        wdummy=wdummy+wweta(ix,jy,iz,n)
-      end do
-      wdummy=wdummy/real(nx)
-      jy=0
-      do ix=0,nxmin1
-        wweta(ix,jy,iz,n)=wdummy
-        uupoleta(ix,jy,iz,n)=uupolaux
-        vvpoleta(ix,jy,iz,n)=vvpolaux
-      end do
-#endif
     end do
 !$OMP END DO
 !$OMP END PARALLEL
@@ -993,10 +838,10 @@ subroutine verttransform_ecmwf_cloud(lcw_tmp,lcwsum_tmp,nxlim,nylim,&
   do jy=0,nylim
     do ix=0,nxlim
 
-#ifdef ETA
-      call convert_cloud_params(ix,jy,nxlim,nylim,max_cloudthck_eta,conv_clrange_eta, &
-        highconvp_clrange_eta,lowconvp_clrange_eta,uvzlev)
-#endif
+
+
+
+
 
       icloudbot_tmp(ix,jy) = icmv 
 
@@ -1096,24 +941,24 @@ subroutine identify_cloud(ix,jy,lcw_tmp,lcwsum_tmp,nxlim,nylim, &
       ! calculate cloud water mass per area: kgCW/kgAIR * kgAIR/m3 * m = kgCW/m2
       
       ! assuming rho is in kg/m3 and hz in m gives: kg/kg * kg/m3 *m3/kg /m = m2/m3
-#ifdef ETA
-      clw = clwc_tmp(ix,jy,kz)*rho_tmp(ix,jy,kz)*(uvzlev(ix,jy,kz+1)-uvzlev(ix,jy,kz))
-#else
+
+
+
       clw = clwc_tmp(ix,jy,kz)*rho_tmp(ix,jy,kz)*(height(kz+1)-height(kz)) 
-#endif
+
       ! Add this layer to column cloud water [m3/m3]
       ctwc_tmp(ix,jy) = ctwc_tmp(ix,jy)+clw ! kg / m2 (or eta) in column
 
       if (clw .gt. 0.) then ! cloud layer - maybe use threshold?
-#ifdef ETA
-        if (icloudbot_tmp(ix,jy) .eq. icmv) & !cloud bottom set to first cloud instance
-          icloudbot_tmp(ix,jy) = int(uvheight(kz)*eta_convert)
-        icloudtop_tmp(ix,jy) = int(uvheight(kz)*eta_convert) !After the loop, icloudtop will be the top
-#else
+
+
+
+
+
         if (icloudbot_tmp(ix,jy) .eq. icmv) &
             icloudbot_tmp(ix,jy) = (height(kz))
           icloudtop_tmp(ix,jy) = (height(kz))
-#endif
+
       endif
     end do
 
@@ -1125,17 +970,17 @@ subroutine identify_cloud(ix,jy,lcw_tmp,lcwsum_tmp,nxlim,nylim, &
       rh=qv_tmp(ix,jy,kz)/f_qvsat(pressure,tt_tmp(ix,jy,kz))
       ! PS if (prec.gt.0.01) print*,'relhum',prec,kz,rh,height(kz)
       if (rh .ge. rhmin) then
-#ifdef ETA
-        if (icloudbot_tmp(ix,jy) .eq. icmv) then
-          icloudbot_tmp(ix,jy)=int(uvheight(kz)*eta_convert)
-        endif
-        icloudtop_tmp(ix,jy)=int(uvheight(kz) *eta_convert)
-#else
+
+
+
+
+
+
         if (icloudbot_tmp(ix,jy) .eq. icmv) then
           icloudbot_tmp(ix,jy)=(height(kz))
         endif
         icloudtop_tmp(ix,jy)=(height(kz))
-#endif
+
 
       endif
     end do
@@ -1174,61 +1019,6 @@ subroutine apply_cloud_bounds(ix,jy,nxlim,nylim,lsprec_tmp,convprec_tmp,uvzlev, 
   icloudtop_old = icloudtop_tmp(ix,jy)
   ! top level, kz=nz-1
   ! limit cloud top to 19 km:
-#ifdef ETA
-  ! Enforce maximum cloudtop height in eta coords
-  if (icloudbot_tmp(ix,jy) .eq. icmv) then !Can we skip to the next gridcell?
-    icloudtop_tmp(ix,jy)=icmv
-  else if (icloudtop_tmp(ix,jy) .lt. max_cloudthck_eta) then
-    icloudtop_tmp(ix,jy) = max_cloudthck_eta
-  endif
-
-  ! To compute the minimum thickness in eta coordinates, this needs
-  ! to be computed from the bottom level:
-  ! 1) Convert icloudbot_tmp to meter coordinates
-  ! 2) Add the min_cloudthck to the icloudbot_tmp(meter)
-  ! 3) Convert this back to eta coordinates (min_cloudtop(eta))
-  ! 4) Check if our cloudtop is higher (lower eta) than this minimum
-  do kz=1,nz
-    if (int(uvheight(kz)*eta_convert).le.icloudbot_tmp(ix,jy)) then
-      min_cloudtop = uvzlev(ix,jy,kz)+min_cloudthck ! In meters
-      exit
-    endif
-  end do
-  do kz=1,nz
-    if (int(uvzlev(ix,jy,kz)).gt.min_cloudtop) then ! back to eta
-      min_cloudtop=int(uvheight(kz)*eta_convert)
-      exit
-    endif
-  enddo
-  ! PS  get rid of too thin clouds   
-  if (icloudtop_tmp(ix,jy) .gt. min_cloudtop) then
-    icloudbot_tmp(ix,jy)=icmv
-    icloudtop_tmp(ix,jy)=icmv
-  endif
-  ! PS implement a rough fix for badly represented convection
-  ! PS is based on looking at a limited set of comparison data
-  lsp=  sum(   lsprec_tmp(ix,jy,:) )
-  convp=sum( convprec_tmp(ix,jy,:) )
-  prec=lsp+convp
-  if (lsp.gt.convp) then !  prectype='lsp'
-    lconvectprec = .false.
-  else ! prectype='cp '
-    lconvectprec = .true.
-  endif
-  if (lconvectprec .and. prec .gt. precmin .and.  &
-    (icloudtop_old .gt. conv_clrange_eta(2) .or. &
-      icloudbot_tmp(ix,jy) .lt. conv_clrange_eta(1)) ) then
-    if (convp .lt. 0.1) then
-      icloudbot_tmp(ix,jy) = lowconvp_clrange_eta(1)
-      icloudtop_tmp(ix,jy) = lowconvp_clrange_eta(2)
-    else
-      icloudbot_tmp(ix,jy) = highconvp_clrange_eta(1)
-      icloudtop_tmp(ix,jy) = highconvp_clrange_eta(2)
-    endif
-  endif
-
-  !---------------------------------------------------------------------------------------
-#else
   if (icloudbot_tmp(ix,jy) .eq. icmv) then ! if no bottom found, no top either
     icloudtop_tmp(ix,jy)=icmv
   else if (icloudtop_tmp(ix,jy) .gt. max_cloudthck) then ! max cloud height
@@ -1260,7 +1050,7 @@ subroutine apply_cloud_bounds(ix,jy,nxlim,nylim,lsprec_tmp,convprec_tmp,uvzlev, 
       icloudtop_tmp(ix,jy) = highconvp_clrange(2)
     endif
   endif
-#endif
+
 end subroutine apply_cloud_bounds
 
 subroutine verttransform_gfs(n,uuh,vvh,wwh,pvh)
@@ -2132,9 +1922,9 @@ subroutine verttransform_ecmwf_windfields_nest(l,n, &
       uun(ix,jy,1,n,l)=uuhn(ix,jy,1,l)
       vvn(ix,jy,1,n,l)=vvhn(ix,jy,1,l)
       ttn(ix,jy,1,n,l)=tthn(ix,jy,1,n,l)
-#ifndef ETA
+
       qvn(ix,jy,1,n,l)=qvhn(ix,jy,1,n,l)
-#endif
+
       if (lcw_nest(l)) then
         clwcn(ix,jy,1,n,l)=clwchn(ix,jy,1,n,l)
         if (.not.lcwsum_nest(l)) ciwcn(ix,jy,1,n,l)=ciwchn(ix,jy,1,n,l)
@@ -2146,13 +1936,13 @@ subroutine verttransform_ecmwf_windfields_nest(l,n, &
       uun(ix,jy,nz,n,l)=uuhn(ix,jy,nuvz,l)
       vvn(ix,jy,nz,n,l)=vvhn(ix,jy,nuvz,l)
       ttn(ix,jy,nz,n,l)=tthn(ix,jy,nuvz,n,l)
-#ifndef ETA
+
       qvn(ix,jy,nz,n,l)=qvhn(ix,jy,nuvz,n,l)
       if (lcw_nest(l)) then
         clwcn(ix,jy,nz,n,l)=clwchn(ix,jy,nuvz,n,l)
         if (.not.lcwsum_nest(l)) ciwcn(ix,jy,nz,n,l)=ciwchn(ix,jy,nuvz,n,l)
       endif
-#endif
+
       pvn(ix,jy,nz,n,l)=pvhn(ix,jy,nuvz,l)
       rhon(ix,jy,nz,n,l)=rhohn(ix,jy,nuvz)
       prsn(ix,jy,nz,n,l)=prshn(ix,jy,nuvz)
@@ -2171,14 +1961,14 @@ subroutine verttransform_ecmwf_windfields_nest(l,n, &
           vvn(ix,jy,iz,n,l)=vvn(ix,jy,nz,n,l)
           ttn(ix,jy,iz,n,l)=ttn(ix,jy,nz,n,l)
           pvn(ix,jy,iz,n,l)=pvn(ix,jy,nz,n,l)
-#ifndef ETA
+
           qvn(ix,jy,iz,n,l)=qvn(ix,jy,nz,n,l)
           !hg adding the cloud water
           if (lcw_nest(l)) then
             clwcn(ix,jy,iz,n,l)=clwcn(ix,jy,nz,n,l)
             if (.not.lcwsum_nest(l)) ciwcn(ix,jy,iz,n,l)=ciwcn(ix,jy,nz,n,l)
           endif
-#endif
+
           rhon(ix,jy,iz,n,l)=rhon(ix,jy,nz,n,l)
           prsn(ix,jy,iz,n,l)=prsn(ix,jy,nz,n,l)
         else
@@ -2202,7 +1992,7 @@ subroutine verttransform_ecmwf_windfields_nest(l,n, &
           ttn(ix,jy,iz,n,l)=(tthn(ix,jy,kz-1,n,l)*dz2 &
                +tthn(ix,jy,kz,n,l)*dz1)/dz
           pvn(ix,jy,iz,n,l)=(pvhn(ix,jy,kz-1,l)*dz2+pvhn(ix,jy,kz,l)*dz1)/dz
-#ifndef ETA
+
           qvn(ix,jy,iz,n,l)=(qvhn(ix,jy,kz-1,n,l)*dz2 &
                +qvhn(ix,jy,kz,n,l)*dz1)/dz
           !hg adding the cloud water
@@ -2211,7 +2001,7 @@ subroutine verttransform_ecmwf_windfields_nest(l,n, &
             if (.not.lcwsum_nest(l)) ciwcn(ix,jy,iz,n,l) = &
               (ciwchn(ix,jy,kz-1,n,l)*dz2+ciwchn(ix,jy,kz,n,l)*dz1)/dz
           end if
-#endif
+
           rhon(ix,jy,iz,n,l)=(rhohn(ix,jy,kz-1)*dz2+rhohn(ix,jy,kz)*dz1)/dz
           prsn(ix,jy,iz,n,l)=(prshn(ix,jy,kz-1)*dz2+prshn(ix,jy,kz)*dz1)/dz
         endif
@@ -2330,62 +2120,6 @@ subroutine verttransform_ecmwf_windfields_nest(l,n, &
   enddo
 
   ! Keep original fields if wind_coord_type==ETA
-#ifdef ETA
-!$OMP DO
-
-    do kz=1,nz
-      do jy=0,nym1
-        do ix=0,nxm1
-          uuetan(ix,jy,kz,n,l) = uuhn(ix,jy,kz,l)
-          vvetan(ix,jy,kz,n,l) = vvhn(ix,jy,kz,l)
-          ttetan(ix,jy,kz,n,l) = tthn(ix,jy,kz,n,l)
-          qvn(ix,jy,kz,n,l) = qvhn(ix,jy,kz,n,l)
-          pvetan(ix,jy,kz,n,l) = pvhn(ix,jy,kz,l)
-          rhoetan(ix,jy,kz,n,l) = rhohn(ix,jy,kz)
-          prsetan(ix,jy,kz,n,l) = prshn(ix,jy,kz)
-          ! eq A11 from Mid-latitude atmospheric dynamics by Jonathan E. Martin
-          ! tvirtualn(ix,jy,kz,n,l)=ttetan(ix,jy,kz,n,l)* &  
-          !   ((qvn(ix,jy,kz,n,l)+0.622)/(0.622*qvn(ix,jy,kz,n,l)+0.622))
-          if ((kz.gt.1).and.(kz.lt.nz)) drhodzetan(ix,jy,kz,n,l)= &
-            (rhohn(ix,jy,kz+1)-rhohn(ix,jy,kz-1))/(height(kz+1)-height(kz-1))
-          if (lcw) then
-            clwcn(ix,jy,kz,n,l)=clwchn(ix,jy,kz,n,l)
-            if (.not.lcwsum_nest(l)) ciwcn(ix,jy,kz,n,l)=ciwchn(ix,jy,kz,n,l)
-          endif
-        end do
-      end do
-    end do
-!$OMP END DO
-
-!$OMP DO
-    do jy=0,nym1
-      do ix=0,nxm1
-        drhodzetan(ix,jy,1,n,l)=(rhoetan(ix,jy,2,n,l)-rhoetan(ix,jy,1,n,l))/ &
-             (height(2)-height(1))
-        drhodzetan(ix,jy,nz,n,l)=drhodzetan(ix,jy,nz-1,n,l)
-        ! tvirtualn(ix,jy,1,n,l)=tt2n(ix,jy,1,n,l)* &
-        !   (1.+0.378*ew(td2n(ix,jy,1,n,l),psn(ix,jy,1,n,l))/ps(ix,jy,1,n,l))
-        
-        ! Convert w from Pa/s to eta/s, following FLEXTRA
-        !************************************************
-        do kz=1,nuvz-1
-          if (kz.eq.1) then
-            dpdeta=(akm(kz+1)-akm(kz)+(bkm(kz+1)-bkm(kz))*ps(ix,jy,1,n))/ &
-              (wheight(kz+1)-wheight(kz))
-          else if (kz.eq.nuvz-1) then
-            dpdeta=(akm(kz)-akm(kz-1)+(bkm(kz)-bkm(kz-1))*ps(ix,jy,1,n))/ &
-              (wheight(kz)-wheight(kz-1))
-          else
-            dpdeta=(akm(kz+1)-akm(kz-1)+(bkm(kz+1)-bkm(kz-1))*ps(ix,jy,1,n))/ &
-              (wheight(kz+1)-wheight(kz-1))
-          endif
-          wwetan(ix,jy,kz,n,l)=wwhn(ix,jy,kz,l)/dpdeta
-        enddo
-        wwetan(ix,jy,nuvz,n,l)=wwetan(ix,jy,nuvz-1,n,l)
-      enddo
-    enddo 
-!$OMP END DO
-#endif
 !$OMP END PARALLEL
 end subroutine verttransform_ecmwf_windfields_nest
 

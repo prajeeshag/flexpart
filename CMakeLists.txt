@@ -61,8 +61,9 @@ endif()
 
 
 # ── External libraries ─────────────────────────────────────────────────────────
-find_library(ECCODES_LIB     eccodes     REQUIRED)
-find_library(ECCODES_F90_LIB eccodes_f90 REQUIRED)
+#find_library(ECCODES_LIB     eccodes     REQUIRED)
+find_package(eccodes REQUIRED)
+#find_library(ECCODES_F90_LIB eccodes_f90 REQUIRED)
 
 find_library(NETCDFF_LIB netcdff REQUIRED)
 
@@ -146,10 +147,14 @@ if(DEFINED ENV{LIBRARY_PATH})
 endif()
 
 # ── Link libraries ─────────────────────────────────────────────────────────────
+#target_link_libraries(${EXE_NAME} PRIVATE
+#  ${ECCODES_LIB}
+#  ${ECCODES_F90_LIB}
+#)
+
 target_link_libraries(${EXE_NAME} PRIVATE
-  ${ECCODES_LIB}
-  ${ECCODES_F90_LIB}
-  m
+  eccodes
+  eccodes_f90
 )
 
 target_link_libraries(${EXE_NAME} PRIVATE ${NETCDFF_LIB})

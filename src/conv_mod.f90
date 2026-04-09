@@ -166,7 +166,7 @@ contains
       integer :: igr, igrold, ipart, itime, ix, i, j, ik, inest
       integer :: ipconv, ithread, stat, countconv
       integer :: jy, kpart, ktop, ngrid, kz
-      integer, allocatable :: igrid(:), ipoint(:), igridn(:, :)
+      integer, allocatable :: igrid(:), ipoint(:)
 
       ! itime [s]                 current time
       ! igrid(maxpart)            horizontal grid position of each particle
@@ -410,7 +410,6 @@ contains
 
       deallocate (igrid)
       deallocate (ipoint)
-      deallocate (igridn)
 
       return
    end subroutine convmix
